@@ -1,2 +1,10 @@
 bin
+build
 generated
+
+CMakeCache.txt
+CMakeFiles
+CTestMakefile.cmake
+CTestTestfile.cmake
+cmake_install.cmake
+Makefile

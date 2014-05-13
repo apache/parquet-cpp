@@ -3,7 +3,6 @@
 
 #include <string>
 #include <parquet/parquet.h>
-#include <arpa/inet.h>
 
 // TCompactProtocol requires some #defines to work right.
 // TODO: is there a better include to use?
