@@ -1,4 +1,6 @@
-#include <parquet/parquet.h>
+#include "parquet/parquet.h"
+#include "encodings.h"
+
 #include <string>
 #include <string.h>
 
@@ -44,7 +46,6 @@ bool ColumnReader::ReadNewPage() {
   if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
     InitDictionary();
 //    return ReadNewPage();
-    return true;
   }
 
   return true;

@@ -17,6 +17,13 @@
 
 namespace parquet_cpp {
 
+class Decoder;
+
+struct String {
+  uint32_t len;
+  const uint8_t* ptr;
+};
+
 class InputStream {
  public:
   virtual ~InputStream() {}
@@ -53,6 +60,8 @@ class ColumnReader {
   std::vector<uint8_t> buffered_bytes_;
   size_t num_buffered_bytes_;
   size_t buffered_bytes_offset_;
+
+  boost::shared_ptr<Decoder> decoder_;
 };
 
 // Deserialize a thrift message from buf/len.  buf/len must at least contain
@@ -78,7 +87,7 @@ inline bool DeserializeThriftMsg(uint8_t* buf, uint32_t* len, T* deserialized_ms
   return true;
 }
 
-
 }
+
 #endif
 

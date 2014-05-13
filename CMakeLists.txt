@@ -43,7 +43,7 @@ message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
 add_library(thriftstatic STATIC IMPORTED)
 set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
 
-SET(CMAKE_CXX_FLAGS "-msse4.2 -Wall -Wno-sign-compare -Wno-unknown-pragmas -pthread")
+SET(CMAKE_CXX_FLAGS "-msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
 
 # Thrift requires these definitions for some types that we use
