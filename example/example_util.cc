@@ -48,10 +48,7 @@ bool GetFileMetadata(const string& path, FileMetaData* metadata) {
     return false;
   }
 
-  cout << "Len: " << file_len << endl;
-  cout << metadata_len << endl;
   fseek(file, metadata_start, SEEK_SET);
-
   uint8_t metadata_buffer[metadata_len];
   bytes_read = fread(metadata_buffer, 1, metadata_len, file);
   if (bytes_read != metadata_len) {
@@ -60,7 +57,7 @@ bool GetFileMetadata(const string& path, FileMetaData* metadata) {
     return false;
   }
 
-  if (!DeserializeThriftMsg(metadata_buffer, &metadata_len, true, metadata)) {
+  if (!DeserializeThriftMsg(metadata_buffer, &metadata_len, metadata)) {
     cerr << "Invalid parquet file. Could not read deserialize metadata." << endl;
     fclose(file);
     return false;
