@@ -79,7 +79,7 @@ class RleDecoder {
  public:
   // Create a decoder object. buffer/buffer_len is the decoded data.
   // bit_width is the width of each value (before encoding).
-  RleDecoder(uint8_t* buffer, int buffer_len, int bit_width)
+  RleDecoder(const uint8_t* buffer, int buffer_len, int bit_width)
     : bit_reader_(buffer, buffer_len),
       bit_width_(bit_width),
       current_value_(0),

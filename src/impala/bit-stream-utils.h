@@ -92,7 +92,7 @@ class BitWriter {
 class BitReader {
  public:
   // 'buffer' is the buffer to read from.  The buffer's length is 'buffer_len'.
-  BitReader(uint8_t* buffer, int buffer_len) :
+  BitReader(const uint8_t* buffer, int buffer_len) :
       buffer_(buffer),
       max_bytes_(buffer_len),
       byte_offset_(0),
@@ -127,7 +127,7 @@ class BitReader {
   static const int MAX_VLQ_BYTE_LEN = 5;
 
  private:
-  uint8_t* buffer_;
+  const uint8_t* buffer_;
   int max_bytes_;
 
   // Bytes are memcpy'd from buffer_ and values are read from this variable. This is
