@@ -1,0 +1,71 @@
+#include "example_util.h"
+#include <iostream>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+using namespace parquet;
+using namespace parquet_cpp;
+using namespace std;
+
+// 4 byte constant + 4 byte metadata len
+const uint32_t FOOTER_SIZE = 8;
+const uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
+
+bool GetFileMetadata(const string& path, FileMetaData* metadata) {
+  FILE* file = fopen(path.c_str(), "r");
+  if (!file) {
+    cerr << "Could not open file: " << path << endl;
+    return false;
+  }
+  fseek(file, 0L, SEEK_END);
+  size_t file_len = ftell(file);
+  if (file_len < FOOTER_SIZE) {
+    cerr << "Invalid parquet file. Corrupt footer." << endl;
+    fclose(file);
+    return false;
+  }
+
+  uint8_t footer_buffer[FOOTER_SIZE];
+  fseek(file, file_len - FOOTER_SIZE, SEEK_SET);
+  size_t bytes_read = fread(footer_buffer, 1, FOOTER_SIZE, file);
+  if (bytes_read != FOOTER_SIZE) {
+    cerr << "Invalid parquet file. Corrupt footer." << endl;
+    fclose(file);
+    return false;
+  }
+  if (memcmp(footer_buffer + 4, PARQUET_MAGIC, 4) != 0) {
+    cerr << "Invalid parquet file. Corrupt footer." << endl;
+    fclose(file);
+    return false;
+  }
+
+  uint32_t metadata_len = *reinterpret_cast<uint32_t*>(footer_buffer);
+  size_t metadata_start = file_len - FOOTER_SIZE - metadata_len;
+  if (metadata_start < 0) {
+    cerr << "Invalid parquet file. File is less than file metadata size." << endl;
+    fclose(file);
+    return false;
+  }
+
+  cout << "Len: " << file_len << endl;
+  cout << metadata_len << endl;
+  fseek(file, metadata_start, SEEK_SET);
+
+  uint8_t metadata_buffer[metadata_len];
+  bytes_read = fread(metadata_buffer, 1, metadata_len, file);
+  if (bytes_read != metadata_len) {
+    cerr << "Invalid parquet file. Could not read metadata bytes." << endl;
+    fclose(file);
+    return false;
+  }
+
+  if (!DeserializeThriftMsg(metadata_buffer, &metadata_len, true, metadata)) {
+    cerr << "Invalid parquet file. Could not read deserialize metadata." << endl;
+    fclose(file);
+    return false;
+  }
+
+  return true;
+
+}
