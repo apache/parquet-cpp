@@ -5,6 +5,8 @@
 #include "gen-cpp/parquet_constants.h"
 #include "gen-cpp/parquet_types.h"
 
+#include "impala/rle-encoding.h"
+
 // TCompactProtocol requires some #defines to work right.
 #define SIGNED_RIGHT_SHIFT_IS 1
 #define ARITHMETIC_RIGHT_SHIFT 1
@@ -49,6 +51,8 @@ class ColumnReader {
   ColumnReader(const parquet::SchemaElement* schema, InputStream* stream);
   bool HasNext();
 
+  bool GetInt32(int32_t* result);
+
  private:
   bool ReadNewPage();
   void InitDictionary();
@@ -61,6 +65,7 @@ class ColumnReader {
   size_t num_buffered_bytes_;
   size_t buffered_bytes_offset_;
 
+  impala::RleDecoder definition_level_decoder_;
   boost::shared_ptr<Decoder> decoder_;
 };
 

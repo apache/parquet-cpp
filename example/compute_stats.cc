@@ -49,7 +49,11 @@ int main(int argc, char** argv) {
       }
       InMemoryInputStream input(&column_buffer[0], column_buffer.size());
       ColumnReader reader(&metadata.schema[c + 1], &input);
-      printf("%d\n", reader.HasNext());
+      while (reader.HasNext()) {
+        int32_t val;
+        bool is_null = reader.GetInt32(&val);
+        if (!is_null) cout << val << endl;
+      }
     }
   }
   fclose(file);

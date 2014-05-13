@@ -13,7 +13,7 @@ class Decoder {
  public:
   virtual ~Decoder() {}
 
-  virtual void SetData(const uint8_t* data, int len) = 0;
+  virtual void SetData(int num_values, const uint8_t* data, int len) = 0;
 
   // Subclasses should override the ones they support
   virtual bool GetBool() { return false; }
@@ -25,17 +25,17 @@ class Decoder {
   int value_left() const { return num_values_; }
 
  protected:
-  Decoder(parquet::SchemaElement* schema, int num_values)
-    : schema_(schema), num_values_(num_values) {}
-  parquet::SchemaElement* schema_;
+  Decoder(const parquet::SchemaElement* schema) : schema_(schema), num_values_(0) {}
+  const parquet::SchemaElement* schema_;
   int num_values_;
 };
 
 class BoolDecoder : public Decoder {
  public:
-  BoolDecoder(parquet::SchemaElement* schema, int num_values) : Decoder(schema, num_values) { }
+  BoolDecoder(const parquet::SchemaElement* schema) : Decoder(schema) { }
 
-  virtual void SetData(const uint8_t* data, int len) {
+  virtual void SetData(int num_values, const uint8_t* data, int len) {
+    num_values_ = num_values;
     decoder_ = impala::RleDecoder(data, len, 1);
   }
 
@@ -52,11 +52,12 @@ class BoolDecoder : public Decoder {
 
 class PlainDecoder : public Decoder {
  public:
-  PlainDecoder(parquet::SchemaElement* schema, int num_values)
-    : Decoder(schema, num_values), data_(NULL), len_(0) {
+  PlainDecoder(const parquet::SchemaElement* schema)
+    : Decoder(schema), data_(NULL), len_(0) {
   }
 
-  virtual void SetData(const uint8_t* data, int len) {
+  virtual void SetData(int num_values, const uint8_t* data, int len) {
+    num_values_ = num_values;
     data_ = data;
     len_ = len;
   }
@@ -109,8 +110,8 @@ class PlainDecoder : public Decoder {
 
 class DictionaryDecoder : public Decoder {
  public:
-  DictionaryDecoder(parquet::SchemaElement* schema, int num_values, Decoder* dictionary)
-    : Decoder(schema, num_values) {
+  DictionaryDecoder(const parquet::SchemaElement* schema, Decoder* dictionary)
+    : Decoder(schema) {
     int num_dictionary_values = dictionary->value_left();
     switch (schema->type) {
       case parquet::Type::BOOLEAN: throw "Boolean cols should not be dictionary encoded.";
@@ -143,7 +144,8 @@ class DictionaryDecoder : public Decoder {
     }
   }
 
-  virtual void SetData(const uint8_t* data, int len) {
+  virtual void SetData(int num_values, const uint8_t* data, int len) {
+    num_values_ = num_values;
     if (len == 0) return;
     uint8_t bit_width = *data;
     ++data;
