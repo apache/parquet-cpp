@@ -17,21 +17,21 @@ InMemoryInputStream::InMemoryInputStream(const uint8_t* buffer, int64_t len) :
   buffer_(buffer), len_(len), offset_(0) {
 }
 
-int InMemoryInputStream::Read(uint8_t* buffer, int buffer_len) {
-  if (len_ == offset_) return 0;
-  int bytes_read = ::min(static_cast<int64_t>(buffer_len), len_ - offset_);
-  memcpy(buffer, buffer_ + offset_, bytes_read);
-  offset_ += bytes_read;
-  return bytes_read;
+const uint8_t* InMemoryInputStream::Peek(int num_to_peek, int* num_bytes) {
+  *num_bytes = ::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
+  return buffer_ + offset_;
+}
+
+const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
+  const uint8_t* result = Peek(num_to_read, num_bytes);
+  offset_ += *num_bytes;
+  return result;
 }
 
 ColumnReader::ColumnReader(const SchemaElement* schema, InputStream* stream)
   : schema_(schema),
     stream_(stream),
     num_buffered_values_(0) {
-  buffered_bytes_.resize(DATA_PAGE_SIZE);
-  num_buffered_bytes_ = 0;
-  buffered_bytes_offset_ = 0;
 }
 
 bool ColumnReader::GetInt32(int32_t* result) {
@@ -44,44 +44,50 @@ bool ColumnReader::GetInt32(int32_t* result) {
 }
 
 bool ColumnReader::ReadNewPage() {
-  uint32_t bytes_read = stream_->Read(&buffered_bytes_[0], buffered_bytes_.size());
-  if (bytes_read == 0) return false;
-  uint32_t header_size = bytes_read;
-  if (!DeserializeThriftMsg(&buffered_bytes_[0], &header_size, &current_page_header_)) {
-    return false;
-  }
-  buffered_bytes_offset_ += header_size;
-  // TODO: handle decompression.
-  cout << apache::thrift::ThriftDebugString(current_page_header_) << endl;
-
-  if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
-    InitDictionary();
-    header_size = bytes_read - buffered_bytes_offset_;
-    if (!DeserializeThriftMsg(&buffered_bytes_[buffered_bytes_offset_],
-          &header_size, &current_page_header_)) {
+  // Loop until we find the next data page.
+  while (true) {
+    int bytes_read = 0;
+    const uint8_t* buffer = stream_->Peek(DATA_PAGE_SIZE, &bytes_read);
+    if (bytes_read == 0) return false;
+    uint32_t header_size = bytes_read;
+    if (!DeserializeThriftMsg(buffer, &header_size, &current_page_header_)) {
       return false;
     }
+    stream_->Read(header_size, &bytes_read);
     cout << apache::thrift::ThriftDebugString(current_page_header_) << endl;
-    buffered_bytes_offset_ += header_size;
-  }
-  int num_definition_bytes = *reinterpret_cast<uint32_t*>(&buffered_bytes_[buffered_bytes_offset_]);
-  buffered_bytes_offset_ += 4;
-  definition_level_decoder_ =
-      impala::RleDecoder(&buffered_bytes_[buffered_bytes_offset_], num_definition_bytes, 1);
-  buffered_bytes_offset_ += num_definition_bytes;
-  num_buffered_values_ = current_page_header_.data_page_header.num_values;
-  decoder_->SetData(num_buffered_values_,
-      &buffered_bytes_[buffered_bytes_offset_], bytes_read - buffered_bytes_offset_);
-  return true;
-}
 
-void ColumnReader::InitDictionary() {
-  uint8_t* data = &buffered_bytes_[buffered_bytes_offset_];
-  int len = current_page_header_.uncompressed_page_size;
-  buffered_bytes_offset_ += len;
-  PlainDecoder dictionary(schema_);
-  dictionary.SetData(current_page_header_.dictionary_page_header.num_values, data, len);
-  decoder_.reset(new DictionaryDecoder(schema_, &dictionary));
+    // TODO: handle decompression.
+    int uncompressed_len = current_page_header_.uncompressed_page_size;
+    buffer = stream_->Read(uncompressed_len, &bytes_read);
+    if (bytes_read != uncompressed_len) throw "EOF";
+
+    if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
+      PlainDecoder dictionary(schema_);
+      dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
+          buffer, uncompressed_len);
+      decoder_.reset(new DictionaryDecoder(schema_, &dictionary));
+      continue;
+    } else if (current_page_header_.type == PageType::DATA_PAGE) {
+      // Read a data page.
+      num_buffered_values_ = current_page_header_.data_page_header.num_values;
+
+      // Read definition levels.
+      int num_definition_bytes = *reinterpret_cast<const uint32_t*>(buffer);
+      buffer += sizeof(uint32_t);
+      definition_level_decoder_ = impala::RleDecoder(buffer, num_definition_bytes, 1);
+      buffer += num_definition_bytes;
+
+      // TODO: repetition levels
+
+      // Now buffer is at the start of the data.
+      decoder_->SetData(num_buffered_values_, buffer,
+          uncompressed_len - sizeof(uint32_t) - num_definition_bytes);
+    } else {
+      // We don't know what this page type is. just skip it.
+      continue;
+    }
+  }
+  return true;
 }
 
 bool ColumnReader::HasNext() {

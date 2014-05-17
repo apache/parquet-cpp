@@ -29,7 +29,8 @@ struct String {
 class InputStream {
  public:
   virtual ~InputStream() {}
-  virtual int Read(uint8_t* buffer, int buffer_len) = 0;
+  virtual const uint8_t* Peek(int num_to_peek, int* num_bytes) = 0;
+  virtual const uint8_t* Read(int num_to_read, int* num_bytes) = 0;
 
  protected:
   InputStream() {}
@@ -38,7 +39,8 @@ class InputStream {
 class InMemoryInputStream : public InputStream {
  public:
   InMemoryInputStream(const uint8_t* buffer, int64_t len);
-  int Read(uint8_t* buffer, int buffer_len);
+  virtual const uint8_t* Peek(int num_to_peek, int* num_bytes);
+  virtual const uint8_t* Read(int num_to_read, int* num_bytes);
 
  private:
   const uint8_t* buffer_;
@@ -55,15 +57,11 @@ class ColumnReader {
 
  private:
   bool ReadNewPage();
-  void InitDictionary();
 
   const parquet::SchemaElement* schema_;
   InputStream* stream_;
   int num_buffered_values_;
   parquet::PageHeader current_page_header_;
-  std::vector<uint8_t> buffered_bytes_;
-  size_t num_buffered_bytes_;
-  size_t buffered_bytes_offset_;
 
   impala::RleDecoder definition_level_decoder_;
   boost::shared_ptr<Decoder> decoder_;
@@ -73,10 +71,10 @@ class ColumnReader {
 // all the bytes needed to store the thrift message.  On return, len will be
 // set to the actual length of the header.
 template <class T>
-inline bool DeserializeThriftMsg(uint8_t* buf, uint32_t* len, T* deserialized_msg) {
+inline bool DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deserialized_msg) {
   // Deserialize msg bytes into c++ thrift msg using memory transport.
   boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> tmem_transport(
-      new apache::thrift::transport::TMemoryBuffer(buf, *len));
+      new apache::thrift::transport::TMemoryBuffer(const_cast<uint8_t*>(buf), *len));
   apache::thrift::protocol::TCompactProtocolFactoryT<
       apache::thrift::transport::TMemoryBuffer> tproto_factory;
   boost::shared_ptr<apache::thrift::protocol::TProtocol> tproto =
