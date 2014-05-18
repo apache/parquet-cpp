@@ -1,7 +1,9 @@
 #ifndef PARQUET_PARQUET_H_
 #define PARQUET_PARQUET_H_
 
+#include <exception>
 #include <boost/cstdint.hpp>
+#include <boost/unordered_map.hpp>
 #include "gen-cpp/parquet_constants.h"
 #include "gen-cpp/parquet_types.h"
 
@@ -26,16 +28,45 @@ struct String {
   const uint8_t* ptr;
 };
 
+class ParquetException : public std::exception {
+ public:
+  static void EofException() { throw ParquetException("Expected end of stream."); }
+  static void NYI() { throw ParquetException("Not yet implemented."); }
+
+  explicit ParquetException(const char* msg) : msg_(msg) {}
+  explicit ParquetException(const std::string& msg) : msg_(msg) {}
+
+  virtual ~ParquetException() throw() {}
+  virtual const char* what() const throw() { return msg_.c_str(); }
+
+ private:
+  std::string msg_;
+};
+
+// Interface for the column reader to get the bytes. The interface is a stream
+// interface, meaning the bytes in order and once a byte is read, it does not
+// need to be read again.
 class InputStream {
  public:
-  virtual ~InputStream() {}
+  // Returns the next 'num_to_peek' without advancing the current position.
+  // *num_bytes will contain the number of bytes returned which can only be
+  // less than num_to_peek at end of stream cases.
+  // Since the position is not advanced, calls to this function are idempotent.
+  // The buffer returned to the caller is still owned by the input stream and must
+  // stay valid until the next call to Peek() or Read().
   virtual const uint8_t* Peek(int num_to_peek, int* num_bytes) = 0;
+
+  // Identical to Peek(), except the current position in the stream is advanced by
+  // *num_bytes.
   virtual const uint8_t* Read(int num_to_read, int* num_bytes) = 0;
+
+  virtual ~InputStream() {}
 
  protected:
   InputStream() {}
 };
 
+// Implementation of an InputStream when all the bytes are in memory.
 class InMemoryInputStream : public InputStream {
  public:
   InMemoryInputStream(const uint8_t* buffer, int64_t len);
@@ -48,12 +79,13 @@ class InMemoryInputStream : public InputStream {
   int64_t offset_;
 };
 
+// API to read values from a single column.
 class ColumnReader {
  public:
   ColumnReader(const parquet::SchemaElement* schema, InputStream* stream);
-  bool HasNext();
 
-  bool GetInt32(int32_t* result);
+  bool HasNext();
+  int32_t GetInt32(int* definition_level, int* repetition_level);
 
  private:
   bool ReadNewPage();
@@ -64,7 +96,8 @@ class ColumnReader {
   parquet::PageHeader current_page_header_;
 
   impala::RleDecoder definition_level_decoder_;
-  boost::shared_ptr<Decoder> decoder_;
+  boost::unordered_map<parquet::Encoding::type, boost::shared_ptr<Decoder> > decoders_;
+  Decoder* current_decoder_;
 };
 
 // Deserialize a thrift message from buf/len.  buf/len must at least contain
