@@ -17,23 +17,26 @@ class Decoder {
   // decoder and should reset all internal state.
   virtual void SetData(int num_values, const uint8_t* data, int len) = 0;
 
-  // Subclasses should override the ones they support
-  virtual bool GetBool() {
+  // Subclasses should override the ones they support. In each of these functions,
+  // the decoder would decode put to 'max_values', storing the result in 'buffer'.
+  // The function returns the number of values decoded, which should be max_values
+  // except for end of the current data page.
+  virtual int GetBool(bool* buffer, int max_values) {
     throw ParquetException("Decoder does not implement this type.");
   }
-  virtual int32_t GetInt32() {
+  virtual int GetInt32(int32_t* buffer, int max_values) {
     throw ParquetException("Decoder does not implement this type.");
   }
-  virtual int64_t GetInt64() {
+  virtual int GetInt64(int64_t* buffer, int max_values) {
     throw ParquetException("Decoder does not implement this type.");
   }
-  virtual float GetFloat() {
+  virtual int GetFloat(float* buffer, int max_values) {
     throw ParquetException("Decoder does not implement this type.");
   }
-  virtual double GetDouble() {
+  virtual int GetDouble(double* buffer, int max_values) {
     throw ParquetException("Decoder does not implement this type.");
   }
-  virtual ByteArray GetByteArray() {
+  virtual int GetByteArray(ByteArray* buffer, int max_values) {
     throw ParquetException("Decoder does not implement this type.");
   }
 
@@ -62,11 +65,13 @@ class BoolDecoder : public Decoder {
     decoder_ = impala::RleDecoder(data, len, 1);
   }
 
-  virtual bool GetBool() {
-    bool result;
-    if (!decoder_.Get(&result)) ParquetException::EofException();
-    --num_values_;
-    return result;
+  virtual int GetBool(bool* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      if (!decoder_.Get(&buffer[i])) ParquetException::EofException();
+    }
+    num_values_ -= max_values;
+    return max_values;
   }
 
  private:
@@ -85,54 +90,44 @@ class PlainDecoder : public Decoder {
     len_ = len;
   }
 
-  virtual int32_t GetInt32() {
-    if (len_ < sizeof(int32_t)) ParquetException::EofException();
-    int32_t val = *reinterpret_cast<const int32_t*>(data_);
-    data_ += sizeof(int32_t);
-    len_ -= sizeof(int32_t);
-    --num_values_;
-    return val;
+  int GetValues(void* buffer, int max_values, int byte_size) {
+    max_values = std::min(max_values, num_values_);
+    int size = max_values * byte_size;
+    if (size < len_)  ParquetException::EofException();
+    memcpy(buffer, data_, size);
+    data_ += size;
+    len_ -= size;
+    num_values_ -= max_values;
+    return max_values;
   }
 
-  virtual int64_t GetInt64() {
-    if (len_ < sizeof(int64_t)) ParquetException::EofException();
-    int64_t val = *reinterpret_cast<const int64_t*>(data_);
-    data_ += sizeof(int64_t);
-    len_ -= sizeof(int64_t);
-    --num_values_;
-    return val;
+  virtual int GetInt32(int32_t* buffer, int max_values) {
+    return GetValues(buffer, max_values, sizeof(int32_t));
   }
 
-  virtual float GetFloat() {
-    if (len_ < sizeof(float)) ParquetException::EofException();
-    float val = *reinterpret_cast<const float*>(data_);
-    data_ += sizeof(float);
-    len_ -= sizeof(float);
-    --num_values_;
-    return val;
+  virtual int GetInt64(int64_t* buffer, int max_values) {
+    return GetValues(buffer, max_values, sizeof(int64_t));
   }
 
-  virtual double GetDouble() {
-    if (len_ < sizeof(double)) ParquetException::EofException();
-    double val = *reinterpret_cast<const double*>(data_);
-    data_ += sizeof(double);
-    len_ -= sizeof(double);
-    --num_values_;
-    return val;
+  virtual int GetFloat(float* buffer, int max_values) {
+    return GetValues(buffer, max_values, sizeof(float));
   }
 
-  virtual ByteArray GetByteArray() {
-    ByteArray result;
-    if (len_ < sizeof(uint32_t)) ParquetException::EofException();
-    result.len = *reinterpret_cast<const uint32_t*>(data_);
-    data_ += sizeof(uint32_t);
-    len_ -= sizeof(uint32_t);
-    if (len_ < result.len) ParquetException::EofException();
-    result.ptr = data_;
-    data_ += result.len;
-    len_ -= result.len;
-    --num_values_;
-    return result;
+  virtual int GetDouble(double* buffer, int max_values) {
+    return GetValues(buffer, max_values, sizeof(double));
+  }
+
+  virtual int GetByteArray(ByteArray* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      buffer[i].len = *reinterpret_cast<const uint32_t*>(data_);
+      if (len_ < sizeof(uint32_t) + buffer[i].len) ParquetException::EofException();
+      buffer[i].ptr = data_ + sizeof(uint32_t);
+      data_ += sizeof(uint32_t) + buffer[i].len;
+      len_ -= sizeof(uint32_t) + buffer[i].len;
+    }
+    num_values_ -= max_values;
+    return max_values;
   }
 
  private:
@@ -151,33 +146,23 @@ class DictionaryDecoder : public Decoder {
 
       case parquet::Type::INT32:
         int32_dictionary_.resize(num_dictionary_values);
-        for (int i = 0; i < num_dictionary_values; ++i) {
-          int32_dictionary_[i] = dictionary->GetInt32();
-        }
+        dictionary->GetInt32(&int32_dictionary_[0], num_dictionary_values);
         break;
       case parquet::Type::INT64:
         int64_dictionary_.resize(num_dictionary_values);
-        for (int i = 0; i < num_dictionary_values; ++i) {
-          int64_dictionary_[i] = dictionary->GetInt64();
-        }
+        dictionary->GetInt64(&int64_dictionary_[0], num_dictionary_values);
         break;
       case parquet::Type::FLOAT:
         float_dictionary_.resize(num_dictionary_values);
-        for (int i = 0; i < num_dictionary_values; ++i) {
-          float_dictionary_[i] = dictionary->GetFloat();
-        }
+        dictionary->GetFloat(&float_dictionary_[0], num_dictionary_values);
         break;
       case parquet::Type::DOUBLE:
         double_dictionary_.resize(num_dictionary_values);
-        for (int i = 0; i < num_dictionary_values; ++i) {
-          double_dictionary_[i] = dictionary->GetDouble();
-        }
+        dictionary->GetDouble(&double_dictionary_[0], num_dictionary_values);
         break;
       case parquet::Type::BYTE_ARRAY:
         byte_array_dictionary_.resize(num_dictionary_values);
-        for (int i = 0; i < num_dictionary_values; ++i) {
-          byte_array_dictionary_[i] = dictionary->GetByteArray();
-        }
+        dictionary->GetByteArray(&byte_array_dictionary_[0], num_dictionary_values);
         break;
       default:
         ParquetException::NYI();
@@ -193,11 +178,45 @@ class DictionaryDecoder : public Decoder {
     idx_decoder_ = impala::RleDecoder(data, len, bit_width);
   }
 
-  virtual int32_t GetInt32() { return int32_dictionary_[index()]; }
-  virtual int64_t GetInt64() { return int64_dictionary_[index()]; }
-  virtual float GetFloat() { return float_dictionary_[index()]; }
-  virtual double GetDouble() { return double_dictionary_[index()]; }
-  virtual ByteArray GetByteArray() { return byte_array_dictionary_[index()]; }
+  virtual int GetInt32(int32_t* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      buffer[i] = int32_dictionary_[index()];
+    }
+    return max_values;
+  }
+
+  virtual int GetInt64(int64_t* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      buffer[i] = int64_dictionary_[index()];
+    }
+    return max_values;
+  }
+
+  virtual int GetFloat(float* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      buffer[i] = float_dictionary_[index()];
+    }
+    return max_values;
+  }
+
+  virtual int GetDouble(double* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      buffer[i] = double_dictionary_[index()];
+    }
+    return max_values;
+  }
+
+  virtual int GetByteArray(ByteArray* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      buffer[i] = byte_array_dictionary_[index()];
+    }
+    return max_values;
+  }
 
  private:
   int index() {

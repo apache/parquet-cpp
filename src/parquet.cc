@@ -34,58 +34,104 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
   : metadata_(metadata),
     schema_(schema),
     stream_(stream),
+    current_decoder_(NULL),
     num_buffered_values_(0),
-    current_decoder_(NULL) {
+    num_decoded_values_(0),
+    buffered_values_offset_(0) {
+  int value_byte_size;
   switch (metadata->type) {
     case parquet::Type::BOOLEAN:
+      value_byte_size = 1;
+      break;
     case parquet::Type::INT32:
+      value_byte_size = sizeof(int32_t);
+      break;
     case parquet::Type::INT64:
+      value_byte_size = sizeof(int64_t);
+      break;
     case parquet::Type::FLOAT:
+      value_byte_size = sizeof(float);
+      break;
     case parquet::Type::DOUBLE:
+      value_byte_size = sizeof(double);
+      break;
     case parquet::Type::BYTE_ARRAY:
+      value_byte_size = sizeof(ByteArray);
       break;
     default:
       ParquetException::NYI();
   }
 
   if (metadata->codec != CompressionCodec::UNCOMPRESSED) ParquetException::NYI();
+  config_ = Config::DefaultConfig();
+  values_buffer_.resize(config_.batch_size * value_byte_size);
 }
 
 bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
-  --num_buffered_values_;
   *rep_level = 1;
   if (!definition_level_decoder_->Get(def_level)) ParquetException::EofException();
+  --num_buffered_values_;
   return *def_level == 0;
 }
 
 bool ColumnReader::GetBool(int* def_level, int* rep_level) {
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return bool();
-  return current_decoder_->GetBool();
+  if (buffered_values_offset_ == num_decoded_values_) {
+    buffered_values_offset_ = 0;
+    num_decoded_values_ = current_decoder_->GetBool(
+        reinterpret_cast<bool*>(&values_buffer_[0]), config_.batch_size);
+  }
+  return reinterpret_cast<bool*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 int32_t ColumnReader::GetInt32(int* def_level, int* rep_level) {
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int32_t();
-  return current_decoder_->GetInt32();
+  if (buffered_values_offset_ == num_decoded_values_) {
+    buffered_values_offset_ = 0;
+    num_decoded_values_ = current_decoder_->GetInt32(
+        reinterpret_cast<int32_t*>(&values_buffer_[0]), config_.batch_size);
+  }
+  return reinterpret_cast<int32_t*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 int64_t ColumnReader::GetInt64(int* def_level, int* rep_level) {
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int64_t();
-  return current_decoder_->GetInt64();
+  if (buffered_values_offset_ == num_decoded_values_) {
+    buffered_values_offset_ = 0;
+    num_decoded_values_ = current_decoder_->GetInt64(
+        reinterpret_cast<int64_t*>(&values_buffer_[0]), config_.batch_size);
+  }
+  return reinterpret_cast<int64_t*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 float ColumnReader::GetFloat(int* def_level, int* rep_level) {
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return float();
-  return current_decoder_->GetFloat();
+  if (buffered_values_offset_ == num_decoded_values_) {
+    buffered_values_offset_ = 0;
+    num_decoded_values_ = current_decoder_->GetFloat(
+        reinterpret_cast<float*>(&values_buffer_[0]), config_.batch_size);
+  }
+  return reinterpret_cast<float*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 double ColumnReader::GetDouble(int* def_level, int* rep_level) {
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return double();
-  return current_decoder_->GetDouble();
+  if (buffered_values_offset_ == num_decoded_values_) {
+    buffered_values_offset_ = 0;
+    num_decoded_values_ = current_decoder_->GetDouble(
+        reinterpret_cast<double*>(&values_buffer_[0]), config_.batch_size);
+  }
+  return reinterpret_cast<double*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return ByteArray();
-  return current_decoder_->GetByteArray();
+  if (buffered_values_offset_ == num_decoded_values_) {
+    buffered_values_offset_ = 0;
+    num_decoded_values_ = current_decoder_->GetByteArray(
+        reinterpret_cast<ByteArray*>(&values_buffer_[0]), config_.batch_size);
+  }
+  return reinterpret_cast<ByteArray*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index

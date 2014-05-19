@@ -83,6 +83,16 @@ class InMemoryInputStream : public InputStream {
 // API to read values from a single column. This is the main client facing API.
 class ColumnReader {
  public:
+  struct Config {
+    int batch_size;
+
+    static Config DefaultConfig() {
+      Config config;
+      config.batch_size = 128;
+      return config;
+    }
+  };
+
   ColumnReader(const parquet::ColumnMetaData*,
       const parquet::SchemaElement*, InputStream* stream);
 
@@ -90,8 +100,6 @@ class ColumnReader {
   bool HasNext();
 
   // Returns the next value of this type.
-  // TODO: This might be too inefficient. We should add a buffered API
-  // i.e. GetBoolValues(bool* result_buffer)
   bool GetBool(int* definition_level, int* repetition_level);
   int32_t GetInt32(int* definition_level, int* repetition_level);
   int64_t GetInt64(int* definition_level, int* repetition_level);
@@ -104,6 +112,8 @@ class ColumnReader {
   // Reads the next definition and repetition level. Returns true if the value is NULL.
   bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
 
+  Config config_;
+
   const parquet::ColumnMetaData* metadata_;
   const parquet::SchemaElement* schema_;
   InputStream* stream_;
@@ -111,7 +121,6 @@ class ColumnReader {
   // Map of encoding type to decoder object.
   boost::unordered_map<parquet::Encoding::type, boost::shared_ptr<Decoder> > decoders_;
 
-  int num_buffered_values_;
   parquet::PageHeader current_page_header_;
 
   // Not set if field is required.
@@ -119,6 +128,11 @@ class ColumnReader {
   // Not set for flat schemas.
   boost::scoped_ptr<impala::RleDecoder> repetition_level_decoder_;
   Decoder* current_decoder_;
+  int num_buffered_values_;
+
+  std::vector<uint8_t> values_buffer_;
+  int num_decoded_values_;
+  int buffered_values_offset_;
 };
 
 
