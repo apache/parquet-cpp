@@ -67,71 +67,38 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
   values_buffer_.resize(config_.batch_size * value_byte_size);
 }
 
-bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
-  *rep_level = 1;
-  if (!definition_level_decoder_->Get(def_level)) ParquetException::EofException();
-  --num_buffered_values_;
-  return *def_level == 0;
-}
-
-bool ColumnReader::GetBool(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return bool();
-  if (buffered_values_offset_ == num_decoded_values_) {
-    buffered_values_offset_ = 0;
-    num_decoded_values_ = current_decoder_->GetBool(
-        reinterpret_cast<bool*>(&values_buffer_[0]), config_.batch_size);
+void ColumnReader::BatchDecode() {
+  buffered_values_offset_ = 0;
+  uint8_t* buf= &values_buffer_[0];
+  int batch_size = config_.batch_size;
+  switch (metadata_->type) {
+    case parquet::Type::BOOLEAN:
+      num_decoded_values_ =
+          current_decoder_->GetBool(reinterpret_cast<bool*>(buf), batch_size);
+      break;
+    case parquet::Type::INT32:
+      num_decoded_values_ =
+          current_decoder_->GetInt32(reinterpret_cast<int32_t*>(buf), batch_size);
+      break;
+    case parquet::Type::INT64:
+      num_decoded_values_ =
+          current_decoder_->GetInt64(reinterpret_cast<int64_t*>(buf), batch_size);
+      break;
+    case parquet::Type::FLOAT:
+      num_decoded_values_ =
+          current_decoder_->GetFloat(reinterpret_cast<float*>(buf), batch_size);
+      break;
+    case parquet::Type::DOUBLE:
+      num_decoded_values_ =
+          current_decoder_->GetDouble(reinterpret_cast<double*>(buf), batch_size);
+      break;
+    case parquet::Type::BYTE_ARRAY:
+      num_decoded_values_ =
+          current_decoder_->GetByteArray(reinterpret_cast<ByteArray*>(buf), batch_size);
+      break;
+    default:
+      ParquetException::NYI();
   }
-  return reinterpret_cast<bool*>(&values_buffer_[0])[buffered_values_offset_++];
-}
-
-int32_t ColumnReader::GetInt32(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int32_t();
-  if (buffered_values_offset_ == num_decoded_values_) {
-    buffered_values_offset_ = 0;
-    num_decoded_values_ = current_decoder_->GetInt32(
-        reinterpret_cast<int32_t*>(&values_buffer_[0]), config_.batch_size);
-  }
-  return reinterpret_cast<int32_t*>(&values_buffer_[0])[buffered_values_offset_++];
-}
-
-int64_t ColumnReader::GetInt64(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int64_t();
-  if (buffered_values_offset_ == num_decoded_values_) {
-    buffered_values_offset_ = 0;
-    num_decoded_values_ = current_decoder_->GetInt64(
-        reinterpret_cast<int64_t*>(&values_buffer_[0]), config_.batch_size);
-  }
-  return reinterpret_cast<int64_t*>(&values_buffer_[0])[buffered_values_offset_++];
-}
-
-float ColumnReader::GetFloat(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return float();
-  if (buffered_values_offset_ == num_decoded_values_) {
-    buffered_values_offset_ = 0;
-    num_decoded_values_ = current_decoder_->GetFloat(
-        reinterpret_cast<float*>(&values_buffer_[0]), config_.batch_size);
-  }
-  return reinterpret_cast<float*>(&values_buffer_[0])[buffered_values_offset_++];
-}
-
-double ColumnReader::GetDouble(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return double();
-  if (buffered_values_offset_ == num_decoded_values_) {
-    buffered_values_offset_ = 0;
-    num_decoded_values_ = current_decoder_->GetDouble(
-        reinterpret_cast<double*>(&values_buffer_[0]), config_.batch_size);
-  }
-  return reinterpret_cast<double*>(&values_buffer_[0])[buffered_values_offset_++];
-}
-
-ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return ByteArray();
-  if (buffered_values_offset_ == num_decoded_values_) {
-    buffered_values_offset_ = 0;
-    num_decoded_values_ = current_decoder_->GetByteArray(
-        reinterpret_cast<ByteArray*>(&values_buffer_[0]), config_.batch_size);
-  }
-  return reinterpret_cast<ByteArray*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
@@ -147,9 +114,7 @@ bool ColumnReader::ReadNewPage() {
     const uint8_t* buffer = stream_->Peek(DATA_PAGE_SIZE, &bytes_read);
     if (bytes_read == 0) return false;
     uint32_t header_size = bytes_read;
-    if (!DeserializeThriftMsg(buffer, &header_size, &current_page_header_)) {
-      return false;
-    }
+    DeserializeThriftMsg(buffer, &header_size, &current_page_header_);
     stream_->Read(header_size, &bytes_read);
 
     // TODO: handle decompression.

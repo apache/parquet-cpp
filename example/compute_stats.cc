@@ -23,6 +23,15 @@ static string ByteArrayToString(const ByteArray& a) {
   return string(reinterpret_cast<const char*>(a.ptr), a.len);
 }
 
+int ByteCompare(const ByteArray& x1, const ByteArray& x2) {
+  int len = ::min(x1.len, x2.len);
+  int cmp = memcmp(x1.ptr, x2.ptr, len);
+  if (cmp != 0) return cmp;
+  if (len < x1.len) return 1;
+  if (len < x2.len) return -1;
+  return 0;
+}
+
 int main(int argc, char** argv) {
   int col_idx = 0;
   if (argc < 2) {
@@ -45,6 +54,11 @@ int main(int argc, char** argv) {
       if (col_idx != -1 && col_idx != c) continue;
       const ColumnChunk& col = row_group.columns[c];
       cout << "Reading column " << metadata.schema[c + 1].name << " (idx=" << c << ")\n";
+      if (col.meta_data.type == Type::INT96) {
+        cout << "  Skipping unsupported column" << endl;
+        continue;
+      }
+
       size_t col_start = col.meta_data.data_page_offset;
       if (col.meta_data.__isset.dictionary_page_offset) {
         if (col_start > col.meta_data.dictionary_page_offset) {
@@ -138,9 +152,12 @@ int main(int argc, char** argv) {
               min.byte_array_val = max.byte_array_val = val;
               first_val = false;
             } else {
-              // TODO:
-              //min.double_val = ::min(val, min.double_val);
-              //max.double_val = ::max(val, max.double_val);
+              if (ByteCompare(val, min.byte_array_val) < 0) {
+                min.byte_array_val = val;
+              }
+              if (ByteCompare(val, max.byte_array_val) > 0) {
+                max.byte_array_val = val;
+              }
             }
             break;
           }

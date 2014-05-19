@@ -31,11 +31,12 @@ struct ByteArray {
 
 class ParquetException : public std::exception {
  public:
-  static void EofException() { throw ParquetException("Expected end of stream."); }
+  static void EofException() { throw ParquetException("Unexpected end of stream."); }
   static void NYI() { throw ParquetException("Not yet implemented."); }
 
   explicit ParquetException(const char* msg) : msg_(msg) {}
   explicit ParquetException(const std::string& msg) : msg_(msg) {}
+  explicit ParquetException(const char* msg, exception& e) : msg_(msg) {}
 
   virtual ~ParquetException() throw() {}
   virtual const char* what() const throw() { return msg_.c_str(); }
@@ -112,6 +113,8 @@ class ColumnReader {
   // Reads the next definition and repetition level. Returns true if the value is NULL.
   bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
 
+  void BatchDecode();
+
   Config config_;
 
   const parquet::ColumnMetaData* metadata_;
@@ -144,11 +147,54 @@ inline bool ColumnReader::HasNext() {
   return true;
 }
 
+inline bool ColumnReader::GetBool(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return bool();
+  if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
+  return reinterpret_cast<bool*>(&values_buffer_[0])[buffered_values_offset_++];
+}
+
+inline int32_t ColumnReader::GetInt32(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int32_t();
+  if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
+  return reinterpret_cast<int32_t*>(&values_buffer_[0])[buffered_values_offset_++];
+}
+
+inline int64_t ColumnReader::GetInt64(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int64_t();
+  if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
+  return reinterpret_cast<int64_t*>(&values_buffer_[0])[buffered_values_offset_++];
+}
+
+inline float ColumnReader::GetFloat(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return float();
+  if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
+  return reinterpret_cast<float*>(&values_buffer_[0])[buffered_values_offset_++];
+}
+
+inline double ColumnReader::GetDouble(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return double();
+  if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
+  return reinterpret_cast<double*>(&values_buffer_[0])[buffered_values_offset_++];
+}
+
+inline ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return ByteArray();
+  if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
+  return reinterpret_cast<ByteArray*>(&values_buffer_[0])[buffered_values_offset_++];
+}
+
+inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
+  *rep_level = 1;
+  if (!definition_level_decoder_->Get(def_level)) ParquetException::EofException();
+  --num_buffered_values_;
+  return *def_level == 0;
+}
+
 // Deserialize a thrift message from buf/len.  buf/len must at least contain
 // all the bytes needed to store the thrift message.  On return, len will be
 // set to the actual length of the header.
 template <class T>
-inline bool DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deserialized_msg) {
+inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deserialized_msg) {
   // Deserialize msg bytes into c++ thrift msg using memory transport.
   boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> tmem_transport(
       new apache::thrift::transport::TMemoryBuffer(const_cast<uint8_t*>(buf), *len));
@@ -159,12 +205,10 @@ inline bool DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
   try {
     deserialized_msg->read(tproto.get());
   } catch (apache::thrift::protocol::TProtocolException& e) {
-    std::cerr << "couldn't deserialize thrift msg:\n" << e.what() << std::endl;
-    return false;
+    throw ParquetException("Couldn't deserialize thrift.", e);
   }
   uint32_t bytes_left = tmem_transport->available_read();
   *len = *len - bytes_left;
-  return true;
 }
 
 }
