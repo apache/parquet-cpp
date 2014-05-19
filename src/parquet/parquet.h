@@ -80,7 +80,7 @@ class InMemoryInputStream : public InputStream {
   int64_t offset_;
 };
 
-// API to read values from a single column.
+// API to read values from a single column. This is the main client facing API.
 class ColumnReader {
  public:
   ColumnReader(const parquet::ColumnMetaData*,
