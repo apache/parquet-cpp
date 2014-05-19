@@ -29,24 +29,68 @@ const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
   return result;
 }
 
-ColumnReader::ColumnReader(const SchemaElement* schema, InputStream* stream)
-  : schema_(schema),
+ColumnReader::ColumnReader(const ColumnMetaData* metadata,
+    const SchemaElement* schema, InputStream* stream)
+  : metadata_(metadata),
+    schema_(schema),
     stream_(stream),
     num_buffered_values_(0),
     current_decoder_(NULL) {
+  switch (metadata->type) {
+    case parquet::Type::BOOLEAN:
+    case parquet::Type::INT32:
+    case parquet::Type::INT64:
+    case parquet::Type::FLOAT:
+    case parquet::Type::DOUBLE:
+    case parquet::Type::BYTE_ARRAY:
+      break;
+    default:
+      ParquetException::NYI();
+  }
+
+  if (metadata->codec != CompressionCodec::UNCOMPRESSED) ParquetException::NYI();
 }
 
-int32_t ColumnReader::GetInt32(int* definition_level, int* repetition_level) {
+bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
   --num_buffered_values_;
-  *repetition_level = 1;
-  if (!definition_level_decoder_.Get(definition_level)) ParquetException::EofException();
-  if (*definition_level == 0) return true;
+  *rep_level = 1;
+  if (!definition_level_decoder_->Get(def_level)) ParquetException::EofException();
+  return *def_level == 0;
+}
+
+bool ColumnReader::GetBool(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return bool();
+  return current_decoder_->GetBool();
+}
+
+int32_t ColumnReader::GetInt32(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int32_t();
   return current_decoder_->GetInt32();
 }
 
+int64_t ColumnReader::GetInt64(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int64_t();
+  return current_decoder_->GetInt64();
+}
+
+float ColumnReader::GetFloat(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return float();
+  return current_decoder_->GetFloat();
+}
+
+double ColumnReader::GetDouble(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return double();
+  return current_decoder_->GetDouble();
+}
+
+ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
+  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return ByteArray();
+  return current_decoder_->GetByteArray();
+}
+
+// PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
+// encoding.
 static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
-  // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
-  // encoding.
   return e == Encoding::RLE_DICTIONARY || e == Encoding::PLAIN_DICTIONARY;
 }
 
@@ -86,10 +130,15 @@ bool ColumnReader::ReadNewPage() {
       num_buffered_values_ = current_page_header_.data_page_header.num_values;
 
       // Read definition levels.
-      int num_definition_bytes = *reinterpret_cast<const uint32_t*>(buffer);
-      buffer += sizeof(uint32_t);
-      definition_level_decoder_ = impala::RleDecoder(buffer, num_definition_bytes, 1);
-      buffer += num_definition_bytes;
+      if (schema_->repetition_type != FieldRepetitionType::REQUIRED) {
+        int num_definition_bytes = *reinterpret_cast<const uint32_t*>(buffer);
+        buffer += sizeof(uint32_t);
+        definition_level_decoder_.reset(
+            new impala::RleDecoder(buffer, num_definition_bytes, 1));
+        buffer += num_definition_bytes;
+        uncompressed_len -= sizeof(uint32_t);
+        uncompressed_len -= num_definition_bytes;
+      }
 
       // TODO: repetition levels
 
@@ -105,7 +154,12 @@ bool ColumnReader::ReadNewPage() {
       } else {
         switch (encoding) {
           case Encoding::PLAIN: {
-            shared_ptr<Decoder> decoder(new PlainDecoder(schema_));
+            shared_ptr<Decoder> decoder;
+            if (schema_->type == Type::BOOLEAN) {
+              decoder.reset(new BoolDecoder(schema_));
+            } else {
+              shared_ptr<Decoder> decoder(new PlainDecoder(schema_));
+            }
             decoders_[encoding] = decoder;
             current_decoder_ = decoder.get();
             break;
@@ -122,20 +176,11 @@ bool ColumnReader::ReadNewPage() {
             throw ParquetException("Unknown encoding type.");
         }
       }
-      current_decoder_->SetData(num_buffered_values_, buffer,
-          uncompressed_len - sizeof(uint32_t) - num_definition_bytes);
+      current_decoder_->SetData(num_buffered_values_, buffer, uncompressed_len);
     } else {
-      // We don't know what this page type is. just skip it.
+      // We don't know what this page type is. We're allowed to skip non-data pages.
       continue;
     }
-  }
-  return true;
-}
-
-bool ColumnReader::HasNext() {
-  if (num_buffered_values_ == 0) {
-    ReadNewPage();
-    if (num_buffered_values_ == 0) return false;
   }
   return true;
 }

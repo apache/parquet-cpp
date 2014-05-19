@@ -30,7 +30,10 @@ class Decoder {
   virtual float GetFloat() {
     throw ParquetException("Decoder does not implement this type.");
   }
-  virtual String GetString() {
+  virtual double GetDouble() {
+    throw ParquetException("Decoder does not implement this type.");
+  }
+  virtual ByteArray GetByteArray() {
     throw ParquetException("Decoder does not implement this type.");
   }
 
@@ -109,8 +112,17 @@ class PlainDecoder : public Decoder {
     return val;
   }
 
-  virtual String GetString() {
-    String result;
+  virtual double GetDouble() {
+    if (len_ < sizeof(double)) ParquetException::EofException();
+    double val = *reinterpret_cast<const double*>(data_);
+    data_ += sizeof(double);
+    len_ -= sizeof(double);
+    --num_values_;
+    return val;
+  }
+
+  virtual ByteArray GetByteArray() {
+    ByteArray result;
     if (len_ < sizeof(uint32_t)) ParquetException::EofException();
     result.len = *reinterpret_cast<const uint32_t*>(data_);
     data_ += sizeof(uint32_t);
@@ -155,10 +167,16 @@ class DictionaryDecoder : public Decoder {
           float_dictionary_[i] = dictionary->GetFloat();
         }
         break;
-      case parquet::Type::BYTE_ARRAY:
-        string_dictionary_.resize(num_dictionary_values);
+      case parquet::Type::DOUBLE:
+        double_dictionary_.resize(num_dictionary_values);
         for (int i = 0; i < num_dictionary_values; ++i) {
-          string_dictionary_[i] = dictionary->GetString();
+          double_dictionary_[i] = dictionary->GetDouble();
+        }
+        break;
+      case parquet::Type::BYTE_ARRAY:
+        byte_array_dictionary_.resize(num_dictionary_values);
+        for (int i = 0; i < num_dictionary_values; ++i) {
+          byte_array_dictionary_[i] = dictionary->GetByteArray();
         }
         break;
       default:
@@ -178,7 +196,8 @@ class DictionaryDecoder : public Decoder {
   virtual int32_t GetInt32() { return int32_dictionary_[index()]; }
   virtual int64_t GetInt64() { return int64_dictionary_[index()]; }
   virtual float GetFloat() { return float_dictionary_[index()]; }
-  virtual String GetString() { return string_dictionary_[index()]; }
+  virtual double GetDouble() { return double_dictionary_[index()]; }
+  virtual ByteArray GetByteArray() { return byte_array_dictionary_[index()]; }
 
  private:
   int index() {
@@ -192,7 +211,8 @@ class DictionaryDecoder : public Decoder {
   std::vector<int32_t> int32_dictionary_;
   std::vector<int64_t> int64_dictionary_;
   std::vector<float> float_dictionary_;
-  std::vector<String> string_dictionary_;
+  std::vector<double> double_dictionary_;
+  std::vector<ByteArray> byte_array_dictionary_;
 
   impala::RleDecoder idx_decoder_;
 };

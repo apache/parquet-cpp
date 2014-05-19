@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <boost/cstdint.hpp>
+#include <boost/scoped_ptr.hpp>
 #include <boost/unordered_map.hpp>
 #include "gen-cpp/parquet_constants.h"
 #include "gen-cpp/parquet_types.h"
@@ -23,7 +24,7 @@ namespace parquet_cpp {
 
 class Decoder;
 
-struct String {
+struct ByteArray {
   uint32_t len;
   const uint8_t* ptr;
 };
@@ -82,23 +83,52 @@ class InMemoryInputStream : public InputStream {
 // API to read values from a single column.
 class ColumnReader {
  public:
-  ColumnReader(const parquet::SchemaElement* schema, InputStream* stream);
+  ColumnReader(const parquet::ColumnMetaData*,
+      const parquet::SchemaElement*, InputStream* stream);
 
+  // Returns true if there are still values in this column.
   bool HasNext();
+
+  // Returns the next value of this type.
+  // TODO: This might be too inefficient. We should add a buffered API
+  // i.e. GetBoolValues(bool* result_buffer)
+  bool GetBool(int* definition_level, int* repetition_level);
   int32_t GetInt32(int* definition_level, int* repetition_level);
+  int64_t GetInt64(int* definition_level, int* repetition_level);
+  float GetFloat(int* definition_level, int* repetition_level);
+  double GetDouble(int* definition_level, int* repetition_level);
+  ByteArray GetByteArray(int* definition_level, int* repetition_level);
 
  private:
   bool ReadNewPage();
+  // Reads the next definition and repetition level. Returns true if the value is NULL.
+  bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
 
+  const parquet::ColumnMetaData* metadata_;
   const parquet::SchemaElement* schema_;
   InputStream* stream_;
+
+  // Map of encoding type to decoder object.
+  boost::unordered_map<parquet::Encoding::type, boost::shared_ptr<Decoder> > decoders_;
+
   int num_buffered_values_;
   parquet::PageHeader current_page_header_;
 
-  impala::RleDecoder definition_level_decoder_;
-  boost::unordered_map<parquet::Encoding::type, boost::shared_ptr<Decoder> > decoders_;
+  // Not set if field is required.
+  boost::scoped_ptr<impala::RleDecoder> definition_level_decoder_;
+  // Not set for flat schemas.
+  boost::scoped_ptr<impala::RleDecoder> repetition_level_decoder_;
   Decoder* current_decoder_;
 };
+
+
+inline bool ColumnReader::HasNext() {
+  if (num_buffered_values_ == 0) {
+    ReadNewPage();
+    if (num_buffered_values_ == 0) return false;
+  }
+  return true;
+}
 
 // Deserialize a thrift message from buf/len.  buf/len must at least contain
 // all the bytes needed to store the thrift message.  On return, len will be
