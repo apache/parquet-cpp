@@ -93,7 +93,7 @@ class PlainDecoder : public Decoder {
   int GetValues(void* buffer, int max_values, int byte_size) {
     max_values = std::min(max_values, num_values_);
     int size = max_values * byte_size;
-    if (size < len_)  ParquetException::EofException();
+    if (len_ < size)  ParquetException::EofException();
     memcpy(buffer, data_, size);
     data_ += size;
     len_ -= size;

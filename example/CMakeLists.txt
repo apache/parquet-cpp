@@ -19,3 +19,6 @@ add_library(Example STATIC
 
 add_executable(compute_stats compute_stats.cc)
 target_link_libraries(compute_stats Parquet Example ThriftParquet thriftstatic)
+
+add_executable(decode_benchmark decode_benchmark.cc)
+target_link_libraries(decode_benchmark Parquet Example ThriftParquet thriftstatic rt)
