@@ -61,8 +61,7 @@ class BitUtil {
   // TODO: this could be faster if we use __builtin_clz.  Fix this if this ever shows up
   // in a hot path.
   static inline int Log2(uint64_t x) {
-    DCHECK_GT(x, 0);
-    if (x == 1) return 0;
+    if (x == 0) return 0;
     // Compute result = ceil(log2(x))
     //                = floor(log2(x - 1)) + 1, for x > 1
     // by finding the position of the most significant bit (1-indexed) of x - 1

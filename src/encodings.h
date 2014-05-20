@@ -6,6 +6,7 @@
 #include "gen-cpp/parquet_types.h"
 
 #include "impala/rle-encoding.h"
+#include "impala/bit-stream-utils.inline.h"
 
 namespace parquet_cpp {
 
@@ -234,6 +235,57 @@ class DictionaryDecoder : public Decoder {
   std::vector<ByteArray> byte_array_dictionary_;
 
   impala::RleDecoder idx_decoder_;
+};
+
+class DeltaBinaryPackedDecoder : public Decoder {
+ public:
+  DeltaBinaryPackedDecoder(const parquet::SchemaElement* schema)
+    : Decoder(schema, parquet::Encoding::DELTA_BINARY_PACKED) { }
+
+  virtual void SetData(int num_values, const uint8_t* data, int len) {
+    num_values_ = num_values;
+    decoder_ = impala::BitReader(data, len);
+    values_current_block_ = 0;
+    values_current_mini_block_ = 0;
+  }
+
+  virtual int GetInt32(int32_t* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    for (int i = 0; i < max_values; ++i) {
+      if (values_current_block_ == 0) {
+        uint32_t block_size, num_mini_blocks;
+        if (!decoder_.GetVlqInt(&block_size)) ParquetException::EofException();
+        if (!decoder_.GetVlqInt(&num_mini_blocks)) ParquetException::EofException();
+        if (!decoder_.GetVlqInt(&values_current_block_)) {
+          ParquetException::EofException();
+        }
+
+        if (!decoder_.GetZigZagVlqInt(&buffer[i])) ParquetException::EofException();
+        if (!decoder_.GetZigZagVlqInt(&min_delta_)) ParquetException::EofException();
+        if (!decoder_.GetAligned<uint8_t>(8, &delta_bit_width_)) {
+          ParquetException::EofException();
+        }
+        last_value_ = buffer[i];
+        --values_current_block_;
+        continue;
+      }
+
+      int delta;
+      if (!decoder_.GetValue(delta_bit_width_, &delta)) ParquetException::EofException();
+      delta += min_delta_;
+      last_value_ += delta;
+      buffer[i] = last_value_;
+    }
+    return max_values;
+  }
+
+ private:
+  impala::BitReader decoder_;
+  uint32_t values_current_block_;
+  uint32_t values_current_mini_block_;
+  int32_t last_value_;
+  int32_t min_delta_;
+  uint8_t delta_bit_width_;
 };
 
 }
