@@ -10,9 +10,9 @@ using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;
 
-class DeltaBinaryPackedEncoder {
+class DeltaBitPackEncoder {
  public:
-  DeltaBinaryPackedEncoder(int mini_block_size = 8) {
+  DeltaBitPackEncoder(int mini_block_size = 8) {
     mini_block_size_ = mini_block_size;
   }
 
@@ -124,7 +124,7 @@ class DeltaLengthByteArrayEncoder {
   int plain_encoded_len() const { return plain_encoded_len_; }
 
  private:
-  DeltaBinaryPackedEncoder len_encoder_;
+  DeltaBitPackEncoder len_encoder_;
   uint8_t* buffer_;
   int offset_;
   int plain_encoded_len_;
@@ -169,7 +169,7 @@ class DeltaByteArrayEncoder {
   int plain_encoded_len() const { return plain_encoded_len_; }
 
  private:
-  DeltaBinaryPackedEncoder prefix_len_encoder_;
+  DeltaBitPackEncoder prefix_len_encoder_;
   DeltaLengthByteArrayEncoder suffix_encoder_;
   string last_value_;
   int plain_encoded_len_;
@@ -222,8 +222,8 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
   } else {
     mini_block_size = 32;
   }
-  DeltaBinaryPackedDecoder decoder(NULL);
-  DeltaBinaryPackedEncoder encoder(mini_block_size);
+  DeltaBitPackDecoder decoder(NULL);
+  DeltaBitPackEncoder encoder(mini_block_size);
   for (int i = 0; i < values.size(); ++i) {
     encoder.AddInt32(values[i]);
   }
@@ -318,20 +318,29 @@ void TestBinaryPacking() {
 void TestDeltaLengthByteArray() {
   DeltaLengthByteArrayDecoder decoder(NULL);
   DeltaLengthByteArrayEncoder encoder;
-  encoder.Add("Hello");
-  encoder.Add("World");
-  encoder.Add("Foobar");
-  encoder.Add("ABCDEF");
+
+  vector<string> values;
+  values.push_back("Hello");
+  values.push_back("World");
+  values.push_back("Foobar");
+  values.push_back("ABCDEF");
+
+  for (int i = 0; i < values.size(); ++i) {
+    encoder.Add(values[i]);
+  }
 
   int len = 0;
   uint8_t* buffer = encoder.Encode(&len);
-  printf("DeltaLengthByteArray\n   raw_size: %d  encoded_size: %d\n",
+  printf("DeltaLengthByteArray\n  Raw len: %d\n  Encoded len: %d\n",
       encoder.plain_encoded_len(), len);
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     ByteArray v;
     decoder.GetByteArray(&v, 1);
-    cout << string((char*)v.ptr, v.len) << endl;
+    string r = string((char*)v.ptr, v.len);
+    if (r != values[i]) {
+      cout << "Bad " << r << " != " << values[i] << endl;
+    }
   }
 }
 
@@ -339,35 +348,44 @@ void TestDeltaByteArray() {
   DeltaByteArrayDecoder decoder(NULL);
   DeltaByteArrayEncoder encoder;
 
+  vector<string> values;
+
   // Wikipedia example
-  encoder.Add("myxa");
-  encoder.Add("myxophyta");
-  encoder.Add("myxopod");
-  encoder.Add("nab");
-  encoder.Add("nabbed");
-  encoder.Add("nabbing");
-  encoder.Add("nabit");
-  encoder.Add("nabk");
-  encoder.Add("nabob");
-  encoder.Add("nacarat");
-  encoder.Add("nacelle");
+  values.push_back("myxa");
+  values.push_back("myxophyta");
+  values.push_back("myxopod");
+  values.push_back("nab");
+  values.push_back("nabbed");
+  values.push_back("nabbing");
+  values.push_back("nabit");
+  values.push_back("nabk");
+  values.push_back("nabob");
+  values.push_back("nacarat");
+  values.push_back("nacelle");
+
+  for (int i = 0; i < values.size(); ++i) {
+    encoder.Add(values[i]);
+  }
 
   int len = 0;
   uint8_t* buffer = encoder.Encode(&len);
-  printf("DeltaByteArray\n   raw_size: %d  encoded_size: %d\n",
+  printf("DeltaLengthByteArray\n  Raw len: %d\n  Encoded len: %d\n",
       encoder.plain_encoded_len(), len);
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     ByteArray v;
     decoder.GetByteArray(&v, 1);
-    cout << string((char*)v.ptr, v.len) << endl;
+    string r = string((char*)v.ptr, v.len);
+    if (r != values[i]) {
+      cout << "Bad " << r << " != " << values[i] << endl;
+    }
   }
 }
 
 int main(int argc, char** argv) {
-  //TestBinaryPacking();
-  //TestDeltaLengthByteArray();
-  //TestDeltaByteArray();
+  TestBinaryPacking();
+  TestDeltaLengthByteArray();
+  TestDeltaByteArray();
 
   StopWatch sw;
   uint64_t elapsed = 0;
