@@ -91,6 +91,91 @@ class DeltaBinaryPackedEncoder {
   vector<int32_t> values_;
 };
 
+class DeltaLengthByteArrayEncoder {
+ public:
+  DeltaLengthByteArrayEncoder(int mini_block_size = 8) :
+    len_encoder_(mini_block_size),
+    buffer_(new uint8_t[1024 * 1024]),
+    offset_(0),
+    plain_encoded_len_(0) {
+  }
+
+  void Add(const string& s) {
+    Add(reinterpret_cast<const uint8_t*>(s.data()), s.size());
+  }
+
+  void Add(const uint8_t* ptr, int len) {
+    plain_encoded_len_ += len + sizeof(int);
+    len_encoder_.AddInt32(len);
+    memcpy(buffer_ + offset_, ptr, len);
+    offset_ += len;
+  }
+
+  uint8_t* Encode(int* encoded_len) {
+    uint8_t* encoded_lengths = len_encoder_.Encode(encoded_len);
+    memmove(buffer_ + *encoded_len + sizeof(int), buffer_, offset_);
+    memcpy(buffer_, encoded_len, sizeof(int));
+    memcpy(buffer_ + sizeof(int), encoded_lengths, *encoded_len);
+    *encoded_len += offset_ + sizeof(int);
+    return buffer_;
+  }
+
+  int num_values() const { return len_encoder_.num_values(); }
+  int plain_encoded_len() const { return plain_encoded_len_; }
+
+ private:
+  DeltaBinaryPackedEncoder len_encoder_;
+  uint8_t* buffer_;
+  int offset_;
+  int plain_encoded_len_;
+};
+
+class DeltaByteArrayEncoder {
+ public:
+  DeltaByteArrayEncoder() : plain_encoded_len_(0) {}
+
+  void Add(const string& s) {
+    plain_encoded_len_ += s.size() + sizeof(int);
+    int min_len = min(s.size(), last_value_.size());
+    int prefix_len = 0;
+    for (int i = 0; i < min_len; ++i) {
+      if (s[i] == last_value_[i]) {
+        ++prefix_len;
+      } else {
+        break;
+      }
+    }
+    prefix_len_encoder_.AddInt32(prefix_len);
+    suffix_encoder_.Add(reinterpret_cast<const uint8_t*>(s.data()) + prefix_len,
+        s.size() - prefix_len);
+    last_value_ = s;
+  }
+
+  uint8_t* Encode(int* encoded_len) {
+    int prefix_buffer_len;
+    uint8_t* prefix_buffer = prefix_len_encoder_.Encode(&prefix_buffer_len);
+    int suffix_buffer_len;
+    uint8_t* suffix_buffer = suffix_encoder_.Encode(&suffix_buffer_len);
+
+    uint8_t* buffer = new uint8_t[1024 * 1024];
+    memcpy(buffer, &prefix_buffer_len, sizeof(int));
+    memcpy(buffer + sizeof(int), prefix_buffer, prefix_buffer_len);
+    memcpy(buffer + sizeof(int) + prefix_buffer_len, suffix_buffer, suffix_buffer_len);
+    *encoded_len = sizeof(int) + prefix_buffer_len + suffix_buffer_len;
+    return buffer;
+  }
+
+  int num_values() const { return prefix_len_encoder_.num_values(); }
+  int plain_encoded_len() const { return plain_encoded_len_; }
+
+ private:
+  DeltaBinaryPackedEncoder prefix_len_encoder_;
+  DeltaLengthByteArrayEncoder suffix_encoder_;
+  string last_value_;
+  int plain_encoded_len_;
+};
+
+
 class StopWatch {
  public:
   StopWatch() {
@@ -230,8 +315,59 @@ void TestBinaryPacking() {
   TestBinaryPackedEncoding("Rand [0, 100)", values);
 }
 
+void TestDeltaLengthByteArray() {
+  DeltaLengthByteArrayDecoder decoder(NULL);
+  DeltaLengthByteArrayEncoder encoder;
+  encoder.Add("Hello");
+  encoder.Add("World");
+  encoder.Add("Foobar");
+  encoder.Add("ABCDEF");
+
+  int len = 0;
+  uint8_t* buffer = encoder.Encode(&len);
+  printf("DeltaLengthByteArray\n   raw_size: %d  encoded_size: %d\n",
+      encoder.plain_encoded_len(), len);
+  decoder.SetData(encoder.num_values(), buffer, len);
+  for (int i = 0; i < encoder.num_values(); ++i) {
+    ByteArray v;
+    decoder.GetByteArray(&v, 1);
+    cout << string((char*)v.ptr, v.len) << endl;
+  }
+}
+
+void TestDeltaByteArray() {
+  DeltaByteArrayDecoder decoder(NULL);
+  DeltaByteArrayEncoder encoder;
+
+  // Wikipedia example
+  encoder.Add("myxa");
+  encoder.Add("myxophyta");
+  encoder.Add("myxopod");
+  encoder.Add("nab");
+  encoder.Add("nabbed");
+  encoder.Add("nabbing");
+  encoder.Add("nabit");
+  encoder.Add("nabk");
+  encoder.Add("nabob");
+  encoder.Add("nacarat");
+  encoder.Add("nacelle");
+
+  int len = 0;
+  uint8_t* buffer = encoder.Encode(&len);
+  printf("DeltaByteArray\n   raw_size: %d  encoded_size: %d\n",
+      encoder.plain_encoded_len(), len);
+  decoder.SetData(encoder.num_values(), buffer, len);
+  for (int i = 0; i < encoder.num_values(); ++i) {
+    ByteArray v;
+    decoder.GetByteArray(&v, 1);
+    cout << string((char*)v.ptr, v.len) << endl;
+  }
+}
+
 int main(int argc, char** argv) {
   //TestBinaryPacking();
+  //TestDeltaLengthByteArray();
+  //TestDeltaByteArray();
 
   StopWatch sw;
   uint64_t elapsed = 0;
