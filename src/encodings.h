@@ -250,44 +250,119 @@ class DeltaBinaryPackedDecoder : public Decoder {
   }
 
   virtual int GetInt32(int32_t* buffer, int max_values) {
+    return GetInternal(buffer, max_values);
+  }
+
+  virtual int GetInt64(int64_t* buffer, int max_values) {
+    return GetInternal(buffer, max_values);
+  }
+
+ private:
+  void InitHeader() {
+    uint64_t block_size, num_mini_blocks;
+    if (!decoder_.GetVlqInt(&block_size)) ParquetException::EofException();
+    if (!decoder_.GetVlqInt(&num_mini_blocks_)) ParquetException::EofException();
+    if (!decoder_.GetVlqInt(&values_current_block_)) {
+      ParquetException::EofException();
+    }
+    if (!decoder_.GetZigZagVlqInt(&last_value_)) ParquetException::EofException();
+    delta_bit_widths_.resize(num_mini_blocks_);
+  }
+
+  void InitBlock() {
+    if (!decoder_.GetZigZagVlqInt(&min_delta_)) ParquetException::EofException();
+    for (int i = 0; i < num_mini_blocks_; ++i) {
+      if (!decoder_.GetAligned<uint8_t>(8, &delta_bit_widths_[i])) {
+        ParquetException::EofException();
+      }
+    }
+    values_per_mini_block_ =
+        impala::BitUtil::RoundUp(values_current_block_, num_mini_blocks_);
+    mini_block_idx_ = 0;
+    delta_bit_width_ = delta_bit_widths_[0];
+    values_current_mini_block_ = values_per_mini_block_;
+  }
+
+  template <typename T>
+  int GetInternal(T* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
     for (int i = 0; i < max_values; ++i) {
-      if (values_current_block_ == 0) {
-        uint32_t block_size, num_mini_blocks;
-        if (!decoder_.GetVlqInt(&block_size)) ParquetException::EofException();
-        if (!decoder_.GetVlqInt(&num_mini_blocks)) ParquetException::EofException();
-        if (!decoder_.GetVlqInt(&values_current_block_)) {
-          ParquetException::EofException();
+      if (UNLIKELY(values_current_mini_block_ == 0)) {
+        ++mini_block_idx_;
+        if (mini_block_idx_ < delta_bit_widths_.size()) {
+          delta_bit_width_ = delta_bit_widths_[mini_block_idx_];
+          values_current_mini_block_ = values_per_mini_block_;
+        } else {
+          InitHeader();
+          InitBlock();
+          buffer[i] = last_value_;
+          --values_current_mini_block_;
+          continue;
         }
-
-        if (!decoder_.GetZigZagVlqInt(&buffer[i])) ParquetException::EofException();
-        if (!decoder_.GetZigZagVlqInt(&min_delta_)) ParquetException::EofException();
-        if (!decoder_.GetAligned<uint8_t>(8, &delta_bit_width_)) {
-          ParquetException::EofException();
-        }
-        last_value_ = buffer[i];
-        --values_current_block_;
-        continue;
       }
 
-      int delta;
+      // TODO: the key to this algorithm is to decode the entire miniblock at once.
+      int64_t delta;
       if (!decoder_.GetValue(delta_bit_width_, &delta)) ParquetException::EofException();
       delta += min_delta_;
       last_value_ += delta;
       buffer[i] = last_value_;
+      --values_current_mini_block_;
+    }
+    return max_values;
+  }
+
+  impala::BitReader decoder_;
+  uint64_t values_current_block_;
+  uint64_t num_mini_blocks_;
+  uint64_t values_per_mini_block_;
+  uint64_t values_current_mini_block_;
+
+  int64_t min_delta_;
+  int mini_block_idx_;
+  std::vector<uint8_t> delta_bit_widths_;
+  int delta_bit_width_;
+
+  int64_t last_value_;
+};
+
+class DeltaLengthByteArrayDecoder : public Decoder {
+ public:
+  DeltaLengthByteArrayDecoder(const parquet::SchemaElement* schema)
+    : Decoder(schema, parquet::Encoding::DELTA_LENGTH_BYTE_ARRAY),
+      len_decoder_(NULL) {
+  }
+
+  virtual void SetData(int num_values, const uint8_t* data, int len) {
+    num_values_ = num_values;
+    if (len == 0) return;
+    int total_lengths_len = *reinterpret_cast<const int*>(data);
+    data += 4;
+    len_decoder_.SetData(num_values, data, total_lengths_len);
+    data_ = data + total_lengths_len;
+    len_ = len - 4 - total_lengths_len;
+  }
+
+  virtual int GetByteArray(ByteArray* buffer, int max_values) {
+    max_values = std::min(max_values, num_values_);
+    int lengths[max_values];
+    len_decoder_.GetInt32(lengths, max_values);
+    for (int  i = 0; i < max_values; ++i) {
+      buffer[i].len = lengths[i];
+      buffer[i].ptr = data_;
+      data_ += lengths[i];
+      len_ -= lengths[i];
     }
     return max_values;
   }
 
  private:
-  impala::BitReader decoder_;
-  uint32_t values_current_block_;
-  uint32_t values_current_mini_block_;
-  int32_t last_value_;
-  int32_t min_delta_;
-  uint8_t delta_bit_width_;
+  DeltaBinaryPackedDecoder len_decoder_;
+  const uint8_t* data_;
+  int len_;
 };
 
 }
 
 #endif
+

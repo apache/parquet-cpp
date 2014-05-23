@@ -118,8 +118,8 @@ class BitReader {
 
   // Reads a vlq encoded int from the stream.  The encoded int must start at the
   // beginning of a byte. Return false if there were not enough bytes in the buffer.
-  bool GetVlqInt(uint32_t* v);
-  bool GetZigZagVlqInt(int32_t* v);
+  bool GetVlqInt(uint64_t* v);
+  bool GetZigZagVlqInt(int64_t* v);
 
   // Returns the number of bytes left in the stream, not including the current byte (i.e.,
   // there may be an additional fraction of a byte).

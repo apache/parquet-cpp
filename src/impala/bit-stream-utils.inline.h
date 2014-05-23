@@ -138,7 +138,7 @@ inline bool BitReader::GetAligned(int num_bytes, T* v) {
   return true;
 }
 
-inline bool BitReader::GetVlqInt(uint32_t* v) {
+inline bool BitReader::GetVlqInt(uint64_t* v) {
   *v = 0;
   int shift = 0;
   int num_bytes = 0;
@@ -152,10 +152,10 @@ inline bool BitReader::GetVlqInt(uint32_t* v) {
   return true;
 }
 
-inline bool BitReader::GetZigZagVlqInt(int32_t* v) {
-  uint32_t u;
+inline bool BitReader::GetZigZagVlqInt(int64_t* v) {
+  uint64_t u;
   if (!GetVlqInt(&u)) return false;
-  *reinterpret_cast<uint32_t*>(v) = (u >> 1) ^ -(u & 1);
+  *reinterpret_cast<uint64_t*>(v) = (u >> 1) ^ -(u & 1);
   return true;
 }
 
