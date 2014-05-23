@@ -72,6 +72,14 @@ class BitUtil {
     return result;
   }
 
+  // Returns the minimum number of bits needed to represent the value of 'x'
+  static inline int NumRequiredBits(uint64_t x) {
+    for (int i = 63; i >= 0; --i) {
+      if (x & 1L << i) return i + 1;
+    }
+    return 0;
+  }
+
   // Swaps the byte order (i.e. endianess)
   static inline int64_t ByteSwap(int64_t value) {
     return __builtin_bswap64(value);

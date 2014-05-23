@@ -221,7 +221,7 @@ class DictionaryDecoder : public Decoder {
 
  private:
   int index() {
-    int idx;
+    int idx = 0;
     if (!idx_decoder_.Get(&idx)) ParquetException::EofException();
     --num_values_;
     return idx;
@@ -258,8 +258,8 @@ class DeltaBinaryPackedDecoder : public Decoder {
   }
 
  private:
-  void InitHeader() {
-    uint64_t block_size, num_mini_blocks;
+  void InitBlock() {
+    uint64_t block_size;
     if (!decoder_.GetVlqInt(&block_size)) ParquetException::EofException();
     if (!decoder_.GetVlqInt(&num_mini_blocks_)) ParquetException::EofException();
     if (!decoder_.GetVlqInt(&values_current_block_)) {
@@ -267,17 +267,14 @@ class DeltaBinaryPackedDecoder : public Decoder {
     }
     if (!decoder_.GetZigZagVlqInt(&last_value_)) ParquetException::EofException();
     delta_bit_widths_.resize(num_mini_blocks_);
-  }
 
-  void InitBlock() {
     if (!decoder_.GetZigZagVlqInt(&min_delta_)) ParquetException::EofException();
     for (int i = 0; i < num_mini_blocks_; ++i) {
-      if (!decoder_.GetAligned<uint8_t>(8, &delta_bit_widths_[i])) {
+      if (!decoder_.GetAligned<uint8_t>(1, &delta_bit_widths_[i])) {
         ParquetException::EofException();
       }
     }
-    values_per_mini_block_ =
-        impala::BitUtil::RoundUp(values_current_block_, num_mini_blocks_);
+    values_per_mini_block_ = block_size / num_mini_blocks_;
     mini_block_idx_ = 0;
     delta_bit_width_ = delta_bit_widths_[0];
     values_current_mini_block_ = values_per_mini_block_;
@@ -293,10 +290,8 @@ class DeltaBinaryPackedDecoder : public Decoder {
           delta_bit_width_ = delta_bit_widths_[mini_block_idx_];
           values_current_mini_block_ = values_per_mini_block_;
         } else {
-          InitHeader();
           InitBlock();
           buffer[i] = last_value_;
-          --values_current_mini_block_;
           continue;
         }
       }
@@ -309,6 +304,7 @@ class DeltaBinaryPackedDecoder : public Decoder {
       buffer[i] = last_value_;
       --values_current_mini_block_;
     }
+    num_values_ -= max_values;
     return max_values;
   }
 
@@ -353,6 +349,7 @@ class DeltaLengthByteArrayDecoder : public Decoder {
       data_ += lengths[i];
       len_ -= lengths[i];
     }
+    num_values_ -= max_values;
     return max_values;
   }
 

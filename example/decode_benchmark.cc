@@ -10,79 +10,73 @@ using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;
 
-class DeltaEncoding {
+class DeltaBinaryPackedEncoder {
  public:
-  DeltaEncoding(int block_size) {
-    buffer_.resize(BitUtil::RoundUp(block_size, BLOCK_SIZE));
-    index_ = 0;
+  DeltaBinaryPackedEncoder(int mini_block_size = 8) {
+    mini_block_size_ = mini_block_size;
   }
 
   void AddInt32(int32_t v) {
-    buffer_[index_++] = v;
+    values_.push_back(v);
   }
-
-  int unencoded_size() const { return index_ * sizeof(int32_t); }
-  int num_values() const { return index_; }
 
   uint8_t* Encode(int* encoded_len) {
     uint8_t* result = new uint8_t[1024 * 1024];
-
-    int num_values_padded = index_;
-    int num_blocks = BitUtil::Ceil(num_values_padded, BLOCK_SIZE);
-
-    vector<int> delta_buffer;
-    delta_buffer.resize(num_values_padded);
-    for (int i = 1; i < num_values_padded; ++i) {
-      delta_buffer[i] = buffer_[i] - buffer_[i - 1];
-    }
+    int num_mini_blocks = BitUtil::Ceil(num_values(), mini_block_size_);
+    uint8_t* mini_block_widths = NULL;
 
     BitWriter writer(result, 1024 * 1024);
-    int idx = 0;
-    for (int b = 0; b < num_blocks; ++b) {
-      int values_this_block = num_values_padded - idx;
-      if (values_this_block > BLOCK_SIZE) values_this_block = BLOCK_SIZE;
 
-      int mini_blocks_per_block = BitUtil::Ceil(values_this_block, MINI_BLOCK_SIZE);
-      cout << "Values this block: " << values_this_block << endl;
-      cout << "Num mini blocks: " << mini_blocks_per_block << endl;
+    // Writer the size of each block. We only use 1 block currently.
+    writer.PutVlqInt(num_mini_blocks * mini_block_size_);
 
-      writer.PutVlqInt(BLOCK_SIZE);
-      writer.PutVlqInt(mini_blocks_per_block);
-      writer.PutVlqInt(values_this_block);
-      writer.PutZigZagVlqInt(buffer_[idx]);
-      int end_idx = idx + values_this_block;
-      ++idx;
+    // Write the number of mini blocks.
+    writer.PutVlqInt(num_mini_blocks);
 
-      while (idx < end_idx) {
-        int mini_block_size = num_values_padded - idx;
-        if (mini_block_size > MINI_BLOCK_SIZE) mini_block_size = MINI_BLOCK_SIZE;
+    // Write the number of values.
+    writer.PutVlqInt(num_values() - 1);
 
-        int min_delta = INT_MAX;
-        for (int i = 0; i < mini_block_size; ++i) {
-          min_delta = ::min(min_delta, delta_buffer[idx + i]);
-        }
-        int for_delta = 0;
-        for (int i = 0; i < mini_block_size; ++i) {
-          delta_buffer[idx + i] = delta_buffer[idx + i] - min_delta;
-          for_delta = max(for_delta, delta_buffer[idx + i]);
-        }
-        int bit_width = BitUtil::Log2(for_delta);
+    // Write the first value.
+    writer.PutZigZagVlqInt(values_[0]);
 
-/*
-        cout << "deltas in mini block " << mini_block_size << endl;
-        cout << "min delta: " << min_delta << endl;
-        cout << "for delta: " << for_delta << endl;
-        cout << "bit width: " << bit_width << endl;
-*/
+    // Compute the values as deltas and the min delta.
+    int min_delta = INT_MAX;
+    for (int i = values_.size() - 1; i > 0; --i) {
+      values_[i] -= values_[i - 1];
+      min_delta = min(min_delta, values_[i]);
+    }
 
-        writer.PutZigZagVlqInt(min_delta);
-        writer.PutAligned<uint8_t>(bit_width, 8);
+    // Write out the min delta.
+    writer.PutZigZagVlqInt(min_delta);
 
-        for (int i = 0; i < mini_block_size; ++i) {
-          writer.PutValue(delta_buffer[idx + i], bit_width);
-        }
-        idx += mini_block_size;
+    // We need to save num_mini_blocks bytes to store the bit widths of the mini blocks.
+    mini_block_widths = writer.GetNextBytePtr(num_mini_blocks);
+
+    int idx = 1;
+    for (int i = 0; i < num_mini_blocks; ++i) {
+      int n = min(mini_block_size_, num_values() - idx);
+
+      // Compute the max delta in this mini block.
+      int max_delta = INT_MIN;
+      for (int j = 0; j < n; ++j) {
+        max_delta = max(values_[idx + j], max_delta);
       }
+
+      // The bit width for this block is the number of bits needed to store
+      // (max_delta - min_delta).
+      int bit_width = BitUtil::NumRequiredBits(max_delta - min_delta);
+      mini_block_widths[i] = bit_width;
+
+      // Encode this mini blocking using min_delta and bit_width
+      for (int j = 0; j < n; ++j) {
+        writer.PutValue(values_[idx + j] - min_delta, bit_width);
+      }
+
+      // Pad out the last block.
+      for (int j = n; j < mini_block_size_; ++j) {
+        writer.PutValue(0, bit_width);
+      }
+      idx += n;
     }
 
     writer.Flush();
@@ -90,12 +84,11 @@ class DeltaEncoding {
     return result;
   }
 
- private:
-  vector<int32_t> buffer_;
-  int index_;
+  int num_values() const { return values_.size(); }
 
-  static const int BLOCK_SIZE = 128;
-  static const int MINI_BLOCK_SIZE = 32;
+ private:
+  int mini_block_size_;
+  vector<int32_t> values_;
 };
 
 class StopWatch {
@@ -134,55 +127,136 @@ uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_siz
   return result;
 }
 
+uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
+    int benchmark_iters = -1, int benchmark_batch_size = 1) {
+  int mini_block_size;
+  if (values.size() < 8) {
+    mini_block_size = 8;
+  } else if (values.size() < 16) {
+    mini_block_size = 16;
+  } else {
+    mini_block_size = 32;
+  }
+  DeltaBinaryPackedDecoder decoder(NULL);
+  DeltaBinaryPackedEncoder encoder(mini_block_size);
+  for (int i = 0; i < values.size(); ++i) {
+    encoder.AddInt32(values[i]);
+  }
+
+  int raw_len = encoder.num_values() * sizeof(int);
+  int len;
+  uint8_t* buffer = encoder.Encode(&len);
+
+  if (benchmark_iters == -1) {
+    printf("%s\n", name);
+    printf("  Raw len: %d\n", raw_len);
+    printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / (float)raw_len);
+    decoder.SetData(encoder.num_values(), buffer, len);
+    for (int i = 0; i < encoder.num_values(); ++i) {
+      int32_t x = 0;
+      decoder.GetInt32(&x, 1);
+      if (values[i] != x) {
+        cerr << "Bad: " << i << endl;
+        cerr << "  " << x << " != " << values[i] << endl;
+        break;
+      }
+    }
+    return 0;
+  } else {
+    uint64_t result = 0;
+    int32_t buf[benchmark_batch_size];
+    StopWatch sw;
+    sw.Start();\
+    for (int k = 0; k < benchmark_iters; ++k) {
+      decoder.SetData(encoder.num_values(), buffer, len);
+      for (int i = 0; i < values.size();) {
+        int n = decoder.GetInt32(buf, benchmark_batch_size);
+        for (int j = 0; j < n; ++j) {
+          result += buf[j];
+        }
+        i += n;
+      }
+    }
+    uint64_t elapsed = sw.Stop();
+    double num_ints = values.size() * benchmark_iters * 1000.;
+    printf("%s rate (batch size = %2d): %0.3fM per second.\n",
+        name, benchmark_batch_size, num_ints / elapsed);
+    return result;
+  }
+}
+
 #define TEST(NAME, FN, DATA, BATCH_SIZE)\
   sw.Start();\
   for (int i = 0; i < NUM_ITERS; ++i) {\
     FN(reinterpret_cast<uint8_t*>(&DATA[0]), NUM_VALUES, BATCH_SIZE);\
   }\
   elapsed = sw.Stop();\
-  printf("%s rate (batch size = %2d): %0.2f per second.\n",\
+  printf("%s rate (batch size = %2d): %0.3fM per second.\n",\
       NAME, BATCH_SIZE, mult / elapsed);
 
+void TestBinaryPacking() {
+  vector<int> values;
+  values.clear();
+  for (int i = 0; i < 100; ++i) values.push_back(0);
+  TestBinaryPackedEncoding("Zeros", values);
+
+  values.clear();
+  for (int i = 1; i <= 5; ++i) values.push_back(i);
+  TestBinaryPackedEncoding("Example 1", values);
+
+  values.clear();
+  values.push_back(7);
+  values.push_back(5);
+  values.push_back(3);
+  values.push_back(1);
+  values.push_back(2);
+  values.push_back(3);
+  values.push_back(4);
+  values.push_back(5);
+  TestBinaryPackedEncoding("Example 2", values);
+
+  // Test rand ints between 0 and 10K
+  values.clear();
+  for (int i = 0; i < 500000; ++i) {
+    values.push_back(rand() % (10000));
+  }
+  TestBinaryPackedEncoding("Rand [0, 10000)", values);
+
+  // Test rand ints between 0 and 100
+  values.clear();
+  for (int i = 0; i < 500000; ++i) {
+    values.push_back(rand() % 100);
+  }
+  TestBinaryPackedEncoding("Rand [0, 100)", values);
+}
+
 int main(int argc, char** argv) {
+  //TestBinaryPacking();
+
   StopWatch sw;
   uint64_t elapsed = 0;
 
   const int NUM_VALUES = 1024 * 1024;
   const int NUM_ITERS = 10;
-  const double mult = NUM_VALUES * 1000. * 1000. * 1000. * NUM_ITERS;
+  const double mult = NUM_VALUES * NUM_ITERS * 1000.;
 
   vector<int32_t> plain_int_data;
   plain_int_data.resize(NUM_VALUES);
 
-  //TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 1);
-  //TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 16);
-  //TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 32);
-  //TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 64);
+  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 1);
+  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 16);
+  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 32);
+  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 64);
 
-
-  DeltaEncoding encoder(128);
-  //for (int i = 1; i <= 5; ++i) encoder.AddInt32(i);
-  encoder.AddInt32(7);
-  encoder.AddInt32(5);
-  encoder.AddInt32(3);
-  encoder.AddInt32(1);
-  encoder.AddInt32(2);
-  encoder.AddInt32(3);
-  encoder.AddInt32(4);
-  encoder.AddInt32(5);
-  int len;
-  uint8_t* buffer = encoder.Encode(&len);
-  cout << "Raw len: " << encoder.unencoded_size() << endl;
-  cout << "Encoded len: " << len << endl;
-
-  cout << "Decoding: " << endl;
-  DeltaBinaryPackedDecoder decoder(NULL);
-  decoder.SetData(encoder.num_values(), buffer, len);
-  for (int i = 0; i < encoder.num_values(); ++i) {
-    int32_t x;
-    decoder.GetInt32(&x, 1);
-    cout << x << endl;
+  // Test rand ints between 0 and 10K
+  vector<int> values;
+  for (int i = 0; i < 500000; ++i) {
+    values.push_back(rand() % 10000);
   }
+  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 1);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 16);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 32);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 64);
 
   return 0;
 }
