@@ -144,7 +144,8 @@ class RleEncoder {
     int bytes_per_run = BitUtil::Ceil(bit_width * MAX_VALUES_PER_LITERAL_RUN, 8.0);
     int num_runs = BitUtil::Ceil(num_values, MAX_VALUES_PER_LITERAL_RUN);
     int literal_max_size = num_runs + num_runs * bytes_per_run;
-    return std::max(MinBufferSize(bit_width), literal_max_size);
+    int min_run_size = MinBufferSize(bit_width);
+    return std::max(min_run_size, literal_max_size) + min_run_size;
   }
 
   // Encode value.  Returns true if the value fits in buffer, false otherwise.
