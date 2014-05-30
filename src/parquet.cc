@@ -109,6 +109,7 @@ static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
 
 bool ColumnReader::ReadNewPage() {
   // Loop until we find the next data page.
+
   while (true) {
     int bytes_read = 0;
     const uint8_t* buffer = stream_->Peek(DATA_PAGE_SIZE, &bytes_read);
@@ -169,7 +170,7 @@ bool ColumnReader::ReadNewPage() {
             if (schema_->type == Type::BOOLEAN) {
               decoder.reset(new BoolDecoder(schema_));
             } else {
-              shared_ptr<Decoder> decoder(new PlainDecoder(schema_));
+              decoder.reset(new PlainDecoder(schema_));
             }
             decoders_[encoding] = decoder;
             current_decoder_ = decoder.get();
@@ -188,6 +189,7 @@ bool ColumnReader::ReadNewPage() {
         }
       }
       current_decoder_->SetData(num_buffered_values_, buffer, uncompressed_len);
+      return true;
     } else {
       // We don't know what this page type is. We're allowed to skip non-data pages.
       continue;
