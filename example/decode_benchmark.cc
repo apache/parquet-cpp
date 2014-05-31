@@ -10,6 +10,10 @@ using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;
 
+/**
+ * Test bed for encodings and some utilities to measure their throughput.
+ */
+
 class DeltaBitPackEncoder {
  public:
   DeltaBitPackEncoder(int mini_block_size = 8) {

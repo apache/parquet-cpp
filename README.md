@@ -44,6 +44,8 @@ over malloc/free. new/delete should be avoided whenever possible by using stl/bo
 where possible. For example, scoped_ptr instead of explicit new/delete and using 
 std::vector instead of allocated buffers. Currently, c++11 features are not used.
 
+For error handling, this project uses exceptions.
+
 In general, many of the APIs at the layers are interface based for extensibility. To 
 minimize the cost of virtual calls, the APIs should be batch-centric. For example, 
 encoding should operate on batches of values rather than a single value.

@@ -2,6 +2,7 @@
 #define PARQUET_PARQUET_H_
 
 #include <exception>
+#include <sstream>
 #include <boost/cstdint.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/unordered_map.hpp>
@@ -32,7 +33,11 @@ struct ByteArray {
 class ParquetException : public std::exception {
  public:
   static void EofException() { throw ParquetException("Unexpected end of stream."); }
-  static void NYI() { throw ParquetException("Not yet implemented."); }
+  static void NYI(const std::string& msg) {
+    std::stringstream ss;
+    ss << "Not yet implemented: " << msg << ".";
+    throw ParquetException(ss.str());
+  }
 
   explicit ParquetException(const char* msg) : msg_(msg) {}
   explicit ParquetException(const std::string& msg) : msg_(msg) {}

@@ -32,8 +32,10 @@ int ByteCompare(const ByteArray& x1, const ByteArray& x2) {
   return 0;
 }
 
+// Simple example which reads all the values in the file and outputs the number of
+// values, number of nulls and min/max for each column.
 int main(int argc, char** argv) {
-  int col_idx = 0;
+  int col_idx = -1;
   if (argc < 2) {
     cerr << "Usage: compute_stats <file> [col_idx]" << endl;
     return -1;

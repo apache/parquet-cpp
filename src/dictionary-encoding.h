@@ -35,7 +35,7 @@ class DictionaryDecoder : public Decoder {
         dictionary->GetByteArray(&byte_array_dictionary_[0], num_dictionary_values);
         break;
       default:
-        ParquetException::NYI();
+        ParquetException::NYI("Unsupported dictionary type");
     }
   }
 
