@@ -1,5 +1,5 @@
 #include "parquet/parquet.h"
-#include "encodings.h"
+#include "encodings/encodings.h"
 
 #include <string>
 #include <string.h>
@@ -132,10 +132,10 @@ bool ColumnReader::ReadNewPage() {
         throw ParquetException("Column cannot have more than one dictionary.");
       }
 
-      PlainDecoder dictionary(schema_);
+      PlainDecoder dictionary(schema_->type);
       dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
           buffer, uncompressed_len);
-      shared_ptr<Decoder> decoder(new DictionaryDecoder(schema_, &dictionary));
+      shared_ptr<Decoder> decoder(new DictionaryDecoder(schema_->type, &dictionary));
       decoders_[Encoding::RLE_DICTIONARY] = decoder;
       current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
       continue;
@@ -170,9 +170,9 @@ bool ColumnReader::ReadNewPage() {
           case Encoding::PLAIN: {
             shared_ptr<Decoder> decoder;
             if (schema_->type == Type::BOOLEAN) {
-              decoder.reset(new BoolDecoder(schema_));
+              decoder.reset(new BoolDecoder());
             } else {
-              decoder.reset(new PlainDecoder(schema_));
+              decoder.reset(new PlainDecoder(schema_->type));
             }
             decoders_[encoding] = decoder;
             current_decoder_ = decoder.get();

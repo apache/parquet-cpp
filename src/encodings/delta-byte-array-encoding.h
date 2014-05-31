@@ -7,10 +7,10 @@ namespace parquet_cpp {
 
 class DeltaByteArrayDecoder : public Decoder {
  public:
-  DeltaByteArrayDecoder(const parquet::SchemaElement* schema)
-    : Decoder(schema, parquet::Encoding::DELTA_BYTE_ARRAY),
-      prefix_len_decoder_(NULL),
-      suffix_decoder_(NULL) {
+  DeltaByteArrayDecoder()
+    : Decoder(parquet::Type::BYTE_ARRAY, parquet::Encoding::DELTA_BYTE_ARRAY),
+      prefix_len_decoder_(parquet::Type::INT32),
+      suffix_decoder_() {
   }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {

@@ -7,8 +7,12 @@ namespace parquet_cpp {
 
 class DeltaBitPackDecoder : public Decoder {
  public:
-  DeltaBitPackDecoder(const parquet::SchemaElement* schema)
-    : Decoder(schema, parquet::Encoding::DELTA_BINARY_PACKED) { }
+  DeltaBitPackDecoder(const parquet::Type::type& type)
+    : Decoder(type, parquet::Encoding::DELTA_BINARY_PACKED) {
+    if (type != parquet::Type::INT32 && type != parquet::Type::INT64) {
+      throw ParquetException("Delta bit pack encoding should only be for integer data.");
+    }
+  }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;

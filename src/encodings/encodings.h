@@ -48,10 +48,10 @@ class Decoder {
   const parquet::Encoding::type encoding() const { return encoding_; }
 
  protected:
-  Decoder(const parquet::SchemaElement* schema, const parquet::Encoding::type& encoding)
-    : schema_(schema), encoding_(encoding), num_values_(0) {}
+  Decoder(const parquet::Type::type& type, const parquet::Encoding::type& encoding)
+    : type_(type), encoding_(encoding), num_values_(0) {}
 
-  const parquet::SchemaElement* schema_;
+  const parquet::Type::type type_;
   const parquet::Encoding::type encoding_;
   int num_values_;
 };

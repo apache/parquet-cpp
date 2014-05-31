@@ -7,8 +7,8 @@ namespace parquet_cpp {
 
 class PlainDecoder : public Decoder {
  public:
-  PlainDecoder(const parquet::SchemaElement* schema)
-    : Decoder(schema, parquet::Encoding::PLAIN), data_(NULL), len_(0) {
+  PlainDecoder(const parquet::Type::type& type)
+    : Decoder(type, parquet::Encoding::PLAIN), data_(NULL), len_(0) {
   }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {

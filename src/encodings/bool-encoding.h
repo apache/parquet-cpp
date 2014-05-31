@@ -7,8 +7,7 @@ namespace parquet_cpp {
 
 class BoolDecoder : public Decoder {
  public:
-  BoolDecoder(const parquet::SchemaElement* schema)
-    : Decoder(schema, parquet::Encoding::PLAIN) { }
+  BoolDecoder() : Decoder(parquet::Type::BOOLEAN, parquet::Encoding::PLAIN) { }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
@@ -27,7 +26,6 @@ class BoolDecoder : public Decoder {
  private:
   impala::RleDecoder decoder_;
 };
-
 
 }
 

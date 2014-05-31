@@ -7,10 +7,10 @@ namespace parquet_cpp {
 
 class DictionaryDecoder : public Decoder {
  public:
-  DictionaryDecoder(const parquet::SchemaElement* schema, Decoder* dictionary)
-    : Decoder(schema, parquet::Encoding::RLE_DICTIONARY) {
+  DictionaryDecoder(const parquet::Type::type& type, Decoder* dictionary)
+    : Decoder(type, parquet::Encoding::RLE_DICTIONARY) {
     int num_dictionary_values = dictionary->values_left();
-    switch (schema->type) {
+    switch (type) {
       case parquet::Type::BOOLEAN:
         throw ParquetException("Boolean cols should not be dictionary encoded.");
 

@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "example_util.h"
-#include "encodings.h"
+#include "encodings/encodings.h"
 
 using namespace impala;
 using namespace parquet;
@@ -203,7 +203,7 @@ class StopWatch {
 
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
-  PlainDecoder decoder(NULL);
+  PlainDecoder decoder(Type::INT32);
   decoder.SetData(num_values, data, num_values * sizeof(int32_t));
   int32_t values[batch_size];
   for (int i = 0; i < num_values;) {
@@ -226,7 +226,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
   } else {
     mini_block_size = 32;
   }
-  DeltaBitPackDecoder decoder(NULL);
+  DeltaBitPackDecoder decoder(Type::INT32);
   DeltaBitPackEncoder encoder(mini_block_size);
   for (int i = 0; i < values.size(); ++i) {
     encoder.AddInt32(values[i]);
@@ -320,7 +320,7 @@ void TestBinaryPacking() {
 }
 
 void TestDeltaLengthByteArray() {
-  DeltaLengthByteArrayDecoder decoder(NULL);
+  DeltaLengthByteArrayDecoder decoder;
   DeltaLengthByteArrayEncoder encoder;
 
   vector<string> values;
@@ -349,7 +349,7 @@ void TestDeltaLengthByteArray() {
 }
 
 void TestDeltaByteArray() {
-  DeltaByteArrayDecoder decoder(NULL);
+  DeltaByteArrayDecoder decoder;
   DeltaByteArrayEncoder encoder;
 
   vector<string> values;
