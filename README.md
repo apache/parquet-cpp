@@ -9,6 +9,14 @@ variable to the directory containing include/ and lib/.)
 Then run:
 <br>
 <code>
+thirdparty/download_thirdparty.sh
+</code>
+<br>
+<code>
+thirdparty/build_thirdparty.sh
+</code>
+<br>
+<code>
 cmake . 
 </code>
 <br>
@@ -18,6 +26,8 @@ make
 
 The binaries will be built to ./bin which contains the libraries to link against as
 well as a few example executables.
+
+Incremental builds can be done afterwords with just <code> make </code>.
 
 Design
 ========

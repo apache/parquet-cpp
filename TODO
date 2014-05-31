@@ -1,5 +1,5 @@
 A lot of the format spec is still not implemented:
-  - Compression codecs
+  - Other compression codecs. Only snappy is implemented.
   - Nested schema
 
 The write path is not started.

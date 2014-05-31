@@ -103,6 +103,8 @@ class ColumnReader {
   ColumnReader(const parquet::ColumnMetaData*,
       const parquet::SchemaElement*, InputStream* stream);
 
+  ~ColumnReader();
+
   // Returns true if there are still values in this column.
   bool HasNext();
 
@@ -129,7 +131,7 @@ class ColumnReader {
   InputStream* stream_;
 
   // Compression codec to use.
-  Decompressor* decompressor_;
+  boost::scoped_ptr<Decompressor> decompressor_;
   std::vector<uint8_t> decompression_buffer_;
 
   // Map of compression type to decompressor object.

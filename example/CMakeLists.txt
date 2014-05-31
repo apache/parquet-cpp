@@ -17,8 +17,17 @@ add_library(Example STATIC
   example_util.cc
 )
 
+SET(LINK_LIBS
+  Parquet
+  ParquetCompression
+  Example
+  rt
+  ThriftParquet
+  thriftstatic
+  snappystatic)
+
 add_executable(compute_stats compute_stats.cc)
-target_link_libraries(compute_stats Parquet Example ThriftParquet thriftstatic)
+target_link_libraries(compute_stats ${LINK_LIBS})
 
 add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark Parquet Example ThriftParquet thriftstatic rt)
+target_link_libraries(decode_benchmark ${LINK_LIBS})

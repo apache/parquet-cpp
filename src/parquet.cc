@@ -30,6 +30,9 @@ const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
   return result;
 }
 
+ColumnReader::~ColumnReader() {
+}
+
 ColumnReader::ColumnReader(const ColumnMetaData* metadata,
     const SchemaElement* schema, InputStream* stream)
   : metadata_(metadata),
@@ -65,7 +68,9 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
 
   switch (metadata->codec) {
     case CompressionCodec::UNCOMPRESSED:
-      decompressor_ = NULL;
+      break;
+    case CompressionCodec::SNAPPY:
+      decompressor_.reset(new SnappyDecompressor());
       break;
     default:
       ParquetException::NYI("Reading compressed data");

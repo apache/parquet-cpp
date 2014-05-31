@@ -13,13 +13,16 @@
 # limitations under the License.
 
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 
 # generate CTest input files
 enable_testing()
 
 # where to find cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
+
+set(THIRDPARTY_PREFIX ${CMAKE_SOURCE_DIR}/thirdparty/installed)
+set(CMAKE_PREFIX_PATH ${THIRDPARTY_PREFIX})
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -42,6 +45,12 @@ message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
 # for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake
 add_library(thriftstatic STATIC IMPORTED)
 set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
+
+## Snappy
+find_package(Snappy REQUIRED)
+include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
+add_library(snappystatic STATIC IMPORTED)
+set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
 
 SET(CMAKE_CXX_FLAGS "-msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
