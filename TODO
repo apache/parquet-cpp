@@ -1,0 +1,9 @@
+A lot of the format spec is still not implemented:
+  - Compression codecs
+  - Nested schema
+
+The write path is not started.
+
+We need to design a record abstraction that would make it easy to implement
+an AvroRecordReader, ThriftRecordReader, etc.
+
