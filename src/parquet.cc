@@ -1,5 +1,6 @@
 #include "parquet/parquet.h"
 #include "encodings/encodings.h"
+#include "compression/codec.h"
 
 #include <string>
 #include <string.h>
@@ -62,9 +63,14 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
       ParquetException::NYI("Unsupported type");
   }
 
-  if (metadata->codec != CompressionCodec::UNCOMPRESSED) {
-    ParquetException::NYI("Reading compressed data");
+  switch (metadata->codec) {
+    case CompressionCodec::UNCOMPRESSED:
+      decompressor_ = NULL;
+      break;
+    default:
+      ParquetException::NYI("Reading compressed data");
   }
+
   config_ = Config::DefaultConfig();
   values_buffer_.resize(config_.batch_size * value_byte_size);
 }
@@ -120,10 +126,23 @@ bool ColumnReader::ReadNewPage() {
     DeserializeThriftMsg(buffer, &header_size, &current_page_header_);
     stream_->Read(header_size, &bytes_read);
 
-    // TODO: handle decompression.
+    int compressed_len = current_page_header_.compressed_page_size;
     int uncompressed_len = current_page_header_.uncompressed_page_size;
-    buffer = stream_->Read(uncompressed_len, &bytes_read);
-    if (bytes_read != uncompressed_len) ParquetException::EofException();
+
+    // Read the compressed data page.
+    buffer = stream_->Read(compressed_len, &bytes_read);
+    if (bytes_read != compressed_len) ParquetException::EofException();
+
+    // Uncompress it if we need to
+    if (decompressor_ != NULL) {
+      // Grow the uncompressed buffer if we need to.
+      if (uncompressed_len > decompression_buffer_.size()) {
+        decompression_buffer_.resize(uncompressed_len);
+      }
+      decompressor_->Decompress(
+          compressed_len, buffer, uncompressed_len, &decompression_buffer_[0]);
+      buffer = &decompression_buffer_[0];
+    }
 
     if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
       unordered_map<Encoding::type, shared_ptr<Decoder> >::iterator it =

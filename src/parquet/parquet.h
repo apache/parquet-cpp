@@ -23,6 +23,7 @@
 
 namespace parquet_cpp {
 
+class Decompressor;
 class Decoder;
 
 struct ByteArray {
@@ -106,6 +107,7 @@ class ColumnReader {
   bool HasNext();
 
   // Returns the next value of this type.
+  // TODO: batchify this interface.
   bool GetBool(int* definition_level, int* repetition_level);
   int32_t GetInt32(int* definition_level, int* repetition_level);
   int64_t GetInt64(int* definition_level, int* repetition_level);
@@ -126,7 +128,11 @@ class ColumnReader {
   const parquet::SchemaElement* schema_;
   InputStream* stream_;
 
-  // Map of encoding type to decoder object.
+  // Compression codec to use.
+  Decompressor* decompressor_;
+  std::vector<uint8_t> decompression_buffer_;
+
+  // Map of compression type to decompressor object.
   boost::unordered_map<parquet::Encoding::type, boost::shared_ptr<Decoder> > decoders_;
 
   parquet::PageHeader current_page_header_;
