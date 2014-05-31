@@ -22,7 +22,7 @@ class DeltaBitPackEncoder {
 
   uint8_t* Encode(int* encoded_len) {
     uint8_t* result = new uint8_t[1024 * 1024];
-    int num_mini_blocks = BitUtil::Ceil(num_values(), mini_block_size_);
+    int num_mini_blocks = BitUtil::Ceil(num_values() - 1, mini_block_size_);
     uint8_t* mini_block_widths = NULL;
 
     BitWriter writer(result, 1024 * 1024);
