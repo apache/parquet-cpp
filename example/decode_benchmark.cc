@@ -23,7 +23,7 @@ class DeltaBitPackEncoder {
     mini_block_size_ = mini_block_size;
   }
 
-  void AddInt32(int32_t v) {
+  void Add(int64_t v) {
     values_.push_back(v);
   }
 
@@ -47,7 +47,7 @@ class DeltaBitPackEncoder {
     writer.PutZigZagVlqInt(values_[0]);
 
     // Compute the values as deltas and the min delta.
-    int min_delta = INT_MAX;
+    int64_t min_delta = numeric_limits<int64_t>::max();
     for (int i = values_.size() - 1; i > 0; --i) {
       values_[i] -= values_[i - 1];
       min_delta = min(min_delta, values_[i]);
@@ -64,7 +64,7 @@ class DeltaBitPackEncoder {
       int n = min(mini_block_size_, num_values() - idx);
 
       // Compute the max delta in this mini block.
-      int max_delta = INT_MIN;
+      int64_t max_delta = numeric_limits<int64_t>::min();
       for (int j = 0; j < n; ++j) {
         max_delta = max(values_[idx + j], max_delta);
       }
@@ -95,7 +95,7 @@ class DeltaBitPackEncoder {
 
  private:
   int mini_block_size_;
-  vector<int32_t> values_;
+  vector<int64_t> values_;
 };
 
 class DeltaLengthByteArrayEncoder {
@@ -113,7 +113,7 @@ class DeltaLengthByteArrayEncoder {
 
   void Add(const uint8_t* ptr, int len) {
     plain_encoded_len_ += len + sizeof(int);
-    len_encoder_.AddInt32(len);
+    len_encoder_.Add(len);
     memcpy(buffer_ + offset_, ptr, len);
     offset_ += len;
   }
@@ -152,7 +152,7 @@ class DeltaByteArrayEncoder {
         break;
       }
     }
-    prefix_len_encoder_.AddInt32(prefix_len);
+    prefix_len_encoder_.Add(prefix_len);
     suffix_encoder_.Add(reinterpret_cast<const uint8_t*>(s.data()) + prefix_len,
         s.size() - prefix_len);
     last_value_ = s;
@@ -185,11 +185,11 @@ class DeltaByteArrayEncoder {
 
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
-  PlainDecoder decoder(Type::INT32);
-  decoder.SetData(num_values, data, num_values * sizeof(int32_t));
-  int32_t values[batch_size];
+  PlainDecoder decoder(Type::INT64);
+  decoder.SetData(num_values, data, num_values * sizeof(int64_t));
+  int64_t values[batch_size];
   for (int i = 0; i < num_values;) {
-    int n = decoder.GetInt32(values, batch_size);
+    int n = decoder.GetInt64(values, batch_size);
     for (int j = 0; j < n; ++j) {
       result += values[j];
     }
@@ -198,7 +198,7 @@ uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_siz
   return result;
 }
 
-uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
+uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& values,
     int benchmark_iters = -1, int benchmark_batch_size = 1) {
   int mini_block_size;
   if (values.size() < 8) {
@@ -208,10 +208,10 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
   } else {
     mini_block_size = 32;
   }
-  DeltaBitPackDecoder decoder(Type::INT32);
+  DeltaBitPackDecoder decoder(Type::INT64);
   DeltaBitPackEncoder encoder(mini_block_size);
   for (int i = 0; i < values.size(); ++i) {
-    encoder.AddInt32(values[i]);
+    encoder.Add(values[i]);
   }
 
   int raw_len = encoder.num_values() * sizeof(int);
@@ -224,8 +224,8 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
     printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / (float)raw_len);
     decoder.SetData(encoder.num_values(), buffer, len);
     for (int i = 0; i < encoder.num_values(); ++i) {
-      int32_t x = 0;
-      decoder.GetInt32(&x, 1);
+      int64_t x = 0;
+      decoder.GetInt64(&x, 1);
       if (values[i] != x) {
         cerr << "Bad: " << i << endl;
         cerr << "  " << x << " != " << values[i] << endl;
@@ -239,13 +239,13 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
     printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / (float)raw_len);
 
     uint64_t result = 0;
-    int32_t buf[benchmark_batch_size];
+    int64_t buf[benchmark_batch_size];
     StopWatch sw;
     sw.Start();\
     for (int k = 0; k < benchmark_iters; ++k) {
       decoder.SetData(encoder.num_values(), buffer, len);
       for (int i = 0; i < values.size();) {
-        int n = decoder.GetInt32(buf, benchmark_batch_size);
+        int n = decoder.GetInt64(buf, benchmark_batch_size);
         for (int j = 0; j < n; ++j) {
           result += buf[j];
         }
@@ -269,9 +269,9 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
   printf("%s rate (batch size = %2d): %0.3fM per second.\n",\
       NAME, BATCH_SIZE, mult / elapsed);
 
-void TestPlainIntCompressed(Codec* codec, const vector<int32_t>& data, int num_iters, int batch_size) {
+void TestPlainIntCompressed(Codec* codec, const vector<int64_t>& data, int num_iters, int batch_size) {
   const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(&data[0]);
-  int uncompressed_len = data.size() * sizeof(int32_t);
+  int uncompressed_len = data.size() * sizeof(int64_t);
   uint8_t* decompressed_data = new uint8_t[uncompressed_len];
 
   int max_compressed_size = codec->MaxCompressedLen(uncompressed_len, raw_data);
@@ -279,7 +279,7 @@ void TestPlainIntCompressed(Codec* codec, const vector<int32_t>& data, int num_i
   int compressed_len = codec->Compress(uncompressed_len, raw_data,
       max_compressed_size, compressed_data);
 
-  printf("%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n",
+  printf("\n%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n",
       codec->name(), uncompressed_len, compressed_len);
 
   double mult = num_iters * data.size() * 1000.;
@@ -300,7 +300,7 @@ void TestPlainIntCompressed(Codec* codec, const vector<int32_t>& data, int num_i
 }
 
 void TestBinaryPacking() {
-  vector<int> values;
+  vector<int64_t> values;
   values.clear();
   for (int i = 0; i < 100; ++i) values.push_back(0);
   TestBinaryPackedEncoding("Zeros", values);
@@ -414,7 +414,7 @@ int main(int argc, char** argv) {
   const int NUM_ITERS = 10;
   const double mult = NUM_VALUES * NUM_ITERS * 1000.;
 
-  vector<int32_t> plain_int_data;
+  vector<int64_t> plain_int_data;
   plain_int_data.resize(NUM_VALUES);
 
   TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 1);
@@ -423,7 +423,7 @@ int main(int argc, char** argv) {
   TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 64);
 
   // Test rand ints between 0 and 10K
-  vector<int> values;
+  vector<int64_t> values;
   for (int i = 0; i < 1000000; ++i) {
     values.push_back(rand() % 10000);
   }
