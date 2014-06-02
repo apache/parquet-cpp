@@ -3,7 +3,9 @@
 #include <stdio.h>
 
 #include "example_util.h"
+#include "compression/codec.h"
 #include "encodings/encodings.h"
+#include "util/stopwatch.h"
 
 using namespace impala;
 using namespace parquet;
@@ -25,11 +27,11 @@ class DeltaBitPackEncoder {
   }
 
   uint8_t* Encode(int* encoded_len) {
-    uint8_t* result = new uint8_t[1024 * 1024];
+    uint8_t* result = new uint8_t[10 * 1024 * 1024];
     int num_mini_blocks = BitUtil::Ceil(num_values() - 1, mini_block_size_);
     uint8_t* mini_block_widths = NULL;
 
-    BitWriter writer(result, 1024 * 1024);
+    BitWriter writer(result, 10 * 1024 * 1024);
 
     // Writer the size of each block. We only use 1 block currently.
     writer.PutVlqInt(num_mini_blocks * mini_block_size_);
@@ -99,7 +101,7 @@ class DeltaLengthByteArrayEncoder {
  public:
   DeltaLengthByteArrayEncoder(int mini_block_size = 8) :
     len_encoder_(mini_block_size),
-    buffer_(new uint8_t[1024 * 1024]),
+    buffer_(new uint8_t[10 * 1024 * 1024]),
     offset_(0),
     plain_encoded_len_(0) {
   }
@@ -161,7 +163,7 @@ class DeltaByteArrayEncoder {
     int suffix_buffer_len;
     uint8_t* suffix_buffer = suffix_encoder_.Encode(&suffix_buffer_len);
 
-    uint8_t* buffer = new uint8_t[1024 * 1024];
+    uint8_t* buffer = new uint8_t[10 * 1024 * 1024];
     memcpy(buffer, &prefix_buffer_len, sizeof(int));
     memcpy(buffer + sizeof(int), prefix_buffer, prefix_buffer_len);
     memcpy(buffer + sizeof(int) + prefix_buffer_len, suffix_buffer, suffix_buffer_len);
@@ -179,27 +181,6 @@ class DeltaByteArrayEncoder {
   int plain_encoded_len_;
 };
 
-
-class StopWatch {
- public:
-  StopWatch() {
-  }
-
-  void Start() {
-    clock_gettime(CLOCK_MONOTONIC, &start_);
-  }
-
-  // Returns time in nanoseconds.
-  uint64_t Stop() {
-    timespec end;
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    return (end.tv_sec - start_.tv_sec) * 1000L * 1000L * 1000L +
-           (end.tv_nsec - start_.tv_nsec);
-  }
-
- private:
-  timespec start_;
-};
 
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
@@ -252,6 +233,10 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
     }
     return 0;
   } else {
+    printf("%s\n", name);
+    printf("  Raw len: %d\n", raw_len);
+    printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / (float)raw_len);
+
     uint64_t result = 0;
     int32_t buf[benchmark_batch_size];
     StopWatch sw;
@@ -282,6 +267,38 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
   elapsed = sw.Stop();\
   printf("%s rate (batch size = %2d): %0.3fM per second.\n",\
       NAME, BATCH_SIZE, mult / elapsed);
+
+void TestPlainIntCompressed(const vector<int32_t>& data, int num_iters, int batch_size) {
+  const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(&data[0]);
+  int uncompressed_len = data.size() * sizeof(int32_t);
+  uint8_t* decompressed_data = new uint8_t[uncompressed_len];
+
+  SnappyDecompressor decompressor;
+  SnappyCompressor compressor;
+  int max_compressed_size = compressor.MaxCompressedLen(uncompressed_len, raw_data);
+  uint8_t* compressed_data = new uint8_t[max_compressed_size];
+  int compressed_len = compressor.Compress(uncompressed_len, raw_data,
+      max_compressed_size, compressed_data);
+
+  printf("Snappy:\n  Uncompressed len: %d\n  Compressed len:   %d\n",
+      uncompressed_len, compressed_len);
+
+  double mult = num_iters * data.size() * 1000.;
+  StopWatch sw;
+  sw.Start();
+  uint64_t r = 0;
+  for (int i = 0; i < num_iters; ++i) {
+    decompressor.Decompress(compressed_len, compressed_data,
+        uncompressed_len, decompressed_data);
+    r += TestPlainIntEncoding(decompressed_data, data.size(), batch_size);
+  }
+  int64_t elapsed = sw.Stop();\
+  printf("Compressed plain int rate (batch size = %2d): %0.3fM per second.\n",
+      batch_size, mult / elapsed);
+
+  delete[] compressed_data;
+  delete[] decompressed_data;
+}
 
 void TestBinaryPacking() {
   vector<int> values;
@@ -408,13 +425,18 @@ int main(int argc, char** argv) {
 
   // Test rand ints between 0 and 10K
   vector<int> values;
-  for (int i = 0; i < 500000; ++i) {
+  for (int i = 0; i < 1000000; ++i) {
     values.push_back(rand() % 10000);
   }
   TestBinaryPackedEncoding("Rand 0-10K", values, 20, 1);
   TestBinaryPackedEncoding("Rand 0-10K", values, 20, 16);
   TestBinaryPackedEncoding("Rand 0-10K", values, 20, 32);
   TestBinaryPackedEncoding("Rand 0-10K", values, 20, 64);
+
+  TestPlainIntCompressed(values, 20, 1);
+  TestPlainIntCompressed(values, 20, 16);
+  TestPlainIntCompressed(values, 20, 32);
+  TestPlainIntCompressed(values, 20, 64);
 
   return 0;
 }
