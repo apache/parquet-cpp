@@ -70,7 +70,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
     case CompressionCodec::UNCOMPRESSED:
       break;
     case CompressionCodec::SNAPPY:
-      decompressor_.reset(new SnappyDecompressor());
+      decompressor_.reset(new SnappyCodec());
       break;
     default:
       ParquetException::NYI("Reading compressed data");

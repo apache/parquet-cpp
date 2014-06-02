@@ -13,5 +13,6 @@
 # limitations under the License.
 
 add_library(ParquetCompression STATIC
-  snappy-decompressor.cc
+  lz4-codec.cc
+  snappy-codec.cc
 )

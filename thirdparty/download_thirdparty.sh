@@ -15,4 +15,12 @@ if [ ! -d snappy-${SNAPPY_VERSION} ]; then
   rm snappy-${SNAPPY_VERSION}.tar.gz
 fi
 
+if [ ! -d snappy-${LZ4_VERSION} ]; then
+  echo "Fetching lz4"
+  wget https://github.com/Cyan4973/lz4/archive/${LZ4_VERSION}.tar.gz
+  mv ${LZ4_VERSION}.tar.gz lz4-${LZ4_VERSION}.tar.gz
+  tar xvzf lz4-${LZ4_VERSION}.tar.gz
+  rm lz4-${LZ4_VERSION}.tar.gz
+fi
+
 

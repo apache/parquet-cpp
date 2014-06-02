@@ -24,6 +24,7 @@ SET(LINK_LIBS
   rt
   ThriftParquet
   thriftstatic
+  lz4static
   snappystatic)
 
 add_executable(compute_stats compute_stats.cc)

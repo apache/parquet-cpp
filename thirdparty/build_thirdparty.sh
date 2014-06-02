@@ -15,6 +15,7 @@ else
   # Allow passing specific libs to build on the command line
   for arg in "$*"; do
     case $arg in
+      "lz4")        F_LZ4=1 ;;
       "snappy")     F_SNAPPY=1 ;;
       *)            echo "Unknown module: $arg"; exit 1 ;;
     esac
@@ -48,6 +49,13 @@ export PATH=$PREFIX/bin:$PATH
 if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
   cd $SNAPPY_DIR
   ./configure --with-pic --prefix=$PREFIX
+  make -j$PARALLEL install
+fi
+
+# build lz4
+if [ -n "$F_ALL" -o -n "$F_LZ4" ]; then
+  cd $LZ4_DIR
+  CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $LZ4_DIR
   make -j$PARALLEL install
 fi
 

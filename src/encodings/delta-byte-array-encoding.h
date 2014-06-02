@@ -30,7 +30,7 @@ class DeltaByteArrayDecoder : public Decoder {
   virtual int GetByteArray(ByteArray* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
     for (int  i = 0; i < max_values; ++i) {
-      int prefix_len;
+      int prefix_len = 0;
       prefix_len_decoder_.GetInt32(&prefix_len, 1);
       ByteArray suffix;
       suffix_decoder_.GetByteArray(&suffix, 1);

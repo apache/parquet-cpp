@@ -14,6 +14,7 @@ using namespace std;
 
 /**
  * Test bed for encodings and some utilities to measure their throughput.
+ * TODO: this file needs some major cleanup.
  */
 
 class DeltaBitPackEncoder {
@@ -268,33 +269,31 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int>& values,
   printf("%s rate (batch size = %2d): %0.3fM per second.\n",\
       NAME, BATCH_SIZE, mult / elapsed);
 
-void TestPlainIntCompressed(const vector<int32_t>& data, int num_iters, int batch_size) {
+void TestPlainIntCompressed(Codec* codec, const vector<int32_t>& data, int num_iters, int batch_size) {
   const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(&data[0]);
   int uncompressed_len = data.size() * sizeof(int32_t);
   uint8_t* decompressed_data = new uint8_t[uncompressed_len];
 
-  SnappyDecompressor decompressor;
-  SnappyCompressor compressor;
-  int max_compressed_size = compressor.MaxCompressedLen(uncompressed_len, raw_data);
+  int max_compressed_size = codec->MaxCompressedLen(uncompressed_len, raw_data);
   uint8_t* compressed_data = new uint8_t[max_compressed_size];
-  int compressed_len = compressor.Compress(uncompressed_len, raw_data,
+  int compressed_len = codec->Compress(uncompressed_len, raw_data,
       max_compressed_size, compressed_data);
 
-  printf("Snappy:\n  Uncompressed len: %d\n  Compressed len:   %d\n",
-      uncompressed_len, compressed_len);
+  printf("%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n",
+      codec->name(), uncompressed_len, compressed_len);
 
   double mult = num_iters * data.size() * 1000.;
   StopWatch sw;
   sw.Start();
   uint64_t r = 0;
   for (int i = 0; i < num_iters; ++i) {
-    decompressor.Decompress(compressed_len, compressed_data,
+    codec->Decompress(compressed_len, compressed_data,
         uncompressed_len, decompressed_data);
     r += TestPlainIntEncoding(decompressed_data, data.size(), batch_size);
   }
   int64_t elapsed = sw.Stop();\
-  printf("Compressed plain int rate (batch size = %2d): %0.3fM per second.\n",
-      batch_size, mult / elapsed);
+  printf("Compressed(%s) plain int rate (batch size = %2d): %0.3fM per second.\n",
+      codec->name(), batch_size, mult / elapsed);
 
   delete[] compressed_data;
   delete[] decompressed_data;
@@ -428,15 +427,23 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 1000000; ++i) {
     values.push_back(rand() % 10000);
   }
-  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 1);
-  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 16);
-  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 32);
-  TestBinaryPackedEncoding("Rand 0-10K", values, 20, 64);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 100, 1);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 100, 16);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 100, 32);
+  TestBinaryPackedEncoding("Rand 0-10K", values, 100, 64);
 
-  TestPlainIntCompressed(values, 20, 1);
-  TestPlainIntCompressed(values, 20, 16);
-  TestPlainIntCompressed(values, 20, 32);
-  TestPlainIntCompressed(values, 20, 64);
+  SnappyCodec snappy_codec;
+  Lz4Codec lz4_codec;
+
+  TestPlainIntCompressed(&snappy_codec, values, 100, 1);
+  TestPlainIntCompressed(&snappy_codec, values, 100, 16);
+  TestPlainIntCompressed(&snappy_codec, values, 100, 32);
+  TestPlainIntCompressed(&snappy_codec, values, 100, 64);
+
+  TestPlainIntCompressed(&lz4_codec, values, 100, 1);
+  TestPlainIntCompressed(&lz4_codec, values, 100, 16);
+  TestPlainIntCompressed(&lz4_codec, values, 100, 32);
+  TestPlainIntCompressed(&lz4_codec, values, 100, 64);
 
   return 0;
 }

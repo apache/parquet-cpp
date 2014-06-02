@@ -23,7 +23,7 @@
 
 namespace parquet_cpp {
 
-class Decompressor;
+class Codec;
 class Decoder;
 
 struct ByteArray {
@@ -131,7 +131,7 @@ class ColumnReader {
   InputStream* stream_;
 
   // Compression codec to use.
-  boost::scoped_ptr<Decompressor> decompressor_;
+  boost::scoped_ptr<Codec> decompressor_;
   std::vector<uint8_t> decompression_buffer_;
 
   // Map of compression type to decompressor object.
