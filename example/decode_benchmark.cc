@@ -441,6 +441,8 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 1000000; ++i) {
     values.push_back(rand() % 10000);
   }
+  //TestBinaryPackedEncoding("Rand 0-10K", values, 1, 1);
+  //return 0;
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 1);
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 16);
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 32);

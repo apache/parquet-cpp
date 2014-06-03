@@ -19,6 +19,10 @@
 
 namespace parquet_cpp {
 
+template<int num_values, int bit_width>
+void DecodeMiniBlock(uint8_t* data) {
+}
+
 class DeltaBitPackDecoder : public Decoder {
  public:
   DeltaBitPackDecoder(const parquet::Type::type& type)
@@ -97,8 +101,8 @@ class DeltaBitPackDecoder : public Decoder {
   impala::BitReader decoder_;
   uint64_t values_current_block_;
   uint64_t num_mini_blocks_;
-  uint64_t values_per_mini_block_;
-  uint64_t values_current_mini_block_;
+  int values_per_mini_block_;
+  int values_current_mini_block_;
 
   int64_t min_delta_;
   int mini_block_idx_;
