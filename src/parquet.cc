@@ -13,8 +13,11 @@
 // limitations under the License.
 
 #include "parquet/parquet.h"
-#include "encodings/encodings.h"
 #include "compression/codec.h"
+#include "encodings/bool-encoding.h"
+#include "encodings/encodings.h"
+#include "encodings/dictionary-encoding.h"
+#include "encodings/plain-encoding.h"
 
 #include <string>
 #include <string.h>

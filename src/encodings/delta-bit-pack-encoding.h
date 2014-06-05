@@ -47,6 +47,11 @@ class DeltaBitPackDecoder : public Decoder {
     return GetInternal(buffer, max_values);
   }
 
+  static void Init() {
+    Init(decode_data_14_, 14);
+    Init(decode_data_15_, 15);
+  }
+
  private:
   void InitBlock() {
     uint64_t block_size;
@@ -86,7 +91,26 @@ class DeltaBitPackDecoder : public Decoder {
         }
       }
 
-      // TODO: the key to this algorithm is to decode the entire miniblock at once.
+      if (max_values == 32) {
+        if (delta_bit_width_ == 14) {
+          const uint8_t* data = decoder_.current_ptr();
+          DecodeBlock<T>(decode_data_14_, data, buffer);
+        } else if (delta_bit_width_ == 15) {
+          const uint8_t* data = decoder_.current_ptr();
+          DecodeBlock<T>(decode_data_15_, data, buffer);
+        } else {
+          // TODO: the key to this algorithm is to decode the entire miniblock at once.
+          ParquetException::NYI("miniblocks");
+        }
+        for (int i = 0; i < 32; ++i) {
+          buffer[i] = last_value_ + min_delta_ + buffer[i];
+          last_value_ = buffer[i];
+        }
+        decoder_.SkipBytes(32 * delta_bit_width_ / 8);
+        values_current_mini_block_ = 0;
+        num_values_ -= 32;
+        return 32;
+      }
       int64_t delta;
       if (!decoder_.GetValue(delta_bit_width_, &delta)) ParquetException::EofException();
       delta += min_delta_;
@@ -110,6 +134,45 @@ class DeltaBitPackDecoder : public Decoder {
   int delta_bit_width_;
 
   int64_t last_value_;
+
+  struct DecodeData {
+    int byte_offset;
+    int shift;
+  };
+
+  static DecodeData decode_data_14_[32];
+  static DecodeData decode_data_15_[32];
+
+  template <typename T>
+  void DecodeBlock(const DecodeData* offsets, const uint8_t* data, T* buffer) {
+    uint64_t mask = -1;
+    mask = mask >> (64 - delta_bit_width_);
+    for (int i = 0; i < 32; i += 4) {
+      buffer[i + 0] = *reinterpret_cast<const T*>(data + offsets[i + 0].byte_offset);
+      buffer[i + 1] = *reinterpret_cast<const T*>(data + offsets[i + 1].byte_offset);
+      buffer[i + 2] = *reinterpret_cast<const T*>(data + offsets[i + 2].byte_offset);
+      buffer[i + 3] = *reinterpret_cast<const T*>(data + offsets[i + 3].byte_offset);
+
+      buffer[i + 0] >>= offsets[i + 0].shift;
+      buffer[i + 1] >>= offsets[i + 1].shift;
+      buffer[i + 2] >>= offsets[i + 2].shift;
+      buffer[i + 3] >>= offsets[i + 3].shift;
+
+      buffer[i + 0] &= mask;
+      buffer[i + 1] &= mask;
+      buffer[i + 2] &= mask;
+      buffer[i + 3] &= mask;
+    }
+  }
+
+  static void Init(DecodeData* data, int bit_width) {
+    int bit_offset = 0;
+    for (int i = 0; i < 32; ++i) {
+      data[i].byte_offset = bit_offset / 8;
+      data[i].shift = bit_offset % 8;
+      bit_offset += bit_width;
+    }
+  }
 };
 
 }

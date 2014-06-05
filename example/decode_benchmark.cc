@@ -18,7 +18,11 @@
 
 #include "example_util.h"
 #include "compression/codec.h"
+#include "encodings/delta-bit-pack-encoding.h"
+#include "encodings/delta-byte-array-encoding.h"
+#include "encodings/delta-length-byte-array-encoding.h"
 #include "encodings/encodings.h"
+#include "encodings/plain-encoding.h"
 #include "util/stopwatch.h"
 
 using namespace impala;
@@ -228,7 +232,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     encoder.Add(values[i]);
   }
 
-  int raw_len = encoder.num_values() * sizeof(int);
+  int raw_len = encoder.num_values() * sizeof(int64_t);
   int len;
   uint8_t* buffer = encoder.Encode(&len);
 
@@ -237,13 +241,17 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     printf("  Raw len: %d\n", raw_len);
     printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / (float)raw_len);
     decoder.SetData(encoder.num_values(), buffer, len);
-    for (int i = 0; i < encoder.num_values(); ++i) {
-      int64_t x = 0;
-      decoder.GetInt64(&x, 1);
-      if (values[i] != x) {
-        cerr << "Bad: " << i << endl;
-        cerr << "  " << x << " != " << values[i] << endl;
-        break;
+    int64_t v;
+    decoder.GetInt64(&v, 1);
+
+    for (int i = 1; i < encoder.num_values(); i += benchmark_batch_size) {
+      int64_t x[benchmark_batch_size];
+      int n = decoder.GetInt64(x, benchmark_batch_size);
+      for (int j = 0; j < n; ++j) {
+        if (values[i + j] != x[j]) {
+          cerr << "Bad: " << i + j << endl;
+          cerr << "  " << x[j] << " != " << values[i + j] << endl;
+        }
       }
     }
     return 0;
@@ -417,9 +425,12 @@ void TestDeltaByteArray() {
 }
 
 int main(int argc, char** argv) {
+  DeltaBitPackDecoder::Init();
+  /*
   TestBinaryPacking();
   TestDeltaLengthByteArray();
   TestDeltaByteArray();
+  */
 
   StopWatch sw;
   uint64_t elapsed = 0;
@@ -441,7 +452,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 1000000; ++i) {
     values.push_back(rand() % 10000);
   }
-  //TestBinaryPackedEncoding("Rand 0-10K", values, 1, 1);
+  //TestBinaryPackedEncoding("Rand 0-10K", values, -1, 32);
   //return 0;
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 1);
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 16);

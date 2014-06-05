@@ -125,6 +125,13 @@ class BitReader {
   // there may be an additional fraction of a byte).
   int bytes_left() { return max_bytes_ - (byte_offset_ + BitUtil::Ceil(bit_offset_, 8)); }
 
+  const uint8_t* current_ptr() { return buffer_ + byte_offset_; }
+  void SkipBytes(int num_bytes) {
+    byte_offset_ += num_bytes;
+    num_bytes = std::min(8, max_bytes_ - byte_offset_);
+    memcpy(&buffered_values_, buffer_ + byte_offset_, num_bytes);
+  }
+
   // Maximum byte length of a vlq encoded int
   static const int MAX_VLQ_BYTE_LEN = 5;
 

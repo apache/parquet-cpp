@@ -15,7 +15,8 @@
 #ifndef PARQUET_DELTA_BYTE_ARRAY_ENCODING_H
 #define PARQUET_DELTA_BYTE_ARRAY_ENCODING_H
 
-#include "encodings.h"
+#include "encodings/delta-bit-pack-encoding.h"
+#include "encodings/delta-length-byte-array-encoding.h"
 
 namespace parquet_cpp {
 

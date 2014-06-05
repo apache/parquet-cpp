@@ -22,6 +22,8 @@
 #include "impala/rle-encoding.h"
 #include "impala/bit-stream-utils.inline.h"
 
+#include "parquet/parquet.h"
+
 namespace parquet_cpp {
 
 class Decoder {
@@ -71,13 +73,6 @@ class Decoder {
 };
 
 }
-
-#include "bool-encoding.h"
-#include "plain-encoding.h"
-#include "dictionary-encoding.h"
-#include "delta-bit-pack-encoding.h"
-#include "delta-length-byte-array-encoding.h"
-#include "delta-byte-array-encoding.h"
 
 #endif
 

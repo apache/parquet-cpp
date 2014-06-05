@@ -14,6 +14,7 @@
 
 add_library(Parquet STATIC
   parquet.cc
+  encodings/delta-bit-pack-encoding.cc
 )
 
 add_subdirectory(compression)
