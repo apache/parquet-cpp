@@ -77,7 +77,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
       value_byte_size = sizeof(ByteArray);
       break;
     default:
-      ParquetException::NYI("Unsupported type");
+      PARQUET_NOT_YET_IMPLEMENTED("Unsupported type");
   }
 
   switch (metadata->codec) {
@@ -87,7 +87,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
       decompressor_.reset(new SnappyCodec());
       break;
     default:
-      ParquetException::NYI("Reading compressed data");
+      PARQUET_NOT_YET_IMPLEMENTED("Reading compressed data");
   }
 
   config_ = Config::DefaultConfig();
@@ -124,7 +124,7 @@ void ColumnReader::BatchDecode() {
           current_decoder_->GetByteArray(reinterpret_cast<ByteArray*>(buf), batch_size);
       break;
     default:
-      ParquetException::NYI("Unsupported type.");
+      PARQUET_NOT_YET_IMPLEMENTED("Unsupported type.");
   }
 }
 
@@ -222,7 +222,7 @@ bool ColumnReader::ReadNewPage() {
           case Encoding::DELTA_BINARY_PACKED:
           case Encoding::DELTA_LENGTH_BYTE_ARRAY:
           case Encoding::DELTA_BYTE_ARRAY:
-            ParquetException::NYI("Unsupported encoding");
+            PARQUET_NOT_YET_IMPLEMENTED("Unsupported encoding");
 
           default:
             throw ParquetException("Unknown encoding type.");

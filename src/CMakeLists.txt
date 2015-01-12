@@ -13,6 +13,7 @@
 # limitations under the License.
 
 add_library(Parquet STATIC
+  generic-record.cc
   parquet.cc
 )
 

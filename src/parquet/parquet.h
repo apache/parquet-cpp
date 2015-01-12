@@ -45,12 +45,16 @@ struct ByteArray {
   const uint8_t* ptr;
 };
 
+#define PARQUET_NOT_YET_IMPLEMENTED(msg) \
+  ParquetException::NYI(msg, __FILE__, __LINE__)
+
 class ParquetException : public std::exception {
  public:
   static void EofException() { throw ParquetException("Unexpected end of stream."); }
-  static void NYI(const std::string& msg) {
+
+  static void NYI(const std::string& msg, const std::string& file, int line) {
     std::stringstream ss;
-    ss << "Not yet implemented: " << msg << ".";
+    ss << "Not yet implemented: " << msg << " @" << file << ":" << line;
     throw ParquetException(ss.str());
   }
 
@@ -119,6 +123,9 @@ class ColumnReader {
 
   ~ColumnReader();
 
+  const std::string& name() const { return schema_->name; }
+  parquet::Type::type type() const { return schema_->type; }
+
   // Returns true if there are still values in this column.
   bool HasNext();
 
@@ -133,6 +140,7 @@ class ColumnReader {
 
  private:
   bool ReadNewPage();
+
   // Reads the next definition and repetition level. Returns true if the value is NULL.
   bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
 
@@ -175,36 +183,42 @@ inline bool ColumnReader::HasNext() {
 }
 
 inline bool ColumnReader::GetBool(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return bool();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<bool*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 inline int32_t ColumnReader::GetInt32(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int32_t();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<int32_t*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 inline int64_t ColumnReader::GetInt64(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int64_t();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<int64_t*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 inline float ColumnReader::GetFloat(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return float();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<float*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 inline double ColumnReader::GetDouble(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return double();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<double*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
 inline ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
   if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return ByteArray();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<ByteArray*>(&values_buffer_[0])[buffered_values_offset_++];
@@ -212,6 +226,7 @@ inline ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
 
 inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
   *rep_level = 1;
+  *def_level = 0;
   if (!definition_level_decoder_->Get(def_level)) ParquetException::EofException();
   --num_buffered_values_;
   return *def_level == 0;
