@@ -35,3 +35,6 @@ target_link_libraries(decode_benchmark ${LINK_LIBS})
 
 add_executable(parquet_reader parquet_reader.cc)
 target_link_libraries(parquet_reader ${LINK_LIBS})
+
+add_executable(dump-metadata dump-metadata.cc)
+target_link_libraries(dump-metadata ${LINK_LIBS})
