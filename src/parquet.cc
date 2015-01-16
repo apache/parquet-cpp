@@ -48,9 +48,10 @@ ColumnReader::~ColumnReader() {
 }
 
 ColumnReader::ColumnReader(const ColumnMetaData* metadata,
-    const SchemaElement* schema, InputStream* stream)
+    const Schema::Element* schema, InputStream* stream)
   : metadata_(metadata),
     schema_(schema),
+    max_def_level_(schema_->max_def_level()),
     stream_(stream),
     current_decoder_(NULL),
     num_buffered_values_(0),
@@ -77,7 +78,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
       value_byte_size = sizeof(ByteArray);
       break;
     default:
-      ParquetException::NYI("Unsupported type");
+      PARQUET_NOT_YET_IMPLEMENTED("Unsupported type");
   }
 
   switch (metadata->codec) {
@@ -87,7 +88,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
       decompressor_.reset(new SnappyCodec());
       break;
     default:
-      ParquetException::NYI("Reading compressed data");
+      PARQUET_NOT_YET_IMPLEMENTED("Only uncompressed and snappy are supported.");
   }
 
   config_ = Config::DefaultConfig();
@@ -124,7 +125,7 @@ void ColumnReader::BatchDecode() {
           current_decoder_->GetByteArray(reinterpret_cast<ByteArray*>(buf), batch_size);
       break;
     default:
-      ParquetException::NYI("Unsupported type.");
+      PARQUET_NOT_YET_IMPLEMENTED("Unsupported type.");
   }
 }
 
@@ -142,6 +143,8 @@ bool ColumnReader::ReadNewPage() {
     const uint8_t* buffer = stream_->Peek(DATA_PAGE_SIZE, &bytes_read);
     if (bytes_read == 0) return false;
     uint32_t header_size = bytes_read;
+
+    // TODO: error handling. This breaks if the page is too big.
     DeserializeThriftMsg(buffer, &header_size, &current_page_header_);
     stream_->Read(header_size, &bytes_read);
 
@@ -170,10 +173,10 @@ bool ColumnReader::ReadNewPage() {
         throw ParquetException("Column cannot have more than one dictionary.");
       }
 
-      PlainDecoder dictionary(schema_->type);
+      PlainDecoder dictionary(type());
       dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
           buffer, uncompressed_len);
-      shared_ptr<Decoder> decoder(new DictionaryDecoder(schema_->type, &dictionary));
+      shared_ptr<Decoder> decoder(new DictionaryDecoder(type(), &dictionary));
       decoders_[Encoding::RLE_DICTIONARY] = decoder;
       current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
       continue;
@@ -181,18 +184,29 @@ bool ColumnReader::ReadNewPage() {
       // Read a data page.
       num_buffered_values_ = current_page_header_.data_page_header.num_values;
 
-      // Read definition levels.
-      if (schema_->repetition_type != FieldRepetitionType::REQUIRED) {
-        int num_definition_bytes = *reinterpret_cast<const uint32_t*>(buffer);
+      // Read the repetition levels.
+      if (schema_->max_rep_level() != 0) {
+        int num_rep_bytes = *reinterpret_cast<const uint32_t*>(buffer);
         buffer += sizeof(uint32_t);
-        definition_level_decoder_.reset(
-            new impala::RleDecoder(buffer, num_definition_bytes, 1));
-        buffer += num_definition_bytes;
+        rep_level_decoder_.reset(
+            new impala::RleDecoder(buffer, num_rep_bytes,
+                impala::BitUtil::NumRequiredBits(schema_->max_rep_level())));
+        buffer += num_rep_bytes;
         uncompressed_len -= sizeof(uint32_t);
-        uncompressed_len -= num_definition_bytes;
+        uncompressed_len -= num_rep_bytes;
       }
 
-      // TODO: repetition levels
+      // Read definition levels.
+      if (max_def_level_ != 0) {
+        int num_def_bytes = *reinterpret_cast<const uint32_t*>(buffer);
+        buffer += sizeof(uint32_t);
+        def_level_decoder_.reset(
+            new impala::RleDecoder(buffer, num_def_bytes,
+                impala::BitUtil::NumRequiredBits(max_def_level_)));
+        buffer += num_def_bytes;
+        uncompressed_len -= sizeof(uint32_t);
+        uncompressed_len -= num_def_bytes;
+      }
 
       // Get a decoder object for this page or create a new decoder if this is the
       // first page with this encoding.
@@ -207,10 +221,10 @@ bool ColumnReader::ReadNewPage() {
         switch (encoding) {
           case Encoding::PLAIN: {
             shared_ptr<Decoder> decoder;
-            if (schema_->type == Type::BOOLEAN) {
+            if (type() == Type::BOOLEAN) {
               decoder.reset(new BoolDecoder());
             } else {
-              decoder.reset(new PlainDecoder(schema_->type));
+              decoder.reset(new PlainDecoder(type()));
             }
             decoders_[encoding] = decoder;
             current_decoder_ = decoder.get();
@@ -222,12 +236,14 @@ bool ColumnReader::ReadNewPage() {
           case Encoding::DELTA_BINARY_PACKED:
           case Encoding::DELTA_LENGTH_BYTE_ARRAY:
           case Encoding::DELTA_BYTE_ARRAY:
-            ParquetException::NYI("Unsupported encoding");
+            PARQUET_NOT_YET_IMPLEMENTED("Unsupported encoding");
 
           default:
             throw ParquetException("Unknown encoding type.");
         }
       }
+
+      // TODO: num_buffered_values_ is not right. This value includes NULLs.
       current_decoder_->SetData(num_buffered_values_, buffer, uncompressed_len);
       return true;
     } else {

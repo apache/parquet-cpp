@@ -35,6 +35,8 @@
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/transport/TBufferTransports.h>
 
+#include "parquet/schema.h"
+
 namespace parquet_cpp {
 
 class Codec;
@@ -45,12 +47,19 @@ struct ByteArray {
   const uint8_t* ptr;
 };
 
+std::string PrintRepetitionType(const parquet::SchemaElement& e);
+std::string PrintType(const parquet::SchemaElement& e);
+
+#define PARQUET_NOT_YET_IMPLEMENTED(msg) \
+  ParquetException::NYI(msg, __FILE__, __LINE__)
+
 class ParquetException : public std::exception {
  public:
   static void EofException() { throw ParquetException("Unexpected end of stream."); }
-  static void NYI(const std::string& msg) {
+
+  static void NYI(const std::string& msg, const std::string& file, int line) {
     std::stringstream ss;
-    ss << "Not yet implemented: " << msg << ".";
+    ss << "Not yet implemented: " << msg << " @" << file << ":" << line;
     throw ParquetException(ss.str());
   }
 
@@ -115,33 +124,41 @@ class ColumnReader {
   };
 
   ColumnReader(const parquet::ColumnMetaData*,
-      const parquet::SchemaElement*, InputStream* stream);
+      const Schema::Element*, InputStream* stream);
 
   ~ColumnReader();
+
+  const std::string& name() const { return schema_->parquet_schema().name; }
+  const std::string& full_name() const { return schema_->full_name(); }
+  parquet::Type::type type() const { return schema_->parquet_schema().type; }
 
   // Returns true if there are still values in this column.
   bool HasNext();
 
   // Returns the next value of this type.
   // TODO: batchify this interface.
-  bool GetBool(int* definition_level, int* repetition_level);
-  int32_t GetInt32(int* definition_level, int* repetition_level);
-  int64_t GetInt64(int* definition_level, int* repetition_level);
-  float GetFloat(int* definition_level, int* repetition_level);
-  double GetDouble(int* definition_level, int* repetition_level);
-  ByteArray GetByteArray(int* definition_level, int* repetition_level);
+  bool GetBool(bool* is_null, int* def_level, int* rep_level);
+  int32_t GetInt32(bool* is_null, int* def_level, int* rep_level);
+  int64_t GetInt64(bool* is_null, int* def_level, int* rep_level);
+  float GetFloat(bool* is_null, int* def_level, int* rep_level);
+  double GetDouble(bool* is_null, int* def_level, int* rep_level);
+  ByteArray GetByteArray(bool* is_null, int* def_level, int* rep_level);
 
  private:
   bool ReadNewPage();
+
   // Reads the next definition and repetition level. Returns true if the value is NULL.
-  bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
+  bool ReadDefRepLevels(int* def_level, int* rep_level);
 
   void BatchDecode();
 
   Config config_;
 
   const parquet::ColumnMetaData* metadata_;
-  const parquet::SchemaElement* schema_;
+  const Schema::Element* schema_;
+
+  // Values with this definition level are non-null
+  const int max_def_level_;
   InputStream* stream_;
 
   // Compression codec to use.
@@ -154,9 +171,9 @@ class ColumnReader {
   parquet::PageHeader current_page_header_;
 
   // Not set if field is required.
-  boost::scoped_ptr<impala::RleDecoder> definition_level_decoder_;
+  boost::scoped_ptr<impala::RleDecoder> def_level_decoder_;
   // Not set for flat schemas.
-  boost::scoped_ptr<impala::RleDecoder> repetition_level_decoder_;
+  boost::scoped_ptr<impala::RleDecoder> rep_level_decoder_;
   Decoder* current_decoder_;
   int num_buffered_values_;
 
@@ -174,47 +191,61 @@ inline bool ColumnReader::HasNext() {
   return true;
 }
 
-inline bool ColumnReader::GetBool(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return bool();
+inline bool ColumnReader::GetBool(bool* is_null, int* def_level, int* rep_level) {
+  *is_null = ReadDefRepLevels(def_level, rep_level);
+  if (*is_null) return bool();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<bool*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
-inline int32_t ColumnReader::GetInt32(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int32_t();
+inline int32_t ColumnReader::GetInt32(bool* is_null, int* def_level, int* rep_level) {
+  *is_null = ReadDefRepLevels(def_level, rep_level);
+  if (*is_null) return int32_t();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<int32_t*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
-inline int64_t ColumnReader::GetInt64(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return int64_t();
+inline int64_t ColumnReader::GetInt64(bool* is_null, int* def_level, int* rep_level) {
+  *is_null = ReadDefRepLevels(def_level, rep_level);
+  if (*is_null) return int64_t();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<int64_t*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
-inline float ColumnReader::GetFloat(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return float();
+inline float ColumnReader::GetFloat(bool* is_null, int* def_level, int* rep_level) {
+  *is_null = ReadDefRepLevels(def_level, rep_level);
+  if (*is_null) return float();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<float*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
-inline double ColumnReader::GetDouble(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return double();
+inline double ColumnReader::GetDouble(bool* is_null, int* def_level, int* rep_level) {
+  *is_null = ReadDefRepLevels(def_level, rep_level);
+  if (*is_null) return double();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<double*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
-inline ByteArray ColumnReader::GetByteArray(int* def_level, int* rep_level) {
-  if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return ByteArray();
+inline ByteArray ColumnReader::GetByteArray(bool* is_null,
+    int* def_level, int* rep_level) {
+  *is_null = ReadDefRepLevels(def_level, rep_level);
+  if (*is_null) return ByteArray();
   if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
   return reinterpret_cast<ByteArray*>(&values_buffer_[0])[buffered_values_offset_++];
 }
 
-inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
-  *rep_level = 1;
-  if (!definition_level_decoder_->Get(def_level)) ParquetException::EofException();
+inline bool ColumnReader::ReadDefRepLevels(int* def_level, int* rep_level) {
+  if (!HasNext()) ParquetException::EofException();
+  *def_level = 0;
+  *rep_level = 0;
+  if (def_level_decoder_.get() != NULL && !def_level_decoder_->Get(def_level)) {
+    ParquetException::EofException();
+  }
+  if (rep_level_decoder_.get() != NULL && !rep_level_decoder_->Get(rep_level)) {
+    ParquetException::EofException();
+  }
   --num_buffered_values_;
-  return *def_level == 0;
+  return *def_level != max_def_level_;
 }
 
 // Deserialize a thrift message from buf/len.  buf/len must at least contain

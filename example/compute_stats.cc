@@ -18,6 +18,7 @@
 
 #include "example_util.h"
 
+using namespace boost;
 using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;
@@ -64,6 +65,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  shared_ptr<Schema> schema = Schema::FromParquet(metadata.schema);
+
   for (int i = 0; i < metadata.row_groups.size(); ++i) {
     const RowGroup& row_group = metadata.row_groups[i];
     for (int c = 0; c < row_group.columns.size(); ++c) {
@@ -91,19 +94,20 @@ int main(int argc, char** argv) {
       }
 
       InMemoryInputStream input(&column_buffer[0], column_buffer.size());
-      ColumnReader reader(&col.meta_data, &metadata.schema[c + 1], &input);
+      ColumnReader reader(&col.meta_data, schema->leaves()[c], &input);
 
       bool first_val = true;
       AnyType min, max;
       int num_values = 0;
       int num_nulls = 0;
 
+      bool is_null;
       int def_level, rep_level;
       while (reader.HasNext()) {
         switch (col.meta_data.type) {
           case Type::BOOLEAN: {
-            bool val = reader.GetBool(&def_level, &rep_level);
-            if (def_level < rep_level) break;
+            bool val = reader.GetBool(&is_null, &def_level, &rep_level);
+            if (is_null) continue;
             if (first_val) {
               min.bool_val = max.bool_val = val;
               first_val = false;
@@ -114,8 +118,8 @@ int main(int argc, char** argv) {
             break;
           }
           case Type::INT32: {
-            int32_t val = reader.GetInt32(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
+            int32_t val = reader.GetInt32(&is_null, &def_level, &rep_level);;
+            if (is_null) continue;
             if (first_val) {
               min.int32_val = max.int32_val = val;
               first_val = false;
@@ -126,7 +130,8 @@ int main(int argc, char** argv) {
             break;
           }
           case Type::INT64: {
-            int64_t val = reader.GetInt64(&def_level, &rep_level);;
+            int64_t val = reader.GetInt64(&is_null, &def_level, &rep_level);;
+            if (is_null) continue;
             if (def_level < rep_level) break;
             if (first_val) {
               min.int64_val = max.int64_val = val;
@@ -138,8 +143,8 @@ int main(int argc, char** argv) {
             break;
           }
           case Type::FLOAT: {
-            float val = reader.GetFloat(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
+            float val = reader.GetFloat(&is_null, &def_level, &rep_level);;
+            if (is_null) continue;
             if (first_val) {
               min.float_val = max.float_val = val;
               first_val = false;
@@ -150,8 +155,8 @@ int main(int argc, char** argv) {
             break;
           }
           case Type::DOUBLE: {
-            double val = reader.GetDouble(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
+            double val = reader.GetDouble(&is_null, &def_level, &rep_level);;
+            if (is_null) continue;
             if (first_val) {
               min.double_val = max.double_val = val;
               first_val = false;
@@ -162,8 +167,8 @@ int main(int argc, char** argv) {
             break;
           }
           case Type::BYTE_ARRAY: {
-            ByteArray val = reader.GetByteArray(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
+            ByteArray val = reader.GetByteArray(&is_null, &def_level, &rep_level);;
+            if (is_null) continue;
             if (first_val) {
               min.byte_array_val = max.byte_array_val = val;
               first_val = false;
@@ -181,7 +186,7 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        if (def_level < rep_level) ++num_nulls;
+        if (is_null) ++num_nulls;
         ++num_values;
       }
 

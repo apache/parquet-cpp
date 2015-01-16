@@ -65,7 +65,7 @@ class DictionaryDecoder : public Decoder {
         break;
       }
       default:
-        ParquetException::NYI("Unsupported dictionary type");
+        PARQUET_NOT_YET_IMPLEMENTED("Unsupported dictionary type");
     }
   }
 
