@@ -9,18 +9,19 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 /**
  * File format description for the parquet file format
  */
 namespace cpp parquet
-namespace java parquet.format
+namespace java org.apache.parquet.format
 
 /**
  * Types supported by Parquet.  These types are intended to be used in combination
@@ -76,6 +77,90 @@ enum ConvertedType {
    * 2 digits over).
    */
   DECIMAL = 5;
+
+  /**
+   * A Date
+   *
+   * Stored as days since Unix epoch, encoded as the INT32 physical type.
+   *
+   */
+  DATE = 6;
+
+  /**
+   * A time
+   *
+   * The total number of milliseconds since midnight.  The value is stored
+   * as an INT32 physical type.
+   */
+  TIME_MILLIS = 7;
+  // RESERVED = 8;
+
+  /**
+   * A date/time combination
+   *
+   * Date and time recorded as milliseconds since the Unix epoch.  Recorded as
+   * a physical type of INT64.
+   */
+  TIMESTAMP_MILLIS = 9;
+  // RESERVED = 10;
+
+
+  /**
+   * An unsigned integer value.
+   *
+   * The number describes the maximum number of meainful data bits in
+   * the stored value. 8, 16 and 32 bit values are stored using the
+   * INT32 physical type.  64 bit values are stored using the INT64
+   * physical type.
+   *
+   */
+  UINT_8 = 11;
+  UINT_16 = 12;
+  UINT_32 = 13;
+  UINT_64 = 14;
+
+  /**
+   * A signed integer value.
+   *
+   * The number describes the maximum number of meainful data bits in
+   * the stored value. 8, 16 and 32 bit values are stored using the
+   * INT32 physical type.  64 bit values are stored using the INT64
+   * physical type.
+   *
+   */
+  INT_8 = 15;
+  INT_16 = 16;
+  INT_32 = 17;
+  INT_64 = 18;
+
+  /**
+   * An embedded JSON document
+   *
+   * A JSON document embedded within a single UTF8 column.
+   */
+  JSON = 19;
+
+  /**
+   * An embedded BSON document
+   *
+   * A BSON document embedded within a single BINARY column.
+   */
+  BSON = 20;
+
+  /**
+   * An interval of time
+   *
+   * This type annotates data stored as a FIXED_LEN_BYTE_ARRAY of length 12
+   * This data is composed of three separate little endian unsigned
+   * integers.  Each stores a component of a duration of time.  The first
+   * integer identifies the number of months associated with the duration,
+   * the second identifies the number of days associated with the duration
+   * and the third identifies the number of milliseconds associated with
+   * the provided duration.  This duration of time is independent of any
+   * particular timezone or date.
+   */
+  INTERVAL = 21;
+
 }
 
 /**
@@ -147,6 +232,12 @@ struct SchemaElement {
    */
   7: optional i32 scale
   8: optional i32 precision
+
+  /** When the original schema supports field ids, this will save the
+   * original field id in the parquet schema
+   */
+  9: optional i32 field_id;
+
 }
 
 /**
@@ -339,6 +430,22 @@ struct SortingColumn {
 }
 
 /**
+ * statistics of a given page type and encoding
+ */
+struct PageEncodingStats {
+
+  /** the page type (data/dic/...) **/
+  1: required PageType page_type;
+
+  /** encoding of the page **/
+  2: required Encoding encoding;
+
+  /** number of pages of this type with this encoding **/
+  3: required i32 count;
+
+}
+
+/**
  * Description for column metadata
  */
 struct ColumnMetaData {
@@ -378,6 +485,11 @@ struct ColumnMetaData {
 
   /** optional statistics for this column chunk */
   12: optional Statistics statistics;
+
+  /** Set of all encodings used for pages in this column chunk.
+   * This information can be used to determine if all data pages are
+   * dictionary encoded for example **/
+  13: optional list<PageEncodingStats> encoding_stats;
 }
 
 struct ColumnChunk {
@@ -397,6 +509,9 @@ struct ColumnChunk {
 }
 
 struct RowGroup {
+  /** Metadata for each column chunk in this row group.
+   * This list must have the same order as the SchemaElement list in FileMetaData.
+   **/
   1: required list<ColumnChunk> columns
 
   /** Total byte size of all the uncompressed column data in this row group **/
@@ -441,4 +556,3 @@ struct FileMetaData {
    **/
   6: optional string created_by
 }
-
