@@ -15,9 +15,6 @@
 #ifndef PARQUET_UTIL_STOPWATCH_H
 #define PARQUET_UTIL_STOPWATCH_H
 
-#include <iostream>
-#include <stdio.h>
-#include <ctime>
 #include <sys/time.h>
 
 namespace parquet_cpp {
