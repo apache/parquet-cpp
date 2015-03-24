@@ -21,11 +21,10 @@ SET(LINK_LIBS
   Parquet
   ParquetCompression
   Example
-  rt
   ThriftParquet
   thriftstatic
-  lz4static
-  snappystatic)
+  ${LZ4_LIBRARIES}
+  ${Snappy_LIBRARIES})
 
 add_executable(compute_stats compute_stats.cc)
 target_link_libraries(compute_stats ${LINK_LIBS})

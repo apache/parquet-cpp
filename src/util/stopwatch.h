@@ -15,8 +15,7 @@
 #ifndef PARQUET_UTIL_STOPWATCH_H
 #define PARQUET_UTIL_STOPWATCH_H
 
-#include <iostream>
-#include <stdio.h>
+#include <sys/time.h>
 
 namespace parquet_cpp {
 
@@ -26,22 +25,22 @@ class StopWatch {
   }
 
   void Start() {
-    clock_gettime(CLOCK_MONOTONIC, &start_);
+    gettimeofday(&start_time, 0);
   }
 
   // Returns time in nanoseconds.
   uint64_t Stop() {
-    timespec end;
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    return (end.tv_sec - start_.tv_sec) * 1000L * 1000L * 1000L +
-           (end.tv_nsec - start_.tv_nsec);
+    struct timeval t_time;
+    gettimeofday(&t_time, 0);
+
+    return (1000L * 1000L * 1000L * (t_time.tv_sec - start_time.tv_sec)
+                   + (t_time.tv_usec - start_time.tv_usec));
   }
 
  private:
-  timespec start_;
+  struct timeval  start_time;
 };
 
 }
 
 #endif
-
