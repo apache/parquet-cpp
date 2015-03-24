@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   void *column_ptr = read_parquet(argv[1]);
 
   // an example to use the returned column_ptr
-  // printf("%-"COL_WIDTH"d\n",((int32_t *)(((int32_t **)column_ptr)[0]))[0]);
+  // printf("%-" COL_WIDTH "d\n",((int32_t *)(((int32_t **)column_ptr)[0]))[0]);
 
   return 0;
 }
@@ -215,7 +215,7 @@ void* read_parquet(char* filename) {
       char *str = (char*)malloc(50);
       assert(str);
       strcpy(str, metadata.schema[j+1].name.c_str());
-      printf("%-"COL_WIDTH"s", str);
+      printf("%-" COL_WIDTH "s", str);
       free(str);
     }
 
@@ -225,22 +225,22 @@ void* read_parquet(char* filename) {
     for (j = 0;j < row_group.columns.size(); ++j)
       switch(type_array[j]) {
         case Type::BOOLEAN:
-          printf("%-"COL_WIDTH"s","BOOLEAN");
+          printf("%-" COL_WIDTH "s","BOOLEAN");
           break;
         case Type::INT32:
-          printf("%-"COL_WIDTH"s","INT32");
+          printf("%-" COL_WIDTH "s","INT32");
           break;
         case Type::INT64:
-          printf("%-"COL_WIDTH"s","INT64");
+          printf("%-" COL_WIDTH "s","INT64");
           break;
         case Type::FLOAT:
-          printf("%-"COL_WIDTH"s","FLOAT");
+          printf("%-" COL_WIDTH "s","FLOAT");
           break;
         case Type::DOUBLE:
-          printf("%-"COL_WIDTH"s","DOUBLE");
+          printf("%-" COL_WIDTH "s","DOUBLE");
           break;
         case Type::BYTE_ARRAY:
-          printf("%-"COL_WIDTH"s","BYTE_ARRAY");
+          printf("%-" COL_WIDTH "s","BYTE_ARRAY");
           break;
         default:
           continue;
@@ -255,26 +255,26 @@ void* read_parquet(char* filename) {
       for (j = 0; j < row_group.columns.size(); ++j) {
         switch(type_array[j]) {
           case Type::BOOLEAN:
-            printf("%-"COL_WIDTH"d",((bool*)(((bool**)column_ptr)[j]))[k]);
+            printf("%-" COL_WIDTH "d",((bool*)(((bool**)column_ptr)[j]))[k]);
             break;
           case Type::INT32:
-            printf("%-"COL_WIDTH"d",((int32_t *)(((int32_t **)column_ptr)[j]))[k]);
+            printf("%-" COL_WIDTH "d",((int32_t *)(((int32_t **)column_ptr)[j]))[k]);
             break;
           case Type::INT64:
-            printf("%-"COL_WIDTH"ld",((int64_t *)(((int64_t **)column_ptr)[j]))[k]);
+            printf("%-" COL_WIDTH "ld",((int64_t *)(((int64_t **)column_ptr)[j]))[k]);
             break;
           case Type::FLOAT:
-            printf("%-"COL_WIDTH"f",((float*)(((float**)column_ptr)[j]))[k]);
+            printf("%-" COL_WIDTH "f",((float*)(((float**)column_ptr)[j]))[k]);
             break;
           case Type::DOUBLE:
-            printf("%-"COL_WIDTH"lf",((double*)(((double**)column_ptr)[j]))[k]);
+            printf("%-" COL_WIDTH "lf",((double*)(((double**)column_ptr)[j]))[k]);
             break;
           case Type::BYTE_ARRAY:
             result = ByteArrayToString( ((ByteArray*)(((ByteArray**)column_ptr)[j]))[k] );
             str1 = (char*)malloc(result.size());
             assert(str1);
             strcpy(str1, result.c_str());
-            printf("%-"COL_WIDTH"s", str1);
+            printf("%-" COL_WIDTH "s", str1);
             free(str1);
             break;
           default:
