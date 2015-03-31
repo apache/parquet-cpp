@@ -19,6 +19,7 @@
 #include <sstream>
 #include <boost/cstdint.hpp>
 #include <boost/scoped_ptr.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/unordered_map.hpp>
 #include "gen-cpp/parquet_constants.h"
 #include "gen-cpp/parquet_types.h"
