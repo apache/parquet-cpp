@@ -4,6 +4,10 @@ compiler:
     - gcc
     - clang
 
+os:
+    - linux
+    - osx
+
 addons:
     apt:
         packages:
@@ -20,13 +24,17 @@ addons:
 before_install:
     - pushd thirdparty
     # thrift cpp
-    - wget http://www.us.apache.org/dist/thrift/0.9.1/thrift-0.9.1.tar.gz
-    - tar xfz thrift-0.9.1.tar.gz
-    - pushd thrift-0.9.1
-    - ./configure --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$HOME/local
-    - make clean  #for some reason doing this first creates some depedency that the regular Makefile misses
-    - make install
-    - popd
+    - >
+      if [ $TRAVIS_OS_NAME == linux ]; then
+        wget http://www.us.apache.org/dist/thrift/0.9.1/thrift-0.9.1.tar.gz &&
+        tar xfz thrift-0.9.1.tar.gz &&
+        pushd thrift-0.9.1 &&
+        ./configure --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$HOME/local &&
+        make clean &&
+        make install &&
+        popd;
+      fi
+    - if [ $TRAVIS_OS_NAME == osx ]; then brew install thrift; fi
     # snappy and lz4
     - ./download_thirdparty.sh
     - ./build_thirdparty.sh
