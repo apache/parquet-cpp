@@ -1,0 +1,40 @@
+language: cpp
+
+compiler:
+    - gcc
+    - clang
+
+addons:
+    apt:
+        packages:
+            - libboost-dev
+              #- libsnappy-dev currently handled by thirdparty scipts.
+            - libboost-program-options-dev #needed for thrift cpp compilation
+            - libboost-test-dev            #needed for thrift cpp compilation
+            - libssl-dev                   #needed for thrift cpp compilation
+            - libtool                      #needed for thrift cpp compilation
+            - bison                        #needed for thrift cpp compilation
+            - flex                         #needed for thrift cpp compilation
+            - pkg-config                   #needed for thrift cpp compilation
+
+before_install:
+    - pushd thirdparty
+    # thrift cpp
+    - wget http://www.us.apache.org/dist/thrift/0.9.1/thrift-0.9.1.tar.gz
+    - tar xfz thrift-0.9.1.tar.gz
+    - pushd thrift-0.9.1
+    - ./configure --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$HOME/local
+    - make clean  #for some reason doing this first creates some depedency that the regular Makefile misses
+    - make install
+    - popd
+    # snappy and lz4
+    - ./download_thirdparty.sh
+    - ./build_thirdparty.sh
+    - popd
+
+before_script:
+    - mkdir build
+    - cd build
+    - THRIFT_HOME=$HOME/local cmake ..
+
+script: make
