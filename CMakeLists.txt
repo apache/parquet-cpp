@@ -22,8 +22,6 @@ enable_testing()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 set(BUILD_SUPPORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build-support)
 
-set(THIRDPARTY_PREFIX ${CMAKE_SOURCE_DIR}/thirdparty/installed)
-
 if(APPLE)
   set(CMAKE_MACOSX_RPATH 1)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 10.9)

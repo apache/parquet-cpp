@@ -57,6 +57,6 @@ before_script:
     - export CXX="g++-4.9"
     - mkdir build
     - cd build
-    - THRIFT_HOME=$HOME/local SNAPPY_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed cmake ..
+    - THRIFT_HOME=$HOME/local SNAPPY_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed LZ4_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed cmake ..
 
 script: make
