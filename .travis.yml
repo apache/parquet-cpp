@@ -12,7 +12,7 @@ addons:
     apt:
         packages:
             - libboost-dev
-              #- libsnappy-dev currently handled by thirdparty scipts.
+            - libsnappy-dev
             - libboost-program-options-dev #needed for thrift cpp compilation
             - libboost-test-dev            #needed for thrift cpp compilation
             - libssl-dev                   #needed for thrift cpp compilation
@@ -36,6 +36,7 @@ before_install:
       fi
     - if [ $TRAVIS_OS_NAME == osx ]; then brew install thrift; fi
     # snappy and lz4
+    - if [ $TRAVIS_OS_NAME == osx ]; then brew install snappy; fi
     - ./download_thirdparty.sh
     - ./build_thirdparty.sh
     - popd

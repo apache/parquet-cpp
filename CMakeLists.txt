@@ -22,7 +22,6 @@ enable_testing()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
 set(THIRDPARTY_PREFIX ${CMAKE_SOURCE_DIR}/thirdparty/installed)
-set(CMAKE_PREFIX_PATH ${THIRDPARTY_PREFIX})
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -47,10 +46,11 @@ add_library(thriftstatic STATIC IMPORTED)
 set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
 
 ## Snappy
+set( Snappy_USE_STATIC_LIBS ON )
 find_package(Snappy REQUIRED)
 include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
 add_library(snappystatic STATIC IMPORTED)
-set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
+set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_LIBRARIES})
 
 ## LZ4
 find_package(Lz4 REQUIRED)

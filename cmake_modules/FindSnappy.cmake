@@ -1,4 +1,3 @@
-# Copyright 2012 Cloudera Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,57 +10,78 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Tries to find Snappy headers and libraries.
+#
+# Usage of this module as follows:
+#
+#  find_package(Snappy)
+#
+# Variables used by this module, they can change the default behaviour and need
+# to be set before calling find_package:
+#
+#  Snappy_HOME - The root of the Snappy installation.  This is considered before
+#                standard locations. The environment variable SNAPPY_HOME is also
+#                considered if this variable is not set.
+#  Snappy_USE_STATIC_LIBS - Set to ON to force the use of the static
+#                           libraries.  Default is OFF
+#
+# Variables defined by this module:
+#
+#  SNAPPY_FOUND              System has Snappy libs/headers
+#  SNAPPY_LIBRARIES          The Snappy libraries
+#  SNAPPY_INCLUDE_DIR        The location of Snappy headers
 
-# - Find SNAPPY (snappy.h, libsnappy.a, libsnappy.so, and libsnappy.so.1)
-# This module defines
-#  SNAPPY_INCLUDE_DIR, directory containing headers
-#  SNAPPY_LIBS, directory containing snappy libraries
-#  SNAPPY_STATIC_LIB, path to libsnappy.a
-#  SNAPPY_FOUND, whether snappy has been found
+# Determine parameterized roots
+if( Snappy_HOME )
+    list( APPEND _snappy_roots ${Snappy_HOME} )
+endif()
+if( NOT "$ENV{SNAPPY_HOME}" STREQUAL "")
+    file( TO_CMAKE_PATH "$ENV{SNAPPY_HOME}" _native_path )
+    list( APPEND _snappy_roots ${_native_path} )
+endif()
 
-set(SNAPPY_SEARCH_HEADER_PATHS
-  ${THIRDPARTY_PREFIX}/include
-)
+# Try the parameterized roots first
+find_path( SNAPPY_INCLUDE_DIR NAMES snappy.h
+    PATHS ${_snappy_roots} NO_DEFAULT_PATH
+    PATH_SUFFIXES "include" )
+find_path( SNAPPY_INCLUDE_DIR NAMES snappy.h )
 
-set(SNAPPY_SEARCH_LIB_PATH
-  ${THIRDPARTY_PREFIX}/lib
-)
+# Support preference of static libs by adjusting CMAKE_FIND_LIBRARY_SUFFIXES.
+# Patterned after FindBoost.cmake
+if( Snappy_USE_STATIC_LIBS )
+    set( _snappy_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES} )
+    if(WIN32)
+        set( CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES} )
+    else()
+        set( CMAKE_FIND_LIBRARY_SUFFIXES .a )
+    endif()
 
-find_path(SNAPPY_INCLUDE_DIR snappy.h PATHS
-  ${SNAPPY_SEARCH_HEADER_PATHS}
-  # make sure we don't accidentally pick up a different version
-  NO_DEFAULT_PATH
-)
+    # customize the cached variable depending on the search
+    set( _snappy_LIBRARIES SNAPPY_LIBRARIES_STATIC )
+else()
+    set( _snappy_LIBRARIES SNAPPY_LIBRARIES_DEFAULT )
+endif()
 
-find_library(SNAPPY_LIB_PATH NAMES snappy PATHS ${SNAPPY_SEARCH_LIB_PATH} NO_DEFAULT_PATH)
+# Try the parameterized roots first
+find_library( ${_snappy_LIBRARIES} NAMES snappy
+    PATHS ${_snappy_roots} NO_DEFAULT_PATH
+    PATH_SUFFIXES "lib" )
+find_library( ${_snappy_LIBRARIES} NAMES snappy )
 
-if (SNAPPY_INCLUDE_DIR AND SNAPPY_LIB_PATH)
-  set(SNAPPY_FOUND TRUE)
-  set(SNAPPY_LIBS ${SNAPPY_SEARCH_LIB_PATH})
-  set(SNAPPY_STATIC_LIB ${SNAPPY_SEARCH_LIB_PATH}/libsnappy.a)
-else ()
-  set(SNAPPY_FOUND FALSE)
-endif ()
+set( SNAPPY_LIBRARIES ${${_snappy_LIBRARIES}} )
 
-if (SNAPPY_FOUND)
-  if (NOT Snappy_FIND_QUIETLY)
-    message(STATUS "Found the Snappy library: ${SNAPPY_LIB_PATH}")
-  endif ()
-else ()
-  if (NOT Snappy_FIND_QUIETLY)
-    set(SNAPPY_ERR_MSG "Could not find the Snappy library. Looked for headers")
-    set(SNAPPY_ERR_MSG "${SNAPPY_ERR_MSG} in ${SNAPPY_SEARCH_HEADER_PATHS}, and for libs")
-    set(SNAPPY_ERR_MSG "${SNAPPY_ERR_MSG} in ${SNAPPY_SEARCH_LIB_PATH}")
-    if (Snappy_FIND_REQUIRED)
-      message(FATAL_ERROR "${SNAPPY_ERR_MSG}")
-    else (Snappy_FIND_REQUIRED)
-      message(STATUS "${SNAPPY_ERR_MSG}")
-    endif (Snappy_FIND_REQUIRED)
-  endif ()
-endif ()
+# Restore the original find library ordering
+if( Snappy_USE_STATIC_LIBS )
+  set( CMAKE_FIND_LIBRARY_SUFFIXES ${_snappy_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES} )
+endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args( Snappy DEFAULT_MSG
+    ${_snappy_LIBRARIES}
+    SNAPPY_INCLUDE_DIR )
 
 mark_as_advanced(
-  SNAPPY_INCLUDE_DIR
-  SNAPPY_LIBS
-  SNAPPY_STATIC_LIB
-)
+    SNAPPY_LIBRARIES_STATIC
+    SNAPPY_LIBRARIES_DEFAULT
+    SNAPPY_INCLUDE_DIR )
