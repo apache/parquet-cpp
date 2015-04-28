@@ -44,6 +44,6 @@ before_install:
 before_script:
     - mkdir build
     - cd build
-    - THRIFT_HOME=$HOME/local cmake ..
+    - THRIFT_HOME=$HOME/local LZ4_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed cmake ..
 
 script: make

@@ -1,4 +1,3 @@
-# Copyright 2012 Cloudera Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,57 +10,79 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Tries to find LZ4 headers and libraries.
+#
+# Usage of this module as follows:
+#
+#  find_package(Lz4)
+#
+# Variables used by this module, they can change the default behaviour and need
+# to be set before calling find_package:
+#
+#  Lz4_HOME - The root of the Lz4 installation.  This is considered before
+#             standard locations. The environment variable LZ4_HOME is also
+#             considered if this variable is not set.
+#  Lz4_USE_STATIC_LIBS - Set to ON to force the use of the static
+#                        libraries.  Default is OFF
+#
+# Variables defined by this module:
+#
+#  LZ4_FOUND              System has Lz4 libs/headers
+#  LZ4_LIBRARIES          The Lz4 libraries
+#  LZ4_INCLUDE_DIR        The location of Lz4 headers
 
-# - Find LZ4 (lz4.h, liblz4.a, liblz4.so, and liblz4.so.1)
-# This module defines
-#  LZ4_INCLUDE_DIR, directory containing headers
-#  LZ4_LIBS, directory containing lz4 libraries
-#  LZ4_STATIC_LIB, path to liblz4.a
-#  LZ4_FOUND, whether lz4 has been found
+# Determine parameterized roots
+if( Lz4_HOME )
+    list( APPEND _lz4_roots ${Lz4_HOME} )
+endif()
+if( NOT "$ENV{LZ4_HOME}" STREQUAL "")
+    file( TO_CMAKE_PATH "$ENV{LZ4_HOME}" _native_path )
+    list( APPEND _lz4_roots ${_native_path} )
+endif()
 
-set(LZ4_SEARCH_HEADER_PATHS
-  ${THIRDPARTY_PREFIX}/include
-)
+# Try the parameterized roots first
+find_path( LZ4_INCLUDE_DIR NAMES lz4.h
+    PATHS ${_lz4_roots} NO_DEFAULT_PATH
+    PATH_SUFFIXES "include" )
+find_path( LZ4_INCLUDE_DIR NAMES lz4.h )
 
-set(LZ4_SEARCH_LIB_PATH
-  ${THIRDPARTY_PREFIX}/lib
-)
+# Support preference of static libs by adjusting CMAKE_FIND_LIBRARY_SUFFIXES.
+# Patterned after FindBoost.cmake
+if( Lz4_USE_STATIC_LIBS )
+    set( _lz4_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES} )
+    if(WIN32)
+        set( CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES} )
+    else()
+        set( CMAKE_FIND_LIBRARY_SUFFIXES .a )
+    endif()
 
-find_path(LZ4_INCLUDE_DIR lz4.h PATHS
-  ${LZ4_SEARCH_HEADER_PATHS}
-  # make sure we don't accidentally pick up a different version
-  NO_DEFAULT_PATH
-)
+    # customize the cached variable depending on the search
+    set( _lz4_LIBRARIES LZ4_LIBRARIES_STATIC )
+else()
+    set( _lz4_LIBRARIES LZ4_LIBRARIES_DEFAULT )
+endif()
 
-find_library(LZ4_LIB_PATH NAMES liblz4.a PATHS ${LZ4_SEARCH_LIB_PATH} NO_DEFAULT_PATH)
+# Try the parameterized roots first
+find_library( ${_lz4_LIBRARIES} NAMES lz4
+    PATHS ${_lz4_roots} NO_DEFAULT_PATH
+    PATH_SUFFIXES "lib" )
+find_library( ${_lz4_LIBRARIES} NAMES lz4 )
 
-if (LZ4_INCLUDE_DIR AND LZ4_LIB_PATH)
-  set(LZ4_FOUND TRUE)
-  set(LZ4_LIBS ${LZ4_SEARCH_LIB_PATH})
-  set(LZ4_STATIC_LIB ${LZ4_SEARCH_LIB_PATH}/liblz4.a)
-else ()
-  set(LZ4_FOUND FALSE)
-endif ()
+set( LZ4_LIBRARIES ${${_lz4_LIBRARIES}} )
 
-if (LZ4_FOUND)
-  if (NOT Lz4_FIND_QUIETLY)
-    message(STATUS "Found the Lz4 library: ${LZ4_LIB_PATH}")
-  endif ()
-else ()
-  if (NOT Lz4_FIND_QUIETLY)
-    set(LZ4_ERR_MSG "Could not find the Lz4 library. Looked for headers")
-    set(LZ4_ERR_MSG "${LZ4_ERR_MSG} in ${LZ4_SEARCH_HEADER_PATHS}, and for libs")
-    set(LZ4_ERR_MSG "${LZ4_ERR_MSG} in ${LZ4_SEARCH_LIB_PATH}")
-    if (Lz4_FIND_REQUIRED)
-      message(FATAL_ERROR "${LZ4_ERR_MSG}")
-    else (Lz4_FIND_REQUIRED)
-      message(STATUS "${LZ4_ERR_MSG}")
-    endif (Lz4_FIND_REQUIRED)
-  endif ()
-endif ()
+# Restore the original find library ordering
+if( Lz4_USE_STATIC_LIBS )
+  set( CMAKE_FIND_LIBRARY_SUFFIXES ${_lz4_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES} )
+endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args( Lz4 DEFAULT_MSG
+    ${_lz4_LIBRARIES}
+    LZ4_INCLUDE_DIR )
 
 mark_as_advanced(
-  LZ4_INCLUDE_DIR
-  LZ4_LIBS
-  LZ4_STATIC_LIB
-)
+    LZ4_LIBRARIES_STATIC
+    LZ4_LIBRARIES_DEFAULT
+    LZ4_INCLUDE_DIR )
+
