@@ -22,8 +22,8 @@ addons:
             - pkg-config                   #needed for thrift cpp compilation
 
 before_install:
-    - pushd thirdparty
-    # thrift cpp
+    - mkdir $HOME/thirdparty && pushd $HOME/thirdparty
+    # linux: thrift cpp
     - >
       if [ $TRAVIS_OS_NAME == linux ]; then
         wget http://www.us.apache.org/dist/thrift/0.9.1/thrift-0.9.1.tar.gz &&
@@ -34,16 +34,22 @@ before_install:
         make install &&
         popd;
       fi
-    - if [ $TRAVIS_OS_NAME == osx ]; then brew install thrift; fi
-    # snappy and lz4
-    - if [ $TRAVIS_OS_NAME == osx ]; then brew install snappy; fi
-    - ./download_thirdparty.sh
-    - ./build_thirdparty.sh
+    # linux: lz4
+    - >
+      if [ $TRAVIS_OS_NAME == linux ]; then
+        wget https://github.com/Cyan4973/lz4/archive/r128.tar.gz &&
+        tar xfz r128.tar.gz &&
+        pushd lz4-r128 &&
+        PREFIX=$HOME/local make install &&
+        popd;
+      fi
     - popd
+    # mac dependencies
+    - if [ $TRAVIS_OS_NAME == osx ]; then brew install thrift snappy lz4; fi
 
 before_script:
     - mkdir build
     - cd build
-    - THRIFT_HOME=$HOME/local LZ4_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed cmake ..
+    - THRIFT_HOME=$HOME/local LZ4_HOME=$HOME/local cmake ..
 
 script: make
