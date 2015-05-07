@@ -21,9 +21,6 @@ enable_testing()
 # where to find cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
-set(THIRDPARTY_PREFIX ${CMAKE_SOURCE_DIR}/thirdparty/installed)
-set(CMAKE_PREFIX_PATH ${THIRDPARTY_PREFIX})
-
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
 set(Boost_USE_MULTITHREADED ON)
@@ -47,16 +44,18 @@ add_library(thriftstatic STATIC IMPORTED)
 set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
 
 ## Snappy
+set( Snappy_USE_STATIC_LIBS ON )
 find_package(Snappy REQUIRED)
 include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
 add_library(snappystatic STATIC IMPORTED)
-set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
+set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_LIBRARIES})
 
 ## LZ4
+set( Lz4_USE_STATIC_LIBS ON )
 find_package(Lz4 REQUIRED)
 include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
 add_library(lz4static STATIC IMPORTED)
-set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
+set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_LIBRARIES})
 
 SET(CMAKE_CXX_FLAGS "-msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
