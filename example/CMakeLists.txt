@@ -21,7 +21,6 @@ SET(LINK_LIBS
   Parquet
   ParquetCompression
   Example
-  rt
   ThriftParquet
   thriftstatic
   lz4static

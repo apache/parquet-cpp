@@ -1,4 +1,4 @@
-Parquet-cpp
+Parquet-cpp [![Build Status](https://travis-ci.org/apache/parquet-cpp.svg)](https://travis-ci.org/apache/parquet-cpp)
 ===========
 A C++ library to read parquet files.
 
