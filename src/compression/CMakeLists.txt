@@ -15,4 +15,5 @@
 add_library(ParquetCompression STATIC
   lz4-codec.cc
   snappy-codec.cc
+  gzip-codec.cc
 )
