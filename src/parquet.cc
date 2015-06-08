@@ -86,6 +86,12 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
     case CompressionCodec::SNAPPY:
       decompressor_.reset(new SnappyCodec());
       break;
+    case CompressionCodec::LZO:
+      decompressor_.reset(new Lz4Codec());
+      break;
+    case CompressionCodec::GZIP:
+      decompressor_.reset(new GZipCodec());
+      break;
     default:
       ParquetException::NYI("Reading compressed data");
   }

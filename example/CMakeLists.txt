@@ -27,10 +27,10 @@ SET(LINK_LIBS
   snappystatic)
 
 add_executable(compute_stats compute_stats.cc)
-target_link_libraries(compute_stats ${LINK_LIBS})
+target_link_libraries(compute_stats ${LINK_LIBS} -lz)
 
 add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS})
+target_link_libraries(decode_benchmark ${LINK_LIBS} -lz)
 
 add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS})
+target_link_libraries(parquet_reader ${LINK_LIBS} -lz))
