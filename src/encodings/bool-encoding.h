@@ -24,21 +24,34 @@ class BoolDecoder : public Decoder {
   BoolDecoder() : Decoder(parquet::Type::BOOLEAN, parquet::Encoding::PLAIN) { }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
+    if (len * 8 < num_values) {
+      std::cerr << "len " << len << std::endl;
+      std::cerr << "num_values " << num_values << std::endl;
+      throw ParquetException("not enough data to decode bool values");
+    }
     num_values_ = num_values;
-    decoder_ = impala::RleDecoder(data, len, 1);
+    buffered_bits_ = 0;
+    data_ = data;
   }
 
   virtual int GetBool(bool* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
     for (int i = 0; i < max_values; ++i) {
-      if (!decoder_.Get(&buffer[i])) ParquetException::EofException();
+      if (buffered_bits_ == 0) {
+        values_ = *data_++;
+        buffered_bits_ = 8;
+      }
+      buffer[i] = values_ & 1;
+      values_ >>= 1;
+      --buffered_bits_;
     }
     num_values_ -= max_values;
     return max_values;
   }
-
  private:
-  impala::RleDecoder decoder_;
+  int buffered_bits_;
+  uint8_t values_;
+  const uint8_t* data_;
 };
 
 }
