@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "parquet/parquet.h"
-#include "encodings/encodings.h"
-#include "compression/codec.h"
+#include "parquet/encodings/encodings.h"
+#include "parquet/compression/codec.h"
 
 #include <string>
 #include <string.h>
@@ -187,7 +187,7 @@ bool ColumnReader::ReadNewPage() {
         int num_definition_bytes = *reinterpret_cast<const uint32_t*>(buffer);
         buffer += sizeof(uint32_t);
         definition_level_decoder_.reset(
-            new impala::RleDecoder(buffer, num_definition_bytes, 1));
+            new RleDecoder(buffer, num_definition_bytes, 1));
         buffer += num_definition_bytes;
         uncompressed_len -= sizeof(uint32_t);
         uncompressed_len -= num_definition_bytes;
@@ -240,4 +240,3 @@ bool ColumnReader::ReadNewPage() {
 }
 
 }
-

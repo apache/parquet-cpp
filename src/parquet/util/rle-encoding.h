@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef IMPALA_RLE_ENCODING_H
-#define IMPALA_RLE_ENCODING_H
+#ifndef PARQUET_UTIL_RLE_ENCODING_H
+#define PARQUET_UTIL_RLE_ENCODING_H
 
 #include <math.h>
 
-#include "impala/compiler-util.h"
-#include "impala/bit-stream-utils.inline.h"
-#include "impala/bit-util.h"
-#include "impala/logging.h"
+#include "parquet/util/compiler-util.h"
+#include "parquet/util/bit-stream-utils.inline.h"
+#include "parquet/util/bit-util.h"
+#include "parquet/util/logging.h"
 
-namespace impala {
+namespace parquet_cpp {
 
 // Utility classes to do run length encoding (RLE) for fixed bit width values.  If runs
 // are sufficiently long, RLE is used, otherwise, the values are just bit-packed
@@ -414,4 +414,4 @@ inline void RleEncoder::Clear() {
 }
 
 }
-#endif
+#endif // PARQUET_UTIL_RLE_ENCODING_H

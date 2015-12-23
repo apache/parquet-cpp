@@ -16,11 +16,11 @@
 #define PARQUET_ENCODINGS_H
 
 #include <boost/cstdint.hpp>
-#include "gen-cpp/parquet_constants.h"
-#include "gen-cpp/parquet_types.h"
 
-#include "impala/rle-encoding.h"
-#include "impala/bit-stream-utils.inline.h"
+#include "parquet/thrift/parquet_constants.h"
+#include "parquet/thrift/parquet_types.h"
+#include "parquet/util/rle-encoding.h"
+#include "parquet/util/bit-stream-utils.inline.h"
 
 namespace parquet_cpp {
 
@@ -80,4 +80,3 @@ class Decoder {
 #include "delta-byte-array-encoding.h"
 
 #endif
-

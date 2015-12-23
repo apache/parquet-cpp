@@ -15,7 +15,7 @@
 #ifndef PARQUET_BOOL_ENCODING_H
 #define PARQUET_BOOL_ENCODING_H
 
-#include "encodings.h"
+#include "parquet/encodings/encodings.h"
 
 namespace parquet_cpp {
 
@@ -25,7 +25,7 @@ class BoolDecoder : public Decoder {
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
-    decoder_ = impala::RleDecoder(data, len, 1);
+    decoder_ = RleDecoder(data, len, 1);
   }
 
   virtual int GetBool(bool* buffer, int max_values) {
@@ -38,10 +38,9 @@ class BoolDecoder : public Decoder {
   }
 
  private:
-  impala::RleDecoder decoder_;
+  RleDecoder decoder_;
 };
 
 }
 
 #endif
-

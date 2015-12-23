@@ -18,8 +18,8 @@
 #include "parquet/parquet.h"
 
 #include <boost/cstdint.hpp>
-#include "gen-cpp/parquet_constants.h"
-#include "gen-cpp/parquet_types.h"
+#include "parquet/thrift/parquet_constants.h"
+#include "parquet/thrift/parquet_types.h"
 
 namespace parquet_cpp {
 
@@ -69,4 +69,3 @@ class Lz4Codec : public Codec {
 }
 
 #endif
-

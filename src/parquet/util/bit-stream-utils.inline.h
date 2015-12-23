@@ -13,12 +13,12 @@
 // limitations under the License.
 
 
-#ifndef IMPALA_UTIL_BIT_STREAM_UTILS_INLINE_H
-#define IMPALA_UTIL_BIT_STREAM_UTILS_INLINE_H
+#ifndef PARQUET_UTIL_BIT_STREAM_UTILS_INLINE_H
+#define PARQUET_UTIL_BIT_STREAM_UTILS_INLINE_H
 
-#include "impala/bit-stream-utils.h"
+#include "parquet/util/bit-stream-utils.h"
 
-namespace impala {
+namespace parquet_cpp {
 
 inline bool BitWriter::PutValue(uint64_t v, int num_bits) {
   // TODO: revisit this limit if necessary (can be raised to 64 by fixing some edge cases)
@@ -159,6 +159,6 @@ inline bool BitReader::GetZigZagVlqInt(int64_t* v) {
   return true;
 }
 
-}
+} // namespace parquet_cpp
 
-#endif
+#endif // PARQUET_UTIL_BIT_STREAM_UTILS_INLINE_H

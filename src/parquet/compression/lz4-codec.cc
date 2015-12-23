@@ -12,29 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "codec.h"
+#include "parquet/compression/codec.h"
 
-#include <snappy.h>
+#include <lz4.h>
 
 using namespace parquet_cpp;
 
-void SnappyCodec::Decompress(int input_len, const uint8_t* input,
+void Lz4Codec::Decompress(int input_len, const uint8_t* input,
       int output_len, uint8_t* output_buffer) {
-  if (!snappy::RawUncompress(reinterpret_cast<const char*>(input),
-      static_cast<size_t>(input_len), reinterpret_cast<char*>(output_buffer))) {
-    throw ParquetException("Corrupt snappy compressed data.");
+  int n = LZ4_uncompress(reinterpret_cast<const char*>(input),
+      reinterpret_cast<char*>(output_buffer), output_len);
+  if (n != input_len) {
+    throw ParquetException("Corrupt lz4 compressed data.");
   }
 }
 
-int SnappyCodec::MaxCompressedLen(int input_len, const uint8_t* input) {
-  return snappy::MaxCompressedLength(input_len);
+int Lz4Codec::MaxCompressedLen(int input_len, const uint8_t* input) {
+  return LZ4_compressBound(input_len);
 }
 
-int SnappyCodec::Compress(int input_len, const uint8_t* input,
+int Lz4Codec::Compress(int input_len, const uint8_t* input,
     int output_buffer_len, uint8_t* output_buffer) {
-  size_t output_len;
-  snappy::RawCompress(reinterpret_cast<const char*>(input),
-      static_cast<size_t>(input_len), reinterpret_cast<char*>(output_buffer),
-      &output_len);
-  return output_len;
+  return LZ4_compress(reinterpret_cast<const char*>(input),
+      reinterpret_cast<char*>(output_buffer), input_len);
 }

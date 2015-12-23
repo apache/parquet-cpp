@@ -13,19 +13,25 @@
 // limitations under the License.
 
 
-#ifndef IMPALA_COMMON_LOGGING_H
-#define IMPALA_COMMON_LOGGING_H
+#ifndef PARQUET_UTIL_COMPILER_UTIL_H
+#define PARQUET_UTIL_COMPILER_UTIL_H
 
-#include <iostream>
-
-#define DCHECK(condition) while(false) std::cout
-#define DCHECK_EQ(a, b) while(false) std::cout
-#define DCHECK_NE(a, b) while(false) std::cout
-#define DCHECK_GT(a, b) while(false) std::cout
-#define DCHECK_LT(a, b) while(false) std::cout
-#define DCHECK_GE(a, b) while(false) std::cout
-#define DCHECK_LE(a, b) while(false) std::cout
-// Similar to how glog defines DCHECK for release.
-#define LOG(level) while(false) std::cout
-
+// Compiler hint that this branch is likely or unlikely to
+// be taken. Take from the "What all programmers should know
+// about memory" paper.
+// example: if (LIKELY(size > 0)) { ... }
+// example: if (UNLIKELY(!status.ok())) { ... }
+#ifdef LIKELY
+#undef LIKELY
 #endif
+
+#ifdef UNLIKELY
+#undef UNLIKELY
+#endif
+
+#define LIKELY(expr) __builtin_expect(!!(expr), 1)
+#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+
+#define PREFETCH(addr) __builtin_prefetch(addr)
+
+#endif // PARQUET_UTIL_COMPILER_UTIL_H

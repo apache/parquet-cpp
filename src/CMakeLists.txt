@@ -16,4 +16,5 @@ add_library(Parquet STATIC
   parquet.cc
 )
 
-add_subdirectory(compression)
+add_subdirectory(parquet/compression)
+add_subdirectory(parquet/thrift)

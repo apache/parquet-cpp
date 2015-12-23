@@ -21,10 +21,10 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/unordered_map.hpp>
-#include "gen-cpp/parquet_constants.h"
-#include "gen-cpp/parquet_types.h"
 
-#include "impala/rle-encoding.h"
+#include "parquet/thrift/parquet_constants.h"
+#include "parquet/thrift/parquet_types.h"
+#include "parquet/util/rle-encoding.h"
 
 // TCompactProtocol requires some #defines to work right.
 #define SIGNED_RIGHT_SHIFT_IS 1
@@ -155,9 +155,9 @@ class ColumnReader {
   parquet::PageHeader current_page_header_;
 
   // Not set if field is required.
-  boost::scoped_ptr<impala::RleDecoder> definition_level_decoder_;
+  boost::scoped_ptr<RleDecoder> definition_level_decoder_;
   // Not set for flat schemas.
-  boost::scoped_ptr<impala::RleDecoder> repetition_level_decoder_;
+  boost::scoped_ptr<RleDecoder> repetition_level_decoder_;
   Decoder* current_decoder_;
   int num_buffered_values_;
 
@@ -244,4 +244,3 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
 }
 
 #endif
-

@@ -13,16 +13,16 @@
 // limitations under the License.
 
 
-#ifndef IMPALA_UTIL_BIT_STREAM_UTILS_H
-#define IMPALA_UTIL_BIT_STREAM_UTILS_H
+#ifndef PARQUET_UTIL_BIT_STREAM_UTILS_H
+#define PARQUET_UTIL_BIT_STREAM_UTILS_H
 
 #include <boost/cstdint.hpp>
 #include <string.h>
-#include "impala/compiler-util.h"
-#include "impala/bit-util.h"
-#include "impala/logging.h"
+#include "parquet/util/compiler-util.h"
+#include "parquet/util/bit-util.h"
+#include "parquet/util/logging.h"
 
-namespace impala {
+namespace parquet_cpp {
 
 // Utility class to write bit/byte streams.  This class can write data to either be
 // bit packed or byte aligned (and a single stream that has a mix of both).
