@@ -130,7 +130,10 @@ endif()
 # find boost headers and libs
 find_package(Boost REQUIRED
   COMPONENTS thread regex system filesystem date_time)
+
+# Boost required by Thrift
 include_directories(${Boost_INCLUDE_DIRS})
+
 set(LIBS ${LIBS} ${Boost_LIBRARIES})
 message(STATUS "Boost include dir: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
@@ -158,7 +161,7 @@ include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
 message(STATUS "LZ4 include dir: ${LZ4_INCLUDE_DIR}")
 message(STATUS "LZ4 static library: ${LZ4_STATIC_LIB}")
 
-SET(CMAKE_CXX_FLAGS "-msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
 
 # for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake

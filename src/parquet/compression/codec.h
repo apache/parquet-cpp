@@ -17,7 +17,7 @@
 
 #include "parquet/parquet.h"
 
-#include <boost/cstdint.hpp>
+#include <cstdint>
 #include "parquet/thrift/parquet_constants.h"
 #include "parquet/thrift/parquet_types.h"
 

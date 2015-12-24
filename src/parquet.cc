@@ -164,7 +164,7 @@ bool ColumnReader::ReadNewPage() {
     }
 
     if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
-      boost::unordered_map<Encoding::type, boost::shared_ptr<Decoder> >::iterator it =
+      std::unordered_map<Encoding::type, std::shared_ptr<Decoder> >::iterator it =
           decoders_.find(Encoding::RLE_DICTIONARY);
       if (it != decoders_.end()) {
         throw ParquetException("Column cannot have more than one dictionary.");
@@ -173,7 +173,7 @@ bool ColumnReader::ReadNewPage() {
       PlainDecoder dictionary(schema_->type);
       dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
           buffer, uncompressed_len);
-      boost::shared_ptr<Decoder> decoder(
+      std::shared_ptr<Decoder> decoder(
           new DictionaryDecoder(schema_->type, &dictionary));
       decoders_[Encoding::RLE_DICTIONARY] = decoder;
       current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
@@ -200,14 +200,14 @@ bool ColumnReader::ReadNewPage() {
       Encoding::type encoding = current_page_header_.data_page_header.encoding;
       if (IsDictionaryIndexEncoding(encoding)) encoding = Encoding::RLE_DICTIONARY;
 
-      boost::unordered_map<Encoding::type, boost::shared_ptr<Decoder> >::iterator it =
+      std::unordered_map<Encoding::type, std::shared_ptr<Decoder> >::iterator it =
           decoders_.find(encoding);
       if (it != decoders_.end()) {
         current_decoder_ = it->second.get();
       } else {
         switch (encoding) {
           case Encoding::PLAIN: {
-            boost::shared_ptr<Decoder> decoder;
+            std::shared_ptr<Decoder> decoder;
             if (schema_->type == Type::BOOLEAN) {
               decoder.reset(new BoolDecoder());
             } else {

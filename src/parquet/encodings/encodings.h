@@ -15,7 +15,7 @@
 #ifndef PARQUET_ENCODINGS_H
 #define PARQUET_ENCODINGS_H
 
-#include <boost/cstdint.hpp>
+#include <cstdint>
 
 #include "parquet/thrift/parquet_constants.h"
 #include "parquet/thrift/parquet_types.h"
