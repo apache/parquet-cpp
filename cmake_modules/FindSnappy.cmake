@@ -20,11 +20,11 @@
 #  SNAPPY_FOUND, whether snappy has been found
 
 set(SNAPPY_SEARCH_HEADER_PATHS
-  ${THIRDPARTY_PREFIX}/include
+  $ENV{NATIVE_TOOLCHAIN}/snappy-$ENV{SNAPPY_VERSION}/include
 )
 
 set(SNAPPY_SEARCH_LIB_PATH
-  ${THIRDPARTY_PREFIX}/lib
+  $ENV{NATIVE_TOOLCHAIN}/snappy-$ENV{SNAPPY_VERSION}/lib
 )
 
 find_path(SNAPPY_INCLUDE_DIR snappy.h PATHS

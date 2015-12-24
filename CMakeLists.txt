@@ -21,8 +21,58 @@ enable_testing()
 # where to find cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
-set(THIRDPARTY_PREFIX ${CMAKE_SOURCE_DIR}/thirdparty/installed)
-set(CMAKE_PREFIX_PATH ${THIRDPARTY_PREFIX})
+# Bootstrap thirdparty dependencies
+if ("$ENV{DISABLE_NATIVE_TOOLCHAIN}" STREQUAL "")
+  # Enable toolchain variable if the environment is setup
+  set(NATIVE_TOOLCHAIN ON)
+  message(STATUS "Toolchain build.")
+
+  # If toolchain is not set, pick a directory
+  if ("$ENV{NATIVE_TOOLCHAIN}" STREQUAL "")
+    set(ENV{NATIVE_TOOLCHAIN} "${CMAKE_CURRENT_SOURCE_DIR}/toolchain")
+  endif()
+
+  # Set the environment variables for dependent versions
+  set(ENV{GCC_VERSION} "4.9.2")
+  set(ENV{THRIFT_VERSION} "0.9.0-p2")
+  set(ENV{LZ4_VERSION} "svn")
+  set(ENV{SNAPPY_VERSION} "1.0.5")
+  set(ENV{GPERFTOOLS_VERSION} "2.3")
+  set(ENV{GOOGLETEST_VERSION} "20151222")
+
+  set(THRIFT_HOME $ENV{NATIVE_TOOLCHAIN}/thrift-$ENV{THRIFT_VERSION})
+
+  # Setting SYSTEM_GCC will use the toolchain dependencies compiled with the original
+  # host's compiler.
+  if ("$ENV{SYSTEM_GCC}" STREQUAL "")
+    set(GCC_ROOT $ENV{NATIVE_TOOLCHAIN}/gcc-$ENV{GCC_VERSION})
+    set(CMAKE_C_COMPILER ${GCC_ROOT}/bin/gcc)
+    set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
+  endif()
+
+  # If the toolchain directory does not yet exists, we assume that the dependencies
+  # should be downloaded. If the download script is not available fail the
+  # configuration.
+  if (NOT IS_DIRECTORY $ENV{NATIVE_TOOLCHAIN})
+    set(BOOTSTRAP_CMD "${BUILD_SUPPORT_DIR}/bootstrap_toolchain.py")
+    # Download and unpack the dependencies
+    message(STATUS "Downloading and extracting dependencies.")
+    execute_process(COMMAND ${BOOTSTRAP_CMD} RESULT_VARIABLE BOOTSTRAP_RESULT)
+    if (${BOOTSTRAP_RESULT} EQUAL 0)
+      message(STATUS "Toolchain bootstrap complete.")
+    else()
+      message(FATAL_ERROR "Toolchain bootstrap failed.")
+    endif()
+  else()
+    message(STATUS "Native toolchain picked up at $ENV{NATIVE_TOOLCHAIN}")
+  endif()
+else()
+  set(NATIVE_TOOLCHAIN OFF)
+  message(STATUS "Native toolchain was explicitly disabled using DISABLE_NATIVE_TOOLCHAIN.")
+  message(STATUS "Assuming system search path for dependencies.")
+endif()
+
+project(parquet-cpp)
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
