@@ -32,14 +32,6 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     option(PARQUET_SHARED_LIB
         "Build a libparquet shared library instead of a static library"
         ON)
-# -DPARQUET_BUILD_TESTS=ON/OFF, whether to build the googletest unit tests.
-    option(PARQUET_BUILD_TESTS
-        "Build the googletest unit tests for libparquet"
-        ON)
-# -DPARQUET_BUILD_BENCHMARKS=ON/OFF, whether to build the Google benchmarks
-    option(PARQUET_BUILD_BENCHMARKS
-        "Build the Google benchmarks for libparquet"
-        ON)
 ################################################
 endif()
 
