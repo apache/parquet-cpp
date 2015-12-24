@@ -21,6 +21,8 @@ enable_testing()
 # where to find cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
+set(BUILD_SUPPORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build-support)
+
 # Only add these options if this is the top level CMakeLists.txt
 if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 ################################################
@@ -182,6 +184,18 @@ set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+############################################################
+# "make lint" target
+############################################################
+if (UNIX)
+  # Full lint
+  add_custom_target(lint ${BUILD_SUPPORT_DIR}/cpplint.py
+  --verbose=4
+  --filter=-whitespace/comments,-readability/todo,-build/header_guard,-build/include_order
+    `find ${CMAKE_CURRENT_SOURCE_DIR}/src -name \\*.cc -or -name \\*.h | sed -e '/parquet\\/thrift/g'`)
+endif (UNIX)
+
+############################################################
 # Library config
 
 set(LIBPARQUET_SRCS
