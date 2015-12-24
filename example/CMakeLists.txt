@@ -19,6 +19,8 @@ add_library(Example STATIC
 
 SET(LINK_LIBS
   parquet
+  snappystatic
+  thriftstatic
   Example)
 
 add_executable(compute_stats compute_stats.cc)

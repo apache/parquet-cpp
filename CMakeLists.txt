@@ -144,28 +144,31 @@ message(STATUS "Thrift contrib dir: ${THRIFT_CONTRIB_DIR}")
 message(STATUS "Thrift library path: ${THRIFT_LIBS}")
 message(STATUS "Thrift static library: ${THRIFT_STATIC_LIB}")
 message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
-# for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake
-add_library(thriftstatic STATIC IMPORTED)
-set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
 
 ## Snappy
 find_package(Snappy REQUIRED)
 include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
-add_library(snappystatic STATIC IMPORTED)
-set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
 message(STATUS "SNAPPY include dir: ${SNAPPY_INCLUDE_DIR}")
 message(STATUS "SNAPPY static library: ${SNAPPY_STATIC_LIB}")
+
 
 ## LZ4
 find_package(Lz4 REQUIRED)
 include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
-add_library(lz4static STATIC IMPORTED)
-set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
 message(STATUS "LZ4 include dir: ${LZ4_INCLUDE_DIR}")
 message(STATUS "LZ4 static library: ${LZ4_STATIC_LIB}")
 
 SET(CMAKE_CXX_FLAGS "-msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
+
+# for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake
+add_library(snappystatic STATIC IMPORTED)
+set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
+
+add_library(thriftstatic STATIC IMPORTED)
+set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
+add_library(lz4static STATIC IMPORTED)
+set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
 
 # Thrift requires these definitions for some types that we use
 add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETINET_IN_H -DHAVE_NETDB_H)
@@ -205,8 +208,6 @@ set(LIBPARQUET_SRCS
 set(LIBPARQUET_LINK_LIBS
   parquet_compression
   parquet_thrift
-  thriftstatic
-  snappystatic
   lz4static
 )
 
@@ -233,5 +234,5 @@ add_custom_target(clean-all
 
 # installation
 
-# For CMAKE_INSTALL_<dir> variables.
-include(GNUInstallDirs)
+install(TARGETS parquet
+  LIBRARY DESTINATION lib)
