@@ -18,13 +18,8 @@ add_library(Example STATIC
 )
 
 SET(LINK_LIBS
-  Parquet
-  ParquetCompression
-  Example
-  ThriftParquet
-  thriftstatic
-  lz4static
-  snappystatic)
+  parquet
+  Example)
 
 add_executable(compute_stats compute_stats.cc)
 target_link_libraries(compute_stats ${LINK_LIBS})

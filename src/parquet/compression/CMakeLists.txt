@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(ParquetCompression STATIC
+add_library(parquet_compression STATIC
   lz4-codec.cc
   snappy-codec.cc
 )

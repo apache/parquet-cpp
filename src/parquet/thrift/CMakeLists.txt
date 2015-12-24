@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-add_library(ThriftParquet STATIC
+add_library(parquet_thrift STATIC
   parquet_constants.cpp
   parquet_types.cpp
 )
-
