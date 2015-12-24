@@ -1,4 +1,4 @@
-# Copyright 2012 Cloudera Inc.
+# Copyright 2015 Cloudera Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(parquet_compression STATIC
-  lz4-codec.cc
-  snappy-codec.cc
-)
-
-# Headers: compression
+# Headers: util
 install(FILES
-  codec.h
-  DESTINATION include/parquet/compression)
+  bit-stream-utils.h
+  bit-stream-utils.inline.h
+  bit-util.h
+  compiler-util.h
+  logging.h
+  rle-encoding.h
+  stopwatch.h
+  DESTINATION include/parquet/util)

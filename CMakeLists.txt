@@ -222,8 +222,11 @@ add_library(parquet
   ${LIBPARQUET_SRCS})
 target_link_libraries(parquet ${LIBPARQUET_LINK_LIBS})
 
+add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/compression)
+add_subdirectory(src/parquet/encodings)
 add_subdirectory(src/parquet/thrift)
+add_subdirectory(src/parquet/util)
 
 add_subdirectory(example)
 

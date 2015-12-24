@@ -16,3 +16,9 @@ add_library(parquet_thrift STATIC
   parquet_constants.cpp
   parquet_types.cpp
 )
+
+# Headers: thrift
+install(FILES
+  parquet_types.h
+  parquet_constants.h
+  DESTINATION include/parquet/thrift)
