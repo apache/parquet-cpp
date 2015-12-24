@@ -16,13 +16,11 @@
 
 #include <snappy.h>
 
-using namespace parquet_cpp;
-
 void SnappyCodec::Decompress(int input_len, const uint8_t* input,
       int output_len, uint8_t* output_buffer) {
   if (!snappy::RawUncompress(reinterpret_cast<const char*>(input),
       static_cast<size_t>(input_len), reinterpret_cast<char*>(output_buffer))) {
-    throw ParquetException("Corrupt snappy compressed data.");
+    throw parquet_cpp::ParquetException("Corrupt snappy compressed data.");
   }
 }
 

@@ -18,14 +18,14 @@
 
 #include <iostream>
 
-#define DCHECK(condition) while(false) std::cout
-#define DCHECK_EQ(a, b) while(false) std::cout
-#define DCHECK_NE(a, b) while(false) std::cout
-#define DCHECK_GT(a, b) while(false) std::cout
-#define DCHECK_LT(a, b) while(false) std::cout
-#define DCHECK_GE(a, b) while(false) std::cout
-#define DCHECK_LE(a, b) while(false) std::cout
+#define DCHECK(condition) while (false) std::cout
+#define DCHECK_EQ(a, b) while (false) std::cout
+#define DCHECK_NE(a, b) while (false) std::cout
+#define DCHECK_GT(a, b) while (false) std::cout
+#define DCHECK_LT(a, b) while (false) std::cout
+#define DCHECK_GE(a, b) while (false) std::cout
+#define DCHECK_LE(a, b) while (false) std::cout
 // Similar to how glog defines DCHECK for release.
-#define LOG(level) while(false) std::cout
+#define LOG(level) while (false) std::cout
 
 #endif

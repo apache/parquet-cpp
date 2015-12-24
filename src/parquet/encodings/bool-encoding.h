@@ -17,6 +17,8 @@
 
 #include "parquet/encodings/encodings.h"
 
+#include <algorithm>
+
 namespace parquet_cpp {
 
 class BoolDecoder : public Decoder {
@@ -41,6 +43,6 @@ class BoolDecoder : public Decoder {
   RleDecoder decoder_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif

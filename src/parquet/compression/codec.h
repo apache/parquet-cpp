@@ -66,6 +66,6 @@ class Lz4Codec : public Codec {
   virtual const char* name() const { return "lz4"; }
 };
 
-}
+} // namespace parquet_cpp
 
 #endif

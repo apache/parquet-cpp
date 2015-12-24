@@ -23,10 +23,6 @@
 
 const int DATA_PAGE_SIZE = 64 * 1024;
 
-using namespace boost;
-using namespace parquet;
-using namespace std;
-
 namespace parquet_cpp {
 
 InMemoryInputStream::InMemoryInputStream(const uint8_t* buffer, int64_t len) :
@@ -96,7 +92,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
 
 void ColumnReader::BatchDecode() {
   buffered_values_offset_ = 0;
-  uint8_t* buf= &values_buffer_[0];
+  uint8_t* buf = &values_buffer_[0];
   int batch_size = config_.batch_size;
   switch (metadata_->type) {
     case parquet::Type::BOOLEAN:
@@ -239,4 +235,4 @@ bool ColumnReader::ReadNewPage() {
   return true;
 }
 
-}
+} // namespace parquet_cpp

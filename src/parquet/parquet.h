@@ -19,7 +19,9 @@
 #include <sstream>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 // Needed for thrift
 #include <boost/shared_ptr.hpp>
@@ -41,10 +43,8 @@
 namespace std {
 
 template <>
-struct hash<parquet::Encoding::type>
-{
-  std::size_t operator()(const parquet::Encoding::type& k) const
-  {
+struct hash<parquet::Encoding::type> {
+  std::size_t operator()(const parquet::Encoding::type& k) const {
     return hash<int>()(static_cast<int>(k));
   }
 };
@@ -256,6 +256,6 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
   *len = *len - bytes_left;
 }
 
-}
+} // namespace parquet_cpp
 
 #endif

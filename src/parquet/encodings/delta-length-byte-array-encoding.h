@@ -17,6 +17,8 @@
 
 #include "parquet/encodings/encodings.h"
 
+#include <algorithm>
+
 namespace parquet_cpp {
 
 class DeltaLengthByteArrayDecoder : public Decoder {
@@ -56,6 +58,6 @@ class DeltaLengthByteArrayDecoder : public Decoder {
   int len_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif

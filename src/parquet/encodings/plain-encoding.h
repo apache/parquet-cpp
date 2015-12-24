@@ -17,11 +17,13 @@
 
 #include "parquet/encodings/encodings.h"
 
+#include <algorithm>
+
 namespace parquet_cpp {
 
 class PlainDecoder : public Decoder {
  public:
-  PlainDecoder(const parquet::Type::type& type)
+  explicit PlainDecoder(const parquet::Type::type& type)
     : Decoder(type, parquet::Encoding::PLAIN), data_(NULL), len_(0) {
   }
 
@@ -76,6 +78,6 @@ class PlainDecoder : public Decoder {
   int len_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif

@@ -17,6 +17,9 @@
 
 #include "parquet/encodings/encodings.h"
 
+#include <algorithm>
+#include <vector>
+
 namespace parquet_cpp {
 
 class DictionaryDecoder : public Decoder {
@@ -140,6 +143,6 @@ class DictionaryDecoder : public Decoder {
   RleDecoder idx_decoder_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif

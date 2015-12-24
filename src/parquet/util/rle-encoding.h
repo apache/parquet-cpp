@@ -16,6 +16,7 @@
 #define PARQUET_UTIL_RLE_ENCODING_H
 
 #include <math.h>
+#include <algorithm>
 
 #include "parquet/util/compiler-util.h"
 #include "parquet/util/bit-stream-utils.inline.h"
@@ -65,12 +66,12 @@ namespace parquet_cpp {
 // Examples with bit-width 1 (eg encoding booleans):
 // ----------------------------------------
 // 100 1s followed by 100 0s:
-// <varint(100 << 1)> <1, padded to 1 byte>  <varint(100 << 1)> <0, padded to 1 byte>  
+// <varint(100 << 1)> <1, padded to 1 byte>  <varint(100 << 1)> <0, padded to 1 byte>
 //  - (total 4 bytes)
 //
 // alternating 1s and 0s (200 total):
 // 200 ints = 25 groups of 8
-// <varint((25 << 1) | 1)> <25 bytes of values, bitpacked>  
+// <varint((25 << 1) | 1)> <25 bytes of values, bitpacked>
 // (total 26 bytes, 1 byte overhead)
 //
 
@@ -413,5 +414,6 @@ inline void RleEncoder::Clear() {
   bit_writer_.Clear();
 }
 
-}
+} // namespace parquet_cpp
+
 #endif // PARQUET_UTIL_RLE_ENCODING_H
