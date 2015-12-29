@@ -16,6 +16,8 @@
 
 #include <snappy.h>
 
+namespace parquet_cpp {
+
 void SnappyCodec::Decompress(int input_len, const uint8_t* input,
       int output_len, uint8_t* output_buffer) {
   if (!snappy::RawUncompress(reinterpret_cast<const char*>(input),
@@ -36,3 +38,5 @@ int SnappyCodec::Compress(int input_len, const uint8_t* input,
       &output_len);
   return output_len;
 }
+
+} // namespace parquet_cpp

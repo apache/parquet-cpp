@@ -16,6 +16,7 @@
 #include "parquet/encodings/encodings.h"
 #include "parquet/compression/codec.h"
 
+#include <algorithm>
 #include <string>
 #include <string.h>
 
@@ -25,12 +26,19 @@ const int DATA_PAGE_SIZE = 64 * 1024;
 
 namespace parquet_cpp {
 
+using parquet::CompressionCodec;
+using parquet::Encoding;
+using parquet::FieldRepetitionType;
+using parquet::PageType;
+using parquet::SchemaElement;
+using parquet::Type;
+
 InMemoryInputStream::InMemoryInputStream(const uint8_t* buffer, int64_t len) :
   buffer_(buffer), len_(len), offset_(0) {
 }
 
 const uint8_t* InMemoryInputStream::Peek(int num_to_peek, int* num_bytes) {
-  *num_bytes = ::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
+  *num_bytes = std::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
   return buffer_ + offset_;
 }
 
@@ -43,7 +51,7 @@ const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
 ColumnReader::~ColumnReader() {
 }
 
-ColumnReader::ColumnReader(const ColumnMetaData* metadata,
+ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
     const SchemaElement* schema, InputStream* stream)
   : metadata_(metadata),
     schema_(schema),

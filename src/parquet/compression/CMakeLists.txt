@@ -16,6 +16,9 @@ add_library(parquet_compression STATIC
   lz4-codec.cc
   snappy-codec.cc
 )
+set_target_properties(parquet_compression
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
 # Headers: compression
 install(FILES

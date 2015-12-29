@@ -16,6 +16,8 @@
 
 #include <lz4.h>
 
+namespace parquet_cpp {
+
 void Lz4Codec::Decompress(int input_len, const uint8_t* input,
       int output_len, uint8_t* output_buffer) {
   int n = LZ4_uncompress(reinterpret_cast<const char*>(input),
@@ -34,3 +36,5 @@ int Lz4Codec::Compress(int input_len, const uint8_t* input,
   return LZ4_compress(reinterpret_cast<const char*>(input),
       reinterpret_cast<char*>(output_buffer), input_len);
 }
+
+} // namespace parquet_cpp

@@ -1,4 +1,5 @@
 # Copyright 2012 Cloudera Inc.
+
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +17,10 @@ add_library(parquet_thrift STATIC
   parquet_constants.cpp
   parquet_types.cpp
 )
+set_target_properties(parquet_thrift
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+
 
 # Headers: thrift
 install(FILES

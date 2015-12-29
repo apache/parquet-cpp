@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 cmake_minimum_required(VERSION 2.6)
 
 # generate CTest input files
@@ -20,76 +19,50 @@ enable_testing()
 
 # where to find cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
-
 set(BUILD_SUPPORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build-support)
 
-# Only add these options if this is the top level CMakeLists.txt
-if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
-################################################
-# Some options configurable from the CMAKE command execution
-#
-# -DPARQUET_SHARED_LIB=ON/OFF, whether to build a shared or a static library.
-    option(PARQUET_SHARED_LIB
-        "Build a libparquet shared library instead of a static library"
-        ON)
-################################################
-endif()
-
-# Bootstrap thirdparty dependencies
-if ("$ENV{DISABLE_NATIVE_TOOLCHAIN}" STREQUAL "")
-  # Enable toolchain variable if the environment is setup
-  set(NATIVE_TOOLCHAIN ON)
-  message(STATUS "Toolchain build.")
-
-  # If toolchain is not set, pick a directory
-  if ("$ENV{NATIVE_TOOLCHAIN}" STREQUAL "")
-    set(ENV{NATIVE_TOOLCHAIN} "${CMAKE_CURRENT_SOURCE_DIR}/toolchain")
-  endif()
-
-  # Set the environment variables for dependent versions
-  set(ENV{GCC_VERSION} "4.9.2")
-  set(ENV{BOOST_VERSION} "1.57.0")
-  set(ENV{THRIFT_VERSION} "0.9.0-p2")
-  set(ENV{LZ4_VERSION} "svn")
-  set(ENV{SNAPPY_VERSION} "1.0.5")
-  set(ENV{GPERFTOOLS_VERSION} "2.3")
-  set(ENV{GOOGLETEST_VERSION} "20151222")
-
-  set(ENV{THRIFT_HOME} $ENV{NATIVE_TOOLCHAIN}/thrift-$ENV{THRIFT_VERSION})
-
-  message(STATUS "THRIFT_HOME: " $ENV{THRIFT_HOME})
-
-  # Setting SYSTEM_GCC will use the toolchain dependencies compiled with the original
-  # host's compiler.
-  if ("$ENV{SYSTEM_GCC}" STREQUAL "")
-    set(GCC_ROOT $ENV{NATIVE_TOOLCHAIN}/gcc-$ENV{GCC_VERSION})
-    set(CMAKE_C_COMPILER ${GCC_ROOT}/bin/gcc)
-    set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
-  endif()
-
-  # If the toolchain directory does not yet exists, we assume that the dependencies
-  # should be downloaded. If the download script is not available fail the
-  # configuration.
-  if (NOT IS_DIRECTORY $ENV{NATIVE_TOOLCHAIN})
-    set(BOOTSTRAP_CMD "${BUILD_SUPPORT_DIR}/bootstrap_toolchain.py")
-    # Download and unpack the dependencies
-    message(STATUS "Downloading and extracting dependencies.")
-    execute_process(COMMAND ${BOOTSTRAP_CMD} RESULT_VARIABLE BOOTSTRAP_RESULT)
-    if (${BOOTSTRAP_RESULT} EQUAL 0)
-      message(STATUS "Toolchain bootstrap complete.")
-    else()
-      message(FATAL_ERROR "Toolchain bootstrap failed.")
-    endif()
-  else()
-    message(STATUS "Native toolchain picked up at $ENV{NATIVE_TOOLCHAIN}")
-  endif()
+if (NOT PARQUET_LINK)
+  set(PARQUET_LINK "a")
+elseif(NOT ("auto" MATCHES "^${PARQUET_LINK}" OR
+            "dynamic" MATCHES "^${PARQUET_LINK}" OR
+            "static" MATCHES "^${PARQUET_LINK}"))
+  message(FATAL_ERROR "Unknown value for PARQUET_LINK, must be auto|dynamic|static")
 else()
-  set(NATIVE_TOOLCHAIN OFF)
-  message(STATUS "Native toolchain was explicitly disabled using DISABLE_NATIVE_TOOLCHAIN.")
-  message(STATUS "Assuming system search path for dependencies.")
+  # Remove all but the first letter.
+  string(SUBSTRING "${PARQUET_LINK}" 0 1 PARQUET_LINK)
 endif()
+
+include(toolchain)
 
 project(parquet-cpp)
+
+# if no build build type is specified, default to debug builds
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif(NOT CMAKE_BUILD_TYPE)
+
+# set compile output directory
+string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
+
+SET(CMAKE_CXX_FLAGS "-std=c++11 -msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
+
+# If build in-source, create the latest symlink. If build out-of-source, which is
+# preferred, simply output the binaries in the build folder
+if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
+  set(BUILD_OUTPUT_ROOT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build/${BUILD_SUBDIR_NAME}/")
+  # Link build/latest to the current build directory, to avoid developers
+  # accidentally running the latest debug build when in fact they're building
+  # release builds.
+  FILE(MAKE_DIRECTORY ${BUILD_OUTPUT_ROOT_DIRECTORY})
+  if (NOT APPLE)
+    set(MORE_ARGS "-T")
+  endif()
+EXECUTE_PROCESS(COMMAND ln ${MORE_ARGS} -sf ${BUILD_OUTPUT_ROOT_DIRECTORY}
+  ${CMAKE_CURRENT_BINARY_DIR}/build/latest)
+else()
+  set(BUILD_OUTPUT_ROOT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${BUILD_SUBDIR_NAME}/")
+endif()
 
 if (NATIVE_TOOLCHAIN)
   message(STATUS "Found native toolchain, enabling toolchain boost")
@@ -102,6 +75,64 @@ if (NATIVE_TOOLCHAIN)
   # up.
   set(Boost_USE_MULTITHREADED OFF)
 endif()
+
+############################################################
+# Dependencies
+############################################################
+
+# ADD_THIRDPARTY_LIB function used in Kudu
+function(ADD_THIRDPARTY_LIB LIB_NAME)
+  set(options)
+  set(one_value_args SHARED_LIB STATIC_LIB)
+  set(multi_value_args DEPS)
+  cmake_parse_arguments(ARG "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
+  if(ARG_UNPARSED_ARGUMENTS)
+    message(SEND_ERROR "Error: unrecognized arguments: ${ARG_UNPARSED_ARGUMENTS}")
+  endif()
+
+  if(("${PARQUET_LINK}" STREQUAL "s" AND ARG_STATIC_LIB) OR (NOT ARG_SHARED_LIB))
+    if(NOT ARG_STATIC_LIB)
+      message(FATAL_ERROR "No static or shared library provided for ${LIB_NAME}")
+    endif()
+    add_library(${LIB_NAME} STATIC IMPORTED)
+    set_target_properties(${LIB_NAME}
+      PROPERTIES IMPORTED_LOCATION "${ARG_STATIC_LIB}")
+    message("Added static library dependency ${LIB_NAME}: ${ARG_STATIC_LIB}")
+  else()
+    add_library(${LIB_NAME} SHARED IMPORTED)
+    set_target_properties(${LIB_NAME}
+      PROPERTIES IMPORTED_LOCATION "${ARG_SHARED_LIB}")
+    message("Added shared library dependency ${LIB_NAME}: ${ARG_SHARED_LIB}")
+  endif()
+
+  if(ARG_DEPS)
+    set_target_properties(${LIB_NAME}
+      PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES "${ARG_DEPS}")
+  endif()
+
+  # Set up an "exported variant" for this thirdparty library (see "Visibility"
+  # above). It's the same as the real target, just with an "_exported" suffix.
+  # We prefer the static archive if it exists (as it's akin to an "internal"
+  # library), but we'll settle for the shared object if we must.
+  #
+  # A shared object exported variant will force any "leaf" library that
+  # transitively depends on it to also depend on it at runtime; this is
+  # desirable for some libraries (e.g. cyrus_sasl).
+  set(LIB_NAME_EXPORTED ${LIB_NAME}_exported)
+  if(ARG_STATIC_LIB)
+    add_library(${LIB_NAME_EXPORTED} STATIC IMPORTED)
+    set_target_properties(${LIB_NAME_EXPORTED}
+      PROPERTIES IMPORTED_LOCATION "${ARG_STATIC_LIB}")
+  else()
+    add_library(${LIB_NAME_EXPORTED} SHARED IMPORTED)
+    set_target_properties(${LIB_NAME_EXPORTED}
+      PROPERTIES IMPORTED_LOCATION "${ARG_SHARED_LIB}")
+  endif()
+  if(ARG_DEPS)
+    set_target_properties(${LIB_NAME_EXPORTED}
+      PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES "${ARG_DEPS}")
+  endif()
+endfunction()
 
 # find boost headers and libs
 IF (DEFINED ENV{BOOST_ROOT})
@@ -153,9 +184,6 @@ include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
 message(STATUS "LZ4 include dir: ${LZ4_INCLUDE_DIR}")
 message(STATUS "LZ4 static library: ${LZ4_STATIC_LIB}")
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
-
 # for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake
 add_library(snappystatic STATIC IMPORTED)
 set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
@@ -206,7 +234,7 @@ set(LIBPARQUET_LINK_LIBS
   lz4static
 )
 
-if (PARQUET_SHARED_LIB)
+if ("${PARQUET_LINK}" STREQUAL "d" OR "${PARQUET_LINK}" STREQUAL "a")
   set(LIBPARQUET_LINKAGE "SHARED")
 else()
   set(LIBPARQUET_LINKAGE "STATIC")
@@ -214,7 +242,11 @@ endif()
 
 add_library(parquet
   ${LIBPARQUET_LINKAGE}
-  ${LIBPARQUET_SRCS})
+  ${LIBPARQUET_SRCS}
+)
+set_target_properties(parquet
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 target_link_libraries(parquet ${LIBPARQUET_LINK_LIBS})
 
 add_subdirectory(src/parquet)
