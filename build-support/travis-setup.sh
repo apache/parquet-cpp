@@ -2,6 +2,7 @@
 
 if [ "$TRAVIS_OS_NAME" = "linux" ]; then
 	export NATIVE_TOOLCHAIN=`pwd`/toolchain
+	export GCC_VERSION=4.9.2
 	./build-support/linux-toolchain.py
 fi
 
