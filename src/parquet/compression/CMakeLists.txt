@@ -12,22 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-add_library(Example STATIC
-  example_util.cc
+add_library(parquet_compression STATIC
+  lz4-codec.cc
+  snappy-codec.cc
 )
+set_target_properties(parquet_compression
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
-SET(LINK_LIBS
-  parquet
-  snappy
-  thrift
-  Example)
-
-add_executable(compute_stats compute_stats.cc)
-target_link_libraries(compute_stats ${LINK_LIBS})
-
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS})
-
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS})
+# Headers: compression
+install(FILES
+  codec.h
+  DESTINATION include/parquet/compression)
