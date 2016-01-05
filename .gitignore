@@ -9,4 +9,5 @@ CTestTestfile.cmake
 cmake_install.cmake
 Makefile
 
-thirdparty
+build-support/toolchain
+toolchain
