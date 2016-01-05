@@ -18,10 +18,8 @@ addons:
             - pkg-config                   #needed for thrift cpp compilation
 
 # command to install dependencies
-install:
-    - pip install sh
-
 before_install:
+    - sudo pip install sh
     - ./build-support/travis-setup.sh
 
 before_script:
