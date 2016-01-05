@@ -16,4 +16,5 @@ if [ "$TRAVIS_OS_NAME" = "osx" ]; then
 	./osx-toolchain.py
 	popd
 	ln -s `pwd`/build-support/toolchain/build toolchain
+	export SYSTEM_GCC=1
 fi

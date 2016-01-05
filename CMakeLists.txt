@@ -14,6 +14,8 @@
 
 cmake_minimum_required(VERSION 2.6)
 
+include(CMakeParseArguments)
+
 # generate CTest input files
 enable_testing()
 
@@ -46,6 +48,25 @@ string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
 
 SET(CMAKE_CXX_FLAGS "-std=c++11 -msse4.2 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
+
+include(CompilerInfo)
+
+if ("${COMPILER_FAMILY}" STREQUAL "clang")
+  # Using Clang with ccache causes a bunch of spurious warnings that are
+  # purportedly fixed in the next version of ccache. See the following for details:
+  #
+  #   http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html
+  #   http://petereisentraut.blogspot.com/2011/09/ccache-and-clang-part-2.html
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Qunused-arguments")
+
+  # Clang generates ambiguous member template warnings when calling the ev++ api.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ambiguous-member-template")
+
+  # Use libstdc++ and not libc++. The latter lacks support for tr1 in OSX
+  # and since 10.9 is now the default.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
+
 
 # If build in-source, create the latest symlink. If build out-of-source, which is
 # preferred, simply output the binaries in the build folder
@@ -184,14 +205,16 @@ include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
 message(STATUS "LZ4 include dir: ${LZ4_INCLUDE_DIR}")
 message(STATUS "LZ4 static library: ${LZ4_STATIC_LIB}")
 
-# for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake
-add_library(snappystatic STATIC IMPORTED)
-set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
+ADD_THIRDPARTY_LIB(snappy
+  STATIC_LIB "${SNAPPY_STATIC_LIB}"
+  SHARED_LIB "${SNAPPY_SHARED_LIB}")
 
-add_library(thriftstatic STATIC IMPORTED)
-set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
-add_library(lz4static STATIC IMPORTED)
-set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
+ADD_THIRDPARTY_LIB(lz4
+  STATIC_LIB "${LZ4_STATIC_LIB}")
+
+ADD_THIRDPARTY_LIB(thrift
+  STATIC_LIB "${THRIFT_STATIC_LIB}"
+  SHARED_LIB "${THRIFT_SHARED_LIB}")
 
 # Thrift requires these definitions for some types that we use
 add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETINET_IN_H -DHAVE_NETDB_H)
@@ -231,7 +254,9 @@ set(LIBPARQUET_SRCS
 set(LIBPARQUET_LINK_LIBS
   parquet_compression
   parquet_thrift
-  lz4static
+  lz4
+  snappy
+  thrift
 )
 
 if ("${PARQUET_LINK}" STREQUAL "d" OR "${PARQUET_LINK}" STREQUAL "a")
@@ -248,6 +273,14 @@ set_target_properties(parquet
   PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 target_link_libraries(parquet ${LIBPARQUET_LINK_LIBS})
+
+if(APPLE)
+    set_target_properties(parquet
+        PROPERTIES
+        BUILD_WITH_INSTALL_RPATH ON
+        INSTALL_NAME_DIR "@rpath"
+    )
+endif()
 
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/compression)

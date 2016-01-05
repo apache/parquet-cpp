@@ -29,7 +29,7 @@ if ("$ENV{DISABLE_NATIVE_TOOLCHAIN}" STREQUAL "")
   # Set the environment variables for dependent versions
   set(ENV{GCC_VERSION} "4.9.2")
   set(ENV{BOOST_VERSION} "1.57.0")
-  set(ENV{THRIFT_VERSION} "0.9.0-p2")
+  set(ENV{THRIFT_VERSION} "0.9.2-p2")
   set(ENV{LZ4_VERSION} "svn")
   set(ENV{SNAPPY_VERSION} "1.0.5")
   set(ENV{GPERFTOOLS_VERSION} "2.3")
