@@ -15,7 +15,9 @@
 #ifndef PARQUET_DELTA_BYTE_ARRAY_ENCODING_H
 #define PARQUET_DELTA_BYTE_ARRAY_ENCODING_H
 
-#include "encodings.h"
+#include "parquet/encodings/encodings.h"
+
+#include <algorithm>
 
 namespace parquet_cpp {
 
@@ -67,7 +69,6 @@ class DeltaByteArrayDecoder : public Decoder {
   ByteArray last_value_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif
-

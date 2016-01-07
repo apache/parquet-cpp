@@ -13,9 +13,10 @@
 // limitations under the License.
 
 #include "parquet/parquet.h"
-#include "encodings/encodings.h"
-#include "compression/codec.h"
+#include "parquet/encodings/encodings.h"
+#include "parquet/compression/codec.h"
 
+#include <algorithm>
 #include <string>
 #include <string.h>
 
@@ -23,18 +24,21 @@
 
 const int DATA_PAGE_SIZE = 64 * 1024;
 
-using namespace boost;
-using namespace parquet;
-using namespace std;
-
 namespace parquet_cpp {
+
+using parquet::CompressionCodec;
+using parquet::Encoding;
+using parquet::FieldRepetitionType;
+using parquet::PageType;
+using parquet::SchemaElement;
+using parquet::Type;
 
 InMemoryInputStream::InMemoryInputStream(const uint8_t* buffer, int64_t len) :
   buffer_(buffer), len_(len), offset_(0) {
 }
 
 const uint8_t* InMemoryInputStream::Peek(int num_to_peek, int* num_bytes) {
-  *num_bytes = ::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
+  *num_bytes = std::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
   return buffer_ + offset_;
 }
 
@@ -47,7 +51,7 @@ const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
 ColumnReader::~ColumnReader() {
 }
 
-ColumnReader::ColumnReader(const ColumnMetaData* metadata,
+ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
     const SchemaElement* schema, InputStream* stream)
   : metadata_(metadata),
     schema_(schema),
@@ -96,7 +100,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
 
 void ColumnReader::BatchDecode() {
   buffered_values_offset_ = 0;
-  uint8_t* buf= &values_buffer_[0];
+  uint8_t* buf = &values_buffer_[0];
   int batch_size = config_.batch_size;
   switch (metadata_->type) {
     case parquet::Type::BOOLEAN:
@@ -164,7 +168,7 @@ bool ColumnReader::ReadNewPage() {
     }
 
     if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
-      boost::unordered_map<Encoding::type, boost::shared_ptr<Decoder> >::iterator it =
+      std::unordered_map<Encoding::type, std::shared_ptr<Decoder> >::iterator it =
           decoders_.find(Encoding::RLE_DICTIONARY);
       if (it != decoders_.end()) {
         throw ParquetException("Column cannot have more than one dictionary.");
@@ -173,7 +177,7 @@ bool ColumnReader::ReadNewPage() {
       PlainDecoder dictionary(schema_->type);
       dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
           buffer, uncompressed_len);
-      boost::shared_ptr<Decoder> decoder(
+      std::shared_ptr<Decoder> decoder(
           new DictionaryDecoder(schema_->type, &dictionary));
       decoders_[Encoding::RLE_DICTIONARY] = decoder;
       current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
@@ -187,7 +191,7 @@ bool ColumnReader::ReadNewPage() {
         int num_definition_bytes = *reinterpret_cast<const uint32_t*>(buffer);
         buffer += sizeof(uint32_t);
         definition_level_decoder_.reset(
-            new impala::RleDecoder(buffer, num_definition_bytes, 1));
+            new RleDecoder(buffer, num_definition_bytes, 1));
         buffer += num_definition_bytes;
         uncompressed_len -= sizeof(uint32_t);
         uncompressed_len -= num_definition_bytes;
@@ -200,14 +204,14 @@ bool ColumnReader::ReadNewPage() {
       Encoding::type encoding = current_page_header_.data_page_header.encoding;
       if (IsDictionaryIndexEncoding(encoding)) encoding = Encoding::RLE_DICTIONARY;
 
-      boost::unordered_map<Encoding::type, boost::shared_ptr<Decoder> >::iterator it =
+      std::unordered_map<Encoding::type, std::shared_ptr<Decoder> >::iterator it =
           decoders_.find(encoding);
       if (it != decoders_.end()) {
         current_decoder_ = it->second.get();
       } else {
         switch (encoding) {
           case Encoding::PLAIN: {
-            boost::shared_ptr<Decoder> decoder;
+            std::shared_ptr<Decoder> decoder;
             if (schema_->type == Type::BOOLEAN) {
               decoder.reset(new BoolDecoder());
             } else {
@@ -239,5 +243,4 @@ bool ColumnReader::ReadNewPage() {
   return true;
 }
 
-}
-
+} // namespace parquet_cpp

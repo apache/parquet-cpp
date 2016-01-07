@@ -15,13 +15,16 @@
 #ifndef PARQUET_DELTA_BIT_PACK_ENCODING_H
 #define PARQUET_DELTA_BIT_PACK_ENCODING_H
 
-#include "encodings.h"
+#include "parquet/encodings/encodings.h"
+
+#include <algorithm>
+#include <vector>
 
 namespace parquet_cpp {
 
 class DeltaBitPackDecoder : public Decoder {
  public:
-  DeltaBitPackDecoder(const parquet::Type::type& type)
+  explicit DeltaBitPackDecoder(const parquet::Type::type& type)
     : Decoder(type, parquet::Encoding::DELTA_BINARY_PACKED) {
     if (type != parquet::Type::INT32 && type != parquet::Type::INT64) {
       throw ParquetException("Delta bit pack encoding should only be for integer data.");
@@ -30,7 +33,7 @@ class DeltaBitPackDecoder : public Decoder {
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
-    decoder_ = impala::BitReader(data, len);
+    decoder_ = BitReader(data, len);
     values_current_block_ = 0;
     values_current_mini_block_ = 0;
   }
@@ -94,7 +97,7 @@ class DeltaBitPackDecoder : public Decoder {
     return max_values;
   }
 
-  impala::BitReader decoder_;
+  BitReader decoder_;
   uint64_t values_current_block_;
   uint64_t num_mini_blocks_;
   uint64_t values_per_mini_block_;
@@ -108,7 +111,6 @@ class DeltaBitPackDecoder : public Decoder {
   int64_t last_value_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif
-

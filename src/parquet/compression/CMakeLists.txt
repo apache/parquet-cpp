@@ -12,7 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(ParquetCompression STATIC
+add_library(parquet_compression STATIC
   lz4-codec.cc
   snappy-codec.cc
 )
+target_link_libraries(parquet_compression
+  lz4static
+  snappystatic)
+
+set_target_properties(parquet_compression
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+
+# Headers: compression
+install(FILES
+  codec.h
+  DESTINATION include/parquet/compression)

@@ -15,7 +15,10 @@
 #ifndef PARQUET_DICTIONARY_ENCODING_H
 #define PARQUET_DICTIONARY_ENCODING_H
 
-#include "encodings.h"
+#include "parquet/encodings/encodings.h"
+
+#include <algorithm>
+#include <vector>
 
 namespace parquet_cpp {
 
@@ -75,7 +78,7 @@ class DictionaryDecoder : public Decoder {
     uint8_t bit_width = *data;
     ++data;
     --len;
-    idx_decoder_ = impala::RleDecoder(data, len, bit_width);
+    idx_decoder_ = RleDecoder(data, len, bit_width);
   }
 
   virtual int GetInt32(int32_t* buffer, int max_values) {
@@ -137,10 +140,9 @@ class DictionaryDecoder : public Decoder {
   // pointers).
   std::vector<uint8_t> byte_array_data_;
 
-  impala::RleDecoder idx_decoder_;
+  RleDecoder idx_decoder_;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif
-
