@@ -13,19 +13,19 @@
 // limitations under the License.
 
 
-#ifndef IMPALA_COMMON_COMPILER_UTIL_H
-#define IMPALA_COMMON_COMPILER_UTIL_H
+#ifndef PARQUET_UTIL_COMPILER_UTIL_H
+#define PARQUET_UTIL_COMPILER_UTIL_H
 
 // Compiler hint that this branch is likely or unlikely to
 // be taken. Take from the "What all programmers should know
 // about memory" paper.
 // example: if (LIKELY(size > 0)) { ... }
 // example: if (UNLIKELY(!status.ok())) { ... }
-#ifdef LIKELY 
+#ifdef LIKELY
 #undef LIKELY
 #endif
 
-#ifdef UNLIKELY 
+#ifdef UNLIKELY
 #undef UNLIKELY
 #endif
 
@@ -34,5 +34,4 @@
 
 #define PREFETCH(addr) __builtin_prefetch(addr)
 
-#endif
-
+#endif // PARQUET_UTIL_COMPILER_UTIL_H

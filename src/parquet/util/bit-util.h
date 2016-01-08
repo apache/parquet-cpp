@@ -13,8 +13,8 @@
 // limitations under the License.
 
 
-#ifndef IMPALA_BIT_UTIL_H
-#define IMPALA_BIT_UTIL_H
+#ifndef PARQUET_UTIL_BIT_UTIL_H
+#define PARQUET_UTIL_BIT_UTIL_H
 
 #if defined(__APPLE__)
   #include <machine/endian.h>
@@ -22,10 +22,10 @@
   #include <endian.h>
 #endif
 
-#include "impala/compiler-util.h"
-#include "impala/logging.h"
+#include "parquet/util/compiler-util.h"
+#include "parquet/util/logging.h"
 
-namespace impala {
+namespace parquet_cpp {
 
 // Utility class to do standard bit tricks
 // TODO: is this in boost or something else like that?
@@ -169,6 +169,6 @@ class BitUtil {
 
 };
 
-}
+} // namespace parquet_cpp
 
-#endif
+#endif // PARQUET_UTIL_BIT_UTIL_H

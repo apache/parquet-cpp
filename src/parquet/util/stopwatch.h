@@ -44,6 +44,6 @@ class StopWatch {
   struct timeval  start_time;
 };
 
-}
+} // namespace parquet_cpp
 
 #endif

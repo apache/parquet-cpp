@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef PARQUET_ENCODINGS_H
-#define PARQUET_ENCODINGS_H
+#ifndef PARQUET_ENCODINGS_ENCODINGS_H
+#define PARQUET_ENCODINGS_ENCODINGS_H
 
-#include <boost/cstdint.hpp>
-#include "gen-cpp/parquet_constants.h"
-#include "gen-cpp/parquet_types.h"
+#include <cstdint>
 
-#include "impala/rle-encoding.h"
-#include "impala/bit-stream-utils.inline.h"
+#include "parquet/thrift/parquet_constants.h"
+#include "parquet/thrift/parquet_types.h"
+#include "parquet/util/rle-encoding.h"
+#include "parquet/util/bit-stream-utils.inline.h"
 
 namespace parquet_cpp {
 
@@ -70,14 +70,13 @@ class Decoder {
   int num_values_;
 };
 
-}
+} // namespace parquet_cpp
 
-#include "bool-encoding.h"
-#include "plain-encoding.h"
-#include "dictionary-encoding.h"
-#include "delta-bit-pack-encoding.h"
-#include "delta-length-byte-array-encoding.h"
-#include "delta-byte-array-encoding.h"
+#include "parquet/encodings/bool-encoding.h"
+#include "parquet/encodings/plain-encoding.h"
+#include "parquet/encodings/dictionary-encoding.h"
+#include "parquet/encodings/delta-bit-pack-encoding.h"
+#include "parquet/encodings/delta-length-byte-array-encoding.h"
+#include "parquet/encodings/delta-byte-array-encoding.h"
 
-#endif
-
+#endif // PARQUET_ENCODINGS_ENCODINGS_H

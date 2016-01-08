@@ -17,9 +17,9 @@
 
 #include "parquet/parquet.h"
 
-#include <boost/cstdint.hpp>
-#include "gen-cpp/parquet_constants.h"
-#include "gen-cpp/parquet_types.h"
+#include <cstdint>
+#include "parquet/thrift/parquet_constants.h"
+#include "parquet/thrift/parquet_types.h"
 
 namespace parquet_cpp {
 
@@ -66,7 +66,6 @@ class Lz4Codec : public Codec {
   virtual const char* name() const { return "lz4"; }
 };
 
-}
+} // namespace parquet_cpp
 
 #endif
-

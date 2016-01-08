@@ -17,11 +17,10 @@
 #include <stdio.h>
 
 #include "example_util.h"
-#include "compression/codec.h"
-#include "encodings/encodings.h"
-#include "util/stopwatch.h"
+#include "parquet/compression/codec.h"
+#include "parquet/encodings/encodings.h"
+#include "parquet/util/stopwatch.h"
 
-using namespace impala;
 using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;

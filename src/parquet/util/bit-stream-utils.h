@@ -13,16 +13,18 @@
 // limitations under the License.
 
 
-#ifndef IMPALA_UTIL_BIT_STREAM_UTILS_H
-#define IMPALA_UTIL_BIT_STREAM_UTILS_H
+#ifndef PARQUET_UTIL_BIT_STREAM_UTILS_H
+#define PARQUET_UTIL_BIT_STREAM_UTILS_H
 
-#include <boost/cstdint.hpp>
 #include <string.h>
-#include "impala/compiler-util.h"
-#include "impala/bit-util.h"
-#include "impala/logging.h"
+#include <algorithm>
+#include <cstdint>
 
-namespace impala {
+#include "parquet/util/compiler-util.h"
+#include "parquet/util/bit-util.h"
+#include "parquet/util/logging.h"
+
+namespace parquet_cpp {
 
 // Utility class to write bit/byte streams.  This class can write data to either be
 // bit packed or byte aligned (and a single stream that has a mix of both).
@@ -73,7 +75,7 @@ class BitWriter {
   // Flushes all buffered values to the buffer. Call this when done writing to the buffer.
   // If 'align' is true, buffered_values_ is reset and any future writes will be written
   // to the next byte boundary.
-  void Flush(bool align=false);
+  void Flush(bool align = false);
 
  private:
   uint8_t* buffer_;
@@ -140,6 +142,6 @@ class BitReader {
   int bit_offset_;        // Offset in buffered_values_
 };
 
-}
+} // namespace parquet_cpp
 
 #endif
