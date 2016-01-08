@@ -17,6 +17,7 @@ else
     case $arg in
       "lz4")        F_LZ4=1 ;;
       "snappy")     F_SNAPPY=1 ;;
+      "thrift")     F_THRIFT=1 ;;
       *)            echo "Unknown module: $arg"; exit 1 ;;
     esac
   done
@@ -57,6 +58,19 @@ if [ -n "$F_ALL" -o -n "$F_LZ4" ]; then
   cd $TP_DIR/$LZ4_BASEDIR/cmake_unofficial
   CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $LZ4_DIR
   make -j$PARALLEL install
+fi
+
+# build thrift
+if [ -n "$F_ALL" -o -n "$F_THRIFT" ]; then
+  if [ "$(uname)" == "Darwin" ]; then
+      echo "thrift compilation under OSX is not currenlty supported."
+      exit 1
+  fi
+
+  cd $TP_DIR/$THRIFT_BASEDIR
+  ./configure CXXFLAGS='-fPIC' --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$PREFIX
+  make clean
+  make install
 fi
 
 echo "---------------------"

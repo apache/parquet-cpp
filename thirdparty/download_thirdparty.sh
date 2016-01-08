@@ -24,3 +24,8 @@ if [ ! -d ${SNAPPY_BASEDIR} ]; then
   download_extract_and_cleanup $SNAPPY_URL
 fi
 
+if [ ! -d ${THRIFT_BASEDIR} ]; then
+  echo "Fetching thrift"
+  download_extract_and_cleanup $THRIFT_URL
+fi
+

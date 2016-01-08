@@ -2,29 +2,27 @@ Parquet-cpp [![Build Status](https://travis-ci.org/apache/parquet-cpp.svg)](http
 ===========
 A C++ library to read parquet files.
 
-To build you will need some version of boost installed and thrift 0.7+ installed.  
-(If you are building thrift from source, you will need to set the THRIFT_HOME env
-variable to the directory containing include/ and lib/.)
+To build you will need all the dependencies for thrift.
 
 Then run:
 <br>
 <code>
-thirdparty/download_thirdparty.sh
+./thirdparty/download_thirdparty.sh
 </code>
 <br>
 <code>
-thirdparty/build_thirdparty.sh
+./thirdparty/build_thirdparty.sh
 </code>
 <br>
 <code>
-cmake -D CMAKE_PREFIX_PATH=$PWD/thirdparty/installed/ . 
+THRIFT_HOME=$PWD/thirdparty/installed/ cmake -D CMAKE_PREFIX_PATH=$PWD/thirdparty/installed/ . 
 </code>
 <br>
 <code>
 make
 </code>
 
-The binaries will be built to ./bin which contains the libraries to link against as
+The binaries will be built to ./debug which contains the libraries to link against as
 well as a few example executables.
 
 Incremental builds can be done afterwords with just <code> make </code>.
