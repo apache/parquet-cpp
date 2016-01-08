@@ -62,7 +62,7 @@ bool GetFileMetadata(const string& path, FileMetaData* metadata) {
   }
 
   uint32_t metadata_len = *reinterpret_cast<uint32_t*>(footer_buffer);
-  size_t metadata_start = file_len - FOOTER_SIZE - metadata_len;
+  int64_t metadata_start = file_len - FOOTER_SIZE - metadata_len;
   if (metadata_start < 0) {
     cerr << "Invalid parquet file. File is less than file metadata size." << endl;
     return false;
