@@ -261,7 +261,7 @@ void* read_parquet(char* filename) {
             printf("%-"COL_WIDTH"d",((int32_t *)(((int32_t **)column_ptr)[j]))[k]);
             break;
           case Type::INT64:
-            printf("%-"COL_WIDTH"ld",((int64_t *)(((int64_t **)column_ptr)[j]))[k]);
+            printf("%-"COL_WIDTH"lld",((int64_t *)(((int64_t **)column_ptr)[j]))[k]);
             break;
           case Type::FLOAT:
             printf("%-"COL_WIDTH"f",((float*)(((float**)column_ptr)[j]))[k]);

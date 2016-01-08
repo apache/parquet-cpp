@@ -56,7 +56,7 @@ ColumnReader::ColumnReader(const ColumnMetaData* metadata,
     num_buffered_values_(0),
     num_decoded_values_(0),
     buffered_values_offset_(0) {
-  int value_byte_size;
+  int value_byte_size = 0;
   switch (metadata->type) {
     case parquet::Type::BOOLEAN:
       value_byte_size = 1;
