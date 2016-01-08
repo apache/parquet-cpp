@@ -30,7 +30,8 @@ addons:
     - pkg-config                   #needed for thrift cpp compilation
 
 before_install:
-    - pushd thirdparty
+    - mkdir $HOME/build_dir
+    - cd $HOME/build_dir
     - >
       if [ $TRAVIS_OS_NAME == osx ]; then
         brew update &&
@@ -38,17 +39,15 @@ before_install:
       fi
     - >
       if [ $TRAVIS_OS_NAME == linux ]; then
-        ./download_thirdparty.sh &&
-        ./build_thirdparty.sh &&
-        export THRIFT_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed SNAPPY_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed LZ4_HOME=$TRAVIS_BUILD_DIR/thirdparty/installed;
+        cp -r $TRAVIS_BUILD_DIR/thirdparty . &&
+        ./thirdparty/download_thirdparty.sh &&
+        ./thirdparty/build_thirdparty.sh &&
+        export THRIFT_HOME=$HOME/build_dir/thirdparty/installed SNAPPY_HOME=$HOME/build_dir/thirdparty/installed LZ4_HOME=$HOME/build_dir/thirdparty/installed;
       fi
-    - popd
 
 before_script:
     - export CC="gcc-4.9"
     - export CXX="g++-4.9"
-    - mkdir build
-    - cd build
-    - cmake ..
+    - cmake $TRAVIS_BUILD_DIR
 
 script: make
