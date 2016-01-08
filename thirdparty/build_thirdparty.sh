@@ -47,14 +47,14 @@ export PATH=$PREFIX/bin:$PATH
 
 # build snappy
 if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
-  cd $SNAPPY_DIR
+  cd $TP_DIR/$SNAPPY_BASEDIR
   ./configure --with-pic --prefix=$PREFIX
   make -j$PARALLEL install
 fi
 
 # build lz4
 if [ -n "$F_ALL" -o -n "$F_LZ4" ]; then
-  cd $LZ4_DIR
+  cd $TP_DIR/$LZ4_BASEDIR/cmake_unofficial
   CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $LZ4_DIR
   make -j$PARALLEL install
 fi

@@ -17,7 +17,7 @@ thirdparty/build_thirdparty.sh
 </code>
 <br>
 <code>
-cmake . 
+cmake -D CMAKE_PREFIX_PATH=$PWD/thirdparty/installed/ . 
 </code>
 <br>
 <code>
