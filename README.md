@@ -42,6 +42,14 @@ reading pages, compression and managing encodings.
 
 The 3rd layer would handle reading/writing records.
 
+Contributing patches
+========
+File a issue here: https://issues.apache.org/jira/browse/PARQUET/
+for the parquet-cpp component. 
+
+Submit your patch as a pull request to this repo. The commit message
+should be PARQUET-XXX: <msg>
+
 Developer Notes
 ========
 The project adheres to the google coding convention: 
