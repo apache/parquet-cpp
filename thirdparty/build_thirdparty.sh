@@ -63,14 +63,22 @@ fi
 # build thrift
 if [ -n "$F_ALL" -o -n "$F_THRIFT" ]; then
   if [ "$(uname)" == "Darwin" ]; then
-      echo "thrift compilation under OSX is not currenlty supported."
-      exit 1
-  fi
+      echo "thrift compilation under OSX is not currently supported."
 
-  cd $TP_DIR/$THRIFT_BASEDIR
-  ./configure CXXFLAGS='-fPIC' --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$PREFIX
-  make clean
-  make install
+      # exit with an error if thrift was specified explicitly otherwise it is
+      # just a warning
+      if [ -n "$F_THRIFT" ]; then
+        exit 1
+      fi
+  else
+    # linux build
+    # this expects all of the depedencies for thrift to already be installed in
+    # such a way that ./configure can find them
+    cd $TP_DIR/$THRIFT_BASEDIR
+    ./configure CXXFLAGS='-fPIC' --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$PREFIX
+    make clean
+    make install
+  fi
 fi
 
 echo "---------------------"
