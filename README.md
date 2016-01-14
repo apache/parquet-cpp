@@ -12,19 +12,12 @@ Many package managers support some or all of these dependencies. E.g.:
 ubuntu$ sudo apt-get install libboost-dev libsnappy-dev liblz4-dev
 ```
 ```shell
-mac$ brew install boost snappy lz4 thrift
+mac$ brew install snappy lz4 thrift
 ```
 
-The thirdparty directory contains helper scripts to manually install third-party dependencies on Linux. You can use them like so.
-- `mkdir <build-dir>`
-- `cd <build-dir>`
-- `cp -r <src-dir>/thirdparty .`
-- `./thirdparty/download_thirdparty.sh`
-- `./thirdparty/build_thirdparty.sh`
-- Use the thirdparty/installed directory when configuring HOME dirs for dependencies.
-Ex., `THRIFT_HOME=$PWD/thirdparty/installed SNAPPY_HOME=$PWD/thirdparty/installed LZ4_HOME=$PWD/thirdparty/installed cmake <source_dir>`
+./setup_build_env.sh tries to automate setting up a build environment for you with third party dependencies.  You use it by running `./setup_build_env.sh`.  By default, it will create a build directory `build/`.  You can override the build directory by setting the BUILD_DIR env variable to another location.
 
-You can also take a look at our [.travis.yml](.travis.yml) to see how that build env is set up.
+Also feel free to take a look at our [.travis.yml](.travis.yml) to see how that build env is set up.
 
 
 ## Build
