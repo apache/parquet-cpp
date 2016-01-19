@@ -4,14 +4,28 @@ set -x
 set -e
 
 TP_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-cd $TP_DIR
 
-source versions.sh
+source $TP_DIR/versions.sh
 
-if [ ! -d snappy-${SNAPPY_VERSION} ]; then
+download_extract_and_cleanup() {
+	filename=$TP_DIR/$(basename "$1")
+	curl -#LC - "$1" -o $filename
+	tar xzf $filename -C $TP_DIR
+	rm $filename
+}
+
+if [ ! -d ${LZ4_BASEDIR} ]; then
+  echo "Fetching lz4"
+  download_extract_and_cleanup $LZ4_URL
+fi
+
+if [ ! -d ${SNAPPY_BASEDIR} ]; then
   echo "Fetching snappy"
-  curl -OC - http://snappy.googlecode.com/files/snappy-${SNAPPY_VERSION}.tar.gz
-  tar xzf snappy-${SNAPPY_VERSION}.tar.gz
-  rm snappy-${SNAPPY_VERSION}.tar.gz
+  download_extract_and_cleanup $SNAPPY_URL
+fi
+
+if [ ! -d ${THRIFT_BASEDIR} ]; then
+  echo "Fetching thrift"
+  download_extract_and_cleanup $THRIFT_URL
 fi
 

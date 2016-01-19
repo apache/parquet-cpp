@@ -2,32 +2,36 @@ Parquet-cpp [![Build Status](https://travis-ci.org/apache/parquet-cpp.svg)](http
 ===========
 A C++ library to read parquet files.
 
-To build you will need some version of boost installed and thrift 0.7+ installed.  
-(If you are building thrift from source, you will need to set the THRIFT_HOME env
-variable to the directory containing include/ and lib/.)
+## Third Party Dependencies
+- snappy
+- lz4
+- thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 
-Then run:
-<br>
-<code>
-thirdparty/download_thirdparty.sh
-</code>
-<br>
-<code>
-thirdparty/build_thirdparty.sh
-</code>
-<br>
-<code>
-cmake . 
-</code>
-<br>
-<code>
-make
-</code>
+Many package managers support some or all of these dependencies. E.g.:
+```shell
+ubuntu$ sudo apt-get install libboost-dev libsnappy-dev liblz4-dev
+```
+```shell
+mac$ brew install snappy lz4 thrift
+```
 
-The binaries will be built to ./bin which contains the libraries to link against as
+./setup_build_env.sh tries to automate setting up a build environment for you with third party dependencies.  You use it by running `./setup_build_env.sh`.  By default, it will create a build directory `build/`.  You can override the build directory by setting the BUILD_DIR env variable to another location.
+
+Also feel free to take a look at our [.travis.yml](.travis.yml) to see how that build env is set up.
+
+
+## Build
+- `cmake .`
+  - You can customize dependent library locations through various environment variables:
+    - THRIFT_HOME customizes the thrift installed location.
+    - SNAPPY_HOME customizes the snappy installed location.
+    - LZ4_HOME customizes the lz4 installed location.
+- `make`
+
+The binaries will be built to ./debug which contains the libraries to link against as
 well as a few example executables.
 
-Incremental builds can be done afterwords with just <code> make </code>.
+Incremental builds can be done afterwords with just `make`.
 
 Design
 ========
