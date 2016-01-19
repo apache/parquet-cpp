@@ -32,22 +32,9 @@ addons:
 before_install:
     - mkdir $HOME/build_dir
     - cd $HOME/build_dir
-    - >
-      if [ $TRAVIS_OS_NAME == osx ]; then
-        brew update &&
-        brew install thrift lz4 snappy;
-      fi
-    - >
-      if [ $TRAVIS_OS_NAME == linux ]; then
-        cp -r $TRAVIS_BUILD_DIR/thirdparty . &&
-        ./thirdparty/download_thirdparty.sh &&
-        ./thirdparty/build_thirdparty.sh &&
-        export THRIFT_HOME=$HOME/build_dir/thirdparty/installed SNAPPY_HOME=$HOME/build_dir/thirdparty/installed LZ4_HOME=$HOME/build_dir/thirdparty/installed;
-      fi
 
 before_script:
-    - export CC="gcc-4.9"
-    - export CXX="g++-4.9"
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
     - cmake $TRAVIS_BUILD_DIR
 
 script: make

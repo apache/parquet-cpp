@@ -16,6 +16,7 @@ else
   for arg in "$*"; do
     case $arg in
       "lz4")        F_LZ4=1 ;;
+      "gtest")      F_GTEST=1 ;;
       "snappy")     F_SNAPPY=1 ;;
       "thrift")     F_THRIFT=1 ;;
       *)            echo "Unknown module: $arg"; exit 1 ;;
@@ -53,6 +54,19 @@ if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
   make -j$PARALLEL install
 fi
 
+# build googletest
+if [ -n "$F_ALL" -o -n "$F_GTEST" ]; then
+  cd $TP_DIR/$GTEST_BASEDIR
+
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    CFLAGS=-fPIC cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes"
+  else
+    CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX .
+  fi
+
+  make
+fi
+
 # build lz4
 if [ -n "$F_ALL" -o -n "$F_LZ4" ]; then
   cd $TP_DIR/$LZ4_BASEDIR/cmake_unofficial
@@ -83,4 +97,3 @@ fi
 
 echo "---------------------"
 echo "Thirdparty dependencies built and installed into $PREFIX successfully"
-
