@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "parquet/thrift/util.h"
+
 using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;

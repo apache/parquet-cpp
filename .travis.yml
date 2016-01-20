@@ -36,5 +36,12 @@ before_install:
 before_script:
     - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
     - cmake $TRAVIS_BUILD_DIR
+    - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
 
-script: make
+script:
+- make
+- >
+  if [ $TRAVIS_OS_NAME == linux ]; then
+    valgrind --tool=memcheck --leak-check=yes ctest;
+  fi
+- make lint
