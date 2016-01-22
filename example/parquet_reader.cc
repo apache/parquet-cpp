@@ -147,20 +147,19 @@ void readParquet(const string& filename, const bool printValues) {
         }
 
         std::unique_ptr<ScopedInMemoryInputStream> input(
-             new ScopedInMemoryInputStream(col.meta_data.total_compressed_size));
-         fseek(file.getFileHandle(), col_start, SEEK_SET);
-         size_t num_read = fread(input->data(),
-                                 1,
-                                 input->size(),
-                                 file.getFileHandle());
-         if (num_read != input->size()) {
-           cerr << "Could not read column data." << endl;
-           continue;
-         }
+            new ScopedInMemoryInputStream(col.meta_data.total_compressed_size));
+        fseek(file.getFileHandle(), col_start, SEEK_SET);
+        size_t num_read = fread(input->data(),
+            1,
+            input->size(),
+            file.getFileHandle());
+        if (num_read != input->size()) {
+          cerr << "Could not read column data." << endl;
+          continue;
+        }
 
-        readers[c] = new ColumnReader(&col.meta_data,
-                                      &metadata.schema[c+1],
-                                      input.release());
+        readers[c] = make_column_reader(&col.meta_data, &metadata.schema[c+1],
+            input.release());
       }
       cout << "\n";
 
@@ -180,42 +179,42 @@ void readParquet(const string& filename, const bool printValues) {
             hasRow = true;
             switch (col.meta_data.type) {
               case Type::BOOLEAN: {
-                bool val = readers[c]->GetBool(&def_level[c], &rep_level[c]);
+                bool val = ((BoolReader*) readers[c])->NextValue(&def_level[c], &rep_level[c]);
                 if (def_level[c] >= rep_level[c]) {
                   printf("%-" COL_WIDTH"d",val);
                 }
                 break;
              }
               case Type::INT32: {
-                int32_t val = readers[c]->GetInt32(&def_level[c], &rep_level[c]);
+                int32_t val = ((Int32Reader*) readers[c])->NextValue(&def_level[c], &rep_level[c]);
                 if (def_level[c] >= rep_level[c]) {
                   printf("%-" COL_WIDTH"d",val);
                 }
                 break;
               }
               case Type::INT64: {
-                int64_t val = readers[c]->GetInt64(&def_level[c], &rep_level[c]);
+                int64_t val = ((Int64Reader*) readers[c])->NextValue(&def_level[c], &rep_level[c]);
                 if (def_level[c] >= rep_level[c]) {
                   printf("%-" COL_WIDTH"ld",val);
                 }
                 break;
               }
               case Type::FLOAT: {
-                float val = readers[c]->GetFloat(&def_level[c], &rep_level[c]);
+                float val = ((FloatReader*) readers[c])->NextValue(&def_level[c], &rep_level[c]);
                 if (def_level[c] >= rep_level[c]) {
                   printf("%-" COL_WIDTH"f",val);
                 }
                 break;
               }
               case Type::DOUBLE: {
-                double val = readers[c]->GetDouble(&def_level[c], &rep_level[c]);
+                double val = ((DoubleReader*) readers[c])->NextValue(&def_level[c], &rep_level[c]);
                 if (def_level[c] >= rep_level[c]) {
                   printf("%-" COL_WIDTH"lf",val);
                 }
                 break;
               }
               case Type::BYTE_ARRAY: {
-                ByteArray val = readers[c]->GetByteArray(&def_level[c], &rep_level[c]);
+                ByteArray val = ((ByteArrayReader*) readers[c])->NextValue(&def_level[c], &rep_level[c]);
                 if (def_level[c] >= rep_level[c]) {
                   string result = ByteArrayToString(val);
                   printf("%-" COL_WIDTH"s", result.c_str());
@@ -264,4 +263,3 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-

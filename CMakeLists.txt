@@ -213,13 +213,14 @@ set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 # Library config
 
 set(LIBPARQUET_SRCS
-  src/parquet.cc
+  src/parquet/column_reader.cc
   src/parquet/reader.cc
 )
 
 set(LIBPARQUET_LINK_LIBS
   parquet_compression
   parquet_thrift
+  parquet_util
   thriftstatic
 )
 

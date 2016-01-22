@@ -22,10 +22,17 @@
 
 namespace parquet_cpp {
 
-class DeltaBitPackDecoder : public Decoder {
+template <int TYPE>
+class DeltaBitPackDecoder : public Decoder<TYPE> {
  public:
-  explicit DeltaBitPackDecoder(const parquet::Type::type& type)
-    : Decoder(type, parquet::Encoding::DELTA_BINARY_PACKED) {
+  typedef typename type_traits<TYPE>::value_type T;
+  using Decoder<TYPE>::num_values_;
+
+  explicit DeltaBitPackDecoder(const parquet::SchemaElement* schema)
+      : Decoder<TYPE>(schema, parquet::Encoding::DELTA_BINARY_PACKED) {
+
+    parquet::Type::type type = type_traits<TYPE>::parquet_type;
+
     if (type != parquet::Type::INT32 && type != parquet::Type::INT64) {
       throw ParquetException("Delta bit pack encoding should only be for integer data.");
     }
@@ -38,11 +45,7 @@ class DeltaBitPackDecoder : public Decoder {
     values_current_mini_block_ = 0;
   }
 
-  virtual int GetInt32(int32_t* buffer, int max_values) {
-    return GetInternal(buffer, max_values);
-  }
-
-  virtual int GetInt64(int64_t* buffer, int max_values) {
+  virtual int Decode(T* buffer, int max_values) {
     return GetInternal(buffer, max_values);
   }
 
