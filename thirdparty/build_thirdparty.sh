@@ -76,11 +76,9 @@ if [ -n "$F_ALL" -o -n "$F_THRIFT" ]; then
     # such a way that ./configure can find them
     cd $TP_DIR/$THRIFT_BASEDIR
     ./configure CXXFLAGS='-fPIC' --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$PREFIX
-    make clean
     make install
   fi
 fi
 
 echo "---------------------"
 echo "Thirdparty dependencies built and installed into $PREFIX successfully"
-
