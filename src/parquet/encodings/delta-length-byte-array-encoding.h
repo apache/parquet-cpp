@@ -21,11 +21,13 @@
 
 namespace parquet_cpp {
 
-class DeltaLengthByteArrayDecoder : public Decoder {
+class DeltaLengthByteArrayDecoder : public Decoder<parquet::Type::BYTE_ARRAY> {
  public:
+  using Decoder<parquet::Type::BYTE_ARRAY>::num_values_;
+
   DeltaLengthByteArrayDecoder()
-    : Decoder(parquet::Type::BYTE_ARRAY, parquet::Encoding::DELTA_LENGTH_BYTE_ARRAY),
-      len_decoder_(parquet::Type::INT32) {
+    : Decoder<parquet::Type::BYTE_ARRAY>(parquet::Encoding::DELTA_LENGTH_BYTE_ARRAY),
+      len_decoder_() {
   }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
@@ -38,10 +40,10 @@ class DeltaLengthByteArrayDecoder : public Decoder {
     len_ = len - 4 - total_lengths_len;
   }
 
-  virtual int GetByteArray(ByteArray* buffer, int max_values) {
+  virtual int Decode(ByteArray* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
     int lengths[max_values];
-    len_decoder_.GetInt32(lengths, max_values);
+    len_decoder_.Decode(lengths, max_values);
     for (int  i = 0; i < max_values; ++i) {
       buffer[i].len = lengths[i];
       buffer[i].ptr = data_;
@@ -53,7 +55,7 @@ class DeltaLengthByteArrayDecoder : public Decoder {
   }
 
  private:
-  DeltaBitPackDecoder len_decoder_;
+  DeltaBitPackDecoder<parquet::Type::INT32> len_decoder_;
   const uint8_t* data_;
   int len_;
 };

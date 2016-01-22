@@ -21,11 +21,13 @@
 
 namespace parquet_cpp {
 
-class DeltaByteArrayDecoder : public Decoder {
+class DeltaByteArrayDecoder : public Decoder<parquet::Type::BYTE_ARRAY> {
  public:
+  using Decoder<parquet::Type::BYTE_ARRAY>::num_values_;
+
   DeltaByteArrayDecoder()
-    : Decoder(parquet::Type::BYTE_ARRAY, parquet::Encoding::DELTA_BYTE_ARRAY),
-      prefix_len_decoder_(parquet::Type::INT32),
+    : Decoder<parquet::Type::BYTE_ARRAY>(parquet::Encoding::DELTA_BYTE_ARRAY),
+      prefix_len_decoder_(),
       suffix_decoder_() {
   }
 
@@ -43,13 +45,13 @@ class DeltaByteArrayDecoder : public Decoder {
 
   // TODO: this doesn't work and requires memory management. We need to allocate
   // new strings to store the results.
-  virtual int GetByteArray(ByteArray* buffer, int max_values) {
+  virtual int Decode(ByteArray* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
     for (int  i = 0; i < max_values; ++i) {
       int prefix_len = 0;
-      prefix_len_decoder_.GetInt32(&prefix_len, 1);
+      prefix_len_decoder_.Decode(&prefix_len, 1);
       ByteArray suffix;
-      suffix_decoder_.GetByteArray(&suffix, 1);
+      suffix_decoder_.Decode(&suffix, 1);
       buffer[i].len = prefix_len + suffix.len;
 
       uint8_t* result = reinterpret_cast<uint8_t*>(malloc(buffer[i].len));
@@ -64,7 +66,7 @@ class DeltaByteArrayDecoder : public Decoder {
   }
 
  private:
-  DeltaBitPackDecoder prefix_len_decoder_;
+  DeltaBitPackDecoder<parquet::Type::INT32> prefix_len_decoder_;
   DeltaLengthByteArrayDecoder suffix_decoder_;
   ByteArray last_value_;
 };

@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "parquet/parquet.h"
+#include "parquet/column_reader.h"
 
 #include <algorithm>
 #include <string>
 #include <string.h>
 
-#include <thrift/protocol/TDebugProtocol.h>
-
 #include "parquet/encodings/encodings.h"
 #include "parquet/compression/codec.h"
 #include "parquet/thrift/util.h"
+#include "parquet/util/input_stream.h"
 
 const int DATA_PAGE_SIZE = 64 * 1024;
 
@@ -32,91 +31,20 @@ using parquet::CompressionCodec;
 using parquet::Encoding;
 using parquet::FieldRepetitionType;
 using parquet::PageType;
-using parquet::SchemaElement;
 using parquet::Type;
-
-InMemoryInputStream::InMemoryInputStream(const uint8_t* buffer, int64_t len) :
-   buffer_(buffer), len_(len), offset_(0) {}
-
-const uint8_t* InMemoryInputStream::Peek(int num_to_peek, int* num_bytes) {
-  *num_bytes = std::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
-  return buffer_ + offset_;
-}
-
-const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
-  const uint8_t* result = Peek(num_to_read, num_bytes);
-  offset_ += *num_bytes;
-  return result;
-}
-
-ScopedInMemoryInputStream::ScopedInMemoryInputStream(int64_t len): len_(len) {
-  buffer_ = (uint8_t*)malloc(sizeof(uint8_t) * len_);
-  if (buffer_ == nullptr) {
-    throw ParquetException("Failed to allocate a buffer.");
-  }
-  stream_ = new InMemoryInputStream(buffer_, len_);
-}
-
-ScopedInMemoryInputStream::~ScopedInMemoryInputStream() {
-  delete stream_;
-  free(buffer_);
-}
-
-uint8_t* ScopedInMemoryInputStream::data() {
-  return buffer_;
-}
-
-int64_t ScopedInMemoryInputStream::size() {
-  return len_;
-}
-
-const uint8_t* ScopedInMemoryInputStream::Peek(int num_to_peek,
-                                               int* num_bytes) {
-  return stream_->Peek(num_to_peek, num_bytes);
-}
-
-const uint8_t* ScopedInMemoryInputStream::Read(int num_to_read,
-                                               int* num_bytes) {
-  return stream_->Read(num_to_read, num_bytes);
-}
-
 
 ColumnReader::~ColumnReader() {
   delete stream_;
 }
 
 ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
-    const SchemaElement* schema, InputStream* stream)
+    const parquet::SchemaElement* schema, InputStream* stream)
   : metadata_(metadata),
     schema_(schema),
     stream_(stream),
-    current_decoder_(NULL),
     num_buffered_values_(0),
     num_decoded_values_(0),
     buffered_values_offset_(0) {
-  int value_byte_size;
-  switch (metadata->type) {
-    case parquet::Type::BOOLEAN:
-      value_byte_size = 1;
-      break;
-    case parquet::Type::INT32:
-      value_byte_size = sizeof(int32_t);
-      break;
-    case parquet::Type::INT64:
-      value_byte_size = sizeof(int64_t);
-      break;
-    case parquet::Type::FLOAT:
-      value_byte_size = sizeof(float);
-      break;
-    case parquet::Type::DOUBLE:
-      value_byte_size = sizeof(double);
-      break;
-    case parquet::Type::BYTE_ARRAY:
-      value_byte_size = sizeof(ByteArray);
-      break;
-    default:
-      ParquetException::NYI("Unsupported type");
-  }
 
   switch (metadata->codec) {
     case CompressionCodec::UNCOMPRESSED:
@@ -129,42 +57,8 @@ ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
   }
 
   config_ = Config::DefaultConfig();
-  values_buffer_.resize(config_.batch_size * value_byte_size);
 }
 
-void ColumnReader::BatchDecode() {
-  buffered_values_offset_ = 0;
-  uint8_t* buf = &values_buffer_[0];
-  int batch_size = config_.batch_size;
-  switch (metadata_->type) {
-    case parquet::Type::BOOLEAN:
-      num_decoded_values_ =
-          current_decoder_->GetBool(reinterpret_cast<bool*>(buf), batch_size);
-      break;
-    case parquet::Type::INT32:
-      num_decoded_values_ =
-          current_decoder_->GetInt32(reinterpret_cast<int32_t*>(buf), batch_size);
-      break;
-    case parquet::Type::INT64:
-      num_decoded_values_ =
-          current_decoder_->GetInt64(reinterpret_cast<int64_t*>(buf), batch_size);
-      break;
-    case parquet::Type::FLOAT:
-      num_decoded_values_ =
-          current_decoder_->GetFloat(reinterpret_cast<float*>(buf), batch_size);
-      break;
-    case parquet::Type::DOUBLE:
-      num_decoded_values_ =
-          current_decoder_->GetDouble(reinterpret_cast<double*>(buf), batch_size);
-      break;
-    case parquet::Type::BYTE_ARRAY:
-      num_decoded_values_ =
-          current_decoder_->GetByteArray(reinterpret_cast<ByteArray*>(buf), batch_size);
-      break;
-    default:
-      ParquetException::NYI("Unsupported type.");
-  }
-}
 
 // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
 // encoding.
@@ -172,8 +66,10 @@ static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
   return e == Encoding::RLE_DICTIONARY || e == Encoding::PLAIN_DICTIONARY;
 }
 
-bool ColumnReader::ReadNewPage() {
+template <int TYPE>
+bool TypedColumnReader<TYPE>::ReadNewPage() {
   // Loop until we find the next data page.
+
 
   while (true) {
     int bytes_read = 0;
@@ -196,23 +92,23 @@ bool ColumnReader::ReadNewPage() {
       if (uncompressed_len > decompression_buffer_.size()) {
         decompression_buffer_.resize(uncompressed_len);
       }
-      decompressor_->Decompress(
-          compressed_len, buffer, uncompressed_len, &decompression_buffer_[0]);
+      decompressor_->Decompress(compressed_len, buffer, uncompressed_len,
+          &decompression_buffer_[0]);
       buffer = &decompression_buffer_[0];
     }
 
     if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
-      std::unordered_map<Encoding::type, std::shared_ptr<Decoder> >::iterator it =
-          decoders_.find(Encoding::RLE_DICTIONARY);
+      auto it = decoders_.find(Encoding::RLE_DICTIONARY);
       if (it != decoders_.end()) {
         throw ParquetException("Column cannot have more than one dictionary.");
       }
 
-      PlainDecoder dictionary(schema_->type);
+      PlainDecoder<TYPE> dictionary;
       dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
           buffer, uncompressed_len);
-      std::shared_ptr<Decoder> decoder(
-          new DictionaryDecoder(schema_->type, &dictionary));
+      std::shared_ptr<DecoderType> decoder(
+          new DictionaryDecoder<TYPE>(&dictionary));
+
       decoders_[Encoding::RLE_DICTIONARY] = decoder;
       current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
       continue;
@@ -238,19 +134,13 @@ bool ColumnReader::ReadNewPage() {
       Encoding::type encoding = current_page_header_.data_page_header.encoding;
       if (IsDictionaryIndexEncoding(encoding)) encoding = Encoding::RLE_DICTIONARY;
 
-      std::unordered_map<Encoding::type, std::shared_ptr<Decoder> >::iterator it =
-          decoders_.find(encoding);
+      auto it = decoders_.find(encoding);
       if (it != decoders_.end()) {
         current_decoder_ = it->second.get();
       } else {
         switch (encoding) {
           case Encoding::PLAIN: {
-            std::shared_ptr<Decoder> decoder;
-            if (schema_->type == Type::BOOLEAN) {
-              decoder.reset(new BoolDecoder());
-            } else {
-              decoder.reset(new PlainDecoder(schema_->type));
-            }
+            std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>());
             decoders_[encoding] = decoder;
             current_decoder_ = decoder.get();
             break;
@@ -275,6 +165,29 @@ bool ColumnReader::ReadNewPage() {
     }
   }
   return true;
+}
+
+ColumnReader* make_column_reader(const parquet::ColumnMetaData* metadata,
+    const parquet::SchemaElement* element, InputStream* stream) {
+  switch(metadata->type) {
+    case Type::BOOLEAN:
+      return new BoolReader(metadata, element, stream);
+    case Type::INT32:
+      return new Int32Reader(metadata, element, stream);
+    case Type::INT64:
+      return new Int64Reader(metadata, element, stream);
+    case Type::FLOAT:
+      return new FloatReader(metadata, element, stream);
+    case Type::DOUBLE:
+      return new DoubleReader(metadata, element, stream);
+    case Type::BYTE_ARRAY:
+      return new ByteArrayReader(metadata, element, stream);
+    case Type::INT96:
+      return new Int96Reader(metadata, element, stream);
+    default:
+      ParquetException::NYI("type reader not implemented");
+  }
+  return nullptr;
 }
 
 } // namespace parquet_cpp
