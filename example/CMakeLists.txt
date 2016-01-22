@@ -23,9 +23,6 @@ SET(LINK_LIBS
   thriftstatic
   Example)
 
-add_executable(compute_stats compute_stats.cc)
-target_link_libraries(compute_stats ${LINK_LIBS})
-
 add_executable(decode_benchmark decode_benchmark.cc)
 target_link_libraries(decode_benchmark ${LINK_LIBS})
 

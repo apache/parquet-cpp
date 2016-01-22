@@ -13,14 +13,12 @@
 // limitations under the License.
 
 #include <parquet/parquet.h>
-#include <iostream>
-#include <stdio.h>
-
 #include "example_util.h"
 
+#include <iostream>
+
 // the fixed initial size is just for an example
-#define INIT_SIZE 100
-#define COL_WIDTH "17"
+#define  COL_WIDTH "17"
 
 using namespace parquet;
 using namespace parquet_cpp;
@@ -41,254 +39,229 @@ static string ByteArrayToString(const ByteArray& a) {
   return string(reinterpret_cast<const char*>(a.ptr), a.len);
 }
 
-void* read_parquet(char* filename);
+int ByteCompare(const ByteArray& x1, const ByteArray& x2) {
+  int len = ::min(x1.len, x2.len);
+  int cmp = memcmp(x1.ptr, x2.ptr, len);
+  if (cmp != 0) return cmp;
+  if (len < x1.len) return 1;
+  if (len < x2.len) return -1;
+  return 0;
+}
 
-// Simple example which prints out the content of the Parquet file
+string type2String(Type::type t) {
+  switch(t) {
+    case Type::BOOLEAN:
+      return "BOOLEAN";
+      break;
+    case Type::INT32:
+      return "INT32";
+      break;
+    case Type::INT64:
+      return "INT64";
+      break;
+    case Type::FLOAT:
+      return "FLOAT";
+      break;
+    case Type::DOUBLE:
+      return "DOUBLE";
+      break;
+    case Type::BYTE_ARRAY:
+      return "BYTE_ARRAY";
+      break;
+    case Type::INT96:
+      return "INT96";
+      break;
+    case Type::FIXED_LEN_BYTE_ARRAY:
+      return "FIXED_LEN_BYTE_ARRAY";
+      break;
+    default:
+      return "UNKNOWN";
+      break;
+  }
+}
+
+void readParquet(const string& filename, const bool printValues) {
+  InputFile file(filename);
+  if (!file.isOpen()) {
+    cerr << "Could not open file " << file.getFilename() << endl;
+    return;
+  }
+
+  FileMetaData metadata;
+  if (!GetFileMetadata(file.getFilename().c_str(), &metadata)) {
+    cerr << "Could not read metadata from file " << file.getFilename() << endl;
+    return;
+  }
+
+  cout << "File statistics:\n" ;
+  cout << "Total rows: " << metadata.num_rows << "\n";
+  for (int c = 1; c < metadata.schema.size(); ++c) {
+    cout << "Column " << c-1 << ": " << metadata.schema[c].name << " ("
+         << type2String(metadata.schema[c].type);
+    if (metadata.schema[c].type == Type::INT96 ||
+        metadata.schema[c].type == Type::FIXED_LEN_BYTE_ARRAY) {
+      cout << " - not supported";
+    }
+    cout << ")\n";
+  }
+
+  for (int i = 0; i < metadata.row_groups.size(); ++i) {
+    cout << "--- Row Group " << i << " ---\n";
+
+    // Print column metadata
+    const RowGroup& row_group = metadata.row_groups[i];
+    size_t nColumns = row_group.columns.size();
+
+    for (int c = 0; c < nColumns; ++c) {
+      const ColumnMetaData& meta_data = row_group.columns[c].meta_data;
+      cout << "Column " << c
+           << ": " << meta_data.num_values << " rows, "
+           << meta_data.statistics.null_count << " null values, "
+           << meta_data.statistics.distinct_count << " distinct values, "
+           << "min value: " << (meta_data.statistics.min.length()>0 ?
+                                meta_data.statistics.min : "N/A")
+           << ", max value: " << (meta_data.statistics.max.length()>0 ?
+                                  meta_data.statistics.max : "N/A") << ".\n";
+    }
+
+    if (!printValues) {
+      continue;
+    }
+
+    // Create readers for all columns and print contents
+    vector<ColumnReader*> readers(nColumns, NULL);
+    try {
+      for (int c = 0; c < nColumns; ++c) {
+        const ColumnChunk& col = row_group.columns[c];
+        printf("%-" COL_WIDTH"s", metadata.schema[c+1].name.c_str());
+
+        if (col.meta_data.type == Type::INT96 ||
+            col.meta_data.type == Type::FIXED_LEN_BYTE_ARRAY) {
+          continue;
+        }
+
+        size_t col_start = col.meta_data.data_page_offset;
+        if (col.meta_data.__isset.dictionary_page_offset &&
+            col_start > col.meta_data.dictionary_page_offset) {
+          col_start = col.meta_data.dictionary_page_offset;
+        }
+
+        std::unique_ptr<ScopedInMemoryInputStream> input(
+             new ScopedInMemoryInputStream(col.meta_data.total_compressed_size));
+         fseek(file.getFileHandle(), col_start, SEEK_SET);
+         size_t num_read = fread(input->data(),
+                                 1,
+                                 input->size(),
+                                 file.getFileHandle());
+         if (num_read != input->size()) {
+           cerr << "Could not read column data." << endl;
+           continue;
+         }
+
+        readers[c] = new ColumnReader(&col.meta_data,
+                                      &metadata.schema[c+1],
+                                      input.release());
+      }
+      cout << "\n";
+
+      vector<int> def_level(nColumns, 0);
+      vector<int> rep_level(nColumns, 0);
+
+      bool hasRow;
+      do {
+        hasRow = false;
+        for (int c = 0; c < nColumns; ++c) {
+          if (readers[c] == NULL) {
+            printf("%-" COL_WIDTH"s", " ");
+            continue;
+          }
+          const ColumnChunk& col = row_group.columns[c];
+          if (readers[c]->HasNext()) {
+            hasRow = true;
+            switch (col.meta_data.type) {
+              case Type::BOOLEAN: {
+                bool val = readers[c]->GetBool(&def_level[c], &rep_level[c]);
+                if (def_level[c] >= rep_level[c]) {
+                  printf("%-" COL_WIDTH"d",val);
+                }
+                break;
+             }
+              case Type::INT32: {
+                int32_t val = readers[c]->GetInt32(&def_level[c], &rep_level[c]);
+                if (def_level[c] >= rep_level[c]) {
+                  printf("%-" COL_WIDTH"d",val);
+                }
+                break;
+              }
+              case Type::INT64: {
+                int64_t val = readers[c]->GetInt64(&def_level[c], &rep_level[c]);
+                if (def_level[c] >= rep_level[c]) {
+                  printf("%-" COL_WIDTH"ld",val);
+                }
+                break;
+              }
+              case Type::FLOAT: {
+                float val = readers[c]->GetFloat(&def_level[c], &rep_level[c]);
+                if (def_level[c] >= rep_level[c]) {
+                  printf("%-" COL_WIDTH"f",val);
+                }
+                break;
+              }
+              case Type::DOUBLE: {
+                double val = readers[c]->GetDouble(&def_level[c], &rep_level[c]);
+                if (def_level[c] >= rep_level[c]) {
+                  printf("%-" COL_WIDTH"lf",val);
+                }
+                break;
+              }
+              case Type::BYTE_ARRAY: {
+                ByteArray val = readers[c]->GetByteArray(&def_level[c], &rep_level[c]);
+                if (def_level[c] >= rep_level[c]) {
+                  string result = ByteArrayToString(val);
+                  printf("%-" COL_WIDTH"s", result.c_str());
+                }
+                break;
+              }
+              default:
+                continue;
+            }
+          }
+        }
+        cout << "\n";
+      } while (hasRow);
+    } catch (exception& e) {
+      cout << "Caught an exception: " << e.what() << "\n";
+    } catch (...) {
+      cout << "Caught an exception.\n";
+    }
+
+    for(vector<ColumnReader*>::iterator it = readers.begin(); it != readers.end(); it++) {
+      delete *it;
+    }
+  }
+}
+
 int main(int argc, char** argv) {
-
-  if (argc < 2) {
-    cerr << "Usage: parquet_reader <file>" << endl;
+  if (argc > 3) {
+    cerr << "Usage: parquet_reader [--only-stats] <file>" << endl;
     return -1;
   }
 
-  void *column_ptr = read_parquet(argv[1]);
+  string filename;
+  bool printContents = true;
 
-  // an example to use the returned column_ptr
-  // printf("%-"COL_WIDTH"d\n",((int32_t *)(((int32_t **)column_ptr)[0]))[0]);
+  // Read command-line options
+  char *param, *value;
+  for (int i = 1; i < argc; i++) {
+    if ( (param = std::strstr(argv[i], "--only-stats")) ) {
+      printContents = false;
+    } else {
+      filename = argv[i];
+    }
+  }
+
+  readParquet(filename, printContents);
 
   return 0;
 }
 
-
-void* read_parquet(char* filename) {
-
-  unsigned int total_row_number = 0;
-
-  FileMetaData metadata;
-  if (!GetFileMetadata(filename, &metadata)) return NULL;
-
-  FILE* file = fopen(filename, "r");
-  if (file == NULL) {
-    cerr << "Could not open file: " << filename << endl;
-    return NULL;
-  }
-
-  for (int i = 0; i < metadata.row_groups.size(); ++i) {
-    const RowGroup& row_group = metadata.row_groups[i];
-
-    Type::type* type_array = (Type::type*)malloc(
-        row_group.columns.size() * sizeof(Type::type));
-    assert(type_array);
-
-    void* column_ptr = (void*)malloc(row_group.columns.size() * sizeof(void*));
-    assert(column_ptr);
-
-    for (int c = 0; c < row_group.columns.size(); ++c) {
-
-      const ColumnChunk& col = row_group.columns[c];
-      if (col.meta_data.type == Type::INT96 ||
-          col.meta_data.type == Type::FIXED_LEN_BYTE_ARRAY) {
-        cout << "  Skipping unsupported column" << endl;
-        continue;
-      }
-
-      size_t col_start = col.meta_data.data_page_offset;
-      if (col.meta_data.__isset.dictionary_page_offset) {
-        if (col_start > col.meta_data.dictionary_page_offset) {
-          col_start = col.meta_data.dictionary_page_offset;
-        }
-      }
-      fseek(file, col_start, SEEK_SET);
-      vector<uint8_t> column_buffer;
-      column_buffer.resize(col.meta_data.total_compressed_size);
-      size_t num_read = fread(&column_buffer[0], 1, column_buffer.size(), file);
-      if (num_read != column_buffer.size()) {
-        cerr << "Could not read column data." << endl;
-        continue;
-      }
-
-      InMemoryInputStream input(&column_buffer[0], column_buffer.size());
-      ColumnReader reader(&col.meta_data, &metadata.schema[c + 1], &input);
-
-      AnyType min, max;
-      int num_values = 0;
-      int num_nulls = 0;
-
-      switch (col.meta_data.type) {
-        case Type::BOOLEAN: {
-          ((bool**)column_ptr)[c] = (bool*)malloc(sizeof(bool) * INIT_SIZE);
-          type_array[c] = Type::BOOLEAN;
-          break;
-        }
-        case Type::INT32: {
-          ((int32_t**)column_ptr)[c] = (int32_t*)malloc(sizeof(int32_t) * INIT_SIZE);
-          type_array[c] = Type::INT32;
-          break;
-        }
-        case Type::INT64: {
-          ((int64_t**)column_ptr)[c] = (int64_t*)malloc(sizeof(int64_t) * INIT_SIZE);
-          type_array[c] = Type::INT64;
-          break;
-        }
-        case Type::FLOAT: {
-          ((float**)column_ptr)[c] = (float*)malloc(sizeof(float) * INIT_SIZE);
-          type_array[c] = Type::FLOAT;
-
-          break;
-        }
-        case Type::DOUBLE: {
-          ((double**)column_ptr)[c] = (double*)malloc(sizeof(double) * INIT_SIZE);
-          type_array[c] = Type::DOUBLE;
-          break;
-        }
-        case Type::BYTE_ARRAY: {
-          ((ByteArray**)column_ptr)[c] =
-              (ByteArray*)malloc(sizeof(ByteArray) * INIT_SIZE);
-          type_array[c] = Type::BYTE_ARRAY;
-          break;
-        }
-        case Type::FIXED_LEN_BYTE_ARRAY:
-        case Type::INT96:
-          assert(false);
-          break;
-      }
-
-      int def_level = 0, rep_level = 0;
-      while (reader.HasNext()) {
-        switch (col.meta_data.type) {
-          case Type::BOOLEAN: {
-            bool val = reader.GetBool(&def_level, &rep_level);
-            if (def_level < rep_level) break;
-            ((bool*)(((bool**)column_ptr)[c]))[num_values] = val;
-            break;
-          }
-          case Type::INT32: {
-            int32_t val = reader.GetInt32(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
-            ((int32_t*)(((int32_t**)column_ptr)[c]))[num_values] = val;
-            break;
-          }
-          case Type::INT64: {
-            int64_t val = reader.GetInt64(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
-            ((int64_t *)(((int64_t**)column_ptr)[c]))[num_values] = val;
-            break;
-          }
-          case Type::FLOAT: {
-            float val = reader.GetFloat(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
-            ((float*)(((float**)column_ptr)[c]))[num_values] = val;
-            break;
-          }
-          case Type::DOUBLE: {
-            double val = reader.GetDouble(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
-            ((double*)(((double**)column_ptr)[c]))[num_values] = val;
-            break;
-          }
-          case Type::BYTE_ARRAY: {
-            ByteArray val = reader.GetByteArray(&def_level, &rep_level);;
-            if (def_level < rep_level) break;
-            ((ByteArray*)(((ByteArray**)column_ptr)[c]))[num_values] = val;
-            break;
-          }
-
-          default:
-            continue;
-        }
-
-        if (def_level < rep_level) ++num_nulls;
-        ++num_values;
-      }
-
-      total_row_number = num_values;
-    }
-
-    // prints out the table
-    cout << "=========================================================================\n";
-
-    // j is the row, k is the column
-    int k = 0, j = 0;
-
-    // prints column name
-    for (j = 0; j < row_group.columns.size(); ++j) {
-      char *str = (char*)malloc(50);
-      assert(str);
-      strcpy(str, metadata.schema[j+1].name.c_str());
-      printf("%-" COL_WIDTH"s", str);
-      free(str);
-    }
-
-    cout << "\n";
-
-
-    for (j = 0;j < row_group.columns.size(); ++j)
-      switch(type_array[j]) {
-        case Type::BOOLEAN:
-          printf("%-" COL_WIDTH"s","BOOLEAN");
-          break;
-        case Type::INT32:
-          printf("%-" COL_WIDTH"s","INT32");
-          break;
-        case Type::INT64:
-          printf("%-" COL_WIDTH"s","INT64");
-          break;
-        case Type::FLOAT:
-          printf("%-" COL_WIDTH"s","FLOAT");
-          break;
-        case Type::DOUBLE:
-          printf("%-" COL_WIDTH"s","DOUBLE");
-          break;
-        case Type::BYTE_ARRAY:
-          printf("%-" COL_WIDTH"s","BYTE_ARRAY");
-          break;
-        default:
-          continue;
-      }
-
-    cout << "\n";
-
-    static string result;
-    char* str1;
-
-    for (k = 0; k < total_row_number; ++k) {
-      for (j = 0; j < row_group.columns.size(); ++j) {
-        switch(type_array[j]) {
-          case Type::BOOLEAN:
-            printf("%-" COL_WIDTH"d",((bool*)(((bool**)column_ptr)[j]))[k]);
-            break;
-          case Type::INT32:
-            printf("%-" COL_WIDTH"d",((int32_t *)(((int32_t **)column_ptr)[j]))[k]);
-            break;
-          case Type::INT64:
-            printf("%-" COL_WIDTH"ld",((int64_t *)(((int64_t **)column_ptr)[j]))[k]);
-            break;
-          case Type::FLOAT:
-            printf("%-" COL_WIDTH"f",((float*)(((float**)column_ptr)[j]))[k]);
-            break;
-          case Type::DOUBLE:
-            printf("%-" COL_WIDTH"lf",((double*)(((double**)column_ptr)[j]))[k]);
-            break;
-          case Type::BYTE_ARRAY:
-            result = ByteArrayToString( ((ByteArray*)(((ByteArray**)column_ptr)[j]))[k] );
-            str1 = (char*)malloc(result.size());
-            assert(str1);
-            strcpy(str1, result.c_str());
-            printf("%-" COL_WIDTH"s", str1);
-            free(str1);
-            break;
-          default:
-            continue;
-        }
-      }
-      cout << "\n";
-
-      // print ends
-    }
-
-    return column_ptr;
-  }
-
-  fclose(file);
-  return NULL;
-}

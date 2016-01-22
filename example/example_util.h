@@ -17,7 +17,28 @@
 
 #include <string>
 #include <parquet/parquet.h>
+#include <stdio.h>
 
 bool GetFileMetadata(const std::string& path, parquet::FileMetaData* metadata);
 
-#endif
+class InputFile {
+private:
+  FILE* file;
+  std::string filename;
+
+public:
+  InputFile(const std::string& _filename): filename(_filename) {
+    file = fopen(_filename.c_str(), "r");
+  }
+  ~InputFile() {
+    if (file != NULL) {
+      fclose(file);
+    }
+  }
+
+  FILE* getFileHandle() { return file; }
+  bool isOpen() { return file != NULL; }
+  std::string getFilename()  { return filename; }
+};
+
+#endif  // PARQUET_EXAMPLE_UTIL_H
