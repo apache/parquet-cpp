@@ -52,7 +52,7 @@ class Decoder {
   const parquet::Encoding::type encoding() const { return encoding_; }
 
  protected:
-  Decoder(const parquet::Encoding::type& encoding)
+  explicit Decoder(const parquet::Encoding::type& encoding)
     : encoding_(encoding), num_values_(0) {}
 
   const parquet::Encoding::type encoding_;

@@ -38,7 +38,7 @@ const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
 }
 
 ScopedInMemoryInputStream::ScopedInMemoryInputStream(int64_t len): len_(len) {
-  buffer_ = (uint8_t*)malloc(sizeof(uint8_t) * len_);
+  buffer_ = reinterpret_cast<uint8_t*>(malloc(sizeof(uint8_t) * len_));
   if (buffer_ == nullptr) {
     throw ParquetException("Failed to allocate a buffer.");
   }

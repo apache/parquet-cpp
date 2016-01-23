@@ -27,7 +27,7 @@ class PlainDecoder : public Decoder<TYPE> {
   typedef typename type_traits<TYPE>::value_type T;
   using Decoder<TYPE>::num_values_;
 
-  explicit PlainDecoder()
+  PlainDecoder()
       : Decoder<TYPE>(parquet::Encoding::PLAIN), data_(NULL), len_(0) {
   }
 

@@ -61,7 +61,7 @@ class InMemoryInputStream : public InputStream {
 // A wrapper for InMemoryInputStream to manage the memory.
 class ScopedInMemoryInputStream : public InputStream {
  public:
-  ScopedInMemoryInputStream(const int64_t len);
+  explicit ScopedInMemoryInputStream(const int64_t len);
   ~ScopedInMemoryInputStream();
   uint8_t* data();
   int64_t size();

@@ -169,7 +169,7 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
 
 ColumnReader* make_column_reader(const parquet::ColumnMetaData* metadata,
     const parquet::SchemaElement* element, InputStream* stream) {
-  switch(metadata->type) {
+  switch (metadata->type) {
     case Type::BOOLEAN:
       return new BoolReader(metadata, element, stream);
     case Type::INT32:
