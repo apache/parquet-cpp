@@ -26,7 +26,6 @@ template <int TYPE>
 class DeltaBitPackDecoder : public Decoder<TYPE> {
  public:
   typedef typename type_traits<TYPE>::value_type T;
-  using Decoder<TYPE>::num_values_;
 
   explicit DeltaBitPackDecoder(const parquet::SchemaElement* schema)
       : Decoder<TYPE>(schema, parquet::Encoding::DELTA_BINARY_PACKED) {
@@ -50,6 +49,8 @@ class DeltaBitPackDecoder : public Decoder<TYPE> {
   }
 
  private:
+  using Decoder<TYPE>::num_values_;
+
   void InitBlock() {
     uint64_t block_size;
     if (!decoder_.GetVlqInt(&block_size)) ParquetException::EofException();

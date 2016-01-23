@@ -167,27 +167,36 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   return true;
 }
 
-ColumnReader* make_column_reader(const parquet::ColumnMetaData* metadata,
+std::shared_ptr<ColumnReader> make_column_reader(const parquet::ColumnMetaData* metadata,
     const parquet::SchemaElement* element, InputStream* stream) {
+  ColumnReader* result = nullptr;
+
   switch (metadata->type) {
     case Type::BOOLEAN:
-      return new BoolReader(metadata, element, stream);
+      result = new BoolReader(metadata, element, stream);
+      break;
     case Type::INT32:
-      return new Int32Reader(metadata, element, stream);
+      result = new Int32Reader(metadata, element, stream);
+      break;
     case Type::INT64:
-      return new Int64Reader(metadata, element, stream);
+      result = new Int64Reader(metadata, element, stream);
+      break;
     case Type::FLOAT:
-      return new FloatReader(metadata, element, stream);
+      result = new FloatReader(metadata, element, stream);
+      break;
     case Type::DOUBLE:
-      return new DoubleReader(metadata, element, stream);
+      result = new DoubleReader(metadata, element, stream);
+      break;
     case Type::BYTE_ARRAY:
-      return new ByteArrayReader(metadata, element, stream);
+      result = new ByteArrayReader(metadata, element, stream);
+      break;
     case Type::INT96:
-      return new Int96Reader(metadata, element, stream);
+      result = new Int96Reader(metadata, element, stream);
+      break;
     default:
       ParquetException::NYI("type reader not implemented");
   }
-  return nullptr;
+  return std::shared_ptr<ColumnReader>(result);
 }
 
 } // namespace parquet_cpp

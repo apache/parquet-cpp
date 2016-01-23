@@ -78,6 +78,14 @@ class ColumnReader {
     return true;
   }
 
+  parquet::Type::type type() const {
+    return metadata_->type;
+  }
+
+  const parquet::ColumnMetaData* metadata() const {
+    return metadata_;
+  }
+
  protected:
   // Reads the next definition and repetition level. Returns true if the value is NULL.
   bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
@@ -167,7 +175,7 @@ inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* re
   return *def_level == 0;
 }
 
-ColumnReader* make_column_reader(const parquet::ColumnMetaData*,
+std::shared_ptr<ColumnReader> make_column_reader(const parquet::ColumnMetaData*,
     const parquet::SchemaElement*, InputStream* stream);
 
 } // namespace parquet_cpp

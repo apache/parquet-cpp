@@ -18,7 +18,10 @@
 #ifndef PARQUET_TYPES_H
 #define PARQUET_TYPES_H
 
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
+#include <string>
 
 #include "parquet/thrift/parquet_types.h"
 
@@ -28,6 +31,20 @@ struct ByteArray {
   uint32_t len;
   const uint8_t* ptr;
 };
+
+
+static inline std::string ByteArrayToString(const ByteArray& a) {
+  return std::string(reinterpret_cast<const char*>(a.ptr), a.len);
+}
+
+static inline int ByteCompare(const ByteArray& x1, const ByteArray& x2) {
+  int len = std::min(x1.len, x2.len);
+  int cmp = memcmp(x1.ptr, x2.ptr, len);
+  if (cmp != 0) return cmp;
+  if (len < x1.len) return 1;
+  if (len < x2.len) return -1;
+  return 0;
+}
 
 template <int TYPE>
 struct type_traits {

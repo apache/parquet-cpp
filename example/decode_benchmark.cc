@@ -16,7 +16,6 @@
 #include <iostream>
 #include <stdio.h>
 
-#include "example_util.h"
 #include "parquet/compression/codec.h"
 #include "parquet/encodings/encodings.h"
 #include "parquet/util/stopwatch.h"

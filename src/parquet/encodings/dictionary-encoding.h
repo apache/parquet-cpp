@@ -26,7 +26,6 @@ template <int TYPE>
 class DictionaryDecoder : public Decoder<TYPE> {
  public:
   typedef typename type_traits<TYPE>::value_type T;
-  using Decoder<TYPE>::num_values_;
 
   // Initializes the dictionary with values from 'dictionary'. The data in dictionary
   // is not guaranteed to persist in memory after this call so the dictionary decoder
@@ -36,8 +35,8 @@ class DictionaryDecoder : public Decoder<TYPE> {
     Init(dictionary);
   }
 
+  // Perform type-specific initiatialization
   void Init(Decoder<TYPE>* dictionary);
-  void PostInit();
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
@@ -57,6 +56,8 @@ class DictionaryDecoder : public Decoder<TYPE> {
   }
 
  private:
+  using Decoder<TYPE>::num_values_;
+
   int index() {
     int idx = 0;
     if (!idx_decoder_.Get(&idx)) ParquetException::EofException();
@@ -79,8 +80,6 @@ inline void DictionaryDecoder<TYPE>::Init(Decoder<TYPE>* dictionary) {
   int num_dictionary_values = dictionary->values_left();
   dictionary_.resize(num_dictionary_values);
   dictionary->Decode(&dictionary_[0], num_dictionary_values);
-
-  PostInit();
 }
 
 template <>
@@ -89,12 +88,13 @@ inline void DictionaryDecoder<parquet::Type::BOOLEAN>::Init(
   // Not implemented
 }
 
-template <int TYPE>
-inline void DictionaryDecoder<TYPE>::PostInit() {}
-
 template <>
-inline void DictionaryDecoder<parquet::Type::BYTE_ARRAY>::PostInit() {
-  int num_dictionary_values = dictionary_.size();
+inline void DictionaryDecoder<parquet::Type::BYTE_ARRAY>::Init(
+    Decoder<parquet::Type::BYTE_ARRAY>* dictionary) {
+  int num_dictionary_values = dictionary->values_left();
+  dictionary_.resize(num_dictionary_values);
+  dictionary->Decode(&dictionary_[0], num_dictionary_values);
+
   int total_size = 0;
   for (int i = 0; i < num_dictionary_values; ++i) {
     total_size += dictionary_[i].len;

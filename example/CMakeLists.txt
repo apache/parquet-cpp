@@ -12,16 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-add_library(Example STATIC
-  example_util.cc
-)
-
 SET(LINK_LIBS
   parquet
   snappystatic
-  thriftstatic
-  Example)
+  thriftstatic)
 
 add_executable(decode_benchmark decode_benchmark.cc)
 target_link_libraries(decode_benchmark ${LINK_LIBS})
