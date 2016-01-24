@@ -21,4 +21,26 @@ install(FILES
   logging.h
   rle-encoding.h
   stopwatch.h
+  input_stream.h
   DESTINATION include/parquet/util)
+
+add_library(parquet_util STATIC
+  input_stream.cc
+)
+
+add_library(parquet_test_main
+  test_main.cc)
+
+if (APPLE)
+  target_link_libraries(parquet_test_main
+    gtest
+    dl)
+  set_target_properties(parquet_test_main
+        PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+else()
+  target_link_libraries(parquet_test_main
+    dl
+    gtest
+    pthread
+  )
+endif()

@@ -15,20 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_PARQUET_H
-#define PARQUET_PARQUET_H
+#include <gtest/gtest.h>
 
-#include <exception>
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
 
-#include "parquet/exception.h"
-#include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/util/input_stream.h"
+  int ret = RUN_ALL_TESTS();
 
-#endif
+  return ret;
+}
