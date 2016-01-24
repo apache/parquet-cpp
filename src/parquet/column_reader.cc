@@ -103,11 +103,10 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
         throw ParquetException("Column cannot have more than one dictionary.");
       }
 
-      PlainDecoder<TYPE> dictionary;
+      PlainDecoder<TYPE> dictionary(schema_);
       dictionary.SetData(current_page_header_.dictionary_page_header.num_values,
           buffer, uncompressed_len);
-      std::shared_ptr<DecoderType> decoder(
-          new DictionaryDecoder<TYPE>(&dictionary));
+      std::shared_ptr<DecoderType> decoder(new DictionaryDecoder<TYPE>(schema_, &dictionary));
 
       decoders_[Encoding::RLE_DICTIONARY] = decoder;
       current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
@@ -140,7 +139,7 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
       } else {
         switch (encoding) {
           case Encoding::PLAIN: {
-            std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>());
+            std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>(schema_));
             decoders_[encoding] = decoder;
             current_decoder_ = decoder.get();
             break;

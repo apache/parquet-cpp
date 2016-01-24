@@ -198,7 +198,7 @@ class DeltaByteArrayEncoder {
 
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
-  PlainDecoder<Type::INT64> decoder;
+  PlainDecoder<Type::INT64> decoder(nullptr);
   decoder.SetData(num_values, data, num_values * sizeof(int64_t));
   int64_t values[batch_size];
   for (int i = 0; i < num_values;) {
@@ -221,7 +221,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
   } else {
     mini_block_size = 32;
   }
-  DeltaBitPackDecoder<Type::INT64> decoder;
+  DeltaBitPackDecoder<Type::INT64> decoder(nullptr);
   DeltaBitPackEncoder encoder(mini_block_size);
   for (int i = 0; i < values.size(); ++i) {
     encoder.Add(values[i]);
@@ -349,7 +349,7 @@ void TestBinaryPacking() {
 }
 
 void TestDeltaLengthByteArray() {
-  DeltaLengthByteArrayDecoder decoder;
+  DeltaLengthByteArrayDecoder decoder(nullptr);
   DeltaLengthByteArrayEncoder encoder;
 
   vector<string> values;
@@ -378,7 +378,7 @@ void TestDeltaLengthByteArray() {
 }
 
 void TestDeltaByteArray() {
-  DeltaByteArrayDecoder decoder;
+  DeltaByteArrayDecoder decoder(nullptr);
   DeltaByteArrayEncoder encoder;
 
   vector<string> values;

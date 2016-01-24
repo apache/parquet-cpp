@@ -28,8 +28,8 @@ class DeltaBitPackDecoder : public Decoder<TYPE> {
   typedef typename type_traits<TYPE>::value_type T;
   using Decoder<TYPE>::num_values_;
 
-  DeltaBitPackDecoder()
-      : Decoder<TYPE>(parquet::Encoding::DELTA_BINARY_PACKED) {
+  explicit DeltaBitPackDecoder(const parquet::SchemaElement* schema)
+      : Decoder<TYPE>(schema, parquet::Encoding::DELTA_BINARY_PACKED) {
 
     parquet::Type::type type = type_traits<TYPE>::parquet_type;
 

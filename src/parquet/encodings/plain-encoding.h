@@ -27,9 +27,9 @@ class PlainDecoder : public Decoder<TYPE> {
   typedef typename type_traits<TYPE>::value_type T;
   using Decoder<TYPE>::num_values_;
 
-  PlainDecoder()
-      : Decoder<TYPE>(parquet::Encoding::PLAIN), data_(NULL), len_(0) {
-  }
+  explicit PlainDecoder(const parquet::SchemaElement* schema) :
+      Decoder<TYPE>(schema, parquet::Encoding::PLAIN),
+      data_(NULL), len_(0) {}
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
@@ -74,7 +74,8 @@ inline int PlainDecoder<parquet::Type::BYTE_ARRAY>::Decode(ByteArray* buffer,
 template <>
 class PlainDecoder<parquet::Type::BOOLEAN> : public Decoder<parquet::Type::BOOLEAN> {
  public:
-  PlainDecoder() : Decoder<parquet::Type::BOOLEAN>(parquet::Encoding::PLAIN) {}
+  explicit PlainDecoder(const parquet::SchemaElement* schema) :
+      Decoder<parquet::Type::BOOLEAN>(schema, parquet::Encoding::PLAIN) {}
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;

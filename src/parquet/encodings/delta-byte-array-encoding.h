@@ -25,10 +25,10 @@ class DeltaByteArrayDecoder : public Decoder<parquet::Type::BYTE_ARRAY> {
  public:
   using Decoder<parquet::Type::BYTE_ARRAY>::num_values_;
 
-  DeltaByteArrayDecoder()
-    : Decoder<parquet::Type::BYTE_ARRAY>(parquet::Encoding::DELTA_BYTE_ARRAY),
-      prefix_len_decoder_(),
-      suffix_decoder_() {
+  explicit DeltaByteArrayDecoder(const parquet::SchemaElement* schema)
+      : Decoder<parquet::Type::BYTE_ARRAY>(schema, parquet::Encoding::DELTA_BYTE_ARRAY),
+      prefix_len_decoder_(nullptr),
+      suffix_decoder_(nullptr) {
   }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {

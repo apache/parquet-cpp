@@ -31,8 +31,8 @@ class DictionaryDecoder : public Decoder<TYPE> {
   // Initializes the dictionary with values from 'dictionary'. The data in dictionary
   // is not guaranteed to persist in memory after this call so the dictionary decoder
   // needs to copy the data out if necessary.
-  explicit DictionaryDecoder(Decoder<TYPE>* dictionary)
-      : Decoder<TYPE>(parquet::Encoding::RLE_DICTIONARY) {
+  DictionaryDecoder(const parquet::SchemaElement* schema, Decoder<TYPE>* dictionary)
+      : Decoder<TYPE>(schema, parquet::Encoding::RLE_DICTIONARY) {
     Init(dictionary);
   }
 

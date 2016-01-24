@@ -52,8 +52,12 @@ class Decoder {
   const parquet::Encoding::type encoding() const { return encoding_; }
 
  protected:
-  explicit Decoder(const parquet::Encoding::type& encoding)
-    : encoding_(encoding), num_values_(0) {}
+  explicit Decoder(const parquet::SchemaElement* schema,
+      const parquet::Encoding::type& encoding)
+      : schema_(schema), encoding_(encoding), num_values_(0) {}
+
+  // For accessing type-specific metadata, like FIXED_LEN_BYTE_ARRAY
+  const parquet::SchemaElement* schema_;
 
   const parquet::Encoding::type encoding_;
   int num_values_;
@@ -64,8 +68,6 @@ class Decoder {
 #include "parquet/encodings/plain-encoding.h"
 #include "parquet/encodings/dictionary-encoding.h"
 
-// Disable these for now
-// #include "parquet/encodings/bool-encoding.h"
 #include "parquet/encodings/delta-bit-pack-encoding.h"
 #include "parquet/encodings/delta-length-byte-array-encoding.h"
 #include "parquet/encodings/delta-byte-array-encoding.h"
