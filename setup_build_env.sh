@@ -10,7 +10,7 @@ cp -r $SOURCE_DIR/thirdparty $BUILD_DIR
 cd $BUILD_DIR
 ./thirdparty/download_thirdparty.sh
 ./thirdparty/build_thirdparty.sh
-./thirdparty/versions.sh
+source thirdparty/versions.sh
 
 export SNAPPY_HOME=$BUILD_DIR/thirdparty/installed
 export LZ4_HOME=$BUILD_DIR/thirdparty/installed
@@ -19,7 +19,7 @@ if [ "$(uname)" != "Darwin" ]; then
   export THRIFT_HOME=$BUILD_DIR/thirdparty/installed
 fi
 
-export GTEST_HOME=$BUILD_DIR/thirdparty/$GTEST_BASE_DIR
+export GTEST_HOME=$BUILD_DIR/thirdparty/$GTEST_BASEDIR
 
 cmake $SOURCE_DIR
 
