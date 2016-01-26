@@ -19,6 +19,8 @@ fi
 
 export GTEST_HOME=$BUILD_DIR/thirdparty/$GTEST_BASEDIR
 
+export PARQUET_TEST_DATA=$SOURCE_DIR/data
+
 cmake $SOURCE_DIR
 
 cd $SOURCE_DIR

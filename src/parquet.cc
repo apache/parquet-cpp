@@ -13,14 +13,16 @@
 // limitations under the License.
 
 #include "parquet/parquet.h"
-#include "parquet/encodings/encodings.h"
-#include "parquet/compression/codec.h"
 
 #include <algorithm>
 #include <string>
 #include <string.h>
 
 #include <thrift/protocol/TDebugProtocol.h>
+
+#include "parquet/encodings/encodings.h"
+#include "parquet/compression/codec.h"
+#include "parquet/thrift/util.h"
 
 const int DATA_PAGE_SIZE = 64 * 1024;
 
