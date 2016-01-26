@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 SOURCE_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 : ${BUILD_DIR:=$SOURCE_DIR/build}
 
