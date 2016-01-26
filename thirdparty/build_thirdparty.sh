@@ -16,6 +16,7 @@ else
   for arg in "$*"; do
     case $arg in
       "lz4")        F_LZ4=1 ;;
+      "gtest")      F_GTEST=1 ;;
       "snappy")     F_SNAPPY=1 ;;
       "thrift")     F_THRIFT=1 ;;
       *)            echo "Unknown module: $arg"; exit 1 ;;
@@ -51,6 +52,19 @@ if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
   cd $TP_DIR/$SNAPPY_BASEDIR
   ./configure --with-pic --prefix=$PREFIX
   make -j$PARALLEL install
+fi
+
+# build googletest
+if [ -n "$F_ALL" -o -n "$F_GTEST" ]; then
+  cd $TP_DIR/$GTEST_BASEDIR
+
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    cmake -DCMAKE_CXX_FLAGS="-fPIC -std=c++11 -stdlib=libc++ -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes"
+  else
+    CXXFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX .
+  fi
+
+  make
 fi
 
 # build lz4
