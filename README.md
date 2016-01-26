@@ -15,7 +15,11 @@ ubuntu$ sudo apt-get install libboost-dev libsnappy-dev liblz4-dev
 mac$ brew install snappy lz4 thrift
 ```
 
-./setup_build_env.sh tries to automate setting up a build environment for you with third party dependencies.  You use it by running `./setup_build_env.sh`.  By default, it will create a build directory `build/`.  You can override the build directory by setting the BUILD_DIR env variable to another location.
+`setup_build_env.sh` tries to automate setting up a build environment for you
+with third party dependencies.  You use it by running `source
+setup_build_env.sh`.  By default, it will create a build directory `build/`.
+You can override the build directory by setting the BUILD_DIR env variable to
+another location.
 
 Also feel free to take a look at our [.travis.yml](.travis.yml) to see how that build env is set up.
 
@@ -41,6 +45,16 @@ with `make`, you can run the test suite by running
 ```
 ctest
 ```
+
+The test suite relies on an environment variable `PARQUET_TEST_DATA` pointing
+to the `data` directory in the source checkout, for example:
+
+```
+export PARQUET_TEST_DATA=`pwd`/data
+```
+
+If you run `source setup_build_env.sh` it will set this variable automatically,
+but you may also wish to put it in your `.bashrc` or somewhere else.
 
 See `ctest --help` for configuration details about ctest. On GNU/Linux systems,
 you can use valgrind with ctest to look for memory leaks:
