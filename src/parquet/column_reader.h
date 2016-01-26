@@ -49,6 +49,21 @@ namespace parquet_cpp {
 
 class Codec;
 
+static size_t DecodeMany(RleDecoder* decoder, int16_t* levels, size_t batch_size) {
+  size_t num_decoded = 0;
+
+  // TODO(wesm): Push this decoding down into RleDecoder itself
+  for (size_t i = 0; i < batch_size; ++i) {
+    if (!decoder->Get(levels + i)) {
+      break;
+    }
+    ++num_decoded;
+  }
+  return num_decoded;
+}
+
+class Scanner;
+
 class ColumnReader {
  public:
 
@@ -70,13 +85,38 @@ class ColumnReader {
 
   virtual bool ReadNewPage() = 0;
 
+  virtual std::shared_ptr<Scanner> GetScanner() = 0;
+
   // Returns true if there are still values in this column.
   bool HasNext() {
-    if (num_buffered_values_ == 0) {
-      ReadNewPage();
-      if (num_buffered_values_ == 0) return false;
+    // Either there is no data page available yet, or the data page has been
+    // exhausted
+    if (!num_buffered_values_ || num_decoded_values_ == num_buffered_values_) {
+      if (!ReadNewPage() || num_buffered_values_ == 0) {
+        return false;
+      }
     }
     return true;
+  }
+
+  // Read multiple definition levels into preallocated memory
+  //
+  // Returns the number of decoded definition levels
+  size_t ReadDefinitionLevels(size_t batch_size, int16_t* levels) {
+    if (!definition_level_decoder_) {
+      return 0;
+    }
+    return DecodeMany(definition_level_decoder_.get(), levels, batch_size);
+  }
+
+  // Read multiple repetition levels into preallocated memory
+  //
+  // Returns the number of decoded repetition levels
+  size_t ReadRepetitionLevels(size_t batch_size, int16_t* levels) {
+    if (!repetition_level_decoder_) {
+      return 0;
+    }
+    return DecodeMany(repetition_level_decoder_.get(), levels, batch_size);
   }
 
   parquet::Type::type type() const {
@@ -88,9 +128,6 @@ class ColumnReader {
   }
 
  protected:
-  // Reads the next definition and repetition level. Returns true if the value is NULL.
-  bool ReadDefinitionRepetitionLevels(int* def_level, int* rep_level);
-
   Config config_;
 
   const parquet::ColumnMetaData* metadata_;
@@ -103,15 +140,21 @@ class ColumnReader {
 
   parquet::PageHeader current_page_header_;
 
-  // Not set if field is required.
+  // Not set if field is required (flat schemas), or if the whole schema tree
+  // contains no optional elements
   std::unique_ptr<RleDecoder> definition_level_decoder_;
+
   // Not set for flat schemas.
   std::unique_ptr<RleDecoder> repetition_level_decoder_;
+
+  // The total number of data values stored in the data page.
   int num_buffered_values_;
 
+  // The number of values from the current data page that have been decoded
+  // into memory
   int num_decoded_values_;
-  int buffered_values_offset_;
 };
+
 
 
 // API to read values from a single column. This is the main client facing API.
@@ -128,19 +171,12 @@ class TypedColumnReader : public ColumnReader {
     values_buffer_.resize(config_.batch_size * value_byte_size);
   }
 
-  // Returns the next value of this type.
-  // TODO: batchify this interface.
-  T NextValue(int* def_level, int* rep_level) {
-    if (ReadDefinitionRepetitionLevels(def_level, rep_level)) return T();
-    if (buffered_values_offset_ == num_decoded_values_) BatchDecode();
-    return reinterpret_cast<T*>(&values_buffer_[0])[buffered_values_offset_++];
-  }
+  virtual std::shared_ptr<Scanner> GetScanner();
 
- private:
-  void BatchDecode();
-
+  // Advance to the next data page
   virtual bool ReadNewPage();
 
+ private:
   typedef Decoder<TYPE> DecoderType;
 
   // Map of compression type to decompressor object.
@@ -150,6 +186,7 @@ class TypedColumnReader : public ColumnReader {
   std::vector<uint8_t> values_buffer_;
 };
 
+
 typedef TypedColumnReader<parquet::Type::BOOLEAN> BoolReader;
 typedef TypedColumnReader<parquet::Type::INT32> Int32Reader;
 typedef TypedColumnReader<parquet::Type::INT64> Int64Reader;
@@ -158,24 +195,6 @@ typedef TypedColumnReader<parquet::Type::FLOAT> FloatReader;
 typedef TypedColumnReader<parquet::Type::DOUBLE> DoubleReader;
 typedef TypedColumnReader<parquet::Type::BYTE_ARRAY> ByteArrayReader;
 typedef TypedColumnReader<parquet::Type::FIXED_LEN_BYTE_ARRAY> FixedLenByteArrayReader;
-
-
-template <int TYPE>
-void TypedColumnReader<TYPE>::BatchDecode() {
-  buffered_values_offset_ = 0;
-  T* buf = reinterpret_cast<T*>(&values_buffer_[0]);
-  int batch_size = config_.batch_size;
-  num_decoded_values_ = current_decoder_->Decode(buf, batch_size);
-}
-
-inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* rep_level) {
-  *rep_level = 1;
-  if (definition_level_decoder_ && !definition_level_decoder_->Get(def_level)) {
-    ParquetException::EofException();
-  }
-  --num_buffered_values_;
-  return *def_level == 0;
-}
 
 } // namespace parquet_cpp
 

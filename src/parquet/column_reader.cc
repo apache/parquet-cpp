@@ -21,6 +21,8 @@
 #include <string>
 #include <string.h>
 
+#include "parquet/column_scanner.h"
+
 #include "parquet/encodings/encodings.h"
 #include "parquet/compression/codec.h"
 #include "parquet/thrift/util.h"
@@ -42,8 +44,7 @@ ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
     schema_(schema),
     stream_(std::move(stream)),
     num_buffered_values_(0),
-    num_decoded_values_(0),
-    buffered_values_offset_(0) {
+    num_decoded_values_(0) {
 
   switch (metadata->codec) {
     case CompressionCodec::UNCOMPRESSED:
@@ -66,9 +67,13 @@ static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
 }
 
 template <int TYPE>
+std::shared_ptr<Scanner> TypedColumnReader<TYPE>::GetScanner() {
+  return std::shared_ptr<Scanner>(new TypedScanner<TYPE>(this));
+}
+
+template <int TYPE>
 bool TypedColumnReader<TYPE>::ReadNewPage() {
   // Loop until we find the next data page.
-
 
   while (true) {
     int bytes_read = 0;
@@ -113,6 +118,9 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
     } else if (current_page_header_.type == PageType::DATA_PAGE) {
       // Read a data page.
       num_buffered_values_ = current_page_header_.data_page_header.num_values;
+
+      // Have not decoded any values from the data page yet
+      num_decoded_values_ = 0;
 
       // Read definition levels.
       if (schema_->repetition_type != FieldRepetitionType::REQUIRED) {

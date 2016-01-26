@@ -19,6 +19,7 @@
 install(FILES
   parquet.h
   column_reader.h
+  column_scanner.h
   reader.h
   exception.h
   types.h
