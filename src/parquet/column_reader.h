@@ -175,7 +175,7 @@ inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* re
   return *def_level == 0;
 }
 
-std::shared_ptr<ColumnReader> make_column_reader(const parquet::ColumnMetaData*,
+std::shared_ptr<ColumnReader> MakeColumnReader(const parquet::ColumnMetaData*,
     const parquet::SchemaElement*, InputStream* stream);
 
 } // namespace parquet_cpp

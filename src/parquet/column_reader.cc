@@ -167,36 +167,28 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   return true;
 }
 
-std::shared_ptr<ColumnReader> make_column_reader(const parquet::ColumnMetaData* metadata,
+std::shared_ptr<ColumnReader> MakeColumnReader(const parquet::ColumnMetaData* metadata,
     const parquet::SchemaElement* element, InputStream* stream) {
-  ColumnReader* result = nullptr;
-
   switch (metadata->type) {
     case Type::BOOLEAN:
-      result = new BoolReader(metadata, element, stream);
-      break;
+      return std::make_shared<BoolReader>(metadata, element, stream);
     case Type::INT32:
-      result = new Int32Reader(metadata, element, stream);
-      break;
+      return std::make_shared<Int32Reader>(metadata, element, stream);
     case Type::INT64:
-      result = new Int64Reader(metadata, element, stream);
-      break;
-    case Type::FLOAT:
-      result = new FloatReader(metadata, element, stream);
-      break;
-    case Type::DOUBLE:
-      result = new DoubleReader(metadata, element, stream);
-      break;
-    case Type::BYTE_ARRAY:
-      result = new ByteArrayReader(metadata, element, stream);
-      break;
+      return std::make_shared<Int64Reader>(metadata, element, stream);
     case Type::INT96:
-      result = new Int96Reader(metadata, element, stream);
-      break;
+      return std::make_shared<Int96Reader>(metadata, element, stream);
+    case Type::FLOAT:
+      return std::make_shared<FloatReader>(metadata, element, stream);
+    case Type::DOUBLE:
+      return std::make_shared<DoubleReader>(metadata, element, stream);
+    case Type::BYTE_ARRAY:
+      return std::make_shared<ByteArrayReader>(metadata, element, stream);
     default:
       ParquetException::NYI("type reader not implemented");
   }
-  return std::shared_ptr<ColumnReader>(result);
+  // Unreachable code, but supress compiler warning
+  return std::shared_ptr<ColumnReader>(nullptr);
 }
 
 } // namespace parquet_cpp

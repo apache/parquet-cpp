@@ -85,7 +85,7 @@ inline void DictionaryDecoder<TYPE>::Init(Decoder<TYPE>* dictionary) {
 template <>
 inline void DictionaryDecoder<parquet::Type::BOOLEAN>::Init(
     Decoder<parquet::Type::BOOLEAN>* dictionary) {
-  // Not implemented
+  ParquetException::NYI("Dictionary encoding is not implemented for boolean values");
 }
 
 template <>

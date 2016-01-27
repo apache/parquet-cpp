@@ -26,6 +26,7 @@
 
 namespace parquet_cpp {
 
+// The Decoder template is parameterized on parquet::Type::type
 template <int TYPE>
 class Decoder {
  public:
