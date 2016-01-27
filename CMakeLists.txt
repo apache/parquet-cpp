@@ -133,7 +133,7 @@ message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
 
 # find thrift headers and libs
 find_package(Thrift REQUIRED)
-include_directories(SYSTEM ${THRIFT_INCLUDE_DIR})
+include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
 set(LIBS ${LIBS} ${THRIFT_LIBS})
 message(STATUS "Thrift include dir: ${THRIFT_INCLUDE_DIR}")
 message(STATUS "Thrift contrib dir: ${THRIFT_CONTRIB_DIR}")
