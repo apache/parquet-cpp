@@ -47,25 +47,17 @@ const uint8_t* InMemoryInputStream::Read(int num_to_read, int* num_bytes) {
   return result;
 }
 
-ScopedInMemoryInputStream::ScopedInMemoryInputStream(int64_t len): len_(len) {
-  buffer_ = (uint8_t*)malloc(sizeof(uint8_t) * len_);
-  if (buffer_ == nullptr) {
-    throw ParquetException("Failed to allocate a buffer.");
-  }
-  stream_ = new InMemoryInputStream(buffer_, len_);
-}
-
-ScopedInMemoryInputStream::~ScopedInMemoryInputStream() {
-  delete stream_;
-  free(buffer_);
+ScopedInMemoryInputStream::ScopedInMemoryInputStream(int64_t len) {
+  buffer_.resize(len);
+  stream_.reset(new InMemoryInputStream(buffer_.data(), buffer_.size()));
 }
 
 uint8_t* ScopedInMemoryInputStream::data() {
-  return buffer_;
+  return buffer_.data();
 }
 
 int64_t ScopedInMemoryInputStream::size() {
-  return len_;
+  return buffer_.size();
 }
 
 const uint8_t* ScopedInMemoryInputStream::Peek(int num_to_peek,

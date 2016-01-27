@@ -120,17 +120,15 @@ class InMemoryInputStream : public InputStream {
 // A wrapper for InMemoryInputStream to manage the memory.
 class ScopedInMemoryInputStream : public InputStream {
  public:
-  ScopedInMemoryInputStream(const int64_t len);
-  ~ScopedInMemoryInputStream();
+  ScopedInMemoryInputStream(int64_t len);
   uint8_t* data();
   int64_t size();
   virtual const uint8_t* Peek(int num_to_peek, int* num_bytes);
   virtual const uint8_t* Read(int num_to_read, int* num_bytes);
 
  private:
-  int64_t len_;
-  uint8_t* buffer_;
-  InMemoryInputStream* stream_;
+  std::vector<uint8_t> buffer_;
+  std::unique_ptr<InMemoryInputStream> stream_;
 };
 
 // API to read values from a single column. This is the main client facing API.
