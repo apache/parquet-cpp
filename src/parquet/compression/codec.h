@@ -67,7 +67,6 @@ class Lz4Codec : public Codec {
   virtual const char* name() const { return "lz4"; }
 };
 
-<<<<<<< HEAD:src/compression/codec.h
 // GZip codec.
 class GZipCodec : public Codec {
  public:
@@ -82,9 +81,6 @@ class GZipCodec : public Codec {
   virtual const char* name() const { return "gzip"; }
 };
 
-}
-=======
 } // namespace parquet_cpp
->>>>>>> upstream/master:src/parquet/compression/codec.h
 
 #endif
