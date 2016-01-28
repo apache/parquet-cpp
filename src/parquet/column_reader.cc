@@ -36,16 +36,13 @@ using parquet::FieldRepetitionType;
 using parquet::PageType;
 using parquet::Type;
 
-
-ColumnReader::~ColumnReader() {
-  delete stream_;
-}
+ColumnReader::~ColumnReader() {}
 
 ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
-    const parquet::SchemaElement* schema, InputStream* stream)
+    const parquet::SchemaElement* schema, std::unique_ptr<InputStream>& stream)
   : metadata_(metadata),
     schema_(schema),
-    stream_(stream),
+    stream_(std::move(stream)),
     num_buffered_values_(0),
     num_decoded_values_(0),
     buffered_values_offset_(0) {
@@ -170,8 +167,10 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   return true;
 }
 
-std::shared_ptr<ColumnReader> ColumnReader::Make(const parquet::ColumnMetaData* metadata,
-    const parquet::SchemaElement* element, InputStream* stream) {
+std::shared_ptr<ColumnReader> ColumnReader::Make(
+                                const parquet::ColumnMetaData* metadata,
+                                const parquet::SchemaElement* element,
+                                std::unique_ptr<InputStream>& stream) {
   switch (metadata->type) {
     case Type::BOOLEAN:
       return std::make_shared<BoolReader>(metadata, element, stream);

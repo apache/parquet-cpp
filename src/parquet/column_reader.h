@@ -63,12 +63,13 @@ class ColumnReader {
   };
 
   ColumnReader(const parquet::ColumnMetaData*,
-      const parquet::SchemaElement*, InputStream* stream);
+               const parquet::SchemaElement*,
+               std::unique_ptr<InputStream>& stream);
 
   virtual ~ColumnReader();
 
   static std::shared_ptr<ColumnReader> Make(const parquet::ColumnMetaData*,
-      const parquet::SchemaElement*, InputStream* stream);
+      const parquet::SchemaElement*, std::unique_ptr<InputStream>& stream);
 
   virtual bool ReadNewPage() = 0;
 
@@ -97,7 +98,7 @@ class ColumnReader {
 
   const parquet::ColumnMetaData* metadata_;
   const parquet::SchemaElement* schema_;
-  InputStream* stream_;
+  std::unique_ptr<InputStream> stream_;
 
   // Compression codec to use.
   std::unique_ptr<Codec> decompressor_;
@@ -123,7 +124,7 @@ class TypedColumnReader : public ColumnReader {
   typedef typename type_traits<TYPE>::value_type T;
 
   TypedColumnReader(const parquet::ColumnMetaData* metadata,
-      const parquet::SchemaElement* schema, InputStream* stream) :
+      const parquet::SchemaElement* schema, std::unique_ptr<InputStream>& stream) :
       ColumnReader(metadata, schema, stream),
       current_decoder_(NULL) {
     size_t value_byte_size = type_traits<TYPE>::value_byte_size;
