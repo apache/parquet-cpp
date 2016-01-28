@@ -15,13 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-SET(LINK_LIBS
-  parquet
-  snappystatic
-  thriftstatic)
+add_library(parquet_compression STATIC
+  lz4-codec.cc
+  snappy-codec.cc
+)
+target_link_libraries(parquet_compression
+  lz4static
+  snappystatic)
 
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS} -lz)
+set_target_properties(parquet_compression
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS} -lz)
+# Headers: compression
+install(FILES
+  codec.h
+  DESTINATION include/parquet/compression)

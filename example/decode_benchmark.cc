@@ -1,27 +1,28 @@
-// Copyright 2012 Cloudera Inc.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 #include <parquet/parquet.h>
 #include <iostream>
 #include <stdio.h>
 
-#include "example_util.h"
-#include "compression/codec.h"
-#include "encodings/encodings.h"
-#include "util/stopwatch.h"
+#include "parquet/compression/codec.h"
+#include "parquet/encodings/encodings.h"
+#include "parquet/util/stopwatch.h"
 
-using namespace impala;
 using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;
@@ -199,11 +200,11 @@ class DeltaByteArrayEncoder {
 
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
-  PlainDecoder decoder(Type::INT64);
+  PlainDecoder<Type::INT64> decoder(nullptr);
   decoder.SetData(num_values, data, num_values * sizeof(int64_t));
   int64_t values[batch_size];
   for (int i = 0; i < num_values;) {
-    int n = decoder.GetInt64(values, batch_size);
+    int n = decoder.Decode(values, batch_size);
     for (int j = 0; j < n; ++j) {
       result += values[j];
     }
@@ -222,7 +223,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
   } else {
     mini_block_size = 32;
   }
-  DeltaBitPackDecoder decoder(Type::INT64);
+  DeltaBitPackDecoder<Type::INT64> decoder(nullptr);
   DeltaBitPackEncoder encoder(mini_block_size);
   for (int i = 0; i < values.size(); ++i) {
     encoder.Add(values[i]);
@@ -239,7 +240,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     decoder.SetData(encoder.num_values(), buffer, len);
     for (int i = 0; i < encoder.num_values(); ++i) {
       int64_t x = 0;
-      decoder.GetInt64(&x, 1);
+      decoder.Decode(&x, 1);
       if (values[i] != x) {
         cerr << "Bad: " << i << endl;
         cerr << "  " << x << " != " << values[i] << endl;
@@ -259,7 +260,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     for (int k = 0; k < benchmark_iters; ++k) {
       decoder.SetData(encoder.num_values(), buffer, len);
       for (int i = 0; i < values.size();) {
-        int n = decoder.GetInt64(buf, benchmark_batch_size);
+        int n = decoder.Decode(buf, benchmark_batch_size);
         for (int j = 0; j < n; ++j) {
           result += buf[j];
         }
@@ -350,7 +351,7 @@ void TestBinaryPacking() {
 }
 
 void TestDeltaLengthByteArray() {
-  DeltaLengthByteArrayDecoder decoder;
+  DeltaLengthByteArrayDecoder decoder(nullptr);
   DeltaLengthByteArrayEncoder encoder;
 
   vector<string> values;
@@ -370,7 +371,7 @@ void TestDeltaLengthByteArray() {
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     ByteArray v;
-    decoder.GetByteArray(&v, 1);
+    decoder.Decode(&v, 1);
     string r = string((char*)v.ptr, v.len);
     if (r != values[i]) {
       cout << "Bad " << r << " != " << values[i] << endl;
@@ -379,7 +380,7 @@ void TestDeltaLengthByteArray() {
 }
 
 void TestDeltaByteArray() {
-  DeltaByteArrayDecoder decoder;
+  DeltaByteArrayDecoder decoder(nullptr);
   DeltaByteArrayEncoder encoder;
 
   vector<string> values;
@@ -408,7 +409,7 @@ void TestDeltaByteArray() {
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     ByteArray v;
-    decoder.GetByteArray(&v, 1);
+    decoder.Decode(&v, 1);
     string r = string((char*)v.ptr, v.len);
     if (r != values[i]) {
       cout << "Bad " << r << " != " << values[i] << endl;

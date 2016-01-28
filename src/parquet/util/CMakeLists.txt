@@ -15,13 +15,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-SET(LINK_LIBS
-  parquet
-  snappystatic
-  thriftstatic)
+# Headers: util
+install(FILES
+  bit-stream-utils.h
+  bit-stream-utils.inline.h
+  bit-util.h
+  compiler-util.h
+  logging.h
+  rle-encoding.h
+  stopwatch.h
+  input_stream.h
+  DESTINATION include/parquet/util)
 
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS} -lz)
+add_library(parquet_util STATIC
+  input_stream.cc
+)
 
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS} -lz)
+add_library(parquet_test_main
+  test_main.cc)
+
+if (APPLE)
+  target_link_libraries(parquet_test_main
+    gtest
+    dl)
+  set_target_properties(parquet_test_main
+        PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+else()
+  target_link_libraries(parquet_test_main
+    dl
+    gtest
+    pthread
+  )
+endif()

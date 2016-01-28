@@ -15,20 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_PARQUET_H
-#define PARQUET_PARQUET_H
+#include "parquet/compression/codec.h"
 
-#include <exception>
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <lz4.h>
 
-#include "parquet/exception.h"
-#include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/util/input_stream.h"
+namespace parquet_cpp {
 
-#endif
+void Lz4Codec::Decompress(int input_len, const uint8_t* input,
+      int output_len, uint8_t* output_buffer) {
+  int n = LZ4_decompress_fast(reinterpret_cast<const char*>(input),
+      reinterpret_cast<char*>(output_buffer), output_len);
+  if (n != input_len) {
+    throw parquet_cpp::ParquetException("Corrupt lz4 compressed data.");
+  }
+}
+
+int Lz4Codec::MaxCompressedLen(int input_len, const uint8_t* input) {
+  return LZ4_compressBound(input_len);
+}
+
+int Lz4Codec::Compress(int input_len, const uint8_t* input,
+    int output_buffer_len, uint8_t* output_buffer) {
+  return LZ4_compress(reinterpret_cast<const char*>(input),
+      reinterpret_cast<char*>(output_buffer), input_len);
+}
+
+} // namespace parquet_cpp

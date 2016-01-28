@@ -15,13 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-SET(LINK_LIBS
-  parquet
-  snappystatic
-  thriftstatic)
+add_library(parquet_thrift STATIC
+  parquet_constants.cpp
+  parquet_types.cpp
+)
+set_target_properties(parquet_thrift
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS} -lz)
 
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS} -lz)
+# Headers: thrift
+install(FILES
+  parquet_types.h
+  parquet_constants.h
+  util.h
+  DESTINATION include/parquet/thrift)

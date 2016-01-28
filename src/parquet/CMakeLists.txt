@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-SET(LINK_LIBS
-  parquet
-  snappystatic
-  thriftstatic)
+# Headers: top level
+install(FILES
+  parquet.h
+  column_reader.h
+  reader.h
+  exception.h
+  types.h
+  DESTINATION include/parquet)
 
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS} -lz)
-
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS} -lz)
+ADD_PARQUET_TEST(reader-test)

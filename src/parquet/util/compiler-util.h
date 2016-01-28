@@ -15,20 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_PARQUET_H
-#define PARQUET_PARQUET_H
+#ifndef PARQUET_UTIL_COMPILER_UTIL_H
+#define PARQUET_UTIL_COMPILER_UTIL_H
 
-#include <exception>
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
-#include "parquet/exception.h"
-#include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/util/input_stream.h"
-
+// Compiler hint that this branch is likely or unlikely to
+// be taken. Take from the "What all programmers should know
+// about memory" paper.
+// example: if (LIKELY(size > 0)) { ... }
+// example: if (UNLIKELY(!status.ok())) { ... }
+#ifdef LIKELY
+#undef LIKELY
 #endif
+
+#ifdef UNLIKELY
+#undef UNLIKELY
+#endif
+
+#define LIKELY(expr) __builtin_expect(!!(expr), 1)
+#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+
+#define PREFETCH(addr) __builtin_prefetch(addr)
+
+#endif // PARQUET_UTIL_COMPILER_UTIL_H

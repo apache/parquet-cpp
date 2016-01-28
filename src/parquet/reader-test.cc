@@ -15,20 +15,53 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_PARQUET_H
-#define PARQUET_PARQUET_H
-
-#include <exception>
-#include <cstdint>
-#include <cstring>
-#include <memory>
+#include <cstdlib>
+#include <iostream>
+#include <sstream>
 #include <string>
-#include <unordered_map>
-#include <vector>
 
-#include "parquet/exception.h"
+#include <gtest/gtest.h>
+
 #include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/util/input_stream.h"
 
-#endif
+using std::string;
+
+namespace parquet_cpp {
+
+const char* data_dir = std::getenv("PARQUET_TEST_DATA");
+
+
+class TestAllTypesPlain : public ::testing::Test {
+ public:
+  void SetUp() {
+    std::string dir_string(data_dir);
+
+    std::stringstream ss;
+    ss << dir_string << "/" << "alltypes_plain.parquet";
+    file_.Open(ss.str());
+    reader_.Open(&file_);
+  }
+
+  void TearDown() {}
+
+ protected:
+  LocalFile file_;
+  ParquetFileReader reader_;
+};
+
+
+TEST_F(TestAllTypesPlain, ParseMetaData) {
+  reader_.ParseMetaData();
+}
+
+TEST_F(TestAllTypesPlain, DebugPrintWorks) {
+  std::stringstream ss;
+
+  // Automatically parses metadata
+  reader_.DebugPrint(ss);
+
+  std::string result = ss.str();
+  ASSERT_TRUE(result.size() > 0);
+}
+
+} // namespace parquet_cpp

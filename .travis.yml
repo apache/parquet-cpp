@@ -1,3 +1,5 @@
+sudo: required
+dist: trusty
 language: cpp
 
 compiler:
@@ -9,40 +11,37 @@ os:
     - osx
 
 addons:
-    apt:
-        packages:
-            - libboost-dev
-              #- libsnappy-dev currently handled by thirdparty scipts.
-            - libboost-program-options-dev #needed for thrift cpp compilation
-            - libboost-test-dev            #needed for thrift cpp compilation
-            - libssl-dev                   #needed for thrift cpp compilation
-            - libtool                      #needed for thrift cpp compilation
-            - bison                        #needed for thrift cpp compilation
-            - flex                         #needed for thrift cpp compilation
-            - pkg-config                   #needed for thrift cpp compilation
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - kalakris-cmake
+    packages:
+    - gcc-4.9
+    - g++-4.9
+    - cmake
+    - valgrind
+    - libboost-dev                 #needed for thrift cpp compilation
+    - libboost-program-options-dev #needed for thrift cpp compilation
+    - libboost-test-dev            #needed for thrift cpp compilation
+    - libssl-dev                   #needed for thrift cpp compilation
+    - libtool                      #needed for thrift cpp compilation
+    - bison                        #needed for thrift cpp compilation
+    - flex                         #needed for thrift cpp compilation
+    - pkg-config                   #needed for thrift cpp compilation
 
 before_install:
-    - pushd thirdparty
-    # thrift cpp
-    - >
-      if [ $TRAVIS_OS_NAME == linux ]; then
-        wget http://www.us.apache.org/dist/thrift/0.9.1/thrift-0.9.1.tar.gz &&
-        tar xfz thrift-0.9.1.tar.gz &&
-        pushd thrift-0.9.1 &&
-        ./configure --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp --prefix=$HOME/local &&
-        make clean &&
-        make install &&
-        popd;
-      fi
-    - if [ $TRAVIS_OS_NAME == osx ]; then brew install thrift; fi
-    # snappy and lz4
-    - ./download_thirdparty.sh
-    - ./build_thirdparty.sh
-    - popd
+    - mkdir $HOME/build_dir
+    - cd $HOME/build_dir
 
 before_script:
-    - mkdir build
-    - cd build
-    - THRIFT_HOME=$HOME/local cmake ..
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
+    - cmake $TRAVIS_BUILD_DIR
+    - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
 
-script: make
+script:
+- make
+- >
+  if [ $TRAVIS_OS_NAME == linux ]; then
+    valgrind --tool=memcheck --leak-check=yes ctest;
+  fi
+- make lint

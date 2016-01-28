@@ -15,20 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_PARQUET_H
-#define PARQUET_PARQUET_H
+#ifndef PARQUET_UTIL_LOGGING_H
+#define PARQUET_UTIL_LOGGING_H
 
-#include <exception>
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <iostream>
 
-#include "parquet/exception.h"
-#include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/util/input_stream.h"
+#define DCHECK(condition) while (false) std::cout
+#define DCHECK_EQ(a, b) while (false) std::cout
+#define DCHECK_NE(a, b) while (false) std::cout
+#define DCHECK_GT(a, b) while (false) std::cout
+#define DCHECK_LT(a, b) while (false) std::cout
+#define DCHECK_GE(a, b) while (false) std::cout
+#define DCHECK_LE(a, b) while (false) std::cout
+// Similar to how glog defines DCHECK for release.
+#define LOG(level) while (false) std::cout
 
 #endif

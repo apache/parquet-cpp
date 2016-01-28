@@ -15,20 +15,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_PARQUET_H
-#define PARQUET_PARQUET_H
+#ifndef PARQUET_EXCEPTION_H
+#define PARQUET_EXCEPTION_H
 
 #include <exception>
-#include <cstdint>
-#include <cstring>
-#include <memory>
+#include <sstream>
 #include <string>
-#include <unordered_map>
-#include <vector>
 
-#include "parquet/exception.h"
-#include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/util/input_stream.h"
+namespace parquet_cpp {
 
-#endif
+class ParquetException : public std::exception {
+ public:
+  static void EofException() { throw ParquetException("Unexpected end of stream."); }
+  static void NYI(const std::string& msg) {
+    std::stringstream ss;
+    ss << "Not yet implemented: " << msg << ".";
+    throw ParquetException(ss.str());
+  }
+
+  explicit ParquetException(const char* msg) : msg_(msg) {}
+  explicit ParquetException(const std::string& msg) : msg_(msg) {}
+  explicit ParquetException(const char* msg, exception& e) : msg_(msg) {}
+
+  virtual ~ParquetException() throw() {}
+  virtual const char* what() const throw() { return msg_.c_str(); }
+
+ private:
+  std::string msg_;
+};
+
+} // namespace parquet_cpp
+
+#endif // PARQUET_EXCEPTION_H
