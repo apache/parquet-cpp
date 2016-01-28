@@ -16,7 +16,6 @@
 #include <iostream>
 #include <stdio.h>
 
-#include "example_util.h"
 #include "parquet/compression/codec.h"
 #include "parquet/encodings/encodings.h"
 #include "parquet/util/stopwatch.h"
@@ -198,11 +197,11 @@ class DeltaByteArrayEncoder {
 
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
-  PlainDecoder decoder(Type::INT64);
+  PlainDecoder<Type::INT64> decoder(nullptr);
   decoder.SetData(num_values, data, num_values * sizeof(int64_t));
   int64_t values[batch_size];
   for (int i = 0; i < num_values;) {
-    int n = decoder.GetInt64(values, batch_size);
+    int n = decoder.Decode(values, batch_size);
     for (int j = 0; j < n; ++j) {
       result += values[j];
     }
@@ -221,7 +220,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
   } else {
     mini_block_size = 32;
   }
-  DeltaBitPackDecoder decoder(Type::INT64);
+  DeltaBitPackDecoder<Type::INT64> decoder(nullptr);
   DeltaBitPackEncoder encoder(mini_block_size);
   for (int i = 0; i < values.size(); ++i) {
     encoder.Add(values[i]);
@@ -238,7 +237,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     decoder.SetData(encoder.num_values(), buffer, len);
     for (int i = 0; i < encoder.num_values(); ++i) {
       int64_t x = 0;
-      decoder.GetInt64(&x, 1);
+      decoder.Decode(&x, 1);
       if (values[i] != x) {
         cerr << "Bad: " << i << endl;
         cerr << "  " << x << " != " << values[i] << endl;
@@ -258,7 +257,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     for (int k = 0; k < benchmark_iters; ++k) {
       decoder.SetData(encoder.num_values(), buffer, len);
       for (int i = 0; i < values.size();) {
-        int n = decoder.GetInt64(buf, benchmark_batch_size);
+        int n = decoder.Decode(buf, benchmark_batch_size);
         for (int j = 0; j < n; ++j) {
           result += buf[j];
         }
@@ -349,7 +348,7 @@ void TestBinaryPacking() {
 }
 
 void TestDeltaLengthByteArray() {
-  DeltaLengthByteArrayDecoder decoder;
+  DeltaLengthByteArrayDecoder decoder(nullptr);
   DeltaLengthByteArrayEncoder encoder;
 
   vector<string> values;
@@ -369,7 +368,7 @@ void TestDeltaLengthByteArray() {
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     ByteArray v;
-    decoder.GetByteArray(&v, 1);
+    decoder.Decode(&v, 1);
     string r = string((char*)v.ptr, v.len);
     if (r != values[i]) {
       cout << "Bad " << r << " != " << values[i] << endl;
@@ -378,7 +377,7 @@ void TestDeltaLengthByteArray() {
 }
 
 void TestDeltaByteArray() {
-  DeltaByteArrayDecoder decoder;
+  DeltaByteArrayDecoder decoder(nullptr);
   DeltaByteArrayEncoder encoder;
 
   vector<string> values;
@@ -407,7 +406,7 @@ void TestDeltaByteArray() {
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     ByteArray v;
-    decoder.GetByteArray(&v, 1);
+    decoder.Decode(&v, 1);
     string r = string((char*)v.ptr, v.len);
     if (r != values[i]) {
       cout << "Bad " << r << " != " << values[i] << endl;
