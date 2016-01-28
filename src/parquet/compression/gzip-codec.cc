@@ -24,7 +24,7 @@ void GZipCodec::Decompress(int input_len, const uint8_t* input,
     z_stream stream;
     stream.zalloc = (alloc_func)0;
     stream.zfree = (free_func)0;
-    stream.next_in = (const Bytef *)input;
+    stream.next_in = (Bytef *)input;
     stream.avail_in = (uInt)input_len;
     stream.next_out = (Bytef*)output_buffer;
     stream.avail_out = output_len;
