@@ -167,7 +167,7 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   return true;
 }
 
-std::shared_ptr<ColumnReader> MakeColumnReader(const parquet::ColumnMetaData* metadata,
+std::shared_ptr<ColumnReader> ColumnReader::Make(const parquet::ColumnMetaData* metadata,
     const parquet::SchemaElement* element, InputStream* stream) {
   switch (metadata->type) {
     case Type::BOOLEAN:

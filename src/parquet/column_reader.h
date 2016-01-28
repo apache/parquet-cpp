@@ -67,6 +67,9 @@ class ColumnReader {
 
   virtual ~ColumnReader();
 
+  static std::shared_ptr<ColumnReader> Make(const parquet::ColumnMetaData*,
+      const parquet::SchemaElement*, InputStream* stream);
+
   virtual bool ReadNewPage() = 0;
 
   // Returns true if there are still values in this column.
@@ -174,9 +177,6 @@ inline bool ColumnReader::ReadDefinitionRepetitionLevels(int* def_level, int* re
   --num_buffered_values_;
   return *def_level == 0;
 }
-
-std::shared_ptr<ColumnReader> MakeColumnReader(const parquet::ColumnMetaData*,
-    const parquet::SchemaElement*, InputStream* stream);
 
 } // namespace parquet_cpp
 

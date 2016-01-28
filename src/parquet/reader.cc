@@ -115,7 +115,7 @@ ColumnReader* RowGroupReader::Column(size_t i) {
   }
 
   // TODO(wesm): This presumes a flat schema
-  std::shared_ptr<ColumnReader> reader = MakeColumnReader(&col.meta_data,
+  std::shared_ptr<ColumnReader> reader = ColumnReader::Make(&col.meta_data,
       &this->parent_->metadata_.schema[i + 1], input.release());
   column_readers_[i] = reader;
 
