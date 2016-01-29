@@ -28,7 +28,7 @@
 
 namespace parquet_cpp {
 
-#define DEFAULT_SCANNER_BATCH_SIZE 128
+static constexpr size_t DEFAULT_SCANNER_BATCH_SIZE = 128;
 
 class Scanner {
  public:
