@@ -23,7 +23,6 @@
 #include <cstring>
 #include <sstream>
 #include <string>
-#include <sstream>
 
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/util/compiler-util.h"

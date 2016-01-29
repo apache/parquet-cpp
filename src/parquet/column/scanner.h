@@ -33,17 +33,20 @@ class ColumnReader;
 template <int TYPE>
 class TypedColumnReader;
 
+#define DEFAULT_SCANNER_BATCH_SIZE 128
+
 class Scanner {
  public:
   explicit Scanner(std::shared_ptr<ColumnReader> reader) :
       reader_(reader),
+      batch_size_(DEFAULT_SCANNER_BATCH_SIZE),
       level_offset_(0),
       levels_buffered_(0),
       value_offset_(0),
       values_buffered_(0) {
     // TODO: don't allocate for required fields
-    def_levels_.resize(BATCHSIZE);
-    rep_levels_.resize(BATCHSIZE);
+    def_levels_.resize(batch_size_);
+    rep_levels_.resize(batch_size_);
   }
 
   static std::shared_ptr<Scanner> Make(std::shared_ptr<ColumnReader> col_reader);
@@ -54,10 +57,16 @@ class Scanner {
     return value_offset_ < values_buffered_ || reader_->HasNext();
   }
 
+  size_t batch_size() const { return batch_size_;}
+
+  void SetBatchSize(size_t batch_size) {
+    batch_size_ = batch_size;
+  }
+
  protected:
   std::shared_ptr<ColumnReader> reader_;
 
-  static constexpr size_t BATCHSIZE = 128;
+  size_t batch_size_;
 
   std::vector<int16_t> def_levels_;
   std::vector<int16_t> rep_levels_;
@@ -79,13 +88,13 @@ class TypedScanner : public Scanner {
       Scanner(reader) {
     typed_reader_ = static_cast<TypedColumnReader<TYPE>*>(reader.get());
     size_t value_byte_size = type_traits<TYPE>::value_byte_size;
-    value_buffer_.resize(BATCHSIZE * value_byte_size);
+    value_buffer_.resize(batch_size_ * value_byte_size);
     values_ = reinterpret_cast<T*>(&value_buffer_[0]);
   }
 
   bool NextLevels(int16_t* def_level, int16_t* rep_level) {
     if (level_offset_ == levels_buffered_) {
-      levels_buffered_ = typed_reader_->ReadBatch(BATCHSIZE, &def_levels_[0], &rep_levels_[0],
+      levels_buffered_ = typed_reader_->ReadBatch(batch_size_, &def_levels_[0], &rep_levels_[0],
           values_, &values_buffered_);
 
       // TODO: repetition levels

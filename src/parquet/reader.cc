@@ -282,21 +282,27 @@ void ParquetFileReader::DebugPrint(std::ostream& stream, bool print_values) {
       continue;
     }
 
+    static constexpr size_t bufsize = 25;
+    char buffer[bufsize];
+
     // Create readers for all columns and print contents
     vector<std::shared_ptr<Scanner> > scanners(nColumns, NULL);
     for (int c = 0; c < nColumns; ++c) {
       std::shared_ptr<ColumnReader> col_reader = group_reader->Column(c);
       Type::type col_type = col_reader->type();
-      printf("%-" COL_WIDTH"s", metadata_.schema[c+1].name.c_str());
+
+      std::stringstream ss;
+      ss << "%-" << COL_WIDTH << "s";
+      std::string fmt = ss.str();
+
+      snprintf(buffer, bufsize, fmt.c_str(), metadata_.schema[c+1].name.c_str());
+      stream << buffer;
 
       // This is OK in this method as long as the RowGroupReader does not get
       // deleted
       scanners[c] = Scanner::Make(col_reader);
     }
     stream << "\n";
-
-    static constexpr size_t bufsize = 25;
-    char buffer[bufsize];
 
     bool hasRow;
     do {
