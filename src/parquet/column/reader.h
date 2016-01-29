@@ -125,7 +125,7 @@ class ColumnReader {
   // Not set for flat schemas.
   std::unique_ptr<RleDecoder> repetition_level_decoder_;
 
-  // Temporary storing this to assist with batch reading
+  // Temporarily storing this to assist with batch reading
   int16_t max_definition_level_;
 
   // The total number of data values stored in the data page.
