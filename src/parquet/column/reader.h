@@ -175,8 +175,6 @@ class TypedColumnReader : public ColumnReader {
   // Read up to batch_size values from the current data page into the
   // pre-allocated memory T*
   //
-  // For 1st version of DataPage, the nu
-  //
   // @returns: the number of values read into the out buffer
   size_t ReadValues(size_t batch_size, T* out);
 
