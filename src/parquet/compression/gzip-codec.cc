@@ -47,7 +47,7 @@ int GZipCodec::MaxCompressedLen(int input_len, const uint8_t* input) {
 int GZipCodec::Compress(int input_len, const uint8_t* input,
 						int output_buffer_len, uint8_t* output_buffer) {
 	uLongf dstLen = output_buffer_len;
-	int rc = compress2(reinterpret_cast<Bytef*>(output_buffer), &dstLen, 
+	int rc = compress2(reinterpret_cast<Bytef*>(output_buffer), &dstLen,
 					   reinterpret_cast<const Bytef*>(input), input_len, 1);
 	return rc == Z_OK ? dstLen : input_len;
 }
