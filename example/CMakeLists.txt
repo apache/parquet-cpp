@@ -21,7 +21,7 @@ SET(LINK_LIBS
   thriftstatic)
 
 add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS} -lz)
+target_link_libraries(decode_benchmark ${LINK_LIBS})
 
 add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS} -lz)
+target_link_libraries(parquet_reader ${LINK_LIBS})
