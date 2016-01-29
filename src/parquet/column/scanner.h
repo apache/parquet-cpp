@@ -45,7 +45,7 @@ class Scanner {
     rep_levels_.resize(batch_size_);
   }
 
-  virtual ~Scanner() {};
+  virtual ~Scanner() {}
 
   static std::shared_ptr<Scanner> Make(std::shared_ptr<ColumnReader> col_reader,
       size_t batch_size = DEFAULT_SCANNER_BATCH_SIZE);
@@ -97,7 +97,7 @@ class TypedScanner : public Scanner {
     values_ = reinterpret_cast<T*>(&value_buffer_[0]);
   }
 
-  virtual ~TypedScanner() {};
+  virtual ~TypedScanner() {}
 
   bool NextLevels(int16_t* def_level, int16_t* rep_level) {
     if (level_offset_ == levels_buffered_) {
