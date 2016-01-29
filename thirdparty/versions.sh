@@ -13,3 +13,7 @@ THRIFT_BASEDIR=thrift-$THRIFT_VERSION
 GTEST_VERSION=1.7.0
 GTEST_URL="https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
 GTEST_BASEDIR=googletest-release-$GTEST_VERSION
+
+ZLIB_VERSION=1.2.8
+ZLIB_URL=http://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
+ZLIB_BASEDIR=zlib-release-${ZLIB_VERSION}

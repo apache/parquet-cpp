@@ -33,3 +33,8 @@ if [ ! -d ${THRIFT_BASEDIR} ]; then
   echo "Fetching thrift"
   download_extract_and_cleanup $THRIFT_URL
 fi
+
+if [ ! -d ${ZLIB_BASEDIR} ]; then
+  echo "Fetching zlib"
+  download_extract_and_cleanup $ZLIB_URL
+fi
