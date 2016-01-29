@@ -34,16 +34,18 @@ class Scanner {
  public:
   explicit Scanner(std::shared_ptr<ColumnReader> reader,
       size_t batch_size = DEFAULT_SCANNER_BATCH_SIZE) :
-      reader_(reader),
       batch_size_(batch_size),
       level_offset_(0),
       levels_buffered_(0),
       value_offset_(0),
-      values_buffered_(0) {
+      values_buffered_(0),
+      reader_(reader) {
     // TODO: don't allocate for required fields
     def_levels_.resize(batch_size_);
     rep_levels_.resize(batch_size_);
   }
+
+  virtual ~Scanner() {};
 
   static std::shared_ptr<Scanner> Make(std::shared_ptr<ColumnReader> col_reader,
       size_t batch_size = DEFAULT_SCANNER_BATCH_SIZE);
@@ -54,6 +56,10 @@ class Scanner {
     return value_offset_ < values_buffered_ || reader_->HasNext();
   }
 
+  const parquet::SchemaElement* schema() const {
+    return reader_->schema();
+  }
+
   size_t batch_size() const { return batch_size_;}
 
   void SetBatchSize(size_t batch_size) {
@@ -61,8 +67,6 @@ class Scanner {
   }
 
  protected:
-  std::shared_ptr<ColumnReader> reader_;
-
   size_t batch_size_;
 
   std::vector<int16_t> def_levels_;
@@ -73,6 +77,9 @@ class Scanner {
   std::vector<uint8_t> value_buffer_;
   size_t value_offset_;
   size_t values_buffered_;
+
+ private:
+  std::shared_ptr<ColumnReader> reader_;
 };
 
 
@@ -89,6 +96,8 @@ class TypedScanner : public Scanner {
     value_buffer_.resize(batch_size_ * value_byte_size);
     values_ = reinterpret_cast<T*>(&value_buffer_[0]);
   }
+
+  virtual ~TypedScanner() {};
 
   bool NextLevels(int16_t* def_level, int16_t* rep_level) {
     if (level_offset_ == levels_buffered_) {
@@ -110,7 +119,7 @@ class TypedScanner : public Scanner {
   // Returns true if there is a next value
   bool NextValue(T* val, bool* is_null) {
     if (value_offset_ == values_buffered_) {
-      if (!reader_->HasNext()) {
+      if (!HasNext()) {
         // Out of data pages
         return false;
       }
@@ -188,7 +197,7 @@ inline void TypedScanner<parquet::Type::FIXED_LEN_BYTE_ARRAY>::FormatValue(
   std::string fmt = format_fwf<parquet::Type::FIXED_LEN_BYTE_ARRAY>(width);
   std::string result = FixedLenByteArrayToString(
       *reinterpret_cast<FixedLenByteArray*>(val),
-      reader_->schema()->type_length);
+      schema()->type_length);
   snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
 }
 

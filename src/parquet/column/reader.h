@@ -73,7 +73,7 @@ class ColumnReader {
   bool HasNext() {
     // Either there is no data page available yet, or the data page has been
     // exhausted
-    if (!num_buffered_values_ || num_decoded_values_ == num_buffered_values_) {
+    if (num_buffered_values_ == 0 || num_decoded_values_ == num_buffered_values_) {
       if (!ReadNewPage() || num_buffered_values_ == 0) {
         return false;
       }
@@ -118,8 +118,7 @@ class ColumnReader {
 
   parquet::PageHeader current_page_header_;
 
-  // Not set if field is required (flat schemas), or if the whole schema tree
-  // contains no optional elements
+  // Not set if full schema for this field has no optional or repeated elements
   std::unique_ptr<RleDecoder> definition_level_decoder_;
 
   // Not set for flat schemas.
