@@ -107,6 +107,7 @@ TEST_F(TestAllTypesPlain, TestSetScannerBatchSize) {
   // column 0, id
   std::shared_ptr<Int32Scanner> scanner(new Int32Scanner(group->Column(0)));
 
+  ASSERT_EQ(128, scanner->batch_size());
   scanner->SetBatchSize(1024);
   ASSERT_EQ(1024, scanner->batch_size());
 }

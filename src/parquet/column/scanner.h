@@ -28,18 +28,14 @@
 
 namespace parquet_cpp {
 
-class ColumnReader;
-
-template <int TYPE>
-class TypedColumnReader;
-
 #define DEFAULT_SCANNER_BATCH_SIZE 128
 
 class Scanner {
  public:
-  explicit Scanner(std::shared_ptr<ColumnReader> reader) :
+  explicit Scanner(std::shared_ptr<ColumnReader> reader,
+      size_t batch_size = DEFAULT_SCANNER_BATCH_SIZE) :
       reader_(reader),
-      batch_size_(DEFAULT_SCANNER_BATCH_SIZE),
+      batch_size_(batch_size),
       level_offset_(0),
       levels_buffered_(0),
       value_offset_(0),
@@ -49,7 +45,8 @@ class Scanner {
     rep_levels_.resize(batch_size_);
   }
 
-  static std::shared_ptr<Scanner> Make(std::shared_ptr<ColumnReader> col_reader);
+  static std::shared_ptr<Scanner> Make(std::shared_ptr<ColumnReader> col_reader,
+      size_t batch_size = DEFAULT_SCANNER_BATCH_SIZE);
 
   virtual void PrintNext(std::ostream& out, int width) = 0;
 
@@ -84,8 +81,9 @@ class TypedScanner : public Scanner {
  public:
   typedef typename type_traits<TYPE>::value_type T;
 
-  explicit TypedScanner(std::shared_ptr<ColumnReader> reader) :
-      Scanner(reader) {
+  explicit TypedScanner(std::shared_ptr<ColumnReader> reader,
+      size_t batch_size = DEFAULT_SCANNER_BATCH_SIZE) :
+      Scanner(reader, batch_size) {
     typed_reader_ = static_cast<TypedColumnReader<TYPE>*>(reader.get());
     size_t value_byte_size = type_traits<TYPE>::value_byte_size;
     value_buffer_.resize(batch_size_ * value_byte_size);

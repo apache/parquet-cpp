@@ -18,7 +18,7 @@
 #ifndef PARQUET_COLUMN_READER_H
 #define PARQUET_COLUMN_READER_H
 
-#include <exception>
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -128,7 +128,12 @@ class ColumnReader {
   // Temporarily storing this to assist with batch reading
   int16_t max_definition_level_;
 
-  // The total number of data values stored in the data page.
+  // The total number of values stored in the data page. This is the maximum of
+  // the number of encoded definition levels or encoded values. For
+  // non-repeated, required columns, this is equal to the number of encoded
+  // values. For repeated or optional values, there may be fewer data values
+  // than levels, and this tells you how many encoded levels there are in that
+  // case.
   int num_buffered_values_;
 
   // The number of values from the current data page that have been decoded
@@ -196,10 +201,29 @@ inline size_t TypedColumnReader<TYPE>::ReadValues(size_t batch_size, T* out) {
 template <int TYPE>
 inline size_t TypedColumnReader<TYPE>::ReadBatch(int batch_size, int16_t* def_levels,
     int16_t* rep_levels, T* values, size_t* values_read) {
-  size_t num_levels = ReadDefinitionLevels(batch_size, def_levels);
+  batch_size = std::min(batch_size, num_buffered_values_);
 
+  size_t num_def_levels = 0;
+  size_t num_rep_levels = 0;
+
+  // If the field is required and non-repeated, there are no definition levels
+  if (definition_level_decoder_) {
+    num_def_levels = ReadDefinitionLevels(batch_size, def_levels);
+  }
+
+  // Not present for non-repeated fields
+  if (repetition_level_decoder_) {
+    num_rep_levels = ReadRepetitionLevels(batch_size, rep_levels);
+
+    if (num_def_levels != num_rep_levels) {
+      throw ParquetException("Number of decoded rep / def levels did not match");
+    }
+  }
+
+  // TODO(wesm): this tallying of values-to-decode can be performed with better
+  // cache-efficiency if fused with the level decoding.
   size_t values_to_read = 0;
-  for (size_t i = 0; i < num_levels; ++i) {
+  for (size_t i = 0; i < num_def_levels; ++i) {
     if (def_levels[i] == max_definition_level_) {
       ++values_to_read;
     }
@@ -207,7 +231,7 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int batch_size, int16_t* def_le
 
   *values_read = ReadValues(values_to_read, values);
 
-  return num_levels;
+  return num_def_levels;
 }
 
 

@@ -21,7 +21,6 @@
 #include <string>
 #include <string.h>
 
-#include "parquet/column/scanner.h"
 #include "parquet/compression/codec.h"
 #include "parquet/encodings/encodings.h"
 #include "parquet/thrift/util.h"

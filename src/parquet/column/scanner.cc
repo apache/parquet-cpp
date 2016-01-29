@@ -27,24 +27,25 @@ using parquet::Type;
 
 namespace parquet_cpp {
 
-std::shared_ptr<Scanner> Scanner::Make(std::shared_ptr<ColumnReader> col_reader) {
+std::shared_ptr<Scanner> Scanner::Make(std::shared_ptr<ColumnReader> col_reader,
+    size_t batch_size) {
   switch (col_reader->type()) {
     case Type::BOOLEAN:
-      return std::make_shared<BoolScanner>(col_reader);
+      return std::make_shared<BoolScanner>(col_reader, batch_size);
     case Type::INT32:
-      return std::make_shared<Int32Scanner>(col_reader);
+      return std::make_shared<Int32Scanner>(col_reader, batch_size);
     case Type::INT64:
-      return std::make_shared<Int64Scanner>(col_reader);
+      return std::make_shared<Int64Scanner>(col_reader, batch_size);
     case Type::INT96:
-      return std::make_shared<Int96Scanner>(col_reader);
+      return std::make_shared<Int96Scanner>(col_reader, batch_size);
     case Type::FLOAT:
-      return std::make_shared<FloatScanner>(col_reader);
+      return std::make_shared<FloatScanner>(col_reader, batch_size);
     case Type::DOUBLE:
-      return std::make_shared<DoubleScanner>(col_reader);
+      return std::make_shared<DoubleScanner>(col_reader, batch_size);
     case Type::BYTE_ARRAY:
-      return std::make_shared<ByteArrayScanner>(col_reader);
+      return std::make_shared<ByteArrayScanner>(col_reader, batch_size);
     case Type::FIXED_LEN_BYTE_ARRAY:
-      return std::make_shared<FixedLenByteArrayScanner>(col_reader);
+      return std::make_shared<FixedLenByteArrayScanner>(col_reader, batch_size);
     default:
       ParquetException::NYI("type reader not implemented");
   }
