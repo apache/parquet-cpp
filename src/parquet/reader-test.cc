@@ -23,8 +23,8 @@
 #include <gtest/gtest.h>
 
 #include "parquet/reader.h"
-#include "parquet/column_reader.h"
-#include "parquet/column_scanner.h"
+#include "parquet/column/reader.h"
+#include "parquet/column/scanner.h"
 
 using std::string;
 

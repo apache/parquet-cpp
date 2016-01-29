@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "parquet/column_scanner.h"
+#include "parquet/column/scanner.h"
 
 #include <memory>
 
-#include "parquet/column_reader.h"
+#include "parquet/column/reader.h"
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/thrift/util.h"
 

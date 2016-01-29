@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "parquet/column_reader.h"
+#include "parquet/column/reader.h"
 #include "parquet/thrift/parquet_types.h"
 
 namespace parquet_cpp {

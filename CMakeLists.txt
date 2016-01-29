@@ -213,8 +213,8 @@ set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 # Library config
 
 set(LIBPARQUET_SRCS
-  src/parquet/column_reader.cc
-  src/parquet/column_scanner.cc
+  src/parquet/column/reader.cc
+  src/parquet/column/scanner.cc
   src/parquet/reader.cc
 )
 
