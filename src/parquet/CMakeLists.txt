@@ -25,3 +25,4 @@ install(FILES
   DESTINATION include/parquet)
 
 ADD_PARQUET_TEST(reader-test)
+target_link_libraries(reader-test ${LINK_LIBS} -lz)

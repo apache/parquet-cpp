@@ -22,8 +22,7 @@ add_library(parquet_compression STATIC
 )
 target_link_libraries(parquet_compression
   lz4static
-  snappystatic
-  gzipstatic)
+  snappystatic)
 
 set_target_properties(parquet_compression
   PROPERTIES
