@@ -23,6 +23,34 @@
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/thrift/util.h"
 
+using parquet::Type;
+
 namespace parquet_cpp {
+
+std::shared_ptr<Scanner> Scanner::Make(std::shared_ptr<ColumnReader> col_reader) {
+  switch (col_reader->type()) {
+    case Type::BOOLEAN:
+      return std::make_shared<BoolScanner>(col_reader);
+    case Type::INT32:
+      return std::make_shared<Int32Scanner>(col_reader);
+    case Type::INT64:
+      return std::make_shared<Int64Scanner>(col_reader);
+    case Type::INT96:
+      return std::make_shared<Int96Scanner>(col_reader);
+    case Type::FLOAT:
+      return std::make_shared<FloatScanner>(col_reader);
+    case Type::DOUBLE:
+      return std::make_shared<DoubleScanner>(col_reader);
+    case Type::BYTE_ARRAY:
+      return std::make_shared<ByteArrayScanner>(col_reader);
+    case Type::FIXED_LEN_BYTE_ARRAY:
+      return std::make_shared<FixedLenByteArrayScanner>(col_reader);
+    default:
+      ParquetException::NYI("type reader not implemented");
+  }
+  // Unreachable code, but supress compiler warning
+  return std::shared_ptr<Scanner>(nullptr);
+
+}
 
 } // namespace parquet_cpp

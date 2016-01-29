@@ -46,6 +46,8 @@ class Scanner {
     rep_levels_.resize(BATCHSIZE);
   }
 
+  static std::shared_ptr<Scanner> Make(std::shared_ptr<ColumnReader> col_reader);
+
   virtual void PrintNext(std::ostream& out, int width) = 0;
 
   bool HasNext() {
@@ -137,7 +139,7 @@ class TypedScanner : public Scanner {
       std::string null_fmt = format_fwf<parquet::Type::BYTE_ARRAY>(width);
       snprintf(buffer, 25, null_fmt.c_str(), "NULL");
     } else {
-      format_value<TYPE>(buffer, 25, width, &val);
+      FormatValue(&val, buffer, 25, width);
     }
     out << buffer;
   }
@@ -146,8 +148,44 @@ class TypedScanner : public Scanner {
   // The ownership of this object is expressed through the reader_ variable in the base
   TypedColumnReader<TYPE>* typed_reader_;
 
+  inline void FormatValue(void* val, char* buffer, size_t bufsize, size_t width);
+
   T* values_;
 };
+
+
+template <int TYPE>
+inline void TypedScanner<TYPE>::FormatValue(void* val, char* buffer,
+    size_t bufsize, size_t width) {
+  std::string fmt = format_fwf<TYPE>(width);
+  snprintf(buffer, bufsize, fmt.c_str(), *reinterpret_cast<T*>(val));
+}
+
+template <>
+inline void TypedScanner<parquet::Type::INT96>::FormatValue(
+    void* val, char* buffer, size_t bufsize, size_t width) {
+  std::string fmt = format_fwf<parquet::Type::INT96>(width);
+  std::string result = Int96ToString(*reinterpret_cast<Int96*>(val));
+  snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
+}
+
+template <>
+inline void TypedScanner<parquet::Type::BYTE_ARRAY>::FormatValue(
+    void* val, char* buffer, size_t bufsize, size_t width) {
+  std::string fmt = format_fwf<parquet::Type::BYTE_ARRAY>(width);
+  std::string result = ByteArrayToString(*reinterpret_cast<ByteArray*>(val));
+  snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
+}
+
+template <>
+inline void TypedScanner<parquet::Type::FIXED_LEN_BYTE_ARRAY>::FormatValue(
+    void* val, char* buffer, size_t bufsize, size_t width) {
+  std::string fmt = format_fwf<parquet::Type::FIXED_LEN_BYTE_ARRAY>(width);
+  std::string result = FixedLenByteArrayToString(
+      *reinterpret_cast<FixedLenByteArray*>(val),
+      reader_->schema()->type_length);
+  snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
+}
 
 typedef TypedScanner<parquet::Type::BOOLEAN> BoolScanner;
 typedef TypedScanner<parquet::Type::INT32> Int32Scanner;
@@ -156,7 +194,7 @@ typedef TypedScanner<parquet::Type::INT96> Int96Scanner;
 typedef TypedScanner<parquet::Type::FLOAT> FloatScanner;
 typedef TypedScanner<parquet::Type::DOUBLE> DoubleScanner;
 typedef TypedScanner<parquet::Type::BYTE_ARRAY> ByteArrayScanner;
-// typedef TypedScanner<parquet::Type::FIXED_LEN_BYTE_ARRAY> FixedLenByteArrayScanner;
+typedef TypedScanner<parquet::Type::FIXED_LEN_BYTE_ARRAY> FixedLenByteArrayScanner;
 
 } // namespace parquet_cpp
 

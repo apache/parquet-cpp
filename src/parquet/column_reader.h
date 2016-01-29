@@ -85,8 +85,6 @@ class ColumnReader {
 
   virtual bool ReadNewPage() = 0;
 
-  virtual std::shared_ptr<Scanner> GetScanner() = 0;
-
   // Returns true if there are still values in this column.
   bool HasNext() {
     // Either there is no data page available yet, or the data page has been
@@ -127,6 +125,10 @@ class ColumnReader {
     return metadata_;
   }
 
+  const parquet::SchemaElement* schema() const {
+    return schema_;
+  }
+
  protected:
   Config config_;
 
@@ -157,8 +159,7 @@ class ColumnReader {
 
 // API to read values from a single column. This is the main client facing API.
 template <int TYPE>
-class TypedColumnReader
-    : public ColumnReader, std::enable_shared_from_this<TypedColumnReader<TYPE>> {
+class TypedColumnReader : public ColumnReader {
  public:
   typedef typename type_traits<TYPE>::value_type T;
 
@@ -172,8 +173,6 @@ class TypedColumnReader
 
   // Advance to the next data page
   virtual bool ReadNewPage();
-
-  virtual std::shared_ptr<Scanner> GetScanner();
 
  private:
   typedef Decoder<TYPE> DecoderType;

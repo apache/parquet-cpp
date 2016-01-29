@@ -167,11 +167,6 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   return true;
 }
 
-template <int TYPE>
-std::shared_ptr<Scanner> TypedColumnReader<TYPE>::GetScanner() {
-  return std::shared_ptr<Scanner>(new TypedScanner<TYPE>(this->shared_from_this()));
-}
-
 
 std::shared_ptr<ColumnReader> ColumnReader::Make(const parquet::ColumnMetaData* metadata,
     const parquet::SchemaElement* element, std::unique_ptr<InputStream> stream) {

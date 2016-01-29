@@ -82,11 +82,7 @@ TEST_F(TestAllTypesPlain, TestFlatScannerInt32) {
   RowGroupReader* group = reader_.RowGroup(0);
 
   // column 0, id
-  std::shared_ptr<Scanner> sp_scanner = group->Column(0)->GetScanner();
-
-  Int32Scanner* scanner = static_cast<Int32Scanner*>(sp_scanner.get());
-
-  std::shared_ptr<Int32Scanner> scanner = group->Column(0)->GetScanner();
+  std::shared_ptr<Int32Scanner> scanner(new Int32Scanner(group->Column(0)));
 
   int32_t val;
   bool is_null;

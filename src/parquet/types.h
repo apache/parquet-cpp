@@ -39,6 +39,8 @@ struct FixedLenByteArray {
   const uint8_t* ptr;
 };
 
+typedef FixedLenByteArray FLBA;
+
 MANUALLY_ALIGNED_STRUCT(1) Int96 {
   uint32_t value[3];
 };
@@ -155,30 +157,6 @@ inline std::string format_fwf(int width) {
   std::stringstream ss;
   ss << "%-" << width << type_traits<TYPE>::printf_code;
   return ss.str();
-}
-
-template <int TYPE>
-inline void format_value(char* buffer, size_t bufsize, size_t width, void* val) {
-  typedef typename type_traits<TYPE>::value_type T;
-  std::string fmt = format_fwf<TYPE>(width);
-  snprintf(buffer, bufsize, fmt.c_str(), *reinterpret_cast<T*>(val));
-}
-
-template <>
-inline void format_value<parquet::Type::BYTE_ARRAY>(char* buffer, size_t bufsize,
-    size_t width, void* val) {
-  std::string fmt = format_fwf<parquet::Type::BYTE_ARRAY>(width);
-  std::string result = ByteArrayToString(*reinterpret_cast<ByteArray*>(val));
-  snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
-}
-
-template <>
-inline void format_value<parquet::Type::FIXED_LEN_BYTE_ARRAY>(
-    char* buffer, size_t bufsize, size_t width, void* val) {
-  std::string fmt = format_fwf<parquet::Type::FIXED_LEN_BYTE_ARRAY>(width);
-  std::string result = FixedLenByteArrayToString(
-      *reinterpret_cast<ByteArray*>(val), metadata_.schema[c+1].type_length);
-  snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
 }
 
 } // namespace parquet_cpp

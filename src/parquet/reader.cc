@@ -291,7 +291,7 @@ void ParquetFileReader::DebugPrint(std::ostream& stream, bool print_values) {
 
       // This is OK in this method as long as the RowGroupReader does not get
       // deleted
-      scanners[c] = col_reader->GetScanner();
+      scanners[c] = Scanner::Make(col_reader);
     }
     stream << "\n";
 
