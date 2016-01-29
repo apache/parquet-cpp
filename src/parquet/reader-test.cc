@@ -62,17 +62,22 @@ TEST_F(TestAllTypesPlain, TestBatchRead) {
   // column 0, id
   std::shared_ptr<Int32Reader> col = std::dynamic_pointer_cast<Int32Reader>(group->Column(0));
 
-  int32_t buffer[4];
+  int16_t def_levels[4];
+  int16_t rep_levels[4];
+  int32_t values[4];
 
   // This file only has 8 rows
 
   ASSERT_TRUE(col->HasNext());
-  size_t values_read = col->ReadValues(4, buffer);
+  size_t values_read;
+  size_t levels_read = col->ReadBatch(4, def_levels, rep_levels, values, &values_read);
+  ASSERT_EQ(4, levels_read);
   ASSERT_EQ(4, values_read);
 
   // Now read past the end of the file
   ASSERT_TRUE(col->HasNext());
-  values_read = col->ReadValues(5, buffer);
+  levels_read = col->ReadBatch(5, def_levels, rep_levels, values, &values_read);
+  ASSERT_EQ(4, levels_read);
   ASSERT_EQ(4, values_read);
 
   ASSERT_FALSE(col->HasNext());

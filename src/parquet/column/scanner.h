@@ -54,22 +54,6 @@ class Scanner {
     return value_offset_ < values_buffered_ || reader_->HasNext();
   }
 
-  bool NextLevels(int16_t* def_level, int16_t* rep_level) {
-    if (level_offset_ == levels_buffered_) {
-      levels_buffered_ = reader_->ReadDefinitionLevels(BATCHSIZE, &def_levels_[0]);
-
-      // TODO: repetition levels
-
-      level_offset_ = 0;
-      if (!levels_buffered_) {
-        return false;
-      }
-    }
-    *def_level = def_levels_[level_offset_++];
-    *rep_level = 1;
-    return true;
-  }
-
  protected:
   std::shared_ptr<ColumnReader> reader_;
 
@@ -99,6 +83,23 @@ class TypedScanner : public Scanner {
     values_ = reinterpret_cast<T*>(&value_buffer_[0]);
   }
 
+  bool NextLevels(int16_t* def_level, int16_t* rep_level) {
+    if (level_offset_ == levels_buffered_) {
+      levels_buffered_ = typed_reader_->ReadBatch(BATCHSIZE, &def_levels_[0], &rep_levels_[0],
+          values_, &values_buffered_);
+
+      // TODO: repetition levels
+
+      level_offset_ = 0;
+      if (!levels_buffered_) {
+        return false;
+      }
+    }
+    *def_level = def_levels_[level_offset_++];
+    *rep_level = 1;
+    return true;
+  }
+
   // Returns true if there is a next value
   bool NextValue(T* val, bool* is_null) {
     if (value_offset_ == values_buffered_) {
@@ -119,10 +120,7 @@ class TypedScanner : public Scanner {
     }
 
     if (value_offset_ == values_buffered_) {
-      // At this point, the ColumnReader has indicated there is more data
-      // available, so we batch decode it here
-      values_buffered_ = typed_reader_->ReadValues(BATCHSIZE, values_);
-      value_offset_ = 0;
+      throw ParquetException("Value was non-null, but has not been buffered");
     }
     *val = values_[value_offset_++];
     return true;
