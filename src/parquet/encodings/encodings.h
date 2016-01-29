@@ -72,8 +72,9 @@ class Decoder {
 #include "parquet/encodings/plain-encoding.h"
 #include "parquet/encodings/dictionary-encoding.h"
 
-#include "parquet/encodings/delta-bit-pack-encoding.h"
-#include "parquet/encodings/delta-length-byte-array-encoding.h"
-#include "parquet/encodings/delta-byte-array-encoding.h"
+// These are deprecated / not used
+// #include "parquet/encodings/delta-bit-pack-encoding.h"
+// #include "parquet/encodings/delta-length-byte-array-encoding.h"
+// #include "parquet/encodings/delta-byte-array-encoding.h"
 
 #endif // PARQUET_ENCODINGS_ENCODINGS_H
