@@ -25,6 +25,8 @@
 #endif
 
 #include <boost/algorithm/string.hpp>
+#include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <fstream>
 #include <mmintrin.h>
@@ -46,22 +48,21 @@ namespace parquet_cpp {
 bool CpuInfo::initialized_ = false;
 int64_t CpuInfo::hardware_flags_ = 0;
 int64_t CpuInfo::original_hardware_flags_;
-long CpuInfo::cache_sizes_[L3_CACHE + 1];
+int64_t CpuInfo::cache_sizes_[L3_CACHE + 1];
 int64_t CpuInfo::cycles_per_ms_;
 int CpuInfo::num_cores_ = 1;
-string CpuInfo::model_name_ = "unknown";
+string CpuInfo::model_name_ = "unknown"; // NOLINT
 
 static struct {
   string name;
   int64_t flag;
-} flag_mappings[] =
-{
+} flag_mappings[] = {
   { "ssse3",  CpuInfo::SSSE3 },
   { "sse4_1", CpuInfo::SSE4_1 },
   { "sse4_2", CpuInfo::SSE4_2 },
   { "popcnt", CpuInfo::POPCNT },
 };
-static const long num_flags = sizeof(flag_mappings) / sizeof(flag_mappings[0]);
+static const int64_t num_flags = sizeof(flag_mappings) / sizeof(flag_mappings[0]);
 
 // Helper function to parse for hardware flags.
 // values contains a list of space-seperated flags.  check to see if the flags we
@@ -154,7 +155,7 @@ void CpuInfo::VerifyCpuRequirements() {
   }
 }
 
-void CpuInfo::EnableFeature(long flag, bool enable) {
+void CpuInfo::EnableFeature(int64_t flag, bool enable) {
   DCHECK(initialized_);
   if (!enable) {
     hardware_flags_ &= ~flag;

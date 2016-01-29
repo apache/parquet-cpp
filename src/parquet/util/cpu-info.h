@@ -60,17 +60,17 @@ class CpuInfo {
   }
 
   /// Returns whether of not the cpu supports this flag
-  inline static bool IsSupported(long flag) {
+  inline static bool IsSupported(int64_t flag) {
     DCHECK(initialized_);
     return (hardware_flags_ & flag) != 0;
   }
 
   /// Toggle a hardware feature on and off.  It is not valid to turn on a feature
   /// that the underlying hardware cannot support. This is useful for testing.
-  static void EnableFeature(long flag, bool enable);
+  static void EnableFeature(int64_t flag, bool enable);
 
   /// Returns the size of the cache in KB at this cache level
-  static long CacheSize(CacheLevel level) {
+  static int64_t CacheSize(CacheLevel level) {
     DCHECK(initialized_);
     return cache_sizes_[level];
   }
@@ -97,11 +97,12 @@ class CpuInfo {
   static bool initialized_;
   static int64_t hardware_flags_;
   static int64_t original_hardware_flags_;
-  static long cache_sizes_[L3_CACHE + 1];
+  static int64_t cache_sizes_[L3_CACHE + 1];
   static int64_t cycles_per_ms_;
   static int num_cores_;
-  static std::string model_name_;
+  static std::string model_name_; // NOLINT
 };
 
-}
-#endif
+} // namespace parquet_cpp
+
+#endif // PARQUET_UTIL_CPU_INFO_H

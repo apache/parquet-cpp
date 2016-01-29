@@ -20,8 +20,10 @@
 #ifndef PARQUET_UTIL_BIT_STREAM_UTILS_H
 #define PARQUET_UTIL_BIT_STREAM_UTILS_H
 
+#include <algorithm>
 #include <cstdint>
 #include <string.h>
+
 #include "parquet/util/compiler-util.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/bit-util.h"
@@ -76,7 +78,7 @@ class BitWriter {
   /// Flushes all buffered values to the buffer. Call this when done writing to the buffer.
   /// If 'align' is true, buffered_values_ is reset and any future writes will be written
   /// to the next byte boundary.
-  void Flush(bool align=false);
+  void Flush(bool align = false);
 
  private:
   uint8_t* buffer_;

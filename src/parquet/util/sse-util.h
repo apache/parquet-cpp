@@ -68,7 +68,7 @@ namespace SSEUtil {
     1 << 14,
     1 << 15,
   };
-}
+} // namespace SSEUtil
 
 /// Define the SSE 4.2 intrinsics.  The caller must first verify at runtime (or codegen
 /// IR load time) that the processor supports SSE 4.2 before calling these.  These are
@@ -160,7 +160,7 @@ static inline int SSE4_cmpestri(
 template<int MODE>
 static inline __m128i SSE4_cmpestrm(__m128i str1, int len1, __m128i str2, int len2) {
   DCHECK(false) << "CPU doesn't support SSE 4.2";
-  return (__m128i) { 0 };
+  return (__m128i) { 0 }; // NOLINT
 }
 
 template<int MODE>
