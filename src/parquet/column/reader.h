@@ -69,8 +69,6 @@ class ColumnReader {
   static std::shared_ptr<ColumnReader> Make(const parquet::ColumnMetaData*,
       const parquet::SchemaElement*, std::unique_ptr<InputStream> stream);
 
-  virtual bool ReadNewPage() = 0;
-
   // Returns true if there are still values in this column.
   bool HasNext() {
     // Either there is no data page available yet, or the data page has been
@@ -96,6 +94,8 @@ class ColumnReader {
   }
 
  protected:
+  virtual bool ReadNewPage() = 0;
+
   // Read multiple definition levels into preallocated memory
   //
   // Returns the number of decoded definition levels
@@ -155,9 +155,6 @@ class TypedColumnReader : public ColumnReader {
     values_buffer_.resize(config_.batch_size * value_byte_size);
   }
 
-  // Advance to the next data page
-  virtual bool ReadNewPage();
-
   // Read a batch of repetition levels, definition levels, and values from the
   // column.
   //
@@ -176,6 +173,9 @@ class TypedColumnReader : public ColumnReader {
 
  private:
   typedef Decoder<TYPE> DecoderType;
+
+  // Advance to the next data page
+  virtual bool ReadNewPage();
 
   // Read up to batch_size values from the current data page into the
   // pre-allocated memory T*
@@ -201,6 +201,12 @@ inline size_t TypedColumnReader<TYPE>::ReadValues(size_t batch_size, T* out) {
 template <int TYPE>
 inline size_t TypedColumnReader<TYPE>::ReadBatch(int batch_size, int16_t* def_levels,
     int16_t* rep_levels, T* values, size_t* values_read) {
+  // HasNext invokes ReadNewPage
+  if (!HasNext()) {
+    *values_read = 0;
+    return 0;
+  }
+
   batch_size = std::min(batch_size, num_buffered_values_);
 
   size_t num_def_levels = 0;
