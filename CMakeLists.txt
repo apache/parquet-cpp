@@ -214,6 +214,7 @@ set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 
 set(LIBPARQUET_SRCS
   src/parquet/column_reader.cc
+  src/parquet/column_scanner.cc
   src/parquet/reader.cc
 )
 

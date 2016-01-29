@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include "parquet/column_scanner.h"
-
 #include "parquet/encodings/encodings.h"
 #include "parquet/compression/codec.h"
 #include "parquet/thrift/util.h"
@@ -64,11 +63,6 @@ ColumnReader::ColumnReader(const parquet::ColumnMetaData* metadata,
 // encoding.
 static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
   return e == Encoding::RLE_DICTIONARY || e == Encoding::PLAIN_DICTIONARY;
-}
-
-template <int TYPE>
-std::shared_ptr<Scanner> TypedColumnReader<TYPE>::GetScanner() {
-  return std::shared_ptr<Scanner>(new TypedScanner<TYPE>(this));
 }
 
 template <int TYPE>
@@ -172,6 +166,12 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   }
   return true;
 }
+
+template <int TYPE>
+std::shared_ptr<Scanner> TypedColumnReader<TYPE>::GetScanner() {
+  return std::shared_ptr<Scanner>(new TypedScanner<TYPE>(this->shared_from_this()));
+}
+
 
 std::shared_ptr<ColumnReader> ColumnReader::Make(const parquet::ColumnMetaData* metadata,
     const parquet::SchemaElement* element, std::unique_ptr<InputStream> stream) {

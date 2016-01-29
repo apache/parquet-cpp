@@ -60,7 +60,7 @@ TEST_F(TestAllTypesPlain, TestBatchRead) {
   RowGroupReader* group = reader_.RowGroup(0);
 
   // column 0, id
-  Int32Reader* col = static_cast<Int32Reader*>(group->Column(0));
+  std::shared_ptr<Int32Reader> col = std::dynamic_pointer_cast<Int32Reader>(group->Column(0));
 
   int32_t buffer[4];
 
@@ -79,15 +79,14 @@ TEST_F(TestAllTypesPlain, TestBatchRead) {
 }
 
 TEST_F(TestAllTypesPlain, TestFlatScannerInt32) {
-  typedef TypedScanner<parquet::Type::INT32> Int32Scanner;
-
   RowGroupReader* group = reader_.RowGroup(0);
 
   // column 0, id
-  Int32Reader* col = static_cast<Int32Reader*>(group->Column(0));
+  std::shared_ptr<Scanner> sp_scanner = group->Column(0)->GetScanner();
 
-  std::shared_ptr<Scanner> sp_scanner = col->GetScanner();
   Int32Scanner* scanner = static_cast<Int32Scanner*>(sp_scanner.get());
+
+  std::shared_ptr<Int32Scanner> scanner = group->Column(0)->GetScanner();
 
   int32_t val;
   bool is_null;

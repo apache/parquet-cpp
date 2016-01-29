@@ -81,12 +81,12 @@ size_t LocalFile::Read(size_t nbytes, uint8_t* buffer) {
 // ----------------------------------------------------------------------
 // RowGroupReader
 
-ColumnReader* RowGroupReader::Column(size_t i) {
+std::shared_ptr<ColumnReader> RowGroupReader::Column(size_t i) {
   // TODO: boundschecking
   auto it = column_readers_.find(i);
   if (it !=  column_readers_.end()) {
     // Already have constructed the ColumnReader
-    return it->second.get();
+    return it->second;
   }
 
   const parquet::ColumnChunk& col = row_group_->columns[i];
@@ -118,7 +118,7 @@ ColumnReader* RowGroupReader::Column(size_t i) {
       &this->parent_->metadata_.schema[i + 1], std::move(input));
   column_readers_[i] = reader;
 
-  return reader.get();
+  return reader;
 }
 
 // ----------------------------------------------------------------------
@@ -285,7 +285,7 @@ void ParquetFileReader::DebugPrint(std::ostream& stream, bool print_values) {
     // Create readers for all columns and print contents
     vector<std::shared_ptr<Scanner> > scanners(nColumns, NULL);
     for (int c = 0; c < nColumns; ++c) {
-      ColumnReader* col_reader = group_reader->Column(c);
+      std::shared_ptr<ColumnReader> col_reader = group_reader->Column(c);
       Type::type col_type = col_reader->type();
       printf("%-" COL_WIDTH"s", metadata_.schema[c+1].name.c_str());
 

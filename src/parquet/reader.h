@@ -81,7 +81,7 @@ class RowGroupReader {
 
   // Construct a ColumnReader for the indicated row group-relative column. The
   // returned object is owned by the RowGroupReader
-  ColumnReader* Column(size_t i);
+  std::shared_ptr<ColumnReader> Column(size_t i);
 
   size_t num_columns() const {
     return row_group_->columns.size();

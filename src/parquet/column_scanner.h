@@ -18,9 +18,13 @@
 #ifndef PARQUET_COLUMN_SCANNER_H
 #define PARQUET_COLUMN_SCANNER_H
 
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
+
+#include "parquet/column_reader.h"
+#include "parquet/thrift/parquet_types.h"
 
 namespace parquet_cpp {
 
@@ -31,7 +35,7 @@ class TypedColumnReader;
 
 class Scanner {
  public:
-  explicit Scanner(ColumnReader* reader) :
+  explicit Scanner(std::shared_ptr<ColumnReader> reader) :
       reader_(reader),
       level_offset_(0),
       levels_buffered_(0),
@@ -65,7 +69,7 @@ class Scanner {
   }
 
  protected:
-  ColumnReader* reader_;
+  std::shared_ptr<ColumnReader> reader_;
 
   static constexpr size_t BATCHSIZE = 128;
 
@@ -85,10 +89,9 @@ class TypedScanner : public Scanner {
  public:
   typedef typename type_traits<TYPE>::value_type T;
 
-  explicit TypedScanner(ColumnReader* reader) :
+  explicit TypedScanner(std::shared_ptr<ColumnReader> reader) :
       Scanner(reader) {
-    typed_reader_ = static_cast<TypedColumnReader<TYPE>*>(reader);
-
+    typed_reader_ = static_cast<TypedColumnReader<TYPE>*>(reader.get());
     size_t value_byte_size = type_traits<TYPE>::value_byte_size;
     value_buffer_.resize(BATCHSIZE * value_byte_size);
     values_ = reinterpret_cast<T*>(&value_buffer_[0]);
@@ -140,9 +143,20 @@ class TypedScanner : public Scanner {
   }
 
  private:
+  // The ownership of this object is expressed through the reader_ variable in the base
   TypedColumnReader<TYPE>* typed_reader_;
+
   T* values_;
 };
+
+typedef TypedScanner<parquet::Type::BOOLEAN> BoolScanner;
+typedef TypedScanner<parquet::Type::INT32> Int32Scanner;
+typedef TypedScanner<parquet::Type::INT64> Int64Scanner;
+typedef TypedScanner<parquet::Type::INT96> Int96Scanner;
+typedef TypedScanner<parquet::Type::FLOAT> FloatScanner;
+typedef TypedScanner<parquet::Type::DOUBLE> DoubleScanner;
+typedef TypedScanner<parquet::Type::BYTE_ARRAY> ByteArrayScanner;
+// typedef TypedScanner<parquet::Type::FIXED_LEN_BYTE_ARRAY> FixedLenByteArrayScanner;
 
 } // namespace parquet_cpp
 

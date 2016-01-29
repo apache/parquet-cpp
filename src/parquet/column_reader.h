@@ -155,11 +155,10 @@ class ColumnReader {
   int num_decoded_values_;
 };
 
-
-
 // API to read values from a single column. This is the main client facing API.
 template <int TYPE>
-class TypedColumnReader : public ColumnReader {
+class TypedColumnReader
+    : public ColumnReader, std::enable_shared_from_this<TypedColumnReader<TYPE>> {
  public:
   typedef typename type_traits<TYPE>::value_type T;
 
@@ -171,10 +170,10 @@ class TypedColumnReader : public ColumnReader {
     values_buffer_.resize(config_.batch_size * value_byte_size);
   }
 
-  virtual std::shared_ptr<Scanner> GetScanner();
-
   // Advance to the next data page
   virtual bool ReadNewPage();
+
+  virtual std::shared_ptr<Scanner> GetScanner();
 
  private:
   typedef Decoder<TYPE> DecoderType;
