@@ -207,6 +207,8 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int batch_size, int16_t* def_le
     return 0;
   }
 
+  // TODO(wesm): keep reading data pages until batch_size is reached, or the
+  // row group is finished
   batch_size = std::min(batch_size, num_buffered_values_);
 
   size_t num_def_levels = 0;
