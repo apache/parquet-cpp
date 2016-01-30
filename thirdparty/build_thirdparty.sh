@@ -16,6 +16,7 @@ else
   for arg in "$*"; do
     case $arg in
       "lz4")        F_LZ4=1 ;;
+      "zlib")       F_ZLIB=1 ;;
       "gtest")      F_GTEST=1 ;;
       "snappy")     F_SNAPPY=1 ;;
       "thrift")     F_THRIFT=1 ;;
@@ -71,6 +72,13 @@ fi
 if [ -n "$F_ALL" -o -n "$F_LZ4" ]; then
   cd $TP_DIR/$LZ4_BASEDIR/cmake_unofficial
   CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $LZ4_DIR
+  make -j$PARALLEL install
+fi
+
+# build zlib
+if [ -n "$F_ALL" -o -n "$F_ZLIB" ]; then
+  cd $TP_DIR/$ZLIB_BASEDIR/cmake_unofficial
+  CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $ZLIB_DIR
   make -j$PARALLEL install
 fi
 

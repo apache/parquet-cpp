@@ -12,6 +12,7 @@ source thirdparty/versions.sh
 
 export SNAPPY_HOME=$BUILD_DIR/thirdparty/installed
 export LZ4_HOME=$BUILD_DIR/thirdparty/installed
+export ZLIB_HOME=$BUILD_DIR/thirdparty/installed
 # build script doesn't support building thrift on OSX
 if [ "$(uname)" != "Darwin" ]; then
   export THRIFT_HOME=$BUILD_DIR/thirdparty/installed
