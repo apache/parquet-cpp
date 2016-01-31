@@ -77,7 +77,7 @@ fi
 
 # build zlib
 if [ -n "$F_ALL" -o -n "$F_ZLIB" ]; then
-  cd $TP_DIR/$ZLIB_BASEDIR/cmake_unofficial
+  cd $TP_DIR/$ZLIB_BASEDIR
   CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $ZLIB_DIR
   make -j$PARALLEL install
 fi
