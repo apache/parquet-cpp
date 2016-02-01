@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#ifndef PARQUET_UTIL_TEST_COMMON_H
+#define PARQUET_UTIL_TEST_COMMON_H
+
 #include <iostream>
 #include <vector>
 
@@ -46,3 +49,5 @@ static inline bool vector_equal(const vector<T>& left, const vector<T>& right) {
 } // namespace test
 
 } // namespace parquet_cpp
+
+#endif // PARQUET_UTIL_TEST_COMMON_H
