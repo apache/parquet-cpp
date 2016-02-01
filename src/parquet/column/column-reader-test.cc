@@ -29,6 +29,8 @@
 #include "parquet/column/reader.h"
 #include "parquet/column/test-util.h"
 
+#include "parquet/util/test-common.h"
+
 using std::string;
 using std::vector;
 using std::shared_ptr;
@@ -38,6 +40,8 @@ using parquet::Encoding;
 using parquet::Type;
 
 namespace parquet_cpp {
+
+namespace test {
 
 class TestPrimitiveReader : public ::testing::Test {
  public:
@@ -67,25 +71,6 @@ static vector<T> slice(const vector<T>& values, size_t start, size_t end) {
     out[i - start] = values[i];
   }
   return out;
-}
-
-template <typename T>
-static bool vector_equal(const vector<T>& left, const vector<T>& right) {
-  if (left.size() != right.size()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < left.size(); ++i) {
-    if (left[i] != right[i]) {
-      std::cerr << "index " << i
-                << " left was " << left[i]
-                << " right was " << right[i]
-                << std::endl;
-      return false;
-    }
-  }
-
-  return true;
 }
 
 
@@ -175,5 +160,6 @@ TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
   ASSERT_EQ(0, values_read);
 }
 
+} // namespace test
 
 } // namespace parquet_cpp
