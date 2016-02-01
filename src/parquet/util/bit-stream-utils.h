@@ -59,8 +59,9 @@ class BitWriter {
   /// packed.  Returns false if there was not enough space. num_bits must be <= 32.
   bool PutValue(uint64_t v, int num_bits);
 
-  /// Writes v to the next aligned byte using num_bytes. If T is larger than num_bytes, the
-  /// extra high-order bytes will be ignored. Returns false if there was not enough space.
+  /// Writes v to the next aligned byte using num_bytes. If T is larger than
+  /// num_bytes, the extra high-order bytes will be ignored. Returns false if
+  /// there was not enough space.
   template<typename T>
   bool PutAligned(T v, int num_bytes);
 
@@ -75,9 +76,9 @@ class BitWriter {
   /// Returns NULL if there was not enough space.
   uint8_t* GetNextBytePtr(int num_bytes = 1);
 
-  /// Flushes all buffered values to the buffer. Call this when done writing to the buffer.
-  /// If 'align' is true, buffered_values_ is reset and any future writes will be written
-  /// to the next byte boundary.
+  /// Flushes all buffered values to the buffer. Call this when done writing to
+  /// the buffer.  If 'align' is true, buffered_values_ is reset and any future
+  /// writes will be written to the next byte boundary.
   void Flush(bool align = false);
 
  private:
@@ -121,19 +122,21 @@ class BitReader {
   template<typename T>
   bool GetValue(int num_bits, T* v);
 
-  /// Reads a 'num_bytes'-sized value from the buffer and stores it in 'v'. T needs to be a
-  /// little-endian native type and big enough to store 'num_bytes'. The value is assumed
-  /// to be byte-aligned so the stream will be advanced to the start of the next byte
-  /// before 'v' is read. Returns false if there are not enough bytes left.
+  /// Reads a 'num_bytes'-sized value from the buffer and stores it in 'v'. T
+  /// needs to be a little-endian native type and big enough to store
+  /// 'num_bytes'. The value is assumed to be byte-aligned so the stream will
+  /// be advanced to the start of the next byte before 'v' is read. Returns
+  /// false if there are not enough bytes left.
   template<typename T>
   bool GetAligned(int num_bytes, T* v);
 
-  /// Reads a vlq encoded int from the stream.  The encoded int must start at the
-  /// beginning of a byte. Return false if there were not enough bytes in the buffer.
+  /// Reads a vlq encoded int from the stream.  The encoded int must start at
+  /// the beginning of a byte. Return false if there were not enough bytes in
+  /// the buffer.
   bool GetVlqInt(int32_t* v);
 
-  /// Returns the number of bytes left in the stream, not including the current byte (i.e.,
-  /// there may be an additional fraction of a byte).
+  /// Returns the number of bytes left in the stream, not including the current
+  /// byte (i.e., there may be an additional fraction of a byte).
   int bytes_left() { return max_bytes_ - (byte_offset_ + BitUtil::Ceil(bit_offset_, 8)); }
 
   /// Maximum byte length of a vlq encoded int

@@ -324,7 +324,7 @@ TEST(BitRle, Random) {
     vector<int> values;
     bool parity = 0;
     for (int i = 0; i < 1000; ++i) {
-      int group_size = rand() % 20 + 1;
+      int group_size = rand() % 20 + 1;  // NOLINT
       if (group_size > 16) {
         group_size = 1;
       }

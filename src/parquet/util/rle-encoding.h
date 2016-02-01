@@ -117,6 +117,7 @@ class RleDecoder {
   uint64_t current_value_;
   uint32_t repeat_count_;
   uint32_t literal_count_;
+
  private:
   /// Fills literal_count_ and repeat_count_ with next values. Returns false if there
   /// are no more.

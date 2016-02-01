@@ -44,8 +44,8 @@ namespace SSEUtil {
   /// characters that matched.
   static const int STRCHR_MODE = PCMPSTR_EQUAL_ANY | PCMPSTR_UBYTE_OPS;
 
-  /// In this mode, SSE text processing functions will return the number of bytes that match
-  /// consecutively from the beginning.
+  /// In this mode, SSE text processing functions will return the number of
+  /// bytes that match consecutively from the beginning.
   static const int STRCMP_MODE = PCMPSTR_EQUAL_EACH | PCMPSTR_UBYTE_OPS |
       PCMPSTR_NEG_POLARITY;
 

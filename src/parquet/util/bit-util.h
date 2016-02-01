@@ -210,7 +210,6 @@ class BitUtil {
     for (int i = 0; i < len; ++i) {
       d[i] = s[len - i - 1];
     }
-
   }
 
   /// Converts to big endian format (if not already in big endian) from the
