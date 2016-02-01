@@ -152,6 +152,21 @@ inline bool BitReader::GetVlqInt(int32_t* v) {
   return true;
 }
 
+// TODO(nongli): review/test these implementations given divergence in Impala
+// functions
+
+// inline bool BitWriter::PutZigZagVlqInt(int32_t v) {
+//   uint32_t u = (v << 1) ^ (v >> 31);
+//   return PutVlqInt(u);
+// }
+
+// inline bool BitReader::GetZigZagVlqInt(int64_t* v) {
+//   uint64_t u;
+//   if (!GetVlqInt(&u)) return false;
+//   *reinterpret_cast<uint64_t*>(v) = (u >> 1) ^ -(u & 1);
+//   return true;
+// }
+
 } // namespace parquet_cpp
 
 #endif // PARQUET_UTIL_BIT_STREAM_UTILS_INLINE_H

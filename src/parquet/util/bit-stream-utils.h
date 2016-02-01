@@ -142,6 +142,10 @@ class BitReader {
   /// Maximum byte length of a vlq encoded int
   static const int MAX_VLQ_BYTE_LEN = 5;
 
+  // TODO(nongli): implementations to be fixed given changes in Impala
+  // bool GetZigZagVlqInt(int64_t* v);
+  // bool PutZigZagVlqInt(int32_t v);
+
  private:
   const uint8_t* buffer_;
   int max_bytes_;
