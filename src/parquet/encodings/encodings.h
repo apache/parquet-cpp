@@ -72,7 +72,7 @@ class Decoder {
 #include "parquet/encodings/plain-encoding.h"
 #include "parquet/encodings/dictionary-encoding.h"
 
-// These are deprecated / not used
+// The encoding tools changed and these are missing the ZigZag functions
 // #include "parquet/encodings/delta-bit-pack-encoding.h"
 // #include "parquet/encodings/delta-length-byte-array-encoding.h"
 // #include "parquet/encodings/delta-byte-array-encoding.h"
