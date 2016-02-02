@@ -1,6 +1,7 @@
 bin
 build
 generated
+Testing/
 
 CMakeCache.txt
 CMakeFiles
