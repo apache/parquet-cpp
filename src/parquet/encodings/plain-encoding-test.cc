@@ -16,7 +16,6 @@
 // under the License.
 
 #include <cstdint>
-#include <random>
 #include <string>
 #include <vector>
 
@@ -32,26 +31,14 @@ namespace parquet_cpp {
 
 namespace test {
 
-static vector<bool> flip_coins(size_t n, double p) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  std::bernoulli_distribution d(p);
-
-  vector<bool> draws;
-  for (size_t i = 0; i < n; ++i) {
-    draws.push_back(d(gen));
-  }
-  return draws;
-}
-
 TEST(BooleanTest, TestEncodeDecode) {
   // PARQUET-454
 
   size_t nvalues = 100;
   size_t nbytes = BitUtil::RoundUp(nvalues, 8) / 8;
 
-  vector<bool> draws = flip_coins(nvalues, 0.5);
+  // seed the prng so failure is deterministic
+  vector<bool> draws = flip_coins_seed(nvalues, 0.5, 0);
 
   PlainEncoder<Type::BOOLEAN> encoder(nullptr);
   PlainDecoder<Type::BOOLEAN> decoder(nullptr);
