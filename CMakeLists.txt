@@ -214,6 +214,7 @@ set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 # Library config
 
 set(LIBPARQUET_SRCS
+  src/parquet/column/serialized-page.cc
   src/parquet/column/reader.cc
   src/parquet/column/scanner.cc
   src/parquet/reader.cc
@@ -246,6 +247,7 @@ if(APPLE)
 endif()
 
 add_subdirectory(src/parquet)
+add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/compression)
 add_subdirectory(src/parquet/encodings)
 add_subdirectory(src/parquet/thrift)
