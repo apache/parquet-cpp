@@ -201,6 +201,7 @@ inline void TypedScanner<parquet::Type::FIXED_LEN_BYTE_ARRAY>::FormatValue(
   snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
 }
 
+
 typedef TypedScanner<parquet::Type::BOOLEAN> BoolScanner;
 typedef TypedScanner<parquet::Type::INT32> Int32Scanner;
 typedef TypedScanner<parquet::Type::INT64> Int64Scanner;

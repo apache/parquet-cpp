@@ -24,3 +24,4 @@ install(FILES
   DESTINATION include/parquet/column)
 
 ADD_PARQUET_TEST(column-reader-test)
+ADD_PARQUET_TEST(scanner-test)
