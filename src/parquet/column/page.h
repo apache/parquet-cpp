@@ -26,9 +26,13 @@
 
 namespace parquet_cpp {
 
-// Note: Copying the specific page header Thrift metadata to the Page
-// object (instead of using a pointer) presently so that data pages can be
-// decompressed and processed in parallel
+// Note: Copying the specific page header Thrift metadata to the Page object
+// (instead of using a pointer) presently so that data pages can be
+// decompressed and processed in parallel. We can turn the header members of
+// these classes into pointers at some point, but the downside is that
+// applications materializing multiple data pages at once will have to have a
+// data container that manages the lifetime of the deserialized
+// parquet::PageHeader structs.
 //
 // TODO: Parallel processing is not yet safe because of memory-ownership
 // semantics (the PageReader may or may not own the memory referenced by a

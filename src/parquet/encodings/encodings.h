@@ -79,6 +79,8 @@ class Encoder {
 
   virtual ~Encoder() {}
 
+  // TODO(wesm): use an output stream
+
   // Subclasses should override the ones they support
   //
   // @returns: the number of bytes written to dst

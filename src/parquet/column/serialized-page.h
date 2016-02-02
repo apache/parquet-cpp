@@ -32,9 +32,9 @@
 
 namespace parquet_cpp {
 
-// This subclass delimits pages appearing in a serialized stream, each
-// proceeded by a serialized Thrift parquet::PageHeader indicating the type of
-// each page and the page metadata.
+// This subclass delimits pages appearing in a serialized stream, each preceded
+// by a serialized Thrift parquet::PageHeader indicating the type of each page
+// and the page metadata.
 class SerializedPageReader : public PageReader {
  public:
   SerializedPageReader(std::unique_ptr<InputStream> stream,
