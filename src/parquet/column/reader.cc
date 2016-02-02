@@ -86,7 +86,8 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
   const uint8_t* buffer;
 
   while (true) {
-    if (!pager_->NextPage(current_page_)) {
+    current_page_ = pager_->NextPage();
+    if (!current_page_) {
       // EOS
       return false;
     }

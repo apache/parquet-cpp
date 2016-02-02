@@ -43,7 +43,7 @@ class SerializedPageReader : public PageReader {
   virtual ~SerializedPageReader() {}
 
   // Implement the PageReader interface
-  virtual bool NextPage(std::shared_ptr<Page>& out);
+  virtual std::shared_ptr<Page> NextPage();
 
  private:
   std::unique_ptr<InputStream> stream_;

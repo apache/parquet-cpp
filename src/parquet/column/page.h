@@ -122,8 +122,8 @@ class PageReader {
  public:
   virtual ~PageReader() {}
 
-  // @returns: false on EOS, true if a new page has been returned
-  virtual bool NextPage(std::shared_ptr<Page>& out) = 0;
+  // @returns: pointer to null on EOS, std::shared_ptr<Page> otherwise
+  virtual std::shared_ptr<Page> NextPage() = 0;
 };
 
 } // namespace parquet_cpp

@@ -41,13 +41,12 @@ class MockPageReader : public PageReader {
       page_index_(0) {}
 
   // Implement the PageReader interface
-  virtual bool NextPage(std::shared_ptr<Page>& out) {
+  virtual std::shared_ptr<Page> NextPage() {
     if (page_index_ == pages_.size()) {
       // EOS to consumer
-      return false;
+      return std::shared_ptr<Page>(nullptr);
     }
-    out = pages_[page_index_++];
-    return true;
+    return pages_[page_index_++];
   }
 
  private:

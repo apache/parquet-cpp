@@ -48,13 +48,15 @@ SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
 // TODO(wesm): this may differ from file to file
 static constexpr int DATA_PAGE_SIZE = 64 * 1024;
 
-bool SerializedPageReader::NextPage(std::shared_ptr<Page>& out) {
+std::shared_ptr<Page> SerializedPageReader::NextPage() {
   // Loop here because there may be unhandled page types that we skip until
   // finding a page that we do know what to do with
   while (true) {
     int bytes_read = 0;
     const uint8_t* buffer = stream_->Peek(DATA_PAGE_SIZE, &bytes_read);
-    if (bytes_read == 0) return false;
+    if (bytes_read == 0) {
+      return std::shared_ptr<Page>(nullptr);
+    }
 
     // This gets used, then set by DeserializeThriftMsg
     uint32_t header_size = bytes_read;
@@ -82,14 +84,11 @@ bool SerializedPageReader::NextPage(std::shared_ptr<Page>& out) {
     }
 
     if (current_page_header_.type == PageType::DICTIONARY_PAGE) {
-      out.reset(
-          new DictionaryPage(buffer, uncompressed_len,
-              current_page_header_.dictionary_page_header));
-      return true;
+      return std::make_shared<DictionaryPage>(buffer, uncompressed_len,
+          current_page_header_.dictionary_page_header);
     } else if (current_page_header_.type == PageType::DATA_PAGE) {
-      out.reset(new DataPage(buffer, uncompressed_len,
-              current_page_header_.data_page_header));
-      return true;
+      return std::make_shared<DataPage>(buffer, uncompressed_len,
+          current_page_header_.data_page_header);
     } else if (current_page_header_.type == PageType::DATA_PAGE_V2) {
       ParquetException::NYI("data page v2");
     } else {
@@ -98,7 +97,7 @@ bool SerializedPageReader::NextPage(std::shared_ptr<Page>& out) {
       continue;
     }
   }
-  return true;
+  return std::shared_ptr<Page>(nullptr);
 }
 
 } // namespace parquet_cpp
