@@ -122,7 +122,8 @@ class PageReader {
  public:
   virtual ~PageReader() {}
 
-  // @returns: pointer to null on EOS, std::shared_ptr<Page> otherwise
+  // @returns: shared_ptr<Page>(nullptr) on EOS, std::shared_ptr<Page>
+  // containing new Page otherwise
   virtual std::shared_ptr<Page> NextPage() = 0;
 };
 
