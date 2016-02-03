@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "parquet/schema/types.h"
@@ -34,7 +35,7 @@ namespace schema {
 
 // Container for the converted Parquet schema with a bunch of computed
 // information from the schema analysis needed for file reading
-// * Column index to Type
+// * Column index to Node
 // * Max repetition / definition levels for each primitive type
 //
 // The ColumnDescriptor objects produced by this class can be used to

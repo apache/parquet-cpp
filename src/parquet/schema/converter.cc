@@ -111,8 +111,7 @@ class ParquetSchemaConverter {
 };
 
 
-std::shared_ptr<SchemaInfo> FromParquet(
-    const std::vector<SchemaElement>& schema) {
+std::shared_ptr<SchemaInfo> FromParquet(const std::vector<SchemaElement>& schema) {
   ParquetSchemaConverter converter(&schema[0], schema.size());
   return converter.Convert();
 }
