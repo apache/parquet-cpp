@@ -35,43 +35,67 @@ namespace schema {
 // ----------------------------------------------------------------------
 // Test converting leaf nodes to and from schema::Node data structures
 
-TEST(TestConvertPrimitiveElement, TestBasics) {
-  const std::string name = "name";
+class TestConvertPrimitiveElement : public ::testing::Test {
+ public:
+  void setUp() {
+    name_ = "name";
+    id_ = 5;
+  }
 
+  void Convert(const parquet::SchemaElement* element) {
+    node_ = ConvertPrimitive(element, id_);
+    ASSERT_TRUE(node_->is_primitive());
+    prim_node_ = static_cast<const PrimitiveNode*>(node_.get());
+  }
+
+ protected:
+  std::string name_;
+  const PrimitiveNode* prim_node_;
+
+  int id_;
+  std::unique_ptr<Node> node_;
+};
+
+TEST_F(TestConvertPrimitiveElement, TestBasics) {
   parquet::SchemaElement elt;
-  elt.__set_name(name);
+  elt.__set_name(name_);
   elt.__set_repetition_type(parquet::FieldRepetitionType::OPTIONAL);
   elt.__set_type(parquet::Type::INT32);
 
-  std::unique_ptr<Node> node = ConvertPrimitive(&elt, 5);
-  ASSERT_TRUE(node->is_primitive());
-
-  PrimitiveNode* prim_node = static_cast<PrimitiveNode*>(node.get());
-
-  ASSERT_EQ(name, prim_node->name());
-  ASSERT_EQ(5, prim_node->id());
-  ASSERT_EQ(Repetition::OPTIONAL, prim_node->repetition());
-  ASSERT_EQ(Type::INT32, prim_node->physical_type());
-  ASSERT_EQ(LogicalType::NONE, prim_node->logical_type());
+  Convert(&elt);
+  ASSERT_EQ(name_, prim_node_->name());
+  ASSERT_EQ(id_, prim_node_->id());
+  ASSERT_EQ(Repetition::OPTIONAL, prim_node_->repetition());
+  ASSERT_EQ(Type::INT32, prim_node_->physical_type());
+  ASSERT_EQ(LogicalType::NONE, prim_node_->logical_type());
 
   // Test a logical type
   elt.__set_repetition_type(parquet::FieldRepetitionType::REQUIRED);
   elt.__set_type(parquet::Type::BYTE_ARRAY);
   elt.__set_converted_type(parquet::ConvertedType::UTF8);
 
-  node = ConvertPrimitive(&elt, 5);
-  ASSERT_TRUE(node->is_primitive());
-  prim_node = static_cast<PrimitiveNode*>(node.get());
-
-  ASSERT_EQ(Repetition::REQUIRED, prim_node->repetition());
-  ASSERT_EQ(Type::BYTE_ARRAY, prim_node->physical_type());
-  ASSERT_EQ(LogicalType::UTF8, prim_node->logical_type());
+  Convert(&elt);
+  ASSERT_EQ(Repetition::REQUIRED, prim_node_->repetition());
+  ASSERT_EQ(Type::BYTE_ARRAY, prim_node_->physical_type());
+  ASSERT_EQ(LogicalType::UTF8, prim_node_->logical_type());
 }
 
-TEST(TestConvertPrimitiveElement, TestFixedLenByteArray) {
+TEST_F(TestConvertPrimitiveElement, TestFixedLenByteArray) {
+  parquet::SchemaElement elt;
+  elt.__set_name(name_);
+  elt.__set_repetition_type(parquet::FieldRepetitionType::OPTIONAL);
+  elt.__set_type(parquet::Type::FIXED_LEN_BYTE_ARRAY);
+  elt.__set_type_length(16);
+
+  Convert(&elt);
+  ASSERT_EQ(name_, prim_node_->name());
+  ASSERT_EQ(id_, prim_node_->id());
+  ASSERT_EQ(Repetition::OPTIONAL, prim_node_->repetition());
+  ASSERT_EQ(Type::FIXED_LEN_BYTE_ARRAY, prim_node_->physical_type());
+  ASSERT_EQ(16, prim_node_->type_length());
 }
 
-TEST(TestConvertPrimitiveElement, TestDecimal) {
+TEST_F(TestConvertPrimitiveElement, TestDecimal) {
 }
 
 // ----------------------------------------------------------------------
