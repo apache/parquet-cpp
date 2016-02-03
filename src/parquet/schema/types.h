@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// This module contains the logical parquet-cpp types (independent of Thrift
+// structures), schema nodes, and related type tools
+
 #ifndef PARQUET_SCHEMA_TYPES_H
 #define PARQUET_SCHEMA_TYPES_H
 
@@ -22,8 +25,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "parquet/thrift/parquet_types.h"
 
 namespace parquet_cpp {
 
@@ -41,9 +42,6 @@ struct Type {
     BYTE_ARRAY = 6,
     FIXED_LEN_BYTE_ARRAY = 7
   };
-
-  static Type::type FromParquet(parquet::Type::type type);
-  // static parquet::Type::type ToParquet(Type::type type);
 };
 
 // Mirrors parquet::ConvertedType
@@ -73,9 +71,6 @@ struct LogicalType {
     BSON,
     INTERVAL
   };
-
-  static LogicalType::type FromParquet(parquet::ConvertedType::type type);
-  // static parquet::ConvertedType::type ToParquet(LogicalType::type type);
 };
 
 // Mirrors parquet::FieldRepetitionType
@@ -85,9 +80,6 @@ struct Repetition {
     OPTIONAL = 1,
     REPEATED = 2
   };
-
-  static Repetition::type FromParquet(parquet::FieldRepetitionType::type type);
-  // static parquet::FieldRepetitionType::type ToParquet(Repetition::type type);
 };
 
 struct ArrayEncoding {
@@ -269,22 +261,6 @@ class Schema : public GroupNode {
 
   explicit Schema(const NodeVector& fields) :
       Schema("schema", fields) {}
-};
-
-// The ColumnDescriptor encapsulates information necessary to interpret
-// primitive column data in the context of
-class ColumnDescriptor {
- public:
-  ColumnDescriptor(const NodePtr& type, int16_t max_definition_level,
-      int16_t max_repetition_level) :
-      type_(type),
-      max_definition_level_(max_definition_level),
-      max_repetition_level_(max_repetition_level) {}
-
- private:
-  NodePtr type_;
-  int16_t max_definition_level_;
-  int16_t max_repetition_level_;
 };
 
 // ----------------------------------------------------------------------

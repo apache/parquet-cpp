@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "parquet/schema/descriptor.h"
 #include "parquet/schema/types.h"
 
 #include "parquet/thrift/parquet_types.h"
@@ -33,39 +34,7 @@ namespace parquet_cpp {
 
 namespace schema {
 
-// Container for the converted Parquet schema with a bunch of computed
-// information from the schema analysis needed for file reading
-// * Column index to Node
-// * Max repetition / definition levels for each primitive type
-//
-// The ColumnDescriptor objects produced by this class can be used to
-//
-// TODO(wesm): this object can be recomputed from a Schema
-class SchemaInfo {
- public:
-  explicit SchemaInfo(std::shared_ptr<Schema> schema) :
-      schema_(schema) {}
-  ~SchemaInfo() {}
-
-  ColumnDescriptor Column(size_t i) const;
-
-  // The number of physical columns appearing in the file
-  size_t num_columns() const;
-
- private:
-  std::shared_ptr<Schema> schema_;
-
-  // TODO(wesm): mapping between leaf nodes and root of leaf
-  //
-  // For example, the leaf `a.b.c.d` would have a link back to `a`
-  //
-  // -- a  <------
-  // -- -- b     |
-  // -- -- -- c  |
-  // -- -- -- -- d
-};
-
-std::shared_ptr<SchemaInfo> FromParquet(
+std::shared_ptr<SchemaDescriptor> FromParquet(
     const std::vector<parquet::SchemaElement>& schema);
 
 void ToParquet(Schema* schema, std::vector<parquet::SchemaElement>* out);

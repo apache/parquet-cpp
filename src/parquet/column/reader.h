@@ -31,7 +31,6 @@
 
 #include "parquet/column/page.h"
 
-#include "parquet/thrift/parquet_constants.h"
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/encodings/encodings.h"
 #include "parquet/util/rle-encoding.h"

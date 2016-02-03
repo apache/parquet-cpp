@@ -21,35 +21,6 @@ namespace parquet_cpp {
 
 namespace schema {
 
-Type::type Type::FromParquet(parquet::Type::type type) {
-  return static_cast<Type::type>(type);
-}
-
-LogicalType::type LogicalType::FromParquet(parquet::ConvertedType::type type) {
-  // item 0 is NONE
-  return static_cast<LogicalType::type>(static_cast<int>(type) + 1);
-}
-
-Repetition::type Repetition::FromParquet(parquet::FieldRepetitionType::type type) {
-  return static_cast<Repetition::type>(type);
-}
-
-// TODO: decide later what to do with these. When converting back only need to
-// write into a parquet::SchemaElement
-
-// parquet::FieldRepetitionType::type Repetition::ToParquet(Repetition::type type) {
-//   return static_cast<parquet::FieldRepetitionType::type>(type);
-// }
-
-// parquet::ConvertedType::type LogicalType::ToParquet(LogicalType::type type) {
-//   // item 0 is NONE
-//   return static_cast<parquet::ConvertedType::type>(static_cast<int>(type) - 1);
-// }
-
-// parquet::Type::type Type::ToParquet(Type::type type) {
-//   return static_cast<parquet::Type::type>(type);
-// }
-
 } // namespace schema
 
 } // namespace parquet_cpp

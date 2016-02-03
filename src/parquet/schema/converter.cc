@@ -25,6 +25,37 @@ namespace parquet_cpp {
 
 namespace schema {
 
+
+// Using operator overloading on these for now, can always refactor later
+static Type::type FromParquet(parquet::Type::type type) {
+  return static_cast<Type::type>(type);
+}
+
+static LogicalType::type FromParquet(parquet::ConvertedType::type type) {
+  // item 0 is NONE
+  return static_cast<LogicalType::type>(static_cast<int>(type) + 1);
+}
+
+static Repetition::type FromParquet(parquet::FieldRepetitionType::type type) {
+  return static_cast<Repetition::type>(type);
+}
+
+// TODO: decide later what to do with these. When converting back only need to
+// write into a parquet::SchemaElement
+
+// parquet::FieldRepetitionType::type ToParquet(Repetition::type type) {
+//   return static_cast<parquet::FieldRepetitionType::type>(type);
+// }
+
+// parquet::ConvertedType::type ToParquet(LogicalType::type type) {
+//   // item 0 is NONE
+//   return static_cast<parquet::ConvertedType::type>(static_cast<int>(type) - 1);
+// }
+
+// parquet::Type::type ToParquet(Type::type type) {
+//   return static_cast<parquet::Type::type>(type);
+// }
+
 class ParquetSchemaConverter {
  public:
   ParquetSchemaConverter(const SchemaElement* elements, size_t length) :
@@ -33,7 +64,7 @@ class ParquetSchemaConverter {
       pos_(0),
       current_id_(0) {}
 
-  std::shared_ptr<SchemaInfo> Convert() {
+  std::shared_ptr<SchemaDescriptor> Convert() {
     const SchemaElement& root = Next();
 
     // Validate the root node
@@ -50,7 +81,7 @@ class ParquetSchemaConverter {
     }
 
     std::shared_ptr<Schema> result(new Schema(fields));
-    return std::make_shared<SchemaInfo>(result);
+    return std::make_shared<SchemaDescriptor>(result);
   }
 
  private:
@@ -65,14 +96,14 @@ class ParquetSchemaConverter {
 
     LogicalType::type logical_type = LogicalType::NONE;
     if (element.__isset.converted_type) {
-      logical_type = LogicalType::FromParquet(element.converted_type);
+      logical_type = FromParquet(element.converted_type);
     }
 
-    Repetition::type repetition = Repetition::FromParquet(element.repetition_type);
+    Repetition::type repetition = FromParquet(element.repetition_type);
 
     if (element.num_children == 0) {
       // Leaf (primitive) node
-      Type::type primitive_type = Type::FromParquet(element.type);
+      Type::type primitive_type = FromParquet(element.type);
 
       // TODO(wesm): FLBA metadata
 
@@ -111,7 +142,7 @@ class ParquetSchemaConverter {
 };
 
 
-std::shared_ptr<SchemaInfo> FromParquet(const std::vector<SchemaElement>& schema) {
+std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& schema) {
   ParquetSchemaConverter converter(&schema[0], schema.size());
   return converter.Convert();
 }
