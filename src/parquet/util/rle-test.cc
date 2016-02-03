@@ -318,14 +318,22 @@ TEST(BitRle, Flush) {
 // Test some random sequences.
 TEST(BitRle, Random) {
   int iters = 0;
-  while (iters < 1000) {
+
+  size_t niters = 500;
+  size_t ngroups = 1000;
+  size_t max_group_size = 16;
+  vector<int> values(ngroups + max_group_size);
+
+  while (iters < niters) {
     srand(iters++);
     if (iters % 10000 == 0) LOG(ERROR) << "Seed: " << iters;
-    vector<int> values;
     bool parity = 0;
-    for (int i = 0; i < 1000; ++i) {
+
+    values.resize(0);
+
+    for (int i = 0; i < ngroups; ++i) {
       int group_size = rand() % 20 + 1;  // NOLINT
-      if (group_size > 16) {
+      if (group_size > max_group_size) {
         group_size = 1;
       }
       for (int i = 0; i < group_size; ++i) {
