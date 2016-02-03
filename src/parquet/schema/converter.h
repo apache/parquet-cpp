@@ -37,7 +37,7 @@ namespace schema {
 std::shared_ptr<SchemaDescriptor> FromParquet(
     const std::vector<parquet::SchemaElement>& schema);
 
-void ToParquet(Schema* schema, std::vector<parquet::SchemaElement>* out);
+void ToParquet(RootSchema* schema, std::vector<parquet::SchemaElement>* out);
 
 } // namespace schema
 

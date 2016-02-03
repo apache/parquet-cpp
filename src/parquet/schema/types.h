@@ -272,13 +272,13 @@ class GroupNode : public Node {
 
 
 // A group representing a top-level Parquet schema
-class Schema : public GroupNode {
+class RootSchema : public GroupNode {
  public:
-  Schema(const std::string& name, const NodeVector& fields) :
+  RootSchema(const std::string& name, const NodeVector& fields) :
       GroupNode(name, Repetition::REPEATED, fields) {}
 
-  explicit Schema(const NodeVector& fields) :
-      Schema("schema", fields) {}
+  explicit RootSchema(const NodeVector& fields) :
+      RootSchema("schema", fields) {}
 };
 
 // ----------------------------------------------------------------------

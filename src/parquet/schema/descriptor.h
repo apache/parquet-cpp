@@ -66,7 +66,7 @@ class ColumnDescriptor {
 // TODO(wesm): this object can be recomputed from a Schema
 class SchemaDescriptor {
  public:
-  explicit SchemaDescriptor(std::shared_ptr<Schema> schema) :
+  explicit SchemaDescriptor(std::shared_ptr<RootSchema> schema) :
       schema_(schema) {}
   ~SchemaDescriptor() {}
 
@@ -78,7 +78,7 @@ class SchemaDescriptor {
  private:
   friend class ColumnDescriptor;
 
-  std::shared_ptr<Schema> schema_;
+  std::shared_ptr<RootSchema> schema_;
 
   // TODO(wesm): mapping between leaf nodes and root group of leaf (first node
   // below the schema's root group)

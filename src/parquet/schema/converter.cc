@@ -80,7 +80,7 @@ class ParquetSchemaConverter {
       fields.push_back(field);
     }
 
-    std::shared_ptr<Schema> result(new Schema(fields));
+    std::shared_ptr<RootSchema> result(new RootSchema(fields));
     return std::make_shared<SchemaDescriptor>(result);
   }
 

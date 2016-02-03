@@ -159,6 +159,22 @@ TEST_F(TestGroupNode, TestEquals) {
 // ----------------------------------------------------------------------
 // Schema root node
 
+TEST_F(TestGroupNode, TestRootSchema) {
+  NodeVector fields = Fields1();
+
+  std::string test_name = "parquet_cpp_schema";
+  RootSchema schema(test_name, fields);
+  ASSERT_EQ(test_name, schema.name());
+
+  // convenience ctor, no need to supply a name
+  RootSchema schema2(fields);
+  ASSERT_EQ("schema", schema2.name());
+
+  // ctor equivalence
+  RootSchema schema3("schema", fields);
+  ASSERT_TRUE(schema2.Equals(&schema3));
+}
+
 } // namespace schema
 
 } // namespace parquet_cpp
