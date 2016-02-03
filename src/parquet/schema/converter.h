@@ -15,7 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Conversion routines for converting to and from flat Parquet metadata
+// Conversion routines for converting to and from flat Parquet metadata. Among
+// other things, this limits the exposure of the internals of the Thrift
+// metadata structs to the rest of the library.
+
+// NB: This file is not part of the schema public API and only used internally
+// for converting to and from Parquet Thrift metadata
 
 #ifndef PARQUET_SCHEMA_CONVERTER_H
 #define PARQUET_SCHEMA_CONVERTER_H
@@ -38,6 +43,12 @@ std::shared_ptr<SchemaDescriptor> FromParquet(
     const std::vector<parquet::SchemaElement>& schema);
 
 void ToParquet(RootSchema* schema, std::vector<parquet::SchemaElement>* out);
+
+// Helper functions that we can also test
+std::unique_ptr<Node> ConvertPrimitive(const parquet::SchemaElement* element,
+    int node_id = -1);
+std::unique_ptr<Node> ConvertGroup(const parquet::SchemaElement* element, int node_id,
+    const NodeVector& fields);
 
 } // namespace schema
 

@@ -44,12 +44,12 @@ class NodeBuilder {
   std::vector<Schema::Node> children_;
 };
 
-class ArrayBuilder;
+class ListBuilder;
 
 class GroupBuilder : public NodeBuilder {
  public:
   GroupBuilder* NewGroup();
-  ArrayBuilder* NewArray(const std::string& name,
+  ListBuilder* NewList(const std::string& name,
       bool optional = true, bool optional_values = true);
 
  private:
@@ -57,54 +57,38 @@ class GroupBuilder : public NodeBuilder {
 };
 
 
-// A NodeBuilder to simplify the mechanics of different array encodings
-//
-// One-level encoding: Only allows required arrays with required cells
-//   repeated value_type name
-//
-// Two-level encoding: Enables optional arrays with only required cells
-//   <required/optional> group list
-//     repeated value_type item
-//
-// Three-level encoding: Enables optional arrays with optional cells
-//   <required/optional> group bag
-//     repeated group list
-//       <required/optional> value_type item
-//
-// 2- and 1-level encoding are respectively equivalent to 3-level encoding with
-// the inner
-//
-// The "official" encoding recommended in the Parquet spec is the 3-level, and
-// we use that as the default. For semantic completeness we allow the other 2.
-class ArrayBuilder  : public NodeBuilder {
+// A NodeBuilder to simplify the mechanics of different array encodings. See
+// ListEncoding declaration for description of the different types of
+// encodings.
+class ListBuilder  : public NodeBuilder {
  public:
-  explicit ArrayBuilder(const std::string& name) :
+  explicit ListBuilder(const std::string& name) :
       NodeBuilder(name),
       optional_(true),
       optional_values_(true) {}
 
   // Fluid interface
   //
-  // builder->NewArray("foo")
+  // builder->NewList("foo")
   //        ->Optional(false)
   //        ->OptionalValues(true)->Finish();
-  ArrayBuilder* Encoding(ArrayEncoding encoding) {
+  ListBuilder* Encoding(ListEncoding encoding) {
     encoding_ = encoding;
     return this;
   }
 
-  ArrayBuilder* Optional(bool optional = true) {
+  ListBuilder* Optional(bool optional = true) {
     optional_ = optional;
     return this;
   }
 
-  ArrayBuilder* OptionalValues(bool optional = true) {
+  ListBuilder* OptionalValues(bool optional = true) {
     optional_values_ = optional;
     return this;
   }
 
  private:
-  ArrayEncoding encoding_;
+  ListEncoding encoding_;
   bool optional_;
   bool optional_values_;
 

@@ -17,6 +17,8 @@
 
 #include "parquet/schema/converter.h"
 
+#include <string>
+
 #include "parquet/exception.h"
 
 using parquet::SchemaElement;
@@ -24,7 +26,6 @@ using parquet::SchemaElement;
 namespace parquet_cpp {
 
 namespace schema {
-
 
 // Using operator overloading on these for now, can always refactor later
 static Type::type FromParquet(parquet::Type::type type) {
@@ -56,95 +57,108 @@ static Repetition::type FromParquet(parquet::FieldRepetitionType::type type) {
 //   return static_cast<parquet::Type::type>(type);
 // }
 
-class ParquetSchemaConverter {
+struct NodeParams {
+  explicit NodeParams(const std::string& name) :
+      name(name) {}
+
+  const std::string& name;
+  Repetition::type repetition;
+  LogicalType::type logical_type;
+};
+
+static inline NodeParams GetNodeParams(const SchemaElement* element) {
+  NodeParams params(element->name);
+
+  params.repetition = FromParquet(element->repetition_type);
+  if (element->__isset.converted_type) {
+    params.logical_type = FromParquet(element->converted_type);
+  } else {
+    params.logical_type = LogicalType::NONE;
+  }
+  return params;
+}
+
+std::unique_ptr<Node> ConvertPrimitive(const SchemaElement* element, int node_id) {
+  NodeParams params = GetNodeParams(element);
+
+  // TODO(wesm): FLBA metadata
+
+  // TODO(wesm): Decimal metadata
+
+  return std::unique_ptr<Node>(new PrimitiveNode(params.name, params.repetition,
+          FromParquet(element->type), params.logical_type, node_id));
+}
+
+std::unique_ptr<Node> ConvertGroup(const SchemaElement* element, int node_id,
+    const NodeVector& fields) {
+  NodeParams params = GetNodeParams(element);
+  return std::unique_ptr<Node>(new GroupNode(params.name, params.repetition, fields,
+          params.logical_type, node_id));
+}
+
+class GroupConverter {
  public:
-  ParquetSchemaConverter(const SchemaElement* elements, size_t length) :
+  GroupConverter(const SchemaElement* elements, size_t length) :
       elements_(elements),
       length_(length),
       pos_(0),
       current_id_(0) {}
 
-  std::shared_ptr<SchemaDescriptor> Convert() {
-    const SchemaElement& root = Next();
+  std::unique_ptr<Node> Convert() {
+    const SchemaElement& root = elements_[0];
 
     // Validate the root node
     if (root.num_children == 0) {
-      throw ParquetException("Parquet schema did not have a root group");
+      throw ParquetException("Root node did not have children");
     }
 
-    size_t root_id = next_id();
-
-    NodeVector fields;
-    for (size_t i = 0; i < root.num_children; ++i) {
-      NodePtr field = NextNode();
-      fields.push_back(field);
-    }
-
-    std::shared_ptr<RootSchema> result(new RootSchema(fields));
-    return std::make_shared<SchemaDescriptor>(result);
+    return NextNode();
   }
 
  private:
+  const SchemaElement* elements_;
+  size_t length_;
+  size_t pos_;
+  size_t current_id_;
+
   size_t next_id() {
     return current_id_++;
   }
 
-  NodePtr NextNode() {
+  std::unique_ptr<Node> NextNode() {
     const SchemaElement& element = Next();
 
     size_t node_id = next_id();
 
-    LogicalType::type logical_type = LogicalType::NONE;
-    if (element.__isset.converted_type) {
-      logical_type = FromParquet(element.converted_type);
-    }
-
-    Repetition::type repetition = FromParquet(element.repetition_type);
-
     if (element.num_children == 0) {
       // Leaf (primitive) node
-      Type::type primitive_type = FromParquet(element.type);
-
-      // TODO(wesm): FLBA metadata
-
-      // TODO(wesm): Decimal metadata
-
-      return NodePtr(new PrimitiveNode(element.name, repetition, primitive_type,
-              logical_type, node_id));
+      return ConvertPrimitive(&element, node_id);
     } else {
       // Group
       NodeVector fields;
       for (size_t i = 0; i < element.num_children; ++i) {
-        NodePtr field = NextNode();
-        fields.push_back(field);
+        std::unique_ptr<Node> field = NextNode();
+        fields.push_back(NodePtr(field.release()));
       }
-
-      return NodePtr(new GroupNode(element.name, repetition, fields,
-              logical_type, node_id));
+      return ConvertGroup(&element, node_id, fields);
     }
-  }
-  bool HasNext() const {
-    return pos_ < length_;
-  }
-
-  const SchemaElement& Peek() const {
-    return elements_[pos_];
   }
 
   const SchemaElement& Next() {
     return elements_[pos_++];
   }
-
-  const SchemaElement* elements_;
-  size_t length_;
-  size_t pos_;
-  size_t current_id_;
 };
 
 
 std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& schema) {
-  ParquetSchemaConverter converter(&schema[0], schema.size());
-  return converter.Convert();
+  GroupConverter converter(&schema[0], schema.size());
+  std::unique_ptr<Node> root = converter.Convert();
+
+  std::shared_ptr<SchemaDescriptor> descr = std::make_shared<SchemaDescriptor>(
+      std::shared_ptr<GroupNode>(static_cast<GroupNode*>(root.release())));
+  descr->Init();
+
+  return descr;
 }
 
 

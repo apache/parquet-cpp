@@ -50,17 +50,15 @@ struct Type {
 struct LogicalType {
   enum type {
     NONE,
-    MAP,
-    LIST,
     UTF8,
+    MAP,
     MAP_KEY_VALUE,
+    LIST,
     ENUM,
     DECIMAL,
     DATE,
     TIME_MILLIS,
-    TIME_MICROS,
     TIMESTAMP_MILLIS,
-    TIMESTAMP_MICROS,
     UINT_8,
     UINT_16,
     UINT_32,
@@ -84,7 +82,33 @@ struct Repetition {
   };
 };
 
-struct ArrayEncoding {
+// List encodings: using the terminology from Impala to define different styles
+// of representing logical lists (a.k.a. ARRAY types) in Parquet schemas. Since
+// the converted type named in the Parquet metadata is ConvertedType::LIST we
+// use that terminology here. It also helps distinguish from the *_ARRAY
+// primitive types.
+//
+// One-level encoding: Only allows required lists with required cells
+//   repeated value_type name
+//
+// Two-level encoding: Enables optional lists with only required cells
+//   <required/optional> group list
+//     repeated value_type item
+//
+// Three-level encoding: Enables optional lists with optional cells
+//   <required/optional> group bag
+//     repeated group list
+//       <required/optional> value_type item
+//
+// 2- and 1-level encoding are respectively equivalent to 3-level encoding with
+// the inner
+//
+// The "official" encoding recommended in the Parquet spec is the 3-level, and
+// we use that as the default when creating list types. For semantic completeness
+// we allow the other two. Since all types of encodings will occur "in the
+// wild" we need to be able to interpret the associated definition levels in
+// the context of the actual encoding used in the file.
+struct ListEncoding {
   enum type {
     ONE_LEVEL,
     TWO_LEVEL,
@@ -156,6 +180,10 @@ class Node {
     return logical_type_;
   }
 
+  int id() const {
+    return id_;
+  }
+
  protected:
   Node::type type_;
   std::string name_;
@@ -166,6 +194,7 @@ class Node {
   bool EqualsInternal(const Node* other) const;
 };
 
+// Save our breath all over the place with these typedefs
 typedef std::shared_ptr<Node> NodePtr;
 typedef std::vector<NodePtr> NodeVector;
 

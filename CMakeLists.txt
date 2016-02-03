@@ -220,6 +220,7 @@ set(LIBPARQUET_SRCS
   src/parquet/reader.cc
 
   src/parquet/schema/converter.cc
+  src/parquet/schema/descriptor.cc
   src/parquet/schema/types.cc
 )
 

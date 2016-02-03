@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Conversion routines for converting to and from flat Parquet metadata
-
 #ifndef PARQUET_SCHEMA_DESCRIPTOR_H
 #define PARQUET_SCHEMA_DESCRIPTOR_H
 
@@ -34,7 +32,10 @@ namespace schema {
 class SchemaDescriptor;
 
 // The ColumnDescriptor encapsulates information necessary to interpret
-// primitive column data in the context of
+// primitive column data in the context of a particular schema. We have to
+// examine the node structure of a column's path to the root in the schema tree
+// to be able to reassemble the nested structure from the repetition and
+// definition levels.
 class ColumnDescriptor {
  public:
   ColumnDescriptor(const NodePtr& type, int16_t max_definition_level,
@@ -42,6 +43,14 @@ class ColumnDescriptor {
       type_(type),
       max_definition_level_(max_definition_level),
       max_repetition_level_(max_repetition_level) {}
+
+  int16_t max_definition_level() const {
+    return max_definition_level_;
+  }
+
+  int16_t max_repetition_level() const {
+    return max_repetition_level_;
+  }
 
  private:
   NodePtr type_;
@@ -51,11 +60,12 @@ class ColumnDescriptor {
   // When this descriptor is part of a real schema (and not being used for
   // testing purposes), maintain a link back to the parent SchemaDescriptor to
   // enable reverse graph traversals
-  SchemaDescriptor* schema_descr_;
+  const SchemaDescriptor* schema_descr_;
 };
 
-// Container for the converted Parquet schema with a bunch of computed
-// information from the schema analysis needed for file reading
+// Container for the converted Parquet schema with a computed information from
+// the schema analysis needed for file reading
+//
 // * Column index to Node
 // * Max repetition / definition levels for each primitive type
 //
@@ -66,9 +76,12 @@ class ColumnDescriptor {
 // TODO(wesm): this object can be recomputed from a Schema
 class SchemaDescriptor {
  public:
-  explicit SchemaDescriptor(std::shared_ptr<RootSchema> schema) :
+  explicit SchemaDescriptor(std::shared_ptr<GroupNode> schema) :
       schema_(schema) {}
   ~SchemaDescriptor() {}
+
+  // Analyze the schema
+  void Init();
 
   ColumnDescriptor Column(size_t i) const;
 
@@ -78,7 +91,7 @@ class SchemaDescriptor {
  private:
   friend class ColumnDescriptor;
 
-  std::shared_ptr<RootSchema> schema_;
+  std::shared_ptr<GroupNode> schema_;
 
   // TODO(wesm): mapping between leaf nodes and root group of leaf (first node
   // below the schema's root group)
