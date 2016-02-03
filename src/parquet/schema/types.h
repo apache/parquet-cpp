@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "parquet/exception.h"
+
 namespace parquet_cpp {
 
 namespace schema {
@@ -99,12 +101,12 @@ struct DecimalMetadata {
 // and optionally a logical type (ConvertedType in Parquet metadata parlance)
 class Node {
  public:
-  enum node_type {
+  enum type {
     PRIMITIVE,
     GROUP
   };
 
-  Node(Node::node_type type, const std::string& name,
+  Node(Node::type type, const std::string& name,
       Repetition::type repetition,
       LogicalType::type logical_type = LogicalType::NONE,
       int id = -1) :
@@ -118,6 +120,10 @@ class Node {
 
   bool is_primitive() const {
     return type_ == Node::PRIMITIVE;
+  }
+
+  bool is_group() const {
+    return type_ == Node::GROUP;
   }
 
   bool is_optional() const {
@@ -138,7 +144,7 @@ class Node {
     return name_;
   }
 
-  Node::node_type type() const {
+  Node::type node_type() const {
     return type_;
   }
 
@@ -151,18 +157,13 @@ class Node {
   }
 
  protected:
-  Node::node_type type_;
+  Node::type type_;
   std::string name_;
   Repetition::type repetition_;
   LogicalType::type logical_type_;
   int id_;
 
-  bool EqualsInternal(const Node* other) const {
-    return type_ == other->type_ &&
-      name_ == other->name_ &&
-      repetition_ == other->repetition_ &&
-      logical_type_ == other->logical_type_;
-  }
+  bool EqualsInternal(const Node* other) const;
 };
 
 typedef std::shared_ptr<Node> NodePtr;
@@ -181,32 +182,68 @@ class PrimitiveNode : public Node {
       Node(Node::PRIMITIVE, name, repetition, logical_type, id),
       physical_type_(type) {}
 
-  virtual bool Equals(const Node* other) const {
-    if (!Node::EqualsInternal(other)) {
-      return false;
+  // FLBA ctor
+  PrimitiveNode(const std::string& name, Repetition::type repetition,
+      Type::type type, int32_t type_length,
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
+      PrimitiveNode(name, repetition, type, logical_type, id) {
+    if (type != Type::FIXED_LEN_BYTE_ARRAY) {
+      throw ParquetException("FIXED_LEN_BYTE_ARRAY ctor");
     }
-    return EqualsInternal(static_cast<const PrimitiveNode*>(other));
+
+    type_length_ = type_length;
   }
 
-  // TODO FIXED_LEN_BYTE_ARRAY
+  // Decimal ctor
+  PrimitiveNode(const std::string& name, Repetition::type repetition,
+      Type::type type, int32_t scale, int32_t precision,
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
+      PrimitiveNode(name, repetition, type, logical_type, id) {
+    if (type != Type::FIXED_LEN_BYTE_ARRAY) {
+      throw ParquetException("FIXED_LEN_BYTE_ARRAY ctor");
+    }
 
-  // TODO Decimal
+    // TODO(wesm): compute FLBA type length from scale/precision
+
+    SetDecimalMetadata(scale, precision);
+  }
+
+  virtual bool Equals(const Node* other) const;
+
+  Type::type physical_type() const {
+    return physical_type_;
+  }
+
+  int32_t type_length() const {
+    return type_length_;
+  }
+
+  const DecimalMetadata& decimal_metadata() const {
+    return decimal_metadata_;
+  }
 
  private:
   Type::type physical_type_;
 
   // For FIXED_LEN_BYTE_ARRAY
-  size_t length_;
-
-  // Precision and scale
-  DecimalMetadata decimal_meta_;
-
-  bool EqualsInternal(const PrimitiveNode* other) const {
-    // TODO(wesm): metadata
-    return (this == other) || (physical_type_ == other->physical_type_);
+  void SetTypeLength(int32_t length) {
+    type_length_ = length;
   }
-};
 
+  int32_t type_length_;
+
+  // For Decimal logical type: Precision and scale
+  void SetDecimalMetadata(int32_t scale, int32_t precision) {
+    decimal_metadata_.scale = scale;
+    decimal_metadata_.precision = precision;
+  }
+
+  DecimalMetadata decimal_metadata_;
+
+  bool EqualsInternal(const PrimitiveNode* other) const;
+};
 
 class GroupNode : public Node {
  public:
@@ -217,12 +254,7 @@ class GroupNode : public Node {
       Node(Node::GROUP, name, repetition, logical_type, id),
       fields_(fields) {}
 
-  virtual bool Equals(const Node* other) const {
-    if (this->type() != other->type()) {
-      return false;
-    }
-    return EqualsInternal(static_cast<const GroupNode*>(other));
-  }
+  virtual bool Equals(const Node* other) const;
 
   const NodePtr& field(size_t i) const {
     return fields_[i];
@@ -235,21 +267,7 @@ class GroupNode : public Node {
  private:
   NodeVector fields_;
 
-  bool EqualsInternal(const GroupNode* other) const {
-    if (this == other) {
-      return true;
-    }
-    if (this->field_count() != other->field_count()) {
-      return false;
-    }
-    for (size_t i = 0; i < this->field_count(); ++i) {
-      const Node* other_field = static_cast<const Node*>(other->field(i).get());
-      if (!this->field(i)->Equals(other_field)) {
-        return false;
-      }
-    }
-    return true;
-  }
+  bool EqualsInternal(const GroupNode* other) const;
 };
 
 

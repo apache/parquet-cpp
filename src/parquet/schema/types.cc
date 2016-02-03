@@ -21,6 +21,59 @@ namespace parquet_cpp {
 
 namespace schema {
 
+// ----------------------------------------------------------------------
+// Base node
+
+bool Node::EqualsInternal(const Node* other) const {
+  return type_ == other->type_ &&
+    name_ == other->name_ &&
+    repetition_ == other->repetition_ &&
+    logical_type_ == other->logical_type_;
+}
+
+// ----------------------------------------------------------------------
+// Primitive node
+
+bool PrimitiveNode::EqualsInternal(const PrimitiveNode* other) const {
+  // TODO(wesm): metadata
+  return (this == other) || (physical_type_ == other->physical_type_);
+}
+
+bool PrimitiveNode::Equals(const Node* other) const {
+  if (!Node::EqualsInternal(other)) {
+    return false;
+  }
+  return EqualsInternal(static_cast<const PrimitiveNode*>(other));
+}
+
+// ----------------------------------------------------------------------
+// Group node
+
+bool GroupNode::EqualsInternal(const GroupNode* other) const {
+    if (this == other) {
+      return true;
+    }
+    if (this->field_count() != other->field_count()) {
+      return false;
+    }
+    for (size_t i = 0; i < this->field_count(); ++i) {
+      const Node* other_field = static_cast<const Node*>(other->field(i).get());
+      if (!this->field(i)->Equals(other_field)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+bool GroupNode::Equals(const Node* other) const {
+  if (!Node::EqualsInternal(other)) {
+    return false;
+  }
+  return EqualsInternal(static_cast<const GroupNode*>(other));
+}
+
+
+
 } // namespace schema
 
 } // namespace parquet_cpp

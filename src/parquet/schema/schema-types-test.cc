@@ -31,33 +31,73 @@ namespace parquet_cpp {
 
 namespace schema {
 
+// ----------------------------------------------------------------------
+// Primitive node
+
+TEST(TestPrimitiveNode, TestAttrs) {
+  PrimitiveNode node1("foo", Repetition::REPEATED, Type::INT32);
+
+  PrimitiveNode node2("bar", Repetition::OPTIONAL, Type::BYTE_ARRAY,
+      LogicalType::UTF8);
+
+  ASSERT_EQ("foo", node1.name());
+
+  ASSERT_TRUE(node1.is_primitive());
+  ASSERT_FALSE(node1.is_group());
+
+  ASSERT_EQ(Repetition::REPEATED, node1.repetition());
+  ASSERT_EQ(Repetition::OPTIONAL, node2.repetition());
+
+  ASSERT_EQ(Node::PRIMITIVE, node1.node_type());
+
+  ASSERT_EQ(Type::INT32, node1.physical_type());
+  ASSERT_EQ(Type::BYTE_ARRAY, node2.physical_type());
+
+  // logical types
+  ASSERT_EQ(LogicalType::NONE, node1.logical_type());
+  ASSERT_EQ(LogicalType::UTF8, node2.logical_type());
+}
+
+TEST(TestPrimitiveNode, TestFixedLenByteArray) {
+  PrimitiveNode t1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 10);
+
+  ASSERT_EQ(10, t1.type_length());
+}
+
+TEST(TestPrimitiveNode, TestDecimal) {
+  // TODO(wesm): need to look more at Parquet spec
+}
+
 TEST(TestPrimitiveNode, TestIsRepetition) {
-  PrimitiveNode type1("foo", Repetition::REQUIRED, Type::INT32);
-  PrimitiveNode type2("foo", Repetition::OPTIONAL, Type::INT32);
-  PrimitiveNode type3("foo", Repetition::REPEATED, Type::INT32);
+  PrimitiveNode node1("foo", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode node2("foo", Repetition::OPTIONAL, Type::INT32);
+  PrimitiveNode node3("foo", Repetition::REPEATED, Type::INT32);
 
-  ASSERT_TRUE(type1.is_required());
+  ASSERT_TRUE(node1.is_required());
 
-  ASSERT_TRUE(type2.is_optional());
-  ASSERT_FALSE(type2.is_required());
+  ASSERT_TRUE(node2.is_optional());
+  ASSERT_FALSE(node2.is_required());
 
-  ASSERT_TRUE(type3.is_repeated());
-  ASSERT_FALSE(type3.is_optional());
+  ASSERT_TRUE(node3.is_repeated());
+  ASSERT_FALSE(node3.is_optional());
 }
 
 TEST(TestPrimitiveNode, TestEquals) {
-  PrimitiveNode type1("foo", Repetition::REQUIRED, Type::INT32);
-  PrimitiveNode type2("foo", Repetition::REQUIRED, Type::INT64);
-  PrimitiveNode type3("bar", Repetition::REQUIRED, Type::INT32);
-  PrimitiveNode type4("foo", Repetition::OPTIONAL, Type::INT32);
-  PrimitiveNode type5("foo", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode node1("foo", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode node2("foo", Repetition::REQUIRED, Type::INT64);
+  PrimitiveNode node3("bar", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode node4("foo", Repetition::OPTIONAL, Type::INT32);
+  PrimitiveNode node5("foo", Repetition::REQUIRED, Type::INT32);
 
-  ASSERT_TRUE(type1.Equals(&type1));
-  ASSERT_FALSE(type1.Equals(&type2));
-  ASSERT_FALSE(type1.Equals(&type3));
-  ASSERT_FALSE(type1.Equals(&type4));
-  ASSERT_TRUE(type1.Equals(&type5));
+  ASSERT_TRUE(node1.Equals(&node1));
+  ASSERT_FALSE(node1.Equals(&node2));
+  ASSERT_FALSE(node1.Equals(&node3));
+  ASSERT_FALSE(node1.Equals(&node4));
+  ASSERT_TRUE(node1.Equals(&node5));
 }
+
+// ----------------------------------------------------------------------
+// Group node
 
 class TestGroupNode : public ::testing::Test {
  public:
@@ -72,15 +112,52 @@ class TestGroupNode : public ::testing::Test {
   }
 };
 
+TEST_F(TestGroupNode, TestAttrs) {
+  NodeVector fields = Fields1();
+
+  GroupNode node1("foo", Repetition::REPEATED, fields);
+  GroupNode node2("bar", Repetition::OPTIONAL, fields, LogicalType::LIST);
+
+  ASSERT_EQ("foo", node1.name());
+
+  ASSERT_TRUE(node1.is_group());
+  ASSERT_FALSE(node1.is_primitive());
+
+  ASSERT_EQ(fields.size(), node1.field_count());
+
+  ASSERT_TRUE(node1.is_repeated());
+  ASSERT_TRUE(node2.is_optional());
+
+  ASSERT_EQ(Repetition::REPEATED, node1.repetition());
+  ASSERT_EQ(Repetition::OPTIONAL, node2.repetition());
+
+  ASSERT_EQ(Node::GROUP, node1.node_type());
+
+  // logical types
+  ASSERT_EQ(LogicalType::NONE, node1.logical_type());
+  ASSERT_EQ(LogicalType::LIST, node2.logical_type());
+}
+
 TEST_F(TestGroupNode, TestEquals) {
   NodeVector f1 = Fields1();
   NodeVector f2 = Fields1();
 
   GroupNode group1("group", Repetition::REPEATED, f1);
   GroupNode group2("group", Repetition::REPEATED, f2);
+  GroupNode group3("group2", Repetition::REPEATED, f2);
+
+  // This is copied in the GroupNode ctor, so this is okay
+  f2.push_back(Float("four", Repetition::OPTIONAL));
+  GroupNode group4("group", Repetition::REPEATED, f2);
 
   ASSERT_TRUE(group1.Equals(&group2));
+  ASSERT_FALSE(group1.Equals(&group3));
+
+  ASSERT_FALSE(group1.Equals(&group4));
 }
+
+// ----------------------------------------------------------------------
+// Schema root node
 
 } // namespace schema
 

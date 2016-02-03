@@ -31,6 +31,8 @@ namespace parquet_cpp {
 
 namespace schema {
 
+class SchemaDescriptor;
+
 // The ColumnDescriptor encapsulates information necessary to interpret
 // primitive column data in the context of
 class ColumnDescriptor {
@@ -45,6 +47,11 @@ class ColumnDescriptor {
   NodePtr type_;
   int16_t max_definition_level_;
   int16_t max_repetition_level_;
+
+  // When this descriptor is part of a real schema (and not being used for
+  // testing purposes), maintain a link back to the parent SchemaDescriptor to
+  // enable reverse graph traversals
+  SchemaDescriptor* schema_descr_;
 };
 
 // Container for the converted Parquet schema with a bunch of computed
@@ -52,7 +59,9 @@ class ColumnDescriptor {
 // * Column index to Node
 // * Max repetition / definition levels for each primitive type
 //
-// The ColumnDescriptor objects produced by this class can be used to
+// The ColumnDescriptor objects produced by this class can be used to assist in
+// the reconstruction of fully materialized data structures from the
+// repetition-definition level encoding of nested data
 //
 // TODO(wesm): this object can be recomputed from a Schema
 class SchemaDescriptor {
@@ -67,6 +76,8 @@ class SchemaDescriptor {
   size_t num_columns() const;
 
  private:
+  friend class ColumnDescriptor;
+
   std::shared_ptr<Schema> schema_;
 
   // TODO(wesm): mapping between leaf nodes and root group of leaf (first node
