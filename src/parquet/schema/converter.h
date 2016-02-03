@@ -37,10 +37,13 @@ namespace schema {
 // * Column index to Type
 // * Max repetition / definition levels for each primitive type
 //
+// The ColumnDescriptor objects produced by this class can be used to
+//
 // TODO(wesm): this object can be recomputed from a Schema
 class SchemaInfo {
  public:
-  explicit SchemaInfo(std::shared_ptr<Schema> schema);
+  explicit SchemaInfo(std::shared_ptr<Schema> schema) :
+      schema_(schema) {}
   ~SchemaInfo() {}
 
   ColumnDescriptor Column(size_t i) const;
@@ -50,6 +53,15 @@ class SchemaInfo {
 
  private:
   std::shared_ptr<Schema> schema_;
+
+  // TODO(wesm): mapping between leaf nodes and root of leaf
+  //
+  // For example, the leaf `a.b.c.d` would have a link back to `a`
+  //
+  // -- a  <------
+  // -- -- b     |
+  // -- -- -- c  |
+  // -- -- -- -- d
 };
 
 std::shared_ptr<SchemaInfo> FromParquet(

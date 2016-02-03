@@ -218,6 +218,9 @@ set(LIBPARQUET_SRCS
   src/parquet/column/reader.cc
   src/parquet/column/scanner.cc
   src/parquet/reader.cc
+
+  src/parquet/schema/converter.cc
+  src/parquet/schema/types.cc
 )
 
 set(LIBPARQUET_LINK_LIBS

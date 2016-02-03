@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include "parquet/thrift/parquet_types.h"
+
 namespace parquet_cpp {
 
 namespace schema {
@@ -39,6 +41,9 @@ struct Type {
     BYTE_ARRAY = 6,
     FIXED_LEN_BYTE_ARRAY = 7
   };
+
+  static Type::type FromParquet(parquet::Type::type type);
+  // static parquet::Type::type ToParquet(Type::type type);
 };
 
 // Mirrors parquet::ConvertedType
@@ -68,6 +73,9 @@ struct LogicalType {
     BSON,
     INTERVAL
   };
+
+  static LogicalType::type FromParquet(parquet::ConvertedType::type type);
+  // static parquet::ConvertedType::type ToParquet(LogicalType::type type);
 };
 
 // Mirrors parquet::FieldRepetitionType
@@ -77,6 +85,9 @@ struct Repetition {
     OPTIONAL = 1,
     REPEATED = 2
   };
+
+  static Repetition::type FromParquet(parquet::FieldRepetitionType::type type);
+  // static parquet::FieldRepetitionType::type ToParquet(Repetition::type type);
 };
 
 struct ArrayEncoding {
@@ -102,12 +113,14 @@ class Node {
   };
 
   Node(Node::node_type type, const std::string& name,
-      Repetition::type repetition, int id = -1,
-      LogicalType::type logical_type = LogicalType::NONE) :
+      Repetition::type repetition,
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
       type_(type),
       name_(name),
       repetition_(repetition),
-      logical_type_(logical_type) {}
+      logical_type_(logical_type),
+      id_(id) {}
 
   virtual ~Node() {}
 
@@ -149,10 +162,8 @@ class Node {
   Node::node_type type_;
   std::string name_;
   Repetition::type repetition_;
-
-  int id_;
-
   LogicalType::type logical_type_;
+  int id_;
 
   bool EqualsInternal(const Node* other) const {
     return type_ == other->type_ &&
@@ -173,9 +184,9 @@ class PrimitiveNode : public Node {
  public:
   PrimitiveNode(const std::string& name, Repetition::type repetition,
       Type::type type,
-      int id = -1,
-      LogicalType::type logical_type = LogicalType::NONE) :
-      Node(Node::PRIMITIVE, name, repetition, id, logical_type),
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
+      Node(Node::PRIMITIVE, name, repetition, logical_type, id),
       physical_type_(type) {}
 
   virtual bool Equals(const Node* other) const {
@@ -209,9 +220,9 @@ class GroupNode : public Node {
  public:
   GroupNode(const std::string& name, Repetition::type repetition,
       const NodeVector& fields,
-      int id = -1,
-      LogicalType::type logical_type = LogicalType::NONE) :
-      Node(Node::GROUP, name, repetition, id, logical_type),
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
+      Node(Node::GROUP, name, repetition, logical_type, id),
       fields_(fields) {}
 
   virtual bool Equals(const Node* other) const {
@@ -319,7 +330,6 @@ static inline NodePtr FLBA(const std::string& name,
   return NodePtr(new PrimitiveNode(name, repetition,
           Type::FIXED_LEN_BYTE_ARRAY));
 }
-
 
 } // namespace schema
 
