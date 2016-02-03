@@ -317,11 +317,6 @@ void ParquetFileReader::DebugPrint(std::ostream& stream, bool print_values) {
     do {
       hasRow = false;
       for (int c = 0; c < nColumns; ++c) {
-        if (scanners[c] == NULL) {
-          snprintf(buffer, bufsize, "%-" COL_WIDTH"s", " ");
-          stream << buffer;
-          continue;
-        }
         if (scanners[c]->HasNext()) {
           hasRow = true;
           scanners[c]->PrintNext(stream, 17);

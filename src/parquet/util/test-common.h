@@ -20,7 +20,10 @@
 
 #include <iostream>
 #include <random>
+#include <string>
 #include <vector>
+
+#include "parquet/reader.h"
 
 using std::vector;
 
@@ -72,6 +75,49 @@ static inline vector<bool> flip_coins(size_t n, double p) {
   return draws;
 }
 
+const char* data_dir = std::getenv("PARQUET_TEST_DATA");
+
+class TestFileInfo {
+ public:
+  std::string filename_;
+
+  explicit TestFileInfo(const std::string& filename): filename_(filename) {}
+};
+
+class TestReader: public testing::TestWithParam<TestFileInfo> {
+ public:
+  virtual ~TestReader();
+
+  std::string getFilename() {
+    std::ostringstream filename;
+    std::string dir_string(data_dir);
+    filename << dir_string << "/" << GetParam().filename_;
+    return filename.str();
+  }
+
+  TestReader() {
+    file_.Open(getFilename());
+    reader_.Open(&file_);
+  }
+
+  // Find a column of a specific type
+  ssize_t findColumn(parquet::Type::type t) {
+    for (size_t c = 1; c < reader_.metadata().schema.size(); c++) {
+      if (t == reader_.metadata().schema[c].type) {
+        return static_cast<ssize_t>(c-1);
+      }
+    }
+    return -1;
+  }
+
+ protected:
+  LocalFile file_;
+  ParquetFileReader reader_;
+};
+
+TestReader::~TestReader() {
+  file_.Close();
+}
 
 } // namespace test
 
