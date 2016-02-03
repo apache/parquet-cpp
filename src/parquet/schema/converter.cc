@@ -102,58 +102,35 @@ std::unique_ptr<Node> ConvertGroup(const SchemaElement* element, int node_id,
           params.logical_type, node_id));
 }
 
-class GroupConverter {
- public:
-  GroupConverter(const SchemaElement* elements, size_t length) :
-      elements_(elements),
-      length_(length),
-      pos_(0),
-      current_id_(0) {}
+std::unique_ptr<Node> GroupConverter::Convert() {
+  const SchemaElement& root = elements_[0];
 
-  std::unique_ptr<Node> Convert() {
-    const SchemaElement& root = elements_[0];
+  // Validate the root node
+  if (root.num_children == 0) {
+    throw ParquetException("Root node did not have children");
+  }
 
-    // Validate the root node
-    if (root.num_children == 0) {
-      throw ParquetException("Root node did not have children");
+  return NextNode();
+}
+
+std::unique_ptr<Node> GroupConverter::NextNode() {
+  const SchemaElement& element = Next();
+
+  size_t node_id = next_id();
+
+  if (element.num_children == 0) {
+    // Leaf (primitive) node
+    return ConvertPrimitive(&element, node_id);
+  } else {
+    // Group
+    NodeVector fields;
+    for (size_t i = 0; i < element.num_children; ++i) {
+      std::unique_ptr<Node> field = NextNode();
+      fields.push_back(NodePtr(field.release()));
     }
-
-    return NextNode();
+    return ConvertGroup(&element, node_id, fields);
   }
-
- private:
-  const SchemaElement* elements_;
-  size_t length_;
-  size_t pos_;
-  size_t current_id_;
-
-  size_t next_id() {
-    return current_id_++;
-  }
-
-  std::unique_ptr<Node> NextNode() {
-    const SchemaElement& element = Next();
-
-    size_t node_id = next_id();
-
-    if (element.num_children == 0) {
-      // Leaf (primitive) node
-      return ConvertPrimitive(&element, node_id);
-    } else {
-      // Group
-      NodeVector fields;
-      for (size_t i = 0; i < element.num_children; ++i) {
-        std::unique_ptr<Node> field = NextNode();
-        fields.push_back(NodePtr(field.release()));
-      }
-      return ConvertGroup(&element, node_id, fields);
-    }
-  }
-
-  const SchemaElement& Next() {
-    return elements_[pos_++];
-  }
-};
+}
 
 
 std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& schema) {

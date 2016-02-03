@@ -39,6 +39,33 @@ namespace parquet_cpp {
 
 namespace schema {
 
+class GroupConverter {
+ public:
+  GroupConverter(const parquet::SchemaElement* elements, size_t length) :
+      elements_(elements),
+      length_(length),
+      pos_(0),
+      current_id_(0) {}
+
+  std::unique_ptr<Node> Convert();
+
+ private:
+  const parquet::SchemaElement* elements_;
+  size_t length_;
+  size_t pos_;
+  size_t current_id_;
+
+  size_t next_id() {
+    return current_id_++;
+  }
+
+  const parquet::SchemaElement& Next() {
+    return elements_[pos_++];
+  }
+
+  std::unique_ptr<Node> NextNode();
+};
+
 std::shared_ptr<SchemaDescriptor> FromParquet(
     const std::vector<parquet::SchemaElement>& schema);
 
