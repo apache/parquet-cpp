@@ -39,9 +39,15 @@ namespace parquet_cpp {
 
 namespace schema {
 
-class GroupConverter {
+// ----------------------------------------------------------------------
+// Conversion from Parquet Thrift metadata
+
+std::shared_ptr<SchemaDescriptor> FromParquet(
+    const std::vector<parquet::SchemaElement>& schema);
+
+class FlatSchemaConverter {
  public:
-  GroupConverter(const parquet::SchemaElement* elements, size_t length) :
+  FlatSchemaConverter(const parquet::SchemaElement* elements, size_t length) :
       elements_(elements),
       length_(length),
       pos_(0),
@@ -66,16 +72,26 @@ class GroupConverter {
   std::unique_ptr<Node> NextNode();
 };
 
-std::shared_ptr<SchemaDescriptor> FromParquet(
-    const std::vector<parquet::SchemaElement>& schema);
-
-void ToParquet(RootSchema* schema, std::vector<parquet::SchemaElement>* out);
-
 // Helper functions that we can also test
 std::unique_ptr<Node> ConvertPrimitive(const parquet::SchemaElement* element,
     int node_id = -1);
 std::unique_ptr<Node> ConvertGroup(const parquet::SchemaElement* element, int node_id,
     const NodeVector& fields);
+
+// ----------------------------------------------------------------------
+// Conversion to Parquet Thrift metadata
+
+void ToParquet(const GroupNode* schema, std::vector<parquet::SchemaElement>* out);
+
+// Converts nested parquet_cpp schema back to a flat vector of Thrift structs
+class SchemaFlattener {
+ public:
+  SchemaFlattener(const GroupNode* schema, std::vector<parquet::SchemaElement>* out);
+
+ private:
+  const GroupNode* root_;
+  std::vector<parquet::SchemaElement>* schema_;
+};
 
 } // namespace schema
 

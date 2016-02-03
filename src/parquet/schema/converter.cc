@@ -21,6 +21,7 @@
 
 #include "parquet/exception.h"
 
+using parquet::FieldRepetitionType;
 using parquet::SchemaElement;
 
 namespace parquet_cpp {
@@ -37,15 +38,15 @@ static LogicalType::type FromParquet(parquet::ConvertedType::type type) {
   return static_cast<LogicalType::type>(static_cast<int>(type) + 1);
 }
 
-static Repetition::type FromParquet(parquet::FieldRepetitionType::type type) {
+static Repetition::type FromParquet(FieldRepetitionType::type type) {
   return static_cast<Repetition::type>(type);
 }
 
 // TODO: decide later what to do with these. When converting back only need to
 // write into a parquet::SchemaElement
 
-// parquet::FieldRepetitionType::type ToParquet(Repetition::type type) {
-//   return static_cast<parquet::FieldRepetitionType::type>(type);
+// FieldRepetitionType::type ToParquet(Repetition::type type) {
+//   return static_cast<FieldRepetitionType::type>(type);
 // }
 
 // parquet::ConvertedType::type ToParquet(LogicalType::type type) {
@@ -102,7 +103,7 @@ std::unique_ptr<Node> ConvertGroup(const SchemaElement* element, int node_id,
           params.logical_type, node_id));
 }
 
-std::unique_ptr<Node> GroupConverter::Convert() {
+std::unique_ptr<Node> FlatSchemaConverter::Convert() {
   const SchemaElement& root = elements_[0];
 
   // Validate the root node
@@ -110,10 +111,14 @@ std::unique_ptr<Node> GroupConverter::Convert() {
     throw ParquetException("Root node did not have children");
   }
 
+  if (root.repetition_type != FieldRepetitionType::REPEATED) {
+    throw ParquetException("Root node was not FieldRepetitionType::REPEATED");
+  }
+
   return NextNode();
 }
 
-std::unique_ptr<Node> GroupConverter::NextNode() {
+std::unique_ptr<Node> FlatSchemaConverter::NextNode() {
   const SchemaElement& element = Next();
 
   size_t node_id = next_id();
@@ -132,9 +137,8 @@ std::unique_ptr<Node> GroupConverter::NextNode() {
   }
 }
 
-
 std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& schema) {
-  GroupConverter converter(&schema[0], schema.size());
+  FlatSchemaConverter converter(&schema[0], schema.size());
   std::unique_ptr<Node> root = converter.Convert();
 
   std::shared_ptr<SchemaDescriptor> descr = std::make_shared<SchemaDescriptor>(
@@ -144,6 +148,8 @@ std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& 
   return descr;
 }
 
+// ----------------------------------------------------------------------
+// Conversion back to Parquet metadata
 
 } // namespace schema
 

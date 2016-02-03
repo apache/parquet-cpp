@@ -120,14 +120,14 @@ static SchemaElement NewGroup(const std::string& name,
   return result;
 }
 
-class TestConvertGroup : public ::testing::Test {
+class TestSchemaConverter : public ::testing::Test {
  public:
   void setUp() {
     name_ = "bag";
   }
 
   void Convert(const parquet::SchemaElement* elements, size_t length) {
-    GroupConverter converter(elements, length);
+    FlatSchemaConverter converter(elements, length);
     node_ = converter.Convert();
     ASSERT_TRUE(node_->is_group());
     group_ = static_cast<const GroupNode*>(node_.get());
@@ -139,15 +139,26 @@ class TestConvertGroup : public ::testing::Test {
   std::unique_ptr<Node> node_;
 };
 
-TEST_F(TestConvertGroup, InvalidRoot) {
+TEST_F(TestSchemaConverter, NestedExample) {
+  std::vector<SchemaElement> elements;
+  elements.push_back(NewGroup("schema", FieldRepetitionType::REPEATED, 2));
+}
+
+TEST_F(TestSchemaConverter, InvalidRoot) {
   SchemaElement elements[2];
   elements[0] = NewPrimitive("not-a-group", FieldRepetitionType::REQUIRED,
       parquet::Type::INT32);
   elements[0].num_children = 0;
   ASSERT_THROW(Convert(elements, 2), ParquetException);
+
+  elements[0] = NewGroup("not-repeated", FieldRepetitionType::REQUIRED, 1);
+  ASSERT_THROW(Convert(elements, 2), ParquetException);
+
+  elements[0] = NewGroup("not-repeated", FieldRepetitionType::OPTIONAL, 1);
+  ASSERT_THROW(Convert(elements, 2), ParquetException);
 }
 
-TEST_F(TestConvertGroup, LogicalTypes) {
+TEST_F(TestSchemaConverter, LogicalTypes) {
 }
 
 // ----------------------------------------------------------------------

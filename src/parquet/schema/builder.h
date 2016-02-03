@@ -15,6 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// TODO: Think about a fluent schema builder interface in C++
+
+// WM: NOT YET COMPLETED OR TESTED
+
 #ifndef PARQUET_SCHEMA_BUILDER_H
 #define PARQUET_SCHEMA_BUILDER_H
 
