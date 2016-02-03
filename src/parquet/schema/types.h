@@ -28,7 +28,7 @@ namespace parquet_cpp {
 namespace schema {
 
 // Mirrors parquet::Type
-struct PhysicalType {
+struct Type {
   enum type {
     BOOLEAN = 0,
     INT32 = 1,
@@ -94,14 +94,14 @@ struct DecimalMetadata {
 
 // Base class for logical schema types. A type has a name, repetition level,
 // and optionally a logical type (ConvertedType in Parquet metadata parlance)
-class Type {
+class Node {
  public:
   enum node_type {
     PRIMITIVE,
     GROUP
   };
 
-  Type(Type::node_type type, const std::string& name,
+  Node(Node::node_type type, const std::string& name,
       Repetition::type repetition, int id = -1,
       LogicalType::type logical_type = LogicalType::NONE) :
       type_(type),
@@ -109,10 +109,10 @@ class Type {
       repetition_(repetition),
       logical_type_(logical_type) {}
 
-  virtual ~Type() {}
+  virtual ~Node() {}
 
   bool is_primitive() const {
-    return type_ == Type::PRIMITIVE;
+    return type_ == Node::PRIMITIVE;
   }
 
   bool is_optional() const {
@@ -127,13 +127,13 @@ class Type {
     return repetition_ == Repetition::REQUIRED;
   }
 
-  virtual bool Equals(const Type* other) const = 0;
+  virtual bool Equals(const Node* other) const = 0;
 
   const std::string& name() const {
     return name_;
   }
 
-  Type::node_type type() const {
+  Node::node_type type() const {
     return type_;
   }
 
@@ -146,7 +146,7 @@ class Type {
   }
 
  protected:
-  Type::node_type type_;
+  Node::node_type type_;
   std::string name_;
   Repetition::type repetition_;
 
@@ -154,7 +154,7 @@ class Type {
 
   LogicalType::type logical_type_;
 
-  bool EqualsInternal(const Type* other) const {
+  bool EqualsInternal(const Node* other) const {
     return type_ == other->type_ &&
       name_ == other->name_ &&
       repetition_ == other->repetition_ &&
@@ -162,27 +162,27 @@ class Type {
   }
 };
 
-typedef std::shared_ptr<Type> TypePtr;
-typedef std::vector<TypePtr> TypeList;
+typedef std::shared_ptr<Node> NodePtr;
+typedef std::vector<NodePtr> NodeVector;
 
 // A type that is one of the primitive Parquet storage types. In addition to
 // the other type metadata (name, repetition level, logical type), also has the
 // physical storage type and their type-specific metadata (byte width, decimal
 // parameters)
-class PrimitiveType : public Type {
+class PrimitiveNode : public Node {
  public:
-  PrimitiveType(const std::string& name, Repetition::type repetition,
-      PhysicalType::type type,
+  PrimitiveNode(const std::string& name, Repetition::type repetition,
+      Type::type type,
       int id = -1,
       LogicalType::type logical_type = LogicalType::NONE) :
-      Type(Type::PRIMITIVE, name, repetition, id, logical_type),
+      Node(Node::PRIMITIVE, name, repetition, id, logical_type),
       physical_type_(type) {}
 
-  virtual bool Equals(const Type* other) const {
-    if (!Type::EqualsInternal(other)) {
+  virtual bool Equals(const Node* other) const {
+    if (!Node::EqualsInternal(other)) {
       return false;
     }
-    return EqualsInternal(static_cast<const PrimitiveType*>(other));
+    return EqualsInternal(static_cast<const PrimitiveNode*>(other));
   }
 
   // TODO FIXED_LEN_BYTE_ARRAY
@@ -190,7 +190,7 @@ class PrimitiveType : public Type {
   // TODO Decimal
 
  private:
-  PhysicalType::type physical_type_;
+  Type::type physical_type_;
 
   // For FIXED_LEN_BYTE_ARRAY
   size_t length_;
@@ -198,30 +198,30 @@ class PrimitiveType : public Type {
   // Precision and scale
   DecimalMetadata decimal_meta_;
 
-  bool EqualsInternal(const PrimitiveType* other) const {
+  bool EqualsInternal(const PrimitiveNode* other) const {
     // TODO(wesm): metadata
     return (this == other) || (physical_type_ == other->physical_type_);
   }
 };
 
 
-class GroupType : public Type {
+class GroupNode : public Node {
  public:
-  GroupType(const std::string& name, Repetition::type repetition,
-      const TypeList& fields,
+  GroupNode(const std::string& name, Repetition::type repetition,
+      const NodeVector& fields,
       int id = -1,
       LogicalType::type logical_type = LogicalType::NONE) :
-      Type(Type::GROUP, name, repetition, id, logical_type),
+      Node(Node::GROUP, name, repetition, id, logical_type),
       fields_(fields) {}
 
-  virtual bool Equals(const Type* other) const {
+  virtual bool Equals(const Node* other) const {
     if (this->type() != other->type()) {
       return false;
     }
-    return EqualsInternal(static_cast<const GroupType*>(other));
+    return EqualsInternal(static_cast<const GroupNode*>(other));
   }
 
-  const TypePtr& field(size_t i) const {
+  const NodePtr& field(size_t i) const {
     return fields_[i];
   }
 
@@ -230,9 +230,9 @@ class GroupType : public Type {
   }
 
  private:
-  TypeList fields_;
+  NodeVector fields_;
 
-  bool EqualsInternal(const GroupType* other) const {
+  bool EqualsInternal(const GroupNode* other) const {
     if (this == other) {
       return true;
     }
@@ -240,7 +240,7 @@ class GroupType : public Type {
       return false;
     }
     for (size_t i = 0; i < this->field_count(); ++i) {
-      const Type* other_field = static_cast<const Type*>(other->field(i).get());
+      const Node* other_field = static_cast<const Node*>(other->field(i).get());
       if (!this->field(i)->Equals(other_field)) {
         return false;
       }
@@ -251,14 +251,74 @@ class GroupType : public Type {
 
 
 // A group representing a top-level Parquet schema
-class Schema : public GroupType {
+class Schema : public GroupNode {
  public:
-  Schema(const std::string& name, const TypeList& fields) :
-      GroupType(name, Repetition::REPEATED, fields) {}
+  Schema(const std::string& name, const NodeVector& fields) :
+      GroupNode(name, Repetition::REPEATED, fields) {}
 
-  explicit Schema(const TypeList& fields) :
+  explicit Schema(const NodeVector& fields) :
       Schema("schema", fields) {}
 };
+
+// The ColumnDescriptor encapsulates information necessary to interpret
+// primitive column data in the context of
+class ColumnDescriptor {
+ public:
+  ColumnDescriptor(const NodePtr& type, int16_t max_definition_level,
+      int16_t max_repetition_level) :
+      type_(type),
+      max_definition_level_(max_definition_level),
+      max_repetition_level_(max_repetition_level) {}
+
+ private:
+  NodePtr type_;
+  int16_t max_definition_level_;
+  int16_t max_repetition_level_;
+};
+
+// ----------------------------------------------------------------------
+// Convenience primitive type factory functions
+
+static inline NodePtr Boolean(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::BOOLEAN));
+}
+
+static inline NodePtr Int32(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::INT32));
+}
+
+static inline NodePtr Int64(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::INT64));
+}
+
+static inline NodePtr Int96(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::INT96));
+}
+
+static inline NodePtr Float(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::FLOAT));
+}
+
+static inline NodePtr Double(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::DOUBLE));
+}
+
+static inline NodePtr ByteArray(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition, Type::BYTE_ARRAY));
+}
+
+static inline NodePtr FLBA(const std::string& name,
+    Repetition::type repetition = Repetition::OPTIONAL) {
+  return NodePtr(new PrimitiveNode(name, repetition,
+          Type::FIXED_LEN_BYTE_ARRAY));
+}
 
 
 } // namespace schema

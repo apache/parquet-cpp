@@ -31,10 +31,10 @@ namespace parquet_cpp {
 
 namespace schema {
 
-TEST(TestPrimitiveType, TestIsRepetition) {
-  PrimitiveType type1("foo", Repetition::REQUIRED, PhysicalType::INT32);
-  PrimitiveType type2("foo", Repetition::OPTIONAL, PhysicalType::INT32);
-  PrimitiveType type3("foo", Repetition::REPEATED, PhysicalType::INT32);
+TEST(TestPrimitiveNode, TestIsRepetition) {
+  PrimitiveNode type1("foo", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode type2("foo", Repetition::OPTIONAL, Type::INT32);
+  PrimitiveNode type3("foo", Repetition::REPEATED, Type::INT32);
 
   ASSERT_TRUE(type1.is_required());
 
@@ -45,18 +45,41 @@ TEST(TestPrimitiveType, TestIsRepetition) {
   ASSERT_FALSE(type3.is_optional());
 }
 
-TEST(TestPrimitiveType, TestEquals) {
-  PrimitiveType type1("foo", Repetition::REQUIRED, PhysicalType::INT32);
-  PrimitiveType type2("foo", Repetition::REQUIRED, PhysicalType::INT64);
-  PrimitiveType type3("bar", Repetition::REQUIRED, PhysicalType::INT32);
-  PrimitiveType type4("foo", Repetition::OPTIONAL, PhysicalType::INT32);
-  PrimitiveType type5("foo", Repetition::REQUIRED, PhysicalType::INT32);
+TEST(TestPrimitiveNode, TestEquals) {
+  PrimitiveNode type1("foo", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode type2("foo", Repetition::REQUIRED, Type::INT64);
+  PrimitiveNode type3("bar", Repetition::REQUIRED, Type::INT32);
+  PrimitiveNode type4("foo", Repetition::OPTIONAL, Type::INT32);
+  PrimitiveNode type5("foo", Repetition::REQUIRED, Type::INT32);
 
   ASSERT_TRUE(type1.Equals(&type1));
   ASSERT_FALSE(type1.Equals(&type2));
   ASSERT_FALSE(type1.Equals(&type3));
   ASSERT_FALSE(type1.Equals(&type4));
   ASSERT_TRUE(type1.Equals(&type5));
+}
+
+class TestGroupNode : public ::testing::Test {
+ public:
+  NodeVector Fields1() {
+    NodeVector fields;
+
+    fields.push_back(Int32("one", Repetition::REQUIRED));
+    fields.push_back(Int64("two"));
+    fields.push_back(Double("three"));
+
+    return fields;
+  }
+};
+
+TEST_F(TestGroupNode, TestEquals) {
+  NodeVector f1 = Fields1();
+  NodeVector f2 = Fields1();
+
+  GroupNode group1("group", Repetition::REPEATED, f1);
+  GroupNode group2("group", Repetition::REPEATED, f2);
+
+  ASSERT_TRUE(group1.Equals(&group2));
 }
 
 } // namespace schema
