@@ -123,7 +123,7 @@ static SchemaElement NewGroup(const std::string& name,
 class TestSchemaConverter : public ::testing::Test {
  public:
   void setUp() {
-    name_ = "bag";
+    name_ = "parquet_cpp_schema";
   }
 
   void Convert(const parquet::SchemaElement* elements, size_t length) {
@@ -140,8 +140,39 @@ class TestSchemaConverter : public ::testing::Test {
 };
 
 TEST_F(TestSchemaConverter, NestedExample) {
+  SchemaElement elt;
   std::vector<SchemaElement> elements;
-  elements.push_back(NewGroup("schema", FieldRepetitionType::REPEATED, 2));
+  elements.push_back(NewGroup(name_, FieldRepetitionType::REPEATED, 2));
+
+  // A primitive one
+  elements.push_back(NewPrimitive("a", FieldRepetitionType::REQUIRED,
+          parquet::Type::INT32));
+
+  // A group
+  elements.push_back(NewGroup("bag", FieldRepetitionType::OPTIONAL, 1));
+
+  // 3-level list encoding, by hand
+  elt = NewGroup("b", FieldRepetitionType::REPEATED, 1);
+  elt.__set_converted_type(ConvertedType::LIST);
+  elements.push_back(elt);
+  elements.push_back(NewPrimitive("item", FieldRepetitionType::OPTIONAL,
+          parquet::Type::INT64));
+
+  Convert(&elements[0], elements.size());
+
+  // Construct the expected schema
+  NodeVector fields;
+  fields.push_back(Int32("a", Repetition::REQUIRED));
+
+  // 3-level list encoding
+  NodePtr item = Int64("item");
+  NodePtr list(new GroupNode("b", Repetition::REPEATED, {item}, LogicalType::LIST));
+  NodePtr bag(new GroupNode("bag", Repetition::OPTIONAL, {list}));
+  fields.push_back(bag);
+
+  GroupNode schema(name_, Repetition::REPEATED, fields);
+
+  ASSERT_TRUE(schema.Equals(group_));
 }
 
 TEST_F(TestSchemaConverter, InvalidRoot) {
@@ -156,6 +187,10 @@ TEST_F(TestSchemaConverter, InvalidRoot) {
 
   elements[0] = NewGroup("not-repeated", FieldRepetitionType::OPTIONAL, 1);
   ASSERT_THROW(Convert(elements, 2), ParquetException);
+}
+
+TEST_F(TestSchemaConverter, NotEnoughChildren) {
+  // Throw a ParquetException, but don't core dump or anything
 }
 
 TEST_F(TestSchemaConverter, LogicalTypes) {

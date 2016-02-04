@@ -50,20 +50,20 @@ bool PrimitiveNode::Equals(const Node* other) const {
 // Group node
 
 bool GroupNode::EqualsInternal(const GroupNode* other) const {
-    if (this == other) {
-      return true;
-    }
-    if (this->field_count() != other->field_count()) {
-      return false;
-    }
-    for (size_t i = 0; i < this->field_count(); ++i) {
-      const Node* other_field = static_cast<const Node*>(other->field(i).get());
-      if (!this->field(i)->Equals(other_field)) {
-        return false;
-      }
-    }
+  if (this == other) {
     return true;
   }
+  if (this->field_count() != other->field_count()) {
+    return false;
+  }
+  for (size_t i = 0; i < this->field_count(); ++i) {
+    const Node* other_field = static_cast<const Node*>(other->field(i).get());
+    if (!this->field(i)->Equals(other_field)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 bool GroupNode::Equals(const Node* other) const {
   if (!Node::EqualsInternal(other)) {

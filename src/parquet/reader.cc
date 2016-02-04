@@ -218,38 +218,6 @@ void ParquetFileReader::ParseMetaData() {
 // ----------------------------------------------------------------------
 // ParquetFileReader::DebugPrint
 
-static string parquet_type_to_string(Type::type t) {
-  switch (t) {
-    case Type::BOOLEAN:
-      return "BOOLEAN";
-      break;
-    case Type::INT32:
-      return "INT32";
-      break;
-    case Type::INT64:
-      return "INT64";
-      break;
-    case Type::INT96:
-      return "INT96";
-      break;
-    case Type::FLOAT:
-      return "FLOAT";
-      break;
-    case Type::DOUBLE:
-      return "DOUBLE";
-      break;
-    case Type::BYTE_ARRAY:
-      return "BYTE_ARRAY";
-      break;
-    case Type::FIXED_LEN_BYTE_ARRAY:
-      return "FIXED_LEN_BYTE_ARRAY";
-      break;
-    default:
-      return "UNKNOWN";
-      break;
-  }
-}
-
 // the fixed initial size is just for an example
 #define COL_WIDTH "20"
 
