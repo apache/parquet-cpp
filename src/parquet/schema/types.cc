@@ -69,8 +69,7 @@ bool GroupNode::EqualsInternal(const GroupNode* other) const {
     return false;
   }
   for (size_t i = 0; i < this->field_count(); ++i) {
-    const Node* other_field = static_cast<const Node*>(other->field(i).get());
-    if (!this->field(i)->Equals(other_field)) {
+    if (!this->field(i)->Equals(other->field(i).get())) {
       return false;
     }
   }
@@ -85,7 +84,6 @@ bool GroupNode::Equals(const Node* other) const {
 }
 
 void GroupNode::Visit(Node::Visitor* visitor) {
-  // Depth-first traversal
   visitor->Visit(this);
 }
 
