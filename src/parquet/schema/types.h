@@ -30,8 +30,6 @@
 
 namespace parquet_cpp {
 
-namespace schema {
-
 // Mirrors parquet::Type
 struct Type {
   enum type {
@@ -81,6 +79,8 @@ struct Repetition {
     REPEATED = 2
   };
 };
+
+namespace schema {
 
 // List encodings: using the terminology from Impala to define different styles
 // of representing logical lists (a.k.a. ARRAY types) in Parquet schemas. Since

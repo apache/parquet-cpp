@@ -20,10 +20,7 @@
 #include <memory>
 
 #include "parquet/column/reader.h"
-#include "parquet/thrift/parquet_types.h"
-#include "parquet/thrift/util.h"
-
-using parquet::Type;
+#include "parquet/schema/types.h"
 
 namespace parquet_cpp {
 

@@ -37,9 +37,10 @@ using std::shared_ptr;
 using parquet::FieldRepetitionType;
 using parquet::SchemaElement;
 using parquet::Encoding;
-using parquet::Type;
 
 namespace parquet_cpp {
+
+using schema::NodePtr;
 
 namespace test {
 
@@ -49,9 +50,9 @@ class TestPrimitiveReader : public ::testing::Test {
 
   void TearDown() {}
 
-  void InitReader(const SchemaElement* element) {
+  void InitReader(const ColumnDescriptor* descr) {
     pager_.reset(new test::MockPageReader(pages_));
-    reader_ = ColumnReader::Make(element, std::move(pager_));
+    reader_ = ColumnReader::Make(descr, std::move(pager_));
   }
 
  protected:
@@ -85,10 +86,9 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequired) {
   pages_.push_back(page_builder.Finish());
 
   // TODO: simplify this
-  SchemaElement element;
-  element.__set_type(Type::INT32);
-  element.__set_repetition_type(FieldRepetitionType::REQUIRED);
-  InitReader(&element);
+  NodePtr type = schema::Int32("a", Repetition::REQUIRED);
+  ColumnDescriptor descr(type, 0, 0);
+  InitReader(&descr);
 
   Int32Reader* reader = static_cast<Int32Reader*>(reader_.get());
 
@@ -119,11 +119,9 @@ TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
 
   pages_.push_back(page_builder.Finish());
 
-  // TODO: simplify this
-  SchemaElement element;
-  element.__set_type(Type::INT32);
-  element.__set_repetition_type(FieldRepetitionType::OPTIONAL);
-  InitReader(&element);
+  NodePtr type = schema::Int32("a", Repetition::OPTIONAL);
+  ColumnDescriptor descr(type, 1, 0);
+  InitReader(&descr);
 
   Int32Reader* reader = static_cast<Int32Reader*>(reader_.get());
 

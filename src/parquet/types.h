@@ -27,10 +27,6 @@
 #include "parquet/schema/types.h"
 #include "parquet/util/compiler-util.h"
 
-#include "parquet/thrift/parquet_types.h"
-// using parquet_cpp::schema::Type;
-using parquet::Type;
-
 namespace parquet_cpp {
 
 struct ByteArray {
@@ -154,7 +150,7 @@ inline std::string format_fwf(int width) {
   return ss.str();
 }
 
-static inline std::string parquet_type_to_string(Type::type t) {
+static inline std::string type_to_string(Type::type t) {
   switch (t) {
     case Type::BOOLEAN:
       return "BOOLEAN";

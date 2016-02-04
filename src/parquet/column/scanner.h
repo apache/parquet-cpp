@@ -24,14 +24,11 @@
 #include <vector>
 
 #include "parquet/column/reader.h"
+
+#include "parquet/schema/descriptor.h"
 #include "parquet/schema/types.h"
 
-// TODO: Remove soon in favor of parquet_cpp::schema::Type
-#include "parquet/thrift/parquet_types.h"
-
 namespace parquet_cpp {
-
-using parquet::Type;
 
 static constexpr size_t DEFAULT_SCANNER_BATCH_SIZE = 128;
 
@@ -61,8 +58,8 @@ class Scanner {
     return value_offset_ < values_buffered_ || reader_->HasNext();
   }
 
-  const parquet::SchemaElement* schema() const {
-    return reader_->schema();
+  const ColumnDescriptor* descr() const {
+    return reader_->descr();
   }
 
   size_t batch_size() const { return batch_size_;}
@@ -202,7 +199,7 @@ inline void TypedScanner<Type::FIXED_LEN_BYTE_ARRAY>::FormatValue(
   std::string fmt = format_fwf<Type::FIXED_LEN_BYTE_ARRAY>(width);
   std::string result = FixedLenByteArrayToString(
       *reinterpret_cast<FixedLenByteArray*>(val),
-      schema()->type_length);
+      descr()->type_length());
   snprintf(buffer, bufsize, fmt.c_str(), result.c_str());
 }
 

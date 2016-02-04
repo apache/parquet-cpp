@@ -29,25 +29,25 @@
 namespace parquet_cpp {
 
 using parquet::Encoding;
-using parquet::FieldRepetitionType;
 using parquet::PageType;
-using parquet::Type;
 
-ColumnReader::ColumnReader(const parquet::SchemaElement* schema,
+ColumnReader::ColumnReader(const ColumnDescriptor* descr,
     std::unique_ptr<PageReader> pager)
-  : schema_(schema),
+  : descr_(descr),
     pager_(std::move(pager)),
     num_buffered_values_(0),
     num_decoded_values_(0) {}
 
 template <int TYPE>
 void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
-  auto it = decoders_.find(Encoding::RLE_DICTIONARY);
+  int encoding = static_cast<int>(Encoding::RLE_DICTIONARY);
+
+  auto it = decoders_.find(encoding);
   if (it != decoders_.end()) {
     throw ParquetException("Column cannot have more than one dictionary.");
   }
 
-  PlainDecoder<TYPE> dictionary(schema_);
+  PlainDecoder<TYPE> dictionary(descr_);
   dictionary.SetData(page->num_values(), page->data(), page->size());
 
   // The dictionary is fully decoded during DictionaryDecoder::Init, so the
@@ -56,10 +56,10 @@ void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
   // TODO(wesm): investigate whether this all-or-nothing decoding of the
   // dictionary makes sense and whether performance can be improved
   std::shared_ptr<DecoderType> decoder(
-      new DictionaryDecoder<TYPE>(schema_, &dictionary));
+      new DictionaryDecoder<TYPE>(descr_, &dictionary));
 
-  decoders_[Encoding::RLE_DICTIONARY] = decoder;
-  current_decoder_ = decoders_[Encoding::RLE_DICTIONARY].get();
+  decoders_[encoding] = decoder;
+  current_decoder_ = decoders_[encoding].get();
 }
 
 
@@ -111,10 +111,11 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
       // the page size to determine the number of bytes in the encoded data.
       size_t data_size = page->size();
 
+      max_definition_level_ = descr_->max_definition_level();
+
       // Read definition levels.
-      if (schema_->repetition_type != FieldRepetitionType::REQUIRED) {
+      if (max_definition_level_ > 0) {
         // Temporary hack until schema resolution implemented
-        max_definition_level_ = 1;
 
         size_t def_levels_bytes = InitializeLevelDecoder(buffer,
             max_definition_level_, definition_level_decoder_);
@@ -132,16 +133,18 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
       // first page with this encoding.
       Encoding::type encoding = page->encoding();
 
-      if (IsDictionaryIndexEncoding(encoding)) encoding = Encoding::RLE_DICTIONARY;
+      if (IsDictionaryIndexEncoding(encoding)) {
+        encoding = Encoding::RLE_DICTIONARY;
+      }
 
-      auto it = decoders_.find(encoding);
+      auto it = decoders_.find(static_cast<int>(encoding));
       if (it != decoders_.end()) {
         current_decoder_ = it->second.get();
       } else {
         switch (encoding) {
           case Encoding::PLAIN: {
-            std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>(schema_));
-            decoders_[encoding] = decoder;
+            std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>(descr_));
+            decoders_[static_cast<int>(encoding)] = decoder;
             current_decoder_ = decoder.get();
             break;
           }
@@ -202,25 +205,25 @@ size_t ColumnReader::ReadRepetitionLevels(size_t batch_size, int16_t* levels) {
 // Dynamic column reader constructor
 
 std::shared_ptr<ColumnReader> ColumnReader::Make(
-    const parquet::SchemaElement* element,
+    const ColumnDescriptor* descr,
     std::unique_ptr<PageReader> pager) {
-  switch (element->type) {
+  switch (descr->physical_type()) {
     case Type::BOOLEAN:
-      return std::make_shared<BoolReader>(element, std::move(pager));
+      return std::make_shared<BoolReader>(descr, std::move(pager));
     case Type::INT32:
-      return std::make_shared<Int32Reader>(element, std::move(pager));
+      return std::make_shared<Int32Reader>(descr, std::move(pager));
     case Type::INT64:
-      return std::make_shared<Int64Reader>(element, std::move(pager));
+      return std::make_shared<Int64Reader>(descr, std::move(pager));
     case Type::INT96:
-      return std::make_shared<Int96Reader>(element, std::move(pager));
+      return std::make_shared<Int96Reader>(descr, std::move(pager));
     case Type::FLOAT:
-      return std::make_shared<FloatReader>(element, std::move(pager));
+      return std::make_shared<FloatReader>(descr, std::move(pager));
     case Type::DOUBLE:
-      return std::make_shared<DoubleReader>(element, std::move(pager));
+      return std::make_shared<DoubleReader>(descr, std::move(pager));
     case Type::BYTE_ARRAY:
-      return std::make_shared<ByteArrayReader>(element, std::move(pager));
+      return std::make_shared<ByteArrayReader>(descr, std::move(pager));
     case Type::FIXED_LEN_BYTE_ARRAY:
-      return std::make_shared<FixedLenByteArrayReader>(element, std::move(pager));
+      return std::make_shared<FixedLenByteArrayReader>(descr, std::move(pager));
     default:
       ParquetException::NYI("type reader not implemented");
   }

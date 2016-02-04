@@ -20,14 +20,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "parquet/schema/types.h"
 
 namespace parquet_cpp {
-
-namespace schema {
 
 class SchemaDescriptor;
 
@@ -38,11 +37,8 @@ class SchemaDescriptor;
 // definition levels.
 class ColumnDescriptor {
  public:
-  ColumnDescriptor(const NodePtr& type, int16_t max_definition_level,
-      int16_t max_repetition_level) :
-      type_(type),
-      max_definition_level_(max_definition_level),
-      max_repetition_level_(max_repetition_level) {}
+  ColumnDescriptor(const schema::NodePtr& node, int16_t max_definition_level,
+      int16_t max_repetition_level, const SchemaDescriptor* schema_descr = nullptr);
 
   int16_t max_definition_level() const {
     return max_definition_level_;
@@ -52,8 +48,20 @@ class ColumnDescriptor {
     return max_repetition_level_;
   }
 
+  Type::type physical_type() const {
+    return primitive_node_->physical_type();
+  }
+
+  const std::string& name() const {
+    return primitive_node_->name();
+  }
+
+  int type_length() const;
+
  private:
-  NodePtr type_;
+  schema::NodePtr node_;
+  const schema::PrimitiveNode* primitive_node_;
+
   int16_t max_definition_level_;
   int16_t max_repetition_level_;
 
@@ -67,7 +75,7 @@ class ColumnDescriptor {
 // the schema analysis needed for file reading
 //
 // * Column index to Node
-// * Max repetition / definition levels for each primitive type
+// * Max repetition / definition levels for each primitive node
 //
 // The ColumnDescriptor objects produced by this class can be used to assist in
 // the reconstruction of fully materialized data structures from the
@@ -76,24 +84,33 @@ class ColumnDescriptor {
 // TODO(wesm): this object can be recomputed from a Schema
 class SchemaDescriptor {
  public:
-  explicit SchemaDescriptor(std::shared_ptr<GroupNode> schema) :
-      schema_(schema) {}
+  SchemaDescriptor() {}
   ~SchemaDescriptor() {}
 
   // Analyze the schema
-  void Init();
+  void Init(std::unique_ptr<schema::Node> schema);
+  void Init(const schema::NodePtr& schema);
 
-  ColumnDescriptor Column(size_t i) const;
+  const ColumnDescriptor* Column(size_t i) const;
 
   // The number of physical columns appearing in the file
-  size_t num_columns() const;
+  size_t num_columns() const {
+    return leaves_.size();
+  }
 
  private:
   friend class ColumnDescriptor;
 
-  std::shared_ptr<GroupNode> schema_;
+  schema::NodePtr schema_;
+  const schema::GroupNode* group_;
 
-  // TODO(wesm): mapping between leaf nodes and root group of leaf (first node
+  void FindLeaves(const schema::NodePtr& node, int16_t max_def_level,
+      int16_t max_rep_level);
+
+  // Result of leaf node / tree analysis
+  std::vector<ColumnDescriptor> leaves_;
+
+  // Mapping between leaf nodes and root group of leaf (first node
   // below the schema's root group)
   //
   // For example, the leaf `a.b.c.d` would have a link back to `a`
@@ -102,9 +119,8 @@ class SchemaDescriptor {
   // -- -- b     |
   // -- -- -- c  |
   // -- -- -- -- d
+  std::unordered_map<int, schema::NodePtr> leaf_to_base_;
 };
-
-} // namespace schema
 
 } // namespace parquet_cpp
 

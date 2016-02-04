@@ -152,9 +152,9 @@ std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& 
   FlatSchemaConverter converter(&schema[0], schema.size());
   std::unique_ptr<Node> root = converter.Convert();
 
-  std::shared_ptr<SchemaDescriptor> descr = std::make_shared<SchemaDescriptor>(
-      std::shared_ptr<GroupNode>(static_cast<GroupNode*>(root.release())));
-  descr->Init();
+  std::shared_ptr<SchemaDescriptor> descr = std::make_shared<SchemaDescriptor>();
+  descr->Init(std::shared_ptr<GroupNode>(
+          static_cast<GroupNode*>(root.release())));
 
   return descr;
 }
