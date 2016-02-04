@@ -82,11 +82,14 @@ static inline NodeParams GetNodeParams(const SchemaElement* element) {
 std::unique_ptr<Node> ConvertPrimitive(const SchemaElement* element, int node_id) {
   NodeParams params = GetNodeParams(element);
 
-  if (params.logical_type == LogicalType::DECIMAL) {
-    // TODO(wesm): Decimal metadata
-    ParquetException::NYI("Decimal type");
-    return std::unique_ptr<Node>(nullptr);
-  } else if (element->type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
+  // Uncommment when we can handle decimal metadata
+  // if (params.logical_type == LogicalType::DECIMAL) {
+  //   // TODO(wesm): Decimal metadata
+  //   ParquetException::NYI("Decimal type");
+  //   return std::unique_ptr<Node>(nullptr);
+  // }
+
+  if (element->type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
     return std::unique_ptr<Node>(new PrimitiveNode(params.name, params.repetition,
             FromParquet(element->type), element->type_length,
             params.logical_type, node_id));
@@ -111,9 +114,10 @@ std::unique_ptr<Node> FlatSchemaConverter::Convert() {
     throw ParquetException("Root node did not have children");
   }
 
-  if (root.repetition_type != FieldRepetitionType::REPEATED) {
-    throw ParquetException("Root node was not FieldRepetitionType::REPEATED");
-  }
+  // Relaxing this restriction as some implementations don't set this
+  // if (root.repetition_type != FieldRepetitionType::REPEATED) {
+  //   throw ParquetException("Root node was not FieldRepetitionType::REPEATED");
+  // }
 
   return NextNode();
 }

@@ -87,9 +87,6 @@ bool GroupNode::Equals(const Node* other) const {
 void GroupNode::Visit(Node::Visitor* visitor) {
   // Depth-first traversal
   visitor->Visit(this);
-  for (size_t i = 0; i < this->field_count(); ++i) {
-    this->field(i)->Visit(visitor);
-  }
 }
 
 } // namespace schema

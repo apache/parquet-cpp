@@ -221,6 +221,7 @@ set(LIBPARQUET_SRCS
 
   src/parquet/schema/converter.cc
   src/parquet/schema/descriptor.cc
+  src/parquet/schema/printer.cc
   src/parquet/schema/types.cc
 )
 

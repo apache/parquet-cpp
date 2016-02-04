@@ -182,11 +182,14 @@ TEST_F(TestSchemaConverter, InvalidRoot) {
   elements[0].num_children = 0;
   ASSERT_THROW(Convert(elements, 2), ParquetException);
 
-  elements[0] = NewGroup("not-repeated", FieldRepetitionType::REQUIRED, 1);
-  ASSERT_THROW(Convert(elements, 2), ParquetException);
+  // TODO(wesm): This seems inconsistent among Parquet implementations. Better
+  // to relax this constraint for now and revisit another time.
 
-  elements[0] = NewGroup("not-repeated", FieldRepetitionType::OPTIONAL, 1);
-  ASSERT_THROW(Convert(elements, 2), ParquetException);
+  // elements[0] = NewGroup("not-repeated", FieldRepetitionType::REQUIRED, 1);
+  // ASSERT_THROW(Convert(elements, 2), ParquetException);
+
+  // elements[0] = NewGroup("not-repeated", FieldRepetitionType::OPTIONAL, 1);
+  // ASSERT_THROW(Convert(elements, 2), ParquetException);
 }
 
 TEST_F(TestSchemaConverter, NotEnoughChildren) {
