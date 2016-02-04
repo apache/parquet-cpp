@@ -35,8 +35,16 @@ bool Node::EqualsInternal(const Node* other) const {
 // Primitive node
 
 bool PrimitiveNode::EqualsInternal(const PrimitiveNode* other) const {
-  // TODO(wesm): metadata
-  return (this == other) || (physical_type_ == other->physical_type_);
+  if (physical_type_ != other->physical_type_) {
+    return false;
+  } else if (logical_type_ == LogicalType::DECIMAL) {
+    // TODO(wesm): metadata
+    ParquetException::NYI("comparing decimals");
+    return false;
+  } else if (physical_type_ == Type::FIXED_LEN_BYTE_ARRAY) {
+    return type_length_ == other->type_length_;
+  }
+  return true;
 }
 
 bool PrimitiveNode::Equals(const Node* other) const {

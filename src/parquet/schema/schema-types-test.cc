@@ -96,6 +96,15 @@ TEST(TestPrimitiveNode, TestEquals) {
   ASSERT_TRUE(node1.Equals(&node5));
 }
 
+TEST(TestPrimitiveNode, TestFLBAEquals) {
+  PrimitiveNode flba1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 12);
+  PrimitiveNode flba2("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 12);
+  PrimitiveNode flba3("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 16);
+
+  ASSERT_TRUE(flba1.Equals(&flba2));
+  ASSERT_FALSE(flba1.Equals(&flba3));
+}
+
 // ----------------------------------------------------------------------
 // Group node
 
