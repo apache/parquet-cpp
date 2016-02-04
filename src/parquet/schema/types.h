@@ -101,7 +101,7 @@ namespace schema {
 //       <required/optional> value_type item
 //
 // 2- and 1-level encoding are respectively equivalent to 3-level encoding with
-// the inner
+// the non-repeated nodes set to required.
 //
 // The "official" encoding recommended in the Parquet spec is the 3-level, and
 // we use that as the default when creating list types. For semantic completeness
