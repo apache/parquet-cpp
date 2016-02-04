@@ -65,9 +65,7 @@ class FlatSchemaConverter {
     return current_id_++;
   }
 
-  const parquet::SchemaElement& Next() {
-    return elements_[pos_++];
-  }
+  const parquet::SchemaElement& Next();
 
   std::unique_ptr<Node> NextNode();
 };

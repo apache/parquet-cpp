@@ -137,6 +137,13 @@ std::unique_ptr<Node> FlatSchemaConverter::NextNode() {
   }
 }
 
+const parquet::SchemaElement& FlatSchemaConverter::Next() {
+  if (pos_ == length_) {
+    throw ParquetException("Malformed schema: not enough parquet::SchemaElement values");
+  }
+  return elements_[pos_++];
+}
+
 std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& schema) {
   FlatSchemaConverter converter(&schema[0], schema.size());
   std::unique_ptr<Node> root = converter.Convert();

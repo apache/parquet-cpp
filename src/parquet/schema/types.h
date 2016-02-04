@@ -108,6 +108,12 @@ struct Repetition {
 // we allow the other two. Since all types of encodings will occur "in the
 // wild" we need to be able to interpret the associated definition levels in
 // the context of the actual encoding used in the file.
+//
+// NB: Some Parquet writers may not set ConvertedType::LIST on the repeated
+// SchemaElement, which could make things challenging if we are trying to infer
+// that a sequence of nodes semantically represents an array according to one
+// of these encodings (versus a struct containing an array). We should refuse
+// the temptation to guess, as they say.
 struct ListEncoding {
   enum type {
     ONE_LEVEL,
@@ -184,6 +190,16 @@ class Node {
     return id_;
   }
 
+  // Node::Visitor abstract class for walking schemas with the visitor pattern
+  class Visitor {
+   public:
+    virtual ~Visitor() {}
+
+    virtual void Visit(const Node* node) = 0;
+  };
+
+  virtual void Visit(Visitor* visitor) = 0;
+
  protected:
   Node::type type_;
   std::string name_;
@@ -253,6 +269,8 @@ class PrimitiveNode : public Node {
     return decimal_metadata_;
   }
 
+  virtual void Visit(Visitor* visitor);
+
  private:
   Type::type physical_type_;
 
@@ -292,6 +310,8 @@ class GroupNode : public Node {
   size_t field_count() const {
     return fields_.size();
   }
+
+  virtual void Visit(Visitor* visitor);
 
  private:
   NodeVector fields_;

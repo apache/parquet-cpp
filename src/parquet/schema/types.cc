@@ -54,6 +54,10 @@ bool PrimitiveNode::Equals(const Node* other) const {
   return EqualsInternal(static_cast<const PrimitiveNode*>(other));
 }
 
+void PrimitiveNode::Visit(Node::Visitor* visitor) {
+  visitor->Visit(this);
+}
+
 // ----------------------------------------------------------------------
 // Group node
 
@@ -80,7 +84,13 @@ bool GroupNode::Equals(const Node* other) const {
   return EqualsInternal(static_cast<const GroupNode*>(other));
 }
 
-
+void GroupNode::Visit(Node::Visitor* visitor) {
+  // Depth-first traversal
+  visitor->Visit(this);
+  for (size_t i = 0; i < this->field_count(); ++i) {
+    this->field(i)->Visit(visitor);
+  }
+}
 
 } // namespace schema
 

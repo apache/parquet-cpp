@@ -191,9 +191,10 @@ TEST_F(TestSchemaConverter, InvalidRoot) {
 
 TEST_F(TestSchemaConverter, NotEnoughChildren) {
   // Throw a ParquetException, but don't core dump or anything
-}
-
-TEST_F(TestSchemaConverter, LogicalTypes) {
+  SchemaElement elt;
+  std::vector<SchemaElement> elements;
+  elements.push_back(NewGroup(name_, FieldRepetitionType::REPEATED, 2));
+  ASSERT_THROW(Convert(&elements[0], 2), ParquetException);
 }
 
 // ----------------------------------------------------------------------
