@@ -28,26 +28,8 @@ namespace parquet_cpp {
 
 namespace schema {
 
-class SchemaPrinter : public Node::Visitor {
- public:
-  explicit SchemaPrinter(std::ostream& stream, size_t indent_width = 2) :
-      stream_(stream),
-      indent_(0),
-      indent_width_(2) {}
-
-  virtual void Visit(const Node* node);
-
- private:
-  void Visit(const PrimitiveNode* node);
-  void Visit(const GroupNode* node);
-
-  void Indent();
-
-  std::ostream& stream_;
-
-  size_t indent_;
-  size_t indent_width_;
-};
+void PrintSchema(const Node* schema, std::ostream& stream,
+    size_t indent_width = 2);
 
 } // namespace schema
 

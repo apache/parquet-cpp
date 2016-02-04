@@ -28,8 +28,7 @@ void DumpSchema(const ParquetFileReader* reader) {
   schema::FlatSchemaConverter converter(&schema[0], schema.size());
   std::unique_ptr<schema::Node> root = converter.Convert();
 
-  schema::SchemaPrinter printer(std::cout);
-  printer.Visit(root.get());
+  PrintSchema(root.get(), std::cout);
 }
 
 int main(int argc, char** argv) {
