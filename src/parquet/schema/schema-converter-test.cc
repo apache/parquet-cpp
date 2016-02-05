@@ -176,20 +176,28 @@ TEST_F(TestSchemaConverter, NestedExample) {
 }
 
 TEST_F(TestSchemaConverter, InvalidRoot) {
+  // According to the Parquet specification, the first element in the
+  // list<SchemaElement> is a group whose children (and their descendants)
+  // contain all of the rest of the flattened schema elements. If the first
+  // element is not a group, it is a malformed Parquet file.
+
   SchemaElement elements[2];
   elements[0] = NewPrimitive("not-a-group", FieldRepetitionType::REQUIRED,
       parquet::Type::INT32);
   elements[0].num_children = 0;
   ASSERT_THROW(Convert(elements, 2), ParquetException);
 
-  // TODO(wesm): This seems inconsistent among Parquet implementations. Better
-  // to relax this constraint for now and revisit another time.
+  // While the Parquet spec indicates that the root group should have REPEATED
+  // repetition type, some implementations may return REQUIRED or OPTIONAL
+  // groups as the first element. These tests check that this is okay as a
+  // practicality matter.
+  elements[0] = NewGroup("not-repeated", FieldRepetitionType::REQUIRED, 1);
+  elements[1] = NewPrimitive("a", FieldRepetitionType::REQUIRED,
+      parquet::Type::INT32);
+  Convert(elements, 2);
 
-  // elements[0] = NewGroup("not-repeated", FieldRepetitionType::REQUIRED, 1);
-  // ASSERT_THROW(Convert(elements, 2), ParquetException);
-
-  // elements[0] = NewGroup("not-repeated", FieldRepetitionType::OPTIONAL, 1);
-  // ASSERT_THROW(Convert(elements, 2), ParquetException);
+  elements[0] = NewGroup("not-repeated", FieldRepetitionType::OPTIONAL, 1);
+  Convert(elements, 2);
 }
 
 TEST_F(TestSchemaConverter, NotEnoughChildren) {
