@@ -24,4 +24,5 @@ install(FILES
   DESTINATION include/parquet/schema)
 
 ADD_PARQUET_TEST(schema-converter-test)
+ADD_PARQUET_TEST(schema-descriptor-test)
 ADD_PARQUET_TEST(schema-types-test)

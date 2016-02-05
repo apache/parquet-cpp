@@ -40,11 +40,11 @@ void SchemaDescriptor::Init(const NodePtr& schema) {
   leaves_.clear();
 
   for (size_t i = 0; i < group_->field_count(); ++i) {
-    FindLeaves(group_->field(i), 0, 0);
+    BuildTree(group_->field(i), 0, 0);
   }
 }
 
-void SchemaDescriptor::FindLeaves(const NodePtr& node, int16_t max_def_level,
+void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
     int16_t max_rep_level) {
   if (node->is_optional()) {
     ++max_def_level;
@@ -59,7 +59,7 @@ void SchemaDescriptor::FindLeaves(const NodePtr& node, int16_t max_def_level,
   if (node->is_group()) {
     const GroupNode* group = static_cast<const GroupNode*>(node.get());
     for (size_t i = 0; i < group->field_count(); ++i) {
-      FindLeaves(group->field(i), max_def_level, max_rep_level);
+      BuildTree(group->field(i), max_def_level, max_rep_level);
     }
   } else {
     // Primitive node, append to leaves

@@ -182,6 +182,15 @@ class PrimitiveNode : public Node {
     return NodePtr(new PrimitiveNode(name, repetition, type, logical_type));
   }
 
+  static inline NodePtr MakeFLBA(const std::string& name,
+      Repetition::type repetition, Type::type type,
+      int32_t type_length,
+      LogicalType::type logical_type = LogicalType::NONE) {
+    NodePtr result = Make(name, repetition, type, logical_type);
+    static_cast<PrimitiveNode*>(result.get())->SetTypeLength(type_length);
+    return result;
+  }
+
   virtual bool Equals(const Node* other) const;
 
   Type::type physical_type() const {
@@ -278,6 +287,7 @@ class GroupNode : public Node {
     return PrimitiveNode::Make(name, repetition, Type::TYPE);   \
   }
 
+PRIMITIVE_FACTORY(Boolean, BOOLEAN);
 PRIMITIVE_FACTORY(Int32, INT32);
 PRIMITIVE_FACTORY(Int64, INT64);
 PRIMITIVE_FACTORY(Int96, INT96);
