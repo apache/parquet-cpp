@@ -32,7 +32,10 @@ namespace parquet_cpp {
 // Metadata enums to match Thrift metadata
 //
 // The reason we maintain our own enums is to avoid transitive dependency on
-// the compiled Thrift headers for users of the public API.
+// the compiled Thrift headers (and thus thrift/Thrift.h) for users of the
+// public API. After building parquet-cpp, you should not need to include
+// Thrift headers in your application. This means some boilerplate to convert
+// between our types and Parquet's Thrift types.
 //
 // We can also add special values like NONE to distinguish between metadata
 // values being set and not set. As an example consider ConvertedType and
