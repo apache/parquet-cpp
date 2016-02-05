@@ -22,6 +22,8 @@
 #ifndef PARQUET_SCHEMA_TEST_UTIL_H
 #define PARQUET_SCHEMA_TEST_UTIL_H
 
+#include <string>
+
 #include "parquet/schema/types.h"
 #include "parquet/thrift/parquet_types.h"
 

@@ -137,7 +137,8 @@ std::unique_ptr<Node> GroupNode::FromParquet(const void* opaque_element, int nod
           params.logical_type, node_id));
 }
 
-std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element, int node_id) {
+std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element,
+    int node_id) {
   const parquet::SchemaElement* element =
     static_cast<const parquet::SchemaElement*>(opaque_element);
   NodeParams params = GetNodeParams(element);
