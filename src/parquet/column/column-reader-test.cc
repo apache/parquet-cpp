@@ -36,7 +36,6 @@ using std::vector;
 using std::shared_ptr;
 using parquet::FieldRepetitionType;
 using parquet::SchemaElement;
-using parquet::Encoding;
 
 namespace parquet_cpp {
 
@@ -78,11 +77,11 @@ static vector<T> slice(const vector<T>& values, size_t start, size_t end) {
 TEST_F(TestPrimitiveReader, TestInt32FlatRequired) {
   vector<int32_t> values = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   size_t num_values = values.size();
-  Encoding::type value_encoding = Encoding::PLAIN;
+  parquet::Encoding::type value_encoding = parquet::Encoding::PLAIN;
 
   vector<uint8_t> page1;
   test::DataPageBuilder<Type::INT32> page_builder(&page1);
-  page_builder.AppendValues(values, Encoding::PLAIN);
+  page_builder.AppendValues(values, parquet::Encoding::PLAIN);
   pages_.push_back(page_builder.Finish());
 
   // TODO: simplify this
@@ -108,14 +107,14 @@ TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
   vector<int16_t> def_levels = {1, 0, 0, 1, 1, 0, 0, 0, 1, 1};
 
   size_t num_values = values.size();
-  Encoding::type value_encoding = Encoding::PLAIN;
+  parquet::Encoding::type value_encoding = parquet::Encoding::PLAIN;
 
   vector<uint8_t> page1;
   test::DataPageBuilder<Type::INT32> page_builder(&page1);
 
   // Definition levels precede the values
-  page_builder.AppendDefLevels(def_levels, 1, Encoding::RLE);
-  page_builder.AppendValues(values, Encoding::PLAIN);
+  page_builder.AppendDefLevels(def_levels, 1, parquet::Encoding::RLE);
+  page_builder.AppendValues(values, parquet::Encoding::PLAIN);
 
   pages_.push_back(page_builder.Finish());
 

@@ -27,59 +27,10 @@
 #include <vector>
 
 #include "parquet/exception.h"
+#include "parquet/types.h"
 #include "parquet/util/macros.h"
 
 namespace parquet_cpp {
-
-// Mirrors parquet::Type
-struct Type {
-  enum type {
-    BOOLEAN = 0,
-    INT32 = 1,
-    INT64 = 2,
-    INT96 = 3,
-    FLOAT = 4,
-    DOUBLE = 5,
-    BYTE_ARRAY = 6,
-    FIXED_LEN_BYTE_ARRAY = 7
-  };
-};
-
-// Mirrors parquet::ConvertedType
-struct LogicalType {
-  enum type {
-    NONE,
-    UTF8,
-    MAP,
-    MAP_KEY_VALUE,
-    LIST,
-    ENUM,
-    DECIMAL,
-    DATE,
-    TIME_MILLIS,
-    TIMESTAMP_MILLIS,
-    UINT_8,
-    UINT_16,
-    UINT_32,
-    UINT_64,
-    INT_8,
-    INT_16,
-    INT_32,
-    INT_64,
-    JSON,
-    BSON,
-    INTERVAL
-  };
-};
-
-// Mirrors parquet::FieldRepetitionType
-struct Repetition {
-  enum type {
-    REQUIRED = 0,
-    OPTIONAL = 1,
-    REPEATED = 2
-  };
-};
 
 namespace schema {
 

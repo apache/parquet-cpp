@@ -28,9 +28,6 @@
 
 namespace parquet_cpp {
 
-using parquet::Encoding;
-using parquet::PageType;
-
 ColumnReader::ColumnReader(const ColumnDescriptor* descr,
     std::unique_ptr<PageReader> pager)
   : descr_(descr),
@@ -40,7 +37,7 @@ ColumnReader::ColumnReader(const ColumnDescriptor* descr,
 
 template <int TYPE>
 void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
-  int encoding = static_cast<int>(Encoding::RLE_DICTIONARY);
+  int encoding = static_cast<int>(parquet::Encoding::RLE_DICTIONARY);
 
   auto it = decoders_.find(encoding);
   if (it != decoders_.end()) {
@@ -76,8 +73,9 @@ static size_t InitializeLevelDecoder(const uint8_t* buffer,
 
 // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
 // encoding.
-static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
-  return e == Encoding::RLE_DICTIONARY || e == Encoding::PLAIN_DICTIONARY;
+static bool IsDictionaryIndexEncoding(const parquet::Encoding::type& e) {
+  return e == parquet::Encoding::RLE_DICTIONARY ||
+    e == parquet::Encoding::PLAIN_DICTIONARY;
 }
 
 template <int TYPE>
@@ -92,10 +90,10 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
       return false;
     }
 
-    if (current_page_->type() == PageType::DICTIONARY_PAGE) {
+    if (current_page_->type() == parquet::PageType::DICTIONARY_PAGE) {
       ConfigureDictionary(static_cast<const DictionaryPage*>(current_page_.get()));
       continue;
-    } else if (current_page_->type() == PageType::DATA_PAGE) {
+    } else if (current_page_->type() == parquet::PageType::DATA_PAGE) {
       const DataPage* page = static_cast<const DataPage*>(current_page_.get());
 
       // Read a data page.
@@ -131,10 +129,10 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
 
       // Get a decoder object for this page or create a new decoder if this is the
       // first page with this encoding.
-      Encoding::type encoding = page->encoding();
+      parquet::Encoding::type encoding = page->encoding();
 
       if (IsDictionaryIndexEncoding(encoding)) {
-        encoding = Encoding::RLE_DICTIONARY;
+        encoding = parquet::Encoding::RLE_DICTIONARY;
       }
 
       auto it = decoders_.find(static_cast<int>(encoding));
@@ -142,18 +140,18 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
         current_decoder_ = it->second.get();
       } else {
         switch (encoding) {
-          case Encoding::PLAIN: {
+          case parquet::Encoding::PLAIN: {
             std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>(descr_));
             decoders_[static_cast<int>(encoding)] = decoder;
             current_decoder_ = decoder.get();
             break;
           }
-          case Encoding::RLE_DICTIONARY:
+          case parquet::Encoding::RLE_DICTIONARY:
             throw ParquetException("Dictionary page must be before data page.");
 
-          case Encoding::DELTA_BINARY_PACKED:
-          case Encoding::DELTA_LENGTH_BYTE_ARRAY:
-          case Encoding::DELTA_BYTE_ARRAY:
+          case parquet::Encoding::DELTA_BINARY_PACKED:
+          case parquet::Encoding::DELTA_LENGTH_BYTE_ARRAY:
+          case parquet::Encoding::DELTA_BYTE_ARRAY:
             ParquetException::NYI("Unsupported encoding");
 
           default:

@@ -24,10 +24,106 @@
 #include <sstream>
 #include <string>
 
-#include "parquet/schema/types.h"
 #include "parquet/util/compiler-util.h"
 
 namespace parquet_cpp {
+
+// ----------------------------------------------------------------------
+// Metadata enums to match Thrift metadata
+//
+// The reason we maintain our own enums is to avoid transitive dependency on
+// the compiled Thrift headers for users of the public API.
+//
+// We can also add special values like NONE to distinguish between metadata
+// values being set and not set. As an example consider ConvertedType and
+// CompressionCodec
+
+// Mirrors parquet::Type
+struct Type {
+  enum type {
+    BOOLEAN = 0,
+    INT32 = 1,
+    INT64 = 2,
+    INT96 = 3,
+    FLOAT = 4,
+    DOUBLE = 5,
+    BYTE_ARRAY = 6,
+    FIXED_LEN_BYTE_ARRAY = 7
+  };
+};
+
+// Mirrors parquet::ConvertedType
+struct LogicalType {
+  enum type {
+    NONE,
+    UTF8,
+    MAP,
+    MAP_KEY_VALUE,
+    LIST,
+    ENUM,
+    DECIMAL,
+    DATE,
+    TIME_MILLIS,
+    TIMESTAMP_MILLIS,
+    UINT_8,
+    UINT_16,
+    UINT_32,
+    UINT_64,
+    INT_8,
+    INT_16,
+    INT_32,
+    INT_64,
+    JSON,
+    BSON,
+    INTERVAL
+  };
+};
+
+// Mirrors parquet::FieldRepetitionType
+struct Repetition {
+  enum type {
+    REQUIRED = 0,
+    OPTIONAL = 1,
+    REPEATED = 2
+  };
+};
+
+// Data encodings. Mirrors parquet::Encoding
+struct Encoding {
+  enum type {
+    PLAIN = 0,
+    PLAIN_DICTIONARY = 2,
+    RLE = 3,
+    BIT_PACKED = 4,
+    DELTA_BINARY_PACKED = 5,
+    DELTA_LENGTH_BYTE_ARRAY = 6,
+    DELTA_BYTE_ARRAY = 7,
+    RLE_DICTIONARY = 8
+  };
+};
+
+// Compression, mirrors parquet::CompressionCodec
+struct Compression {
+  enum type {
+    NONE,
+    UNCOMPRESSED,
+    SNAPPY,
+    GZIP,
+    LZO
+  };
+};
+
+// parquet::PageType
+struct PageType {
+  enum type {
+    DATA_PAGE,
+    INDEX_PAGE,
+    DICTIONARY_PAGE,
+    DATA_PAGE_V2
+  };
+};
+
+// ----------------------------------------------------------------------
 
 struct ByteArray {
   uint32_t len;
