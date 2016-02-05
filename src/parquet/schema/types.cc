@@ -17,6 +17,10 @@
 
 #include "parquet/schema/types.h"
 
+#include <memory>
+
+#include "parquet/thrift/parquet_types.h"
+
 namespace parquet_cpp {
 
 namespace schema {
@@ -85,6 +89,72 @@ bool GroupNode::Equals(const Node* other) const {
 
 void GroupNode::Visit(Node::Visitor* visitor) {
   visitor->Visit(this);
+}
+
+// ----------------------------------------------------------------------
+// Node construction from Parquet metadata
+
+static Type::type ConvertEnum(parquet::Type::type type) {
+  return static_cast<Type::type>(type);
+}
+
+static LogicalType::type ConvertEnum(parquet::ConvertedType::type type) {
+  // item 0 is NONE
+  return static_cast<LogicalType::type>(static_cast<int>(type) + 1);
+}
+
+static Repetition::type ConvertEnum(parquet::FieldRepetitionType::type type) {
+  return static_cast<Repetition::type>(type);
+}
+
+struct NodeParams {
+  explicit NodeParams(const std::string& name) :
+      name(name) {}
+
+  const std::string& name;
+  Repetition::type repetition;
+  LogicalType::type logical_type;
+};
+
+static inline NodeParams GetNodeParams(const parquet::SchemaElement* element) {
+  NodeParams params(element->name);
+
+  params.repetition = ConvertEnum(element->repetition_type);
+  if (element->__isset.converted_type) {
+    params.logical_type = ConvertEnum(element->converted_type);
+  } else {
+    params.logical_type = LogicalType::NONE;
+  }
+  return params;
+}
+
+std::unique_ptr<Node> GroupNode::FromParquet(const void* opaque_element, int node_id,
+    const NodeVector& fields) {
+  const parquet::SchemaElement* element =
+    static_cast<const parquet::SchemaElement*>(opaque_element);
+  NodeParams params = GetNodeParams(element);
+  return std::unique_ptr<Node>(new GroupNode(params.name, params.repetition, fields,
+          params.logical_type, node_id));
+}
+
+std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element, int node_id) {
+  const parquet::SchemaElement* element =
+    static_cast<const parquet::SchemaElement*>(opaque_element);
+  NodeParams params = GetNodeParams(element);
+
+  std::unique_ptr<PrimitiveNode> result = std::unique_ptr<PrimitiveNode>(
+      new PrimitiveNode(params.name, params.repetition,
+          ConvertEnum(element->type), params.logical_type, node_id));
+
+  if (element->type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
+    result->SetTypeLength(element->type_length);
+    if (params.logical_type == LogicalType::DECIMAL) {
+      result->SetDecimalMetadata(element->scale, element->precision);
+    }
+  }
+
+  // Return as unique_ptr to the base type
+  return std::unique_ptr<Node>(result.release());
 }
 
 } // namespace schema

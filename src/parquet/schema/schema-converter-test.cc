@@ -25,6 +25,8 @@
 #include "parquet/schema/converter.h"
 #include "parquet/thrift/parquet_types.h"
 
+#include "parquet/schema/test-util.h"
+
 using std::string;
 using std::vector;
 
@@ -36,90 +38,8 @@ namespace parquet_cpp {
 
 namespace schema {
 
-static SchemaElement NewPrimitive(const std::string& name,
-    FieldRepetitionType::type repetition, parquet::Type::type type) {
-  SchemaElement result;
-  result.__set_name(name);
-  result.__set_repetition_type(repetition);
-  result.__set_type(type);
-  result.__set_num_children(0);
-
-  return result;
-}
-
-// ----------------------------------------------------------------------
-// Test converting leaf nodes to and from schema::Node data structures
-
-class TestConvertPrimitive : public ::testing::Test {
- public:
-  void setUp() {
-    name_ = "name";
-    id_ = 5;
-  }
-
-  void Convert(const parquet::SchemaElement* element) {
-    node_ = ConvertPrimitive(element, id_);
-    ASSERT_TRUE(node_->is_primitive());
-    prim_node_ = static_cast<const PrimitiveNode*>(node_.get());
-  }
-
- protected:
-  std::string name_;
-  const PrimitiveNode* prim_node_;
-
-  int id_;
-  std::unique_ptr<Node> node_;
-};
-
-TEST_F(TestConvertPrimitive, TestBasics) {
-  SchemaElement elt = NewPrimitive(name_, FieldRepetitionType::OPTIONAL,
-      parquet::Type::INT32);
-
-  Convert(&elt);
-  ASSERT_EQ(name_, prim_node_->name());
-  ASSERT_EQ(id_, prim_node_->id());
-  ASSERT_EQ(Repetition::OPTIONAL, prim_node_->repetition());
-  ASSERT_EQ(Type::INT32, prim_node_->physical_type());
-  ASSERT_EQ(LogicalType::NONE, prim_node_->logical_type());
-
-  // Test a logical type
-  elt = NewPrimitive(name_, FieldRepetitionType::REQUIRED, parquet::Type::BYTE_ARRAY);
-  elt.__set_converted_type(ConvertedType::UTF8);
-
-  Convert(&elt);
-  ASSERT_EQ(Repetition::REQUIRED, prim_node_->repetition());
-  ASSERT_EQ(Type::BYTE_ARRAY, prim_node_->physical_type());
-  ASSERT_EQ(LogicalType::UTF8, prim_node_->logical_type());
-}
-
-TEST_F(TestConvertPrimitive, TestFixedLenByteArray) {
-  SchemaElement elt = NewPrimitive(name_, FieldRepetitionType::OPTIONAL,
-      parquet::Type::FIXED_LEN_BYTE_ARRAY);
-  elt.__set_type_length(16);
-
-  Convert(&elt);
-  ASSERT_EQ(name_, prim_node_->name());
-  ASSERT_EQ(id_, prim_node_->id());
-  ASSERT_EQ(Repetition::OPTIONAL, prim_node_->repetition());
-  ASSERT_EQ(Type::FIXED_LEN_BYTE_ARRAY, prim_node_->physical_type());
-  ASSERT_EQ(16, prim_node_->type_length());
-}
-
-TEST_F(TestConvertPrimitive, TestDecimal) {
-}
-
 // ----------------------------------------------------------------------
 // Test convert group
-
-static SchemaElement NewGroup(const std::string& name,
-    FieldRepetitionType::type repetition, size_t num_children) {
-  SchemaElement result;
-  result.__set_name(name);
-  result.__set_repetition_type(repetition);
-  result.__set_num_children(num_children);
-
-  return result;
-}
 
 class TestSchemaConverter : public ::testing::Test {
  public:
@@ -167,13 +87,13 @@ TEST_F(TestSchemaConverter, NestedExample) {
 
   // 3-level list encoding
   NodePtr item = Int64("item");
-  NodePtr list(new GroupNode("b", Repetition::REPEATED, {item}, LogicalType::LIST));
-  NodePtr bag(new GroupNode("bag", Repetition::OPTIONAL, {list}));
+  NodePtr list(MakeGroup("b", Repetition::REPEATED, {item}, LogicalType::LIST));
+  NodePtr bag(MakeGroup("bag", Repetition::OPTIONAL, {list}));
   fields.push_back(bag);
 
-  GroupNode schema(name_, Repetition::REPEATED, fields);
+  NodePtr schema = MakeGroup(name_, Repetition::REPEATED, fields);
 
-  ASSERT_TRUE(schema.Equals(group_));
+  ASSERT_TRUE(schema->Equals(group_));
 }
 
 TEST_F(TestSchemaConverter, InvalidRoot) {

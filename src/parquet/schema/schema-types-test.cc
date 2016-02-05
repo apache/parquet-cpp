@@ -23,6 +23,7 @@
 #include "parquet/util/test-common.h"
 
 #include "parquet/schema/types.h"
+#include "parquet/schema/test-util.h"
 
 using std::string;
 using std::vector;
@@ -34,7 +35,28 @@ namespace schema {
 // ----------------------------------------------------------------------
 // Primitive node
 
-TEST(TestPrimitiveNode, TestAttrs) {
+class TestPrimitiveNode : public ::testing::Test {
+ public:
+  void setUp() {
+    name_ = "name";
+    id_ = 5;
+  }
+
+  void Convert(const parquet::SchemaElement* element) {
+    node_ = PrimitiveNode::FromParquet(element, id_);
+    ASSERT_TRUE(node_->is_primitive());
+    prim_node_ = static_cast<const PrimitiveNode*>(node_.get());
+  }
+
+ protected:
+  std::string name_;
+  const PrimitiveNode* prim_node_;
+
+  int id_;
+  std::unique_ptr<Node> node_;
+};
+
+TEST_F(TestPrimitiveNode, Attrs) {
   PrimitiveNode node1("foo", Repetition::REPEATED, Type::INT32);
 
   PrimitiveNode node2("bar", Repetition::OPTIONAL, Type::BYTE_ARRAY,
@@ -56,21 +78,10 @@ TEST(TestPrimitiveNode, TestAttrs) {
   // logical types
   ASSERT_EQ(LogicalType::NONE, node1.logical_type());
   ASSERT_EQ(LogicalType::UTF8, node2.logical_type());
-}
 
-TEST(TestPrimitiveNode, TestFixedLenByteArray) {
-  PrimitiveNode t1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 10);
-
-  ASSERT_EQ(10, t1.type_length());
-}
-
-TEST(TestPrimitiveNode, TestDecimal) {
-  // TODO(wesm): need to look more at Parquet spec
-}
-
-TEST(TestPrimitiveNode, TestIsRepetition) {
-  PrimitiveNode node1("foo", Repetition::REQUIRED, Type::INT32);
-  PrimitiveNode node2("foo", Repetition::OPTIONAL, Type::INT32);
+  // repetition
+  node1 = PrimitiveNode("foo", Repetition::REQUIRED, Type::INT32);
+  node2 = PrimitiveNode("foo", Repetition::OPTIONAL, Type::INT32);
   PrimitiveNode node3("foo", Repetition::REPEATED, Type::INT32);
 
   ASSERT_TRUE(node1.is_required());
@@ -82,7 +93,54 @@ TEST(TestPrimitiveNode, TestIsRepetition) {
   ASSERT_FALSE(node3.is_optional());
 }
 
-TEST(TestPrimitiveNode, TestEquals) {
+TEST_F(TestPrimitiveNode, FromParquet) {
+  SchemaElement elt = NewPrimitive(name_, FieldRepetitionType::OPTIONAL,
+      parquet::Type::INT32);
+  Convert(&elt);
+  ASSERT_EQ(name_, prim_node_->name());
+  ASSERT_EQ(id_, prim_node_->id());
+  ASSERT_EQ(Repetition::OPTIONAL, prim_node_->repetition());
+  ASSERT_EQ(Type::INT32, prim_node_->physical_type());
+  ASSERT_EQ(LogicalType::NONE, prim_node_->logical_type());
+
+  // Test a logical type
+  elt = NewPrimitive(name_, FieldRepetitionType::REQUIRED, parquet::Type::BYTE_ARRAY);
+  elt.__set_converted_type(ConvertedType::UTF8);
+
+  Convert(&elt);
+  ASSERT_EQ(Repetition::REQUIRED, prim_node_->repetition());
+  ASSERT_EQ(Type::BYTE_ARRAY, prim_node_->physical_type());
+  ASSERT_EQ(LogicalType::UTF8, prim_node_->logical_type());
+
+  // FIXED_LEN_BYTE_ARRAY
+  elt = NewPrimitive(name_, FieldRepetitionType::OPTIONAL,
+      parquet::Type::FIXED_LEN_BYTE_ARRAY);
+  elt.__set_type_length(16);
+
+  Convert(&elt);
+  ASSERT_EQ(name_, prim_node_->name());
+  ASSERT_EQ(id_, prim_node_->id());
+  ASSERT_EQ(Repetition::OPTIONAL, prim_node_->repetition());
+  ASSERT_EQ(Type::FIXED_LEN_BYTE_ARRAY, prim_node_->physical_type());
+  ASSERT_EQ(16, prim_node_->type_length());
+
+  // ConvertedType::Decimal
+  elt = NewPrimitive(name_, FieldRepetitionType::OPTIONAL,
+      parquet::Type::FIXED_LEN_BYTE_ARRAY);
+  elt.__set_converted_type(ConvertedType::DECIMAL);
+  elt.__set_type_length(6);
+  elt.__set_scale(12);
+  elt.__set_precision(2);
+
+  Convert(&elt);
+  ASSERT_EQ(Type::FIXED_LEN_BYTE_ARRAY, prim_node_->physical_type());
+  ASSERT_EQ(LogicalType::DECIMAL, prim_node_->logical_type());
+  ASSERT_EQ(6, prim_node_->type_length());
+  ASSERT_EQ(12, prim_node_->decimal_metadata().scale);
+  ASSERT_EQ(2, prim_node_->decimal_metadata().precision);
+}
+
+TEST_F(TestPrimitiveNode, Equals) {
   PrimitiveNode node1("foo", Repetition::REQUIRED, Type::INT32);
   PrimitiveNode node2("foo", Repetition::REQUIRED, Type::INT64);
   PrimitiveNode node3("bar", Repetition::REQUIRED, Type::INT32);
@@ -94,12 +152,15 @@ TEST(TestPrimitiveNode, TestEquals) {
   ASSERT_FALSE(node1.Equals(&node3));
   ASSERT_FALSE(node1.Equals(&node4));
   ASSERT_TRUE(node1.Equals(&node5));
-}
 
-TEST(TestPrimitiveNode, TestFLBAEquals) {
-  PrimitiveNode flba1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 12);
-  PrimitiveNode flba2("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 12);
-  PrimitiveNode flba3("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, 16);
+  PrimitiveNode flba1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY);
+  flba1.SetTypeLength(12);
+
+  PrimitiveNode flba2("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY);
+  flba2.SetTypeLength(12);
+
+  PrimitiveNode flba3("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY);
+  flba3.SetTypeLength(16);
 
   ASSERT_TRUE(flba1.Equals(&flba2));
   ASSERT_FALSE(flba1.Equals(&flba3));
@@ -121,7 +182,7 @@ class TestGroupNode : public ::testing::Test {
   }
 };
 
-TEST_F(TestGroupNode, TestAttrs) {
+TEST_F(TestGroupNode, Attrs) {
   NodeVector fields = Fields1();
 
   GroupNode node1("foo", Repetition::REPEATED, fields);
@@ -147,7 +208,7 @@ TEST_F(TestGroupNode, TestAttrs) {
   ASSERT_EQ(LogicalType::LIST, node2.logical_type());
 }
 
-TEST_F(TestGroupNode, TestEquals) {
+TEST_F(TestGroupNode, Equals) {
   NodeVector f1 = Fields1();
   NodeVector f2 = Fields1();
 
@@ -163,25 +224,6 @@ TEST_F(TestGroupNode, TestEquals) {
   ASSERT_FALSE(group1.Equals(&group3));
 
   ASSERT_FALSE(group1.Equals(&group4));
-}
-
-// ----------------------------------------------------------------------
-// Schema root node
-
-TEST_F(TestGroupNode, TestRootSchema) {
-  NodeVector fields = Fields1();
-
-  std::string test_name = "parquet_cpp_schema";
-  RootSchema schema(test_name, fields);
-  ASSERT_EQ(test_name, schema.name());
-
-  // convenience ctor, no need to supply a name
-  RootSchema schema2(fields);
-  ASSERT_EQ("schema", schema2.name());
-
-  // ctor equivalence
-  RootSchema schema3("schema", fields);
-  ASSERT_TRUE(schema2.Equals(&schema3));
 }
 
 } // namespace schema

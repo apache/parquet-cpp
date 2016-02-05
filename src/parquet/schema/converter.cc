@@ -21,90 +21,11 @@
 
 #include "parquet/exception.h"
 
-using parquet::FieldRepetitionType;
 using parquet::SchemaElement;
 
 namespace parquet_cpp {
 
 namespace schema {
-
-// Using operator overloading on these for now, can always refactor later
-static Type::type FromParquet(parquet::Type::type type) {
-  return static_cast<Type::type>(type);
-}
-
-static LogicalType::type FromParquet(parquet::ConvertedType::type type) {
-  // item 0 is NONE
-  return static_cast<LogicalType::type>(static_cast<int>(type) + 1);
-}
-
-static Repetition::type FromParquet(FieldRepetitionType::type type) {
-  return static_cast<Repetition::type>(type);
-}
-
-// TODO: decide later what to do with these. When converting back only need to
-// write into a parquet::SchemaElement
-
-// FieldRepetitionType::type ToParquet(Repetition::type type) {
-//   return static_cast<FieldRepetitionType::type>(type);
-// }
-
-// parquet::ConvertedType::type ToParquet(LogicalType::type type) {
-//   // item 0 is NONE
-//   return static_cast<parquet::ConvertedType::type>(static_cast<int>(type) - 1);
-// }
-
-// parquet::Type::type ToParquet(Type::type type) {
-//   return static_cast<parquet::Type::type>(type);
-// }
-
-struct NodeParams {
-  explicit NodeParams(const std::string& name) :
-      name(name) {}
-
-  const std::string& name;
-  Repetition::type repetition;
-  LogicalType::type logical_type;
-};
-
-static inline NodeParams GetNodeParams(const SchemaElement* element) {
-  NodeParams params(element->name);
-
-  params.repetition = FromParquet(element->repetition_type);
-  if (element->__isset.converted_type) {
-    params.logical_type = FromParquet(element->converted_type);
-  } else {
-    params.logical_type = LogicalType::NONE;
-  }
-  return params;
-}
-
-std::unique_ptr<Node> ConvertPrimitive(const SchemaElement* element, int node_id) {
-  NodeParams params = GetNodeParams(element);
-
-  // Uncommment when we can handle decimal metadata
-  // if (params.logical_type == LogicalType::DECIMAL) {
-  //   // TODO(wesm): Decimal metadata
-  //   ParquetException::NYI("Decimal type");
-  //   return std::unique_ptr<Node>(nullptr);
-  // }
-
-  if (element->type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
-    return std::unique_ptr<Node>(new PrimitiveNode(params.name, params.repetition,
-            FromParquet(element->type), element->type_length,
-            params.logical_type, node_id));
-  } else {
-    return std::unique_ptr<Node>(new PrimitiveNode(params.name, params.repetition,
-            FromParquet(element->type), params.logical_type, node_id));
-  }
-}
-
-std::unique_ptr<Node> ConvertGroup(const SchemaElement* element, int node_id,
-    const NodeVector& fields) {
-  NodeParams params = GetNodeParams(element);
-  return std::unique_ptr<Node>(new GroupNode(params.name, params.repetition, fields,
-          params.logical_type, node_id));
-}
 
 std::unique_ptr<Node> FlatSchemaConverter::Convert() {
   const SchemaElement& root = elements_[0];
@@ -127,9 +48,11 @@ std::unique_ptr<Node> FlatSchemaConverter::NextNode() {
 
   size_t node_id = next_id();
 
+  const void* opaque_element = static_cast<const void*>(&element);
+
   if (element.num_children == 0) {
     // Leaf (primitive) node
-    return ConvertPrimitive(&element, node_id);
+    return PrimitiveNode::FromParquet(opaque_element, node_id);
   } else {
     // Group
     NodeVector fields;
@@ -137,7 +60,7 @@ std::unique_ptr<Node> FlatSchemaConverter::NextNode() {
       std::unique_ptr<Node> field = NextNode();
       fields.push_back(NodePtr(field.release()));
     }
-    return ConvertGroup(&element, node_id, fields);
+    return GroupNode::FromParquet(opaque_element, node_id, fields);
   }
 }
 
@@ -161,6 +84,22 @@ std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& 
 
 // ----------------------------------------------------------------------
 // Conversion back to Parquet metadata
+
+// TODO: decide later what to do with these. When converting back only need to
+// write into a parquet::SchemaElement
+
+// FieldRepetitionType::type ToParquet(Repetition::type type) {
+//   return static_cast<FieldRepetitionType::type>(type);
+// }
+
+// parquet::ConvertedType::type ToParquet(LogicalType::type type) {
+//   // item 0 is NONE
+//   return static_cast<parquet::ConvertedType::type>(static_cast<int>(type) - 1);
+// }
+
+// parquet::Type::type ToParquet(Type::type type) {
+//   return static_cast<parquet::Type::type>(type);
+// }
 
 } // namespace schema
 

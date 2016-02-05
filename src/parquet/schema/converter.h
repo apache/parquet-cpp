@@ -70,12 +70,6 @@ class FlatSchemaConverter {
   std::unique_ptr<Node> NextNode();
 };
 
-// Helper functions that we can also test
-std::unique_ptr<Node> ConvertPrimitive(const parquet::SchemaElement* element,
-    int node_id = -1);
-std::unique_ptr<Node> ConvertGroup(const parquet::SchemaElement* element, int node_id,
-    const NodeVector& fields);
-
 // ----------------------------------------------------------------------
 // Conversion to Parquet Thrift metadata
 

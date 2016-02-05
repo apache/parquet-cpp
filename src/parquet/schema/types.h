@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "parquet/exception.h"
+#include "parquet/util/macros.h"
 
 namespace parquet_cpp {
 
@@ -214,46 +215,22 @@ class Node {
 typedef std::shared_ptr<Node> NodePtr;
 typedef std::vector<NodePtr> NodeVector;
 
+// Allow these functions to be friended
+static inline NodePtr MakePrimitive(const std::string&,
+    Repetition::type, Type::type, LogicalType::type);
+
+static inline NodePtr MakeGroup(const std::string&,
+    Repetition::type, const NodeVector&, LogicalType::type);
+
 // A type that is one of the primitive Parquet storage types. In addition to
 // the other type metadata (name, repetition level, logical type), also has the
 // physical storage type and their type-specific metadata (byte width, decimal
 // parameters)
 class PrimitiveNode : public Node {
  public:
-  PrimitiveNode(const std::string& name, Repetition::type repetition,
-      Type::type type,
-      LogicalType::type logical_type = LogicalType::NONE,
-      int id = -1) :
-      Node(Node::PRIMITIVE, name, repetition, logical_type, id),
-      physical_type_(type) {}
-
-  // FLBA ctor
-  PrimitiveNode(const std::string& name, Repetition::type repetition,
-      Type::type type, int32_t type_length,
-      LogicalType::type logical_type = LogicalType::NONE,
-      int id = -1) :
-      PrimitiveNode(name, repetition, type, logical_type, id) {
-    if (type != Type::FIXED_LEN_BYTE_ARRAY) {
-      throw ParquetException("FIXED_LEN_BYTE_ARRAY ctor");
-    }
-
-    type_length_ = type_length;
-  }
-
-  // Decimal ctor
-  PrimitiveNode(const std::string& name, Repetition::type repetition,
-      Type::type type, int32_t scale, int32_t precision,
-      LogicalType::type logical_type = LogicalType::NONE,
-      int id = -1) :
-      PrimitiveNode(name, repetition, type, logical_type, id) {
-    if (type != Type::FIXED_LEN_BYTE_ARRAY) {
-      throw ParquetException("FIXED_LEN_BYTE_ARRAY ctor");
-    }
-
-    // TODO(wesm): compute FLBA type length from scale/precision
-
-    SetDecimalMetadata(scale, precision);
-  }
+  // FromParquet accepts an opaque void* to avoid exporting
+  // parquet::SchemaElement into the public API
+  static std::unique_ptr<Node> FromParquet(const void* opaque_element, int id);
 
   virtual bool Equals(const Node* other) const;
 
@@ -272,14 +249,26 @@ class PrimitiveNode : public Node {
   virtual void Visit(Visitor* visitor);
 
  private:
+  PrimitiveNode(const std::string& name, Repetition::type repetition,
+      Type::type type,
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
+      Node(Node::PRIMITIVE, name, repetition, logical_type, id),
+      physical_type_(type) {}
+
+  friend NodePtr MakePrimitive(const std::string& name,
+      Repetition::type repetition, Type::type type,
+      LogicalType::type logical_type);
+
   Type::type physical_type_;
+  int32_t type_length_;
+  DecimalMetadata decimal_metadata_;
 
   // For FIXED_LEN_BYTE_ARRAY
   void SetTypeLength(int32_t length) {
     type_length_ = length;
   }
 
-  int32_t type_length_;
 
   // For Decimal logical type: Precision and scale
   void SetDecimalMetadata(int32_t scale, int32_t precision) {
@@ -287,19 +276,19 @@ class PrimitiveNode : public Node {
     decimal_metadata_.precision = precision;
   }
 
-  DecimalMetadata decimal_metadata_;
-
   bool EqualsInternal(const PrimitiveNode* other) const;
+
+  FRIEND_TEST(TestPrimitiveNode, Attrs);
+  FRIEND_TEST(TestPrimitiveNode, Equals);
+  FRIEND_TEST(TestPrimitiveNode, FromParquet);
 };
 
 class GroupNode : public Node {
  public:
-  GroupNode(const std::string& name, Repetition::type repetition,
-      const NodeVector& fields,
-      LogicalType::type logical_type = LogicalType::NONE,
-      int id = -1) :
-      Node(Node::GROUP, name, repetition, logical_type, id),
-      fields_(fields) {}
+  // Like PrimitiveNode, GroupNode::FromParquet accepts an opaque void* to avoid exporting
+  // parquet::SchemaElement into the public API
+  static std::unique_ptr<Node> FromParquet(const void* opaque_element, int id,
+      const NodeVector& fields);
 
   virtual bool Equals(const Node* other) const;
 
@@ -314,65 +303,52 @@ class GroupNode : public Node {
   virtual void Visit(Visitor* visitor);
 
  private:
+  GroupNode(const std::string& name, Repetition::type repetition,
+      const NodeVector& fields,
+      LogicalType::type logical_type = LogicalType::NONE,
+      int id = -1) :
+      Node(Node::GROUP, name, repetition, logical_type, id),
+      fields_(fields) {}
+
+  friend NodePtr MakeGroup(const std::string& name,
+      Repetition::type repetition, const NodeVector& fields,
+      LogicalType::type logical_type);
+
   NodeVector fields_;
-
   bool EqualsInternal(const GroupNode* other) const;
+
+  FRIEND_TEST(TestGroupNode, Attrs);
+  FRIEND_TEST(TestGroupNode, Equals);
 };
 
+// Declare these first so they can be friended below
+static inline NodePtr MakePrimitive(const std::string& name,
+    Repetition::type repetition, Type::type type,
+    LogicalType::type logical_type = LogicalType::NONE) {
+  return NodePtr(new PrimitiveNode(name, repetition, type, logical_type));
+}
 
-// A group representing a top-level Parquet schema
-class RootSchema : public GroupNode {
- public:
-  RootSchema(const std::string& name, const NodeVector& fields) :
-      GroupNode(name, Repetition::REPEATED, fields) {}
-
-  explicit RootSchema(const NodeVector& fields) :
-      RootSchema("schema", fields) {}
-};
+static inline NodePtr MakeGroup(const std::string& name,
+    Repetition::type repetition, const NodeVector& fields,
+    LogicalType::type logical_type = LogicalType::NONE) {
+  return NodePtr(new GroupNode(name, repetition, fields, logical_type));
+}
 
 // ----------------------------------------------------------------------
 // Convenience primitive type factory functions
 
-static inline NodePtr Boolean(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::BOOLEAN));
-}
+#define PRIMITIVE_FACTORY(FuncName, TYPE)                               \
+  static inline NodePtr FuncName(const std::string& name,               \
+      Repetition::type repetition = Repetition::OPTIONAL) {             \
+    return MakePrimitive(name, repetition, Type::TYPE); \
+  }
 
-static inline NodePtr Int32(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::INT32));
-}
-
-static inline NodePtr Int64(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::INT64));
-}
-
-static inline NodePtr Int96(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::INT96));
-}
-
-static inline NodePtr Float(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::FLOAT));
-}
-
-static inline NodePtr Double(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::DOUBLE));
-}
-
-static inline NodePtr ByteArray(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition, Type::BYTE_ARRAY));
-}
-
-static inline NodePtr FLBA(const std::string& name,
-    Repetition::type repetition = Repetition::OPTIONAL) {
-  return NodePtr(new PrimitiveNode(name, repetition,
-          Type::FIXED_LEN_BYTE_ARRAY));
-}
+PRIMITIVE_FACTORY(Int32, INT32);
+PRIMITIVE_FACTORY(Int64, INT64);
+PRIMITIVE_FACTORY(Int96, INT96);
+PRIMITIVE_FACTORY(Float, FLOAT);
+PRIMITIVE_FACTORY(Double, DOUBLE);
+PRIMITIVE_FACTORY(ByteArray, BYTE_ARRAY);
 
 } // namespace schema
 
