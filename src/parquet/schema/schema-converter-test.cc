@@ -42,6 +42,7 @@ static SchemaElement NewPrimitive(const std::string& name,
   result.__set_name(name);
   result.__set_repetition_type(repetition);
   result.__set_type(type);
+  result.__set_num_children(0);
 
   return result;
 }
@@ -184,7 +185,6 @@ TEST_F(TestSchemaConverter, InvalidRoot) {
   SchemaElement elements[2];
   elements[0] = NewPrimitive("not-a-group", FieldRepetitionType::REQUIRED,
       parquet::Type::INT32);
-  elements[0].num_children = 0;
   ASSERT_THROW(Convert(elements, 2), ParquetException);
 
   // While the Parquet spec indicates that the root group should have REPEATED
