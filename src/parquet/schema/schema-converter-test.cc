@@ -87,11 +87,11 @@ TEST_F(TestSchemaConverter, NestedExample) {
 
   // 3-level list encoding
   NodePtr item = Int64("item");
-  NodePtr list(MakeGroup("b", Repetition::REPEATED, {item}, LogicalType::LIST));
-  NodePtr bag(MakeGroup("bag", Repetition::OPTIONAL, {list}));
+  NodePtr list(GroupNode::Make("b", Repetition::REPEATED, {item}, LogicalType::LIST));
+  NodePtr bag(GroupNode::Make("bag", Repetition::OPTIONAL, {list}));
   fields.push_back(bag);
 
-  NodePtr schema = MakeGroup(name_, Repetition::REPEATED, fields);
+  NodePtr schema = GroupNode::Make(name_, Repetition::REPEATED, fields);
 
   ASSERT_TRUE(schema->Equals(group_));
 }

@@ -166,13 +166,6 @@ class Node {
 typedef std::shared_ptr<Node> NodePtr;
 typedef std::vector<NodePtr> NodeVector;
 
-// Allow these functions to be friended
-static inline NodePtr MakePrimitive(const std::string&,
-    Repetition::type, Type::type, LogicalType::type);
-
-static inline NodePtr MakeGroup(const std::string&,
-    Repetition::type, const NodeVector&, LogicalType::type);
-
 // A type that is one of the primitive Parquet storage types. In addition to
 // the other type metadata (name, repetition level, logical type), also has the
 // physical storage type and their type-specific metadata (byte width, decimal
@@ -182,6 +175,12 @@ class PrimitiveNode : public Node {
   // FromParquet accepts an opaque void* to avoid exporting
   // parquet::SchemaElement into the public API
   static std::unique_ptr<Node> FromParquet(const void* opaque_element, int id);
+
+  static inline NodePtr Make(const std::string& name,
+      Repetition::type repetition, Type::type type,
+      LogicalType::type logical_type = LogicalType::NONE) {
+    return NodePtr(new PrimitiveNode(name, repetition, type, logical_type));
+  }
 
   virtual bool Equals(const Node* other) const;
 
@@ -206,10 +205,6 @@ class PrimitiveNode : public Node {
       int id = -1) :
       Node(Node::PRIMITIVE, name, repetition, logical_type, id),
       physical_type_(type) {}
-
-  friend NodePtr MakePrimitive(const std::string& name,
-      Repetition::type repetition, Type::type type,
-      LogicalType::type logical_type);
 
   Type::type physical_type_;
   int32_t type_length_;
@@ -241,6 +236,12 @@ class GroupNode : public Node {
   static std::unique_ptr<Node> FromParquet(const void* opaque_element, int id,
       const NodeVector& fields);
 
+  static inline NodePtr Make(const std::string& name,
+      Repetition::type repetition, const NodeVector& fields,
+      LogicalType::type logical_type = LogicalType::NONE) {
+    return NodePtr(new GroupNode(name, repetition, fields, logical_type));
+  }
+
   virtual bool Equals(const Node* other) const;
 
   const NodePtr& field(size_t i) const {
@@ -261,10 +262,6 @@ class GroupNode : public Node {
       Node(Node::GROUP, name, repetition, logical_type, id),
       fields_(fields) {}
 
-  friend NodePtr MakeGroup(const std::string& name,
-      Repetition::type repetition, const NodeVector& fields,
-      LogicalType::type logical_type);
-
   NodeVector fields_;
   bool EqualsInternal(const GroupNode* other) const;
 
@@ -272,26 +269,13 @@ class GroupNode : public Node {
   FRIEND_TEST(TestGroupNode, Equals);
 };
 
-// Declare these first so they can be friended below
-static inline NodePtr MakePrimitive(const std::string& name,
-    Repetition::type repetition, Type::type type,
-    LogicalType::type logical_type = LogicalType::NONE) {
-  return NodePtr(new PrimitiveNode(name, repetition, type, logical_type));
-}
-
-static inline NodePtr MakeGroup(const std::string& name,
-    Repetition::type repetition, const NodeVector& fields,
-    LogicalType::type logical_type = LogicalType::NONE) {
-  return NodePtr(new GroupNode(name, repetition, fields, logical_type));
-}
-
 // ----------------------------------------------------------------------
 // Convenience primitive type factory functions
 
-#define PRIMITIVE_FACTORY(FuncName, TYPE)                               \
-  static inline NodePtr FuncName(const std::string& name,               \
-      Repetition::type repetition = Repetition::OPTIONAL) {             \
-    return MakePrimitive(name, repetition, Type::TYPE); \
+#define PRIMITIVE_FACTORY(FuncName, TYPE)                       \
+  static inline NodePtr FuncName(const std::string& name,       \
+      Repetition::type repetition = Repetition::OPTIONAL) {     \
+    return PrimitiveNode::Make(name, repetition, Type::TYPE);   \
   }
 
 PRIMITIVE_FACTORY(Int32, INT32);
