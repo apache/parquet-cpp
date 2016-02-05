@@ -344,8 +344,6 @@ TEST(BitRle, Flush) {
 
 // Test some random sequences.
 TEST(BitRle, Random) {
-  int iters = 0;
-
   size_t niters = 50;
   size_t ngroups = 1000;
   size_t max_group_size = 16;
@@ -374,7 +372,7 @@ TEST(BitRle, Random) {
       }
       parity = !parity;
     }
-    if (!CheckRoundTrip(values, (iters % MAX_WIDTH) + 1)) {
+    if (!CheckRoundTrip(values, BitUtil::NumRequiredBits(values.size()))) {
       FAIL() << "failing seed: " << seed;
     }
   }
