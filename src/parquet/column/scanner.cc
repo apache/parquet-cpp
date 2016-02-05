@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "parquet/column/reader.h"
-#include "parquet/schema/types.h"
 
 namespace parquet_cpp {
 
