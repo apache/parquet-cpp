@@ -54,9 +54,19 @@ endif(NOT CMAKE_BUILD_TYPE)
 # set compile output directory
 string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
 
+# Top level cmake file, set options
+if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+  option(PARQUET_BUILD_TESTS
+	"Build the libparquet test suite"
+	ON)
+  option(PARQUET_BUILD_EXECUTABLES
+	"Build the libparquet executable CLI tools"
+	ON)
+endif()
+
 # If build in-source, create the latest symlink. If build out-of-source, which is
 # preferred, simply output the binaries in the build folder
-if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
+if (${CMAKE_SOURCE_DIR} STREQUAL "${CMAKE_CURRENT_BINARY_DIR}")
   set(BUILD_OUTPUT_ROOT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build/${BUILD_SUBDIR_NAME}")
   # Link build/latest to the current build directory, to avoid developers
   # accidentally running the latest debug build when in fact they're building
@@ -84,7 +94,7 @@ endif()
 #
 # Arguments after the test name will be passed to set_tests_properties().
 function(ADD_PARQUET_TEST REL_TEST_NAME)
-  if(NO_TESTS)
+  if(NOT PARQUET_BUILD_TESTS)
     return()
   endif()
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
@@ -106,9 +116,9 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
   endif()
 endfunction()
 
-# A wrapper for add_dependencies() that is compatible with NO_TESTS.
+# A wrapper for add_dependencies() that is compatible with PARQUET_BUILD_TESTS.
 function(ADD_PARQUET_TEST_DEPENDENCIES REL_TEST_NAME)
-  if(NO_TESTS)
+  if(NOT PARQUET_BUILD_TESTS)
     return()
   endif()
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)

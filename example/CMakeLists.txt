@@ -20,11 +20,13 @@ SET(LINK_LIBS
   snappystatic
   thriftstatic)
 
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS})
+if (PARQUET_BUILD_EXECUTABLES)
+  add_executable(decode_benchmark decode_benchmark.cc)
+  target_link_libraries(decode_benchmark ${LINK_LIBS})
 
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS})
+  add_executable(parquet-dump-schema parquet-dump-schema.cc)
+  target_link_libraries(parquet-dump-schema ${LINK_LIBS})
 
-add_executable(parquet-dump-schema parquet-dump-schema.cc)
-target_link_libraries(parquet-dump-schema ${LINK_LIBS})
+  add_executable(parquet_reader parquet_reader.cc)
+  target_link_libraries(parquet_reader ${LINK_LIBS})
+endif()
