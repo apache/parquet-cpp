@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <cstdint>
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include <boost/utility.hpp>
@@ -204,6 +205,32 @@ void ValidateRle(const vector<int>& values, int bit_width,
   }
 }
 
+// A version of ValidateRle that round-trips the values and returns false if
+// the returned values are not all the same
+bool CheckRoundTrip(const vector<int>& values, int bit_width) {
+  const int len = 64 * 1024;
+  uint8_t buffer[len];
+  RleEncoder encoder(buffer, len, bit_width);
+  for (int i = 0; i < values.size(); ++i) {
+    bool result = encoder.Put(values[i]);
+    if (!result) {
+      return false;
+    }
+  }
+  int encoded_len = encoder.Flush();
+  int out;
+
+  RleDecoder decoder(buffer, len, bit_width);
+  for (int i = 0; i < values.size(); ++i) {
+    uint64_t val;
+    bool result = decoder.Get(&out);
+    if (values[i] != out) {
+      return false;
+    }
+  }
+  return true;
+}
+
 TEST(Rle, SpecificSequences) {
   const int len = 1024;
   uint8_t expected_buffer[len];
@@ -319,20 +346,26 @@ TEST(BitRle, Flush) {
 TEST(BitRle, Random) {
   int iters = 0;
 
-  size_t niters = 500;
+  size_t niters = 50;
   size_t ngroups = 1000;
   size_t max_group_size = 16;
   vector<int> values(ngroups + max_group_size);
 
-  while (iters < niters) {
-    srand(iters++);
-    if (iters % 10000 == 0) LOG(ERROR) << "Seed: " << iters;
-    bool parity = 0;
+  // prng setup
+  std::random_device rd;
+  std::uniform_int_distribution<int> dist(1, std::numeric_limits<int>::max());
 
+  uint32_t seed = 0;
+  for (int iter = 0; iter < niters; ++iter) {
+    // generate a seed with device entropy
+    uint32_t seed = rd();
+    std::mt19937 gen(seed);
+
+    bool parity = 0;
     values.resize(0);
 
     for (int i = 0; i < ngroups; ++i) {
-      int group_size = rand() % 20 + 1;  // NOLINT
+      int group_size = dist(gen) % 20 + 1;  // NOLINT
       if (group_size > max_group_size) {
         group_size = 1;
       }
@@ -341,7 +374,9 @@ TEST(BitRle, Random) {
       }
       parity = !parity;
     }
-    ValidateRle(values, (iters % MAX_WIDTH) + 1, NULL, -1);
+    if (!CheckRoundTrip(values, (iters % MAX_WIDTH) + 1)) {
+      FAIL() << "failing seed: " << seed;
+    }
   }
 }
 
