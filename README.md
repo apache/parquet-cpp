@@ -143,6 +143,7 @@ For codecov.io (using the provided project token -- be sure to keep this
 private):
 
 ```
+cd coverage_artifacts
 codecov --token $PARQUET_CPP_CODECOV_TOKEN --gcov-args '\-l' --root $PARQUET_ROOT
 ```
 
@@ -152,10 +153,9 @@ For coveralls, install `cpp_coveralls`:
 pip install cpp_coveralls
 ```
 
-Now, you can run the coveralls upload script:
+And the coveralls upload script:
 
 ```
-cd coverage_artifacts
 coveralls -t $PARQUET_CPP_COVERAGE_TOKEN --gcov-options '\-l' -r $PARQUET_ROOT --exclude $PARQUET_ROOT/thirdparty --exclude $PARQUET_ROOT/build --exclude $NATIVE_TOOLCHAIN --exclude $PARQUET_ROOT/src/parquet/thrift
 ```
 
