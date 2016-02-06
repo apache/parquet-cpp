@@ -351,7 +351,7 @@ TEST(BitRle, Random) {
 
   // prng setup
   std::random_device rd;
-  std::uniform_int_distribution<int> dist(1, std::numeric_limits<int>::max());
+  std::uniform_int_distribution<int> dist(1, 20);
 
   uint32_t seed = 0;
   for (int iter = 0; iter < niters; ++iter) {
@@ -363,7 +363,7 @@ TEST(BitRle, Random) {
     values.resize(0);
 
     for (int i = 0; i < ngroups; ++i) {
-      int group_size = dist(gen) % 20 + 1;  // NOLINT
+      int group_size = dist(gen);
       if (group_size > max_group_size) {
         group_size = 1;
       }
