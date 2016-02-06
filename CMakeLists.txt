@@ -233,9 +233,8 @@ if ("${PARQUET_GENERATE_COVERAGE}")
     # This should be fixed in llvm 3.4 with http://llvm.org/viewvc/llvm-project?view=revision&revision=184666
     message(SEND_ERROR "Cannot currently generate coverage with clang")
   endif()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -DCOVERAGE_BUILD")
   message(STATUS "Configuring build for gcov")
-
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 --coverage")
   # For coverage to work properly, we need to use static linkage. Otherwise,
   # __gcov_flush() doesn't properly flush coverage from every module.
   # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc

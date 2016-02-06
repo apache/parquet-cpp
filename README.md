@@ -114,3 +114,42 @@ For error handling, this project uses exceptions.
 In general, many of the APIs at the layers are interface based for extensibility. To
 minimize the cost of virtual calls, the APIs should be batch-centric. For example,
 encoding should operate on batches of values rather than a single value.
+
+## Code Coverage
+
+To build with `gcov` code coverage and upload results to http://coveralls.io,
+here are some instructions. First, install `cpp_coveralls`:
+
+```
+pip install cpp_coveralls
+```
+
+Now build the project with coverage and run the test suite
+
+```
+cd $PARQUET_HOME
+mkdir coverage-build
+cd coverage-build
+cmake -DPARQUET_GENERATE_COVERAGE=1
+make -j4
+ctest
+```
+
+The `gcov` artifacts are not located in a place that works well with
+`cpp_coveralls`, so there is a helper script you need to run
+
+```
+mkdir coverage_artifacts
+python ../build-support/collect_coverage.py CMakeFiles/parquet.dir/src/ coverage_artifacts
+```
+
+Now, you can run the coveralls upload script (using the provided project token
+-- be sure to keep this private).
+
+```
+cd coverage_artifacts
+coveralls -t $PARQUET_CPP_COVERAGE_TOKEN --gcov-options '\-l' -r $PARQUET_ROOT --exclude $PARQUET_ROOT/thirdparty --exclude $PARQUET_ROOT/build --exclude $NATIVE_TOOLCHAIN --exclude $PARQUET_ROOT/src/parquet/thrift
+```
+
+Note that `gcov` throws off artifacts from the STL, so I excluded my toolchain
+root stored in `$NATIVE_TOOLCHAIN` to avoid a cluttered coverage report.
