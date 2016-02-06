@@ -23,7 +23,6 @@
 #include "parquet/encodings/encodings.h"
 #include "parquet/util/stopwatch.h"
 
-using namespace parquet;
 using namespace parquet_cpp;
 using namespace std;
 

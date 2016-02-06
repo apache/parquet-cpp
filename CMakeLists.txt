@@ -177,7 +177,7 @@ set(LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 # where to put generated binaries
 set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -msse3 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -msse3 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
 
 if (APPLE)
@@ -218,6 +218,11 @@ set(LIBPARQUET_SRCS
   src/parquet/column/reader.cc
   src/parquet/column/scanner.cc
   src/parquet/reader.cc
+
+  src/parquet/schema/converter.cc
+  src/parquet/schema/descriptor.cc
+  src/parquet/schema/printer.cc
+  src/parquet/schema/types.cc
 )
 
 set(LIBPARQUET_LINK_LIBS
@@ -250,6 +255,7 @@ add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/compression)
 add_subdirectory(src/parquet/encodings)
+add_subdirectory(src/parquet/schema)
 add_subdirectory(src/parquet/thrift)
 add_subdirectory(src/parquet/util)
 

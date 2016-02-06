@@ -15,16 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-SET(LINK_LIBS
-  parquet
-  snappystatic
-  thriftstatic)
+# Headers: top level
+install(FILES
+  builder.h
+  converter.h
+  descriptor.h
+  types.h
+  DESTINATION include/parquet/schema)
 
-add_executable(decode_benchmark decode_benchmark.cc)
-target_link_libraries(decode_benchmark ${LINK_LIBS})
-
-add_executable(parquet_reader parquet_reader.cc)
-target_link_libraries(parquet_reader ${LINK_LIBS})
-
-add_executable(parquet-dump-schema parquet-dump-schema.cc)
-target_link_libraries(parquet-dump-schema ${LINK_LIBS})
+ADD_PARQUET_TEST(schema-converter-test)
+ADD_PARQUET_TEST(schema-descriptor-test)
+ADD_PARQUET_TEST(schema-printer-test)
+ADD_PARQUET_TEST(schema-types-test)

@@ -24,6 +24,7 @@ install(FILES
   sse-info.h
   compiler-util.h
   logging.h
+  macros.h
   rle-encoding.h
   stopwatch.h
   input_stream.h
