@@ -117,14 +117,10 @@ encoding should operate on batches of values rather than a single value.
 
 ## Code Coverage
 
-To build with `gcov` code coverage and upload results to http://coveralls.io,
-here are some instructions. First, install `cpp_coveralls`:
+To build with `gcov` code coverage and upload results to http://coveralls.io or
+http://codecov.io, here are some instructions.
 
-```
-pip install cpp_coveralls
-```
-
-Now build the project with coverage and run the test suite
+First, build the project with coverage and run the test suite
 
 ```
 cd $PARQUET_HOME
@@ -135,21 +131,34 @@ make -j4
 ctest
 ```
 
-The `gcov` artifacts are not located in a place that works well with
-`cpp_coveralls`, so there is a helper script you need to run
+The `gcov` artifacts are not located in a place that works well with either
+coveralls or codecov, so there is a helper script you need to run
 
 ```
 mkdir coverage_artifacts
 python ../build-support/collect_coverage.py CMakeFiles/parquet.dir/src/ coverage_artifacts
 ```
 
-Now, you can run the coveralls upload script (using the provided project token
--- be sure to keep this private).
+For codecov.io (using the provided project token -- be sure to keep this
+private):
+
+```
+codecov --token $PARQUET_CPP_CODECOV_TOKEN --gcov-args '\-l' --root $PARQUET_ROOT
+```
+
+For coveralls, install `cpp_coveralls`:
+
+```
+pip install cpp_coveralls
+```
+
+Now, you can run the coveralls upload script:
 
 ```
 cd coverage_artifacts
 coveralls -t $PARQUET_CPP_COVERAGE_TOKEN --gcov-options '\-l' -r $PARQUET_ROOT --exclude $PARQUET_ROOT/thirdparty --exclude $PARQUET_ROOT/build --exclude $NATIVE_TOOLCHAIN --exclude $PARQUET_ROOT/src/parquet/thrift
 ```
+
 
 Note that `gcov` throws off artifacts from the STL, so I excluded my toolchain
 root stored in `$NATIVE_TOOLCHAIN` to avoid a cluttered coverage report.
