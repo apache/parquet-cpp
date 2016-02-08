@@ -127,7 +127,7 @@ cd $PARQUET_HOME
 mkdir coverage-build
 cd coverage-build
 cmake -DPARQUET_GENERATE_COVERAGE=1
-make -j4
+make -j$PARALLEL
 ctest
 ```
 

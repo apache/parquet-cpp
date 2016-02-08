@@ -242,7 +242,7 @@ if ("${PARQUET_GENERATE_COVERAGE}")
     message("Using static linking for coverage build")
     set(PARQUET_LINK "s")
   elseif("${PARQUET_LINK}" STREQUAL "d")
-    message(SEND_ERROR "Cannot use coverage with static linking")
+    message(SEND_ERROR "Cannot use coverage with dynamic linking")
   endif()
 endif()
 
