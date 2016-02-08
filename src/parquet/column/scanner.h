@@ -108,6 +108,7 @@ class TypedScanner : public Scanner {
 
       // TODO: repetition levels
 
+      value_offset_ = 0;
       level_offset_ = 0;
       if (!levels_buffered_) {
         return false;
