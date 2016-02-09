@@ -42,6 +42,6 @@ script:
 - make
 - >
   if [ $TRAVIS_OS_NAME == linux ]; then
-    valgrind --tool=memcheck --leak-check=yes ctest;
+    valgrind --tool=memcheck --leak-check=yes --error-exitcode=1 ctest;
   fi
 - make lint
