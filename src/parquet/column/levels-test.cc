@@ -79,12 +79,12 @@ class TestLevels : public ::testing::Test {
       levels_count = encoder.Encode(num_levels, input_levels.data());
     }
 
-    ASSERT_EQ(levels_count, num_levels);
+    ASSERT_EQ(num_levels, levels_count);
 
     decoder.Init(encoding, max_level, num_levels, bytes.data());
     levels_count = decoder.Decode(num_levels, output_levels.data());
 
-    ASSERT_EQ(levels_count, num_levels);
+    ASSERT_EQ(num_levels, levels_count);
 
     for (int i = 0; i < num_levels; i++) {
       EXPECT_EQ(input_levels[i], output_levels[i]);
