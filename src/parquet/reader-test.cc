@@ -84,35 +84,55 @@ TEST_F(TestAllTypesPlain, TestBatchRead) {
   ASSERT_FALSE(col->HasNext());
 }
 
+void verifyScanner(Int32Scanner& scanner) {
+  int32_t val;
+  bool is_null;
+  for (size_t i = 0; i < 8; ++i) {
+    ASSERT_TRUE(scanner.HasNext());
+    ASSERT_TRUE(scanner.NextValue(&val, &is_null));
+    ASSERT_FALSE(is_null);
+  }
+  ASSERT_FALSE(scanner.HasNext());
+  ASSERT_FALSE(scanner.NextValue(&val, &is_null));
+}
+
 TEST_F(TestAllTypesPlain, TestFlatScannerInt32) {
   RowGroupReader* group = reader_.RowGroup(0);
 
   // column 0, id
   std::shared_ptr<Int32Scanner> scanner(new Int32Scanner(group->Column(0)));
-
-  int32_t val;
-  bool is_null;
-  for (size_t i = 0; i < 8; ++i) {
-    ASSERT_TRUE(scanner->HasNext());
-    ASSERT_TRUE(scanner->NextValue(&val, &is_null));
-    ASSERT_FALSE(is_null);
-  }
-  ASSERT_FALSE(scanner->HasNext());
-  ASSERT_FALSE(scanner->NextValue(&val, &is_null));
+  verifyScanner(*scanner);
 }
 
+TEST_F(TestAllTypesPlain, TestScannerSmallBatch) {
+  RowGroupReader* group = reader_.RowGroup(0);
+
+  // column 0, id
+  std::shared_ptr<Int32Scanner> scanner(new Int32Scanner(group->Column(0), 1));
+  verifyScanner(*scanner);
+}
+
+TEST_F(TestAllTypesPlain, TestScannerLargeBatch) {
+  RowGroupReader* group = reader_.RowGroup(0);
+
+  // column 0, id
+  std::shared_ptr<Int32Scanner> scanner(new Int32Scanner(group->Column(0), 1000000));
+  verifyScanner(*scanner);
+}
 
 TEST_F(TestAllTypesPlain, TestSetScannerBatchSize) {
   RowGroupReader* group = reader_.RowGroup(0);
 
   // column 0, id
   std::shared_ptr<Int32Scanner> scanner(new Int32Scanner(group->Column(0)));
-
   ASSERT_EQ(128, scanner->batch_size());
+
+  scanner.reset(new Int32Scanner(group->Column(0), 1));
+  ASSERT_EQ(1, scanner->batch_size());
+
   scanner->SetBatchSize(1024);
   ASSERT_EQ(1024, scanner->batch_size());
 }
-
 
 TEST_F(TestAllTypesPlain, DebugPrintWorks) {
   std::stringstream ss;

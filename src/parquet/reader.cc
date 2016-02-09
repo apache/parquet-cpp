@@ -288,17 +288,18 @@ void ParquetFileReader::DebugPrint(std::ostream& stream, bool print_values) {
     }
     stream << "\n";
 
-    bool hasRow;
-    do {
-      hasRow = false;
+    for (size_t r = group_reader->column_metadata(0)->num_values; r >0; r--) {
       for (int i = 0; i < num_columns; ++i) {
         if (scanners[i]->HasNext()) {
-          hasRow = true;
           scanners[i]->PrintNext(stream, 17);
+        } else {
+          std::string null_fmt = format_fwf<Type::BYTE_ARRAY>(17);
+          snprintf(buffer, bufsize, null_fmt.c_str(), "NULL");
+          stream << buffer;
         }
       }
       stream << "\n";
-    } while (hasRow);
+    }
   }
 }
 

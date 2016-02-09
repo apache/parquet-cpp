@@ -286,4 +286,5 @@ add_custom_target(clean-all
 # installation
 
 install(TARGETS parquet
-  LIBRARY DESTINATION lib)
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
