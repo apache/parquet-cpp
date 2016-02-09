@@ -21,6 +21,8 @@ project(parquet-cpp)
 if (NOT "$ENV{PARQUET_GCC_ROOT}" STREQUAL "")
   set(GCC_ROOT $ENV{PARQUET_GCC_ROOT})
   set(CMAKE_C_COMPILER ${GCC_ROOT}/bin/gcc)
+  set(GCOV_PATH ${GCC_ROOT}/bin/gcov)
+  set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
   set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
 endif()
 
@@ -227,6 +229,30 @@ set(PARQUET_MIN_TEST_LIBS
   parquet)
 set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 
+#############################################################
+# Code coverage
+
+# Adapted from Apache Kudu (incubating)
+if ("${PARQUET_GENERATE_COVERAGE}")
+  if("${CMAKE_CXX_COMPILER}" MATCHES ".*clang.*")
+    # There appears to be some bugs in clang 3.3 which cause code coverage
+    # to have link errors, not locating the llvm_gcda_* symbols.
+    # This should be fixed in llvm 3.4 with http://llvm.org/viewvc/llvm-project?view=revision&revision=184666
+    message(SEND_ERROR "Cannot currently generate coverage with clang")
+  endif()
+  message(STATUS "Configuring build for gcov")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 --coverage")
+  # For coverage to work properly, we need to use static linkage. Otherwise,
+  # __gcov_flush() doesn't properly flush coverage from every module.
+  # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc
+  if("${PARQUET_LINK}" STREQUAL "a")
+    message("Using static linking for coverage build")
+    set(PARQUET_LINK "s")
+  elseif("${PARQUET_LINK}" STREQUAL "d")
+    message(SEND_ERROR "Cannot use coverage with dynamic linking")
+  endif()
+endif()
+
 ############################################################
 # Library config
 
@@ -286,4 +312,5 @@ add_custom_target(clean-all
 # installation
 
 install(TARGETS parquet
+  ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib)
