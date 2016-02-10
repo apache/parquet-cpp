@@ -23,7 +23,6 @@ if (NOT "$ENV{PARQUET_GCC_ROOT}" STREQUAL "")
   set(CMAKE_C_COMPILER ${GCC_ROOT}/bin/gcc)
   set(GCOV_PATH ${GCC_ROOT}/bin/gcov)
   set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
-  set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
 endif()
 
 if ("$ENV{PARQUET_USE_CCACHE}")
@@ -196,14 +195,48 @@ set(LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 # where to put generated binaries
 set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
+#############################################################
+# Compiler flags and release types
+
+# compiler flags for different build types (run 'cmake -DCMAKE_BUILD_TYPE=<type> .')
+# For all builds:
+# For CMAKE_BUILD_TYPE=Debug
+#   -ggdb: Enable gdb debugging
+# For CMAKE_BUILD_TYPE=FastDebug
+#   Same as DEBUG, except with -O1
+# For CMAKE_BUILD_TYPE=Release
+#   -O3: Enable all compiler optimizations
+#   -g: Enable symbols for profiler tools (TODO: remove for shipping)
+set(CXX_FLAGS_DEBUG "-ggdb")
+set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
+set(CXX_FLAGS_RELEASE "-O3 -g")
+
+string (TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
+
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
+  set(CMAKE_CXX_FLAGS ${CXX_FLAGS_DEBUG})
+elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "FASTDEBUG")
+  set(CMAKE_CXX_FLAGS ${CXX_FLAGS_FASTDEBUG})
+elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RELEASE")
+  set(CMAKE_CXX_FLAGS ${CXX_FLAGS_RELEASE})
+else()
+  message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}")
+endif ()
+
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+
+# Build with C++11 and SSE3 by default
+# TODO(wesm): These compiler warning suppressions should be removed one by one
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -msse3 -Wall -Wno-unused-value -Wno-unused-variable -Wno-sign-compare -Wno-unknown-pragmas")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb")
+
 
 if (APPLE)
   # Use libc++ to avoid linker errors on some platforms
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 
+############################################################
+# Includes
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
