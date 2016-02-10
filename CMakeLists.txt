@@ -207,7 +207,7 @@ set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 # For CMAKE_BUILD_TYPE=Release
 #   -O3: Enable all compiler optimizations
 #   -g: Enable symbols for profiler tools (TODO: remove for shipping)
-set(CXX_FLAGS_DEBUG "-ggdb")
+set(CXX_FLAGS_DEBUG "-ggdb -O0")
 set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
 set(CXX_FLAGS_RELEASE "-O3 -g")
 
@@ -274,7 +274,7 @@ if ("${PARQUET_GENERATE_COVERAGE}")
     message(SEND_ERROR "Cannot currently generate coverage with clang")
   endif()
   message(STATUS "Configuring build for gcov")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 --coverage")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
   # For coverage to work properly, we need to use static linkage. Otherwise,
   # __gcov_flush() doesn't properly flush coverage from every module.
   # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc
