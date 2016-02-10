@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
   }
 
   parquet_cpp::ParquetFileReader reader;
-  parquet_cpp::LocalFile file;
+  parquet_cpp::LocalFileSource file;
 
   file.Open(filename);
   if (!file.is_open()) {
