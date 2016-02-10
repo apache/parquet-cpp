@@ -102,7 +102,6 @@ class DataPageBuilder {
     if (encoding != Encoding::PLAIN) {
       ParquetException::NYI("only plain encoding currently implemented");
     }
-    size_t bytes_to_encode = values.size() * sizeof(T);
 
     PlainEncoder<TYPE> encoder(nullptr);
     encoder.Encode(&values[0], values.size(), sink_);
@@ -164,6 +163,21 @@ class DataPageBuilder {
     sink_->Write(encode_buffer.data(), rle_bytes);
   }
 };
+
+template <>
+void DataPageBuilder<Type::BOOLEAN>::AppendValues(const std::vector<bool>& values,
+    Encoding::type encoding) {
+  if (encoding != Encoding::PLAIN) {
+    ParquetException::NYI("only plain encoding currently implemented");
+  }
+
+  PlainEncoder<Type::BOOLEAN> encoder(nullptr);
+  encoder.Encode(values, values.size(), sink_);
+
+  num_values_ = std::max(static_cast<int32_t>(values.size()), num_values_);
+  encoding_ = encoding;
+  have_values_ = true;
+}
 
 template <int TYPE, typename T>
 static std::shared_ptr<DataPage> MakeDataPage(const std::vector<T>& values,

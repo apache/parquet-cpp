@@ -44,8 +44,7 @@ class Scanner {
       value_offset_(0),
       values_buffered_(0),
       reader_(reader) {
-    // TODO: don't allocate for required fields
-    def_levels_.resize(batch_size_);
+    def_levels_.resize(reader_->descr()->max_definition_level() > 0 ? batch_size_ : 0);
     rep_levels_.resize(batch_size_);
   }
 
@@ -103,23 +102,6 @@ class TypedScanner : public Scanner {
 
   virtual ~TypedScanner() {}
 
-  bool NextLevels(int16_t* def_level, int16_t* rep_level) {
-    if (level_offset_ == levels_buffered_) {
-      levels_buffered_ = typed_reader_->ReadBatch(batch_size_, &def_levels_[0],
-          &rep_levels_[0], values_, &values_buffered_);
-
-      // TODO: repetition levels
-
-      level_offset_ = 0;
-      if (!levels_buffered_) {
-        return false;
-      }
-    }
-    *def_level = def_levels_[level_offset_++];
-    *rep_level = 1;
-    return true;
-  }
-
   // Returns true if there is a next value
   bool NextValue(T* val, bool* is_null) {
     if (value_offset_ == values_buffered_) {
@@ -169,6 +151,28 @@ class TypedScanner : public Scanner {
   inline void FormatValue(void* val, char* buffer, size_t bufsize, size_t width);
 
   T* values_;
+
+  bool NextLevels(int16_t* def_level, int16_t* rep_level) {
+    bool is_required = def_levels_.size() == 0;
+    if (level_offset_ == levels_buffered_) {
+      int16_t* def_levels_data = is_required ? nullptr : &def_levels_[0];
+      levels_buffered_ = typed_reader_->ReadBatch(batch_size_, def_levels_data,
+          &rep_levels_[0], values_, &values_buffered_);
+
+      // TODO: repetition levels
+
+      value_offset_ = 0;
+      level_offset_ = 0;
+      if (!levels_buffered_) {
+        return false;
+      }
+    }
+    *rep_level = 1;
+    *def_level = is_required ? *rep_level : def_levels_[level_offset_];
+    level_offset_++;
+
+    return true;
+  }
 };
 
 
