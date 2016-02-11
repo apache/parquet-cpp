@@ -33,9 +33,9 @@
 namespace parquet_cpp {
 
 // 16 MB is the default maximum page header size
-static constexpr int DEFAULT_MAX_PAGE_HEADER_SIZE = 16 * 1024 * 1024;
+static constexpr uint32_t DEFAULT_MAX_PAGE_HEADER_SIZE = 16 * 1024 * 1024;
 // 16 KB is the default expected page header size
-static constexpr int DEFAULT_PAGE_HEADER_SIZE = 16 * 1024;
+static constexpr uint32_t DEFAULT_PAGE_HEADER_SIZE = 16 * 1024;
 // This subclass delimits pages appearing in a serialized stream, each preceded
 // by a serialized Thrift parquet::PageHeader indicating the type of each page
 // and the page metadata.
