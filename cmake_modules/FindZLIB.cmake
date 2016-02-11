@@ -46,7 +46,7 @@ if ( _zlib_roots )
         PATH_SUFFIXES "include" )
     find_library( ZLIB_LIBRARIES NAMES z
         PATHS ${_zlib_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "" )
+        PATH_SUFFIXES "lib" )
 else ()
     find_path( ZLIB_INCLUDE_DIR NAMES zlib.h )
     find_library( ZLIB_LIBRARIES NAMES z )
