@@ -33,3 +33,5 @@ set_target_properties(parquet_compression
 install(FILES
   codec.h
   DESTINATION include/parquet/compression)
+
+ADD_PARQUET_TEST(codec-test)

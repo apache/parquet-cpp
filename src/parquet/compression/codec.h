@@ -20,6 +20,8 @@
 
 #include <cstdint>
 
+#include <zlib.h>
+
 #include "parquet/exception.h"
 
 namespace parquet_cpp {
@@ -27,13 +29,13 @@ namespace parquet_cpp {
 class Codec {
  public:
   virtual ~Codec() {}
-  virtual void Decompress(int input_len, const uint8_t* input,
-      int output_len, uint8_t* output_buffer) = 0;
+  virtual void Decompress(int64_t input_len, const uint8_t* input,
+      int64_t output_len, uint8_t* output_buffer) = 0;
 
-  virtual int Compress(int input_len, const uint8_t* input,
-      int output_buffer_len, uint8_t* output_buffer) = 0;
+  virtual int64_t Compress(int64_t input_len, const uint8_t* input,
+      int64_t output_buffer_len, uint8_t* output_buffer) = 0;
 
-  virtual int MaxCompressedLen(int input_len, const uint8_t* input) = 0;
+  virtual int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input) = 0;
 
   virtual const char* name() const = 0;
 };
@@ -42,13 +44,13 @@ class Codec {
 // Snappy codec.
 class SnappyCodec : public Codec {
  public:
-  virtual void Decompress(int input_len, const uint8_t* input,
-      int output_len, uint8_t* output_buffer);
+  virtual void Decompress(int64_t input_len, const uint8_t* input,
+      int64_t output_len, uint8_t* output_buffer);
 
-  virtual int Compress(int input_len, const uint8_t* input,
-      int output_buffer_len, uint8_t* output_buffer);
+  virtual int64_t Compress(int64_t input_len, const uint8_t* input,
+      int64_t output_buffer_len, uint8_t* output_buffer);
 
-  virtual int MaxCompressedLen(int input_len, const uint8_t* input);
+  virtual int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input);
 
   virtual const char* name() const { return "snappy"; }
 };
@@ -56,13 +58,13 @@ class SnappyCodec : public Codec {
 // Lz4 codec.
 class Lz4Codec : public Codec {
  public:
-  virtual void Decompress(int input_len, const uint8_t* input,
-      int output_len, uint8_t* output_buffer);
+  virtual void Decompress(int64_t input_len, const uint8_t* input,
+      int64_t output_len, uint8_t* output_buffer);
 
-  virtual int Compress(int input_len, const uint8_t* input,
-      int output_buffer_len, uint8_t* output_buffer);
+  virtual int64_t Compress(int64_t input_len, const uint8_t* input,
+      int64_t output_buffer_len, uint8_t* output_buffer);
 
-  virtual int MaxCompressedLen(int input_len, const uint8_t* input);
+  virtual int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input);
 
   virtual const char* name() const { return "lz4"; }
 };
@@ -70,15 +72,27 @@ class Lz4Codec : public Codec {
 // GZip codec.
 class GZipCodec : public Codec {
  public:
-  virtual void Decompress(int input_len, const uint8_t* input,
-      int output_len, uint8_t* output_buffer);
+  /// Compression formats supported by the zlib library
+  enum Format {
+    ZLIB,
+    DEFLATE,
+    GZIP,
+  };
 
-  virtual int Compress(int input_len, const uint8_t* input,
-      int output_buffer_len, uint8_t* output_buffer);
+  explicit GZipCodec(Format format);
 
-  virtual int MaxCompressedLen(int input_len, const uint8_t* input);
+  virtual void Decompress(int64_t input_len, const uint8_t* input,
+      int64_t output_len, uint8_t* output_buffer);
+
+  virtual int64_t Compress(int64_t input_len, const uint8_t* input,
+      int64_t output_buffer_len, uint8_t* output_buffer);
+
+  virtual int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input);
 
   virtual const char* name() const { return "gzip"; }
+
+ private:
+  z_stream stream_;
 };
 
 } // namespace parquet_cpp
