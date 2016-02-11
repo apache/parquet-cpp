@@ -67,6 +67,20 @@ class Lz4Codec : public Codec {
   virtual const char* name() const { return "lz4"; }
 };
 
+// GZip codec.
+class GZipCodec : public Codec {
+ public:
+  virtual void Decompress(int input_len, const uint8_t* input,
+      int output_len, uint8_t* output_buffer);
+
+  virtual int Compress(int input_len, const uint8_t* input,
+      int output_buffer_len, uint8_t* output_buffer);
+
+  virtual int MaxCompressedLen(int input_len, const uint8_t* input);
+
+  virtual const char* name() const { return "gzip"; }
+};
+
 } // namespace parquet_cpp
 
 #endif

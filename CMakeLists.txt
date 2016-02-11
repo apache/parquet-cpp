@@ -174,6 +174,12 @@ include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
 add_library(lz4static STATIC IMPORTED)
 set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
 
+## ZLIB
+find_package(ZLIB REQUIRED)
+include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
+add_library(zlibstatic STATIC IMPORTED)
+set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_LIBRARIES})
+
 ## GTest
 find_package(GTest REQUIRED)
 include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
