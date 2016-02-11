@@ -293,7 +293,9 @@ set(LIBPARQUET_SRCS
   src/parquet/column/serialized-page.cc
   src/parquet/column/reader.cc
   src/parquet/column/scanner.cc
-  src/parquet/reader.cc
+
+  src/parquet/file/reader.cc
+  src/parquet/file/reader-internal.cc
 
   src/parquet/schema/converter.cc
   src/parquet/schema/descriptor.cc
@@ -331,6 +333,7 @@ add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/compression)
 add_subdirectory(src/parquet/encodings)
+add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/schema)
 add_subdirectory(src/parquet/thrift)
 add_subdirectory(src/parquet/util)

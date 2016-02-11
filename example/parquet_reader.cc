@@ -18,6 +18,9 @@
 #include <parquet/parquet.h>
 
 #include <iostream>
+#include <memory>
+
+using namespace parquet_cpp;
 
 int main(int argc, char** argv) {
   if (argc > 3) {
@@ -39,20 +42,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  parquet_cpp::ParquetFileReader reader;
-  parquet_cpp::LocalFileSource file;
-
-  file.Open(filename);
-  if (!file.is_open()) {
-    std::cerr << "Could not open file " << file.path()
-              << std::endl;
-    return -1;
-  }
-
   try {
-    reader.Open(&file);
-    reader.ParseMetaData();
-    reader.DebugPrint(std::cout, print_values);
+    std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename);
+    reader->DebugPrint(std::cout, print_values);
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "
               << e.what()

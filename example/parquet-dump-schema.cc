@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <parquet/reader.h>
+#include <parquet/parquet.h>
 #include <parquet/schema/converter.h>
 #include <parquet/schema/printer.h>
 
@@ -23,31 +23,12 @@
 
 using namespace parquet_cpp;
 
-void DumpSchema(const ParquetFileReader* reader) {
-  auto schema = reader->metadata().schema;
-  schema::FlatSchemaConverter converter(&schema[0], schema.size());
-  std::unique_ptr<schema::Node> root = converter.Convert();
-
-  PrintSchema(root.get(), std::cout);
-}
-
 int main(int argc, char** argv) {
   std::string filename = argv[1];
 
-  parquet_cpp::ParquetFileReader reader;
-  parquet_cpp::LocalFileSource file;
-
-  file.Open(filename);
-  if (!file.is_open()) {
-    std::cerr << "Could not open file " << file.path()
-              << std::endl;
-    return -1;
-  }
-
   try {
-    reader.Open(&file);
-    reader.ParseMetaData();
-    DumpSchema(&reader);
+    std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename);
+    PrintSchema(reader->descr()->schema().get(), std::cout);
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "
               << e.what()
