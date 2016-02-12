@@ -15,17 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "parquet/column/serialized-page.h"
-
-#include <memory>
-
-#include "parquet/exception.h"
-#include "parquet/thrift/util.h"
-
-using parquet::PageType;
+#include <gtest/gtest.h>
+#include "parquet/parquet.h"
 
 namespace parquet_cpp {
 
-// ----------------------------------------------------------------------
+TEST(TestPublicAPI, DoesNotIncludeThrift) {
+#ifdef _THRIFT_THRIFT_H_
+  FAIL() << "Thrift headers should not be in the public API";
+#endif
+}
 
 } // namespace parquet_cpp

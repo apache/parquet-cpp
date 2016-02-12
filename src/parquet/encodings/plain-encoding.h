@@ -35,7 +35,7 @@ class PlainDecoder : public Decoder<TYPE> {
   using Decoder<TYPE>::num_values_;
 
   explicit PlainDecoder(const ColumnDescriptor* descr) :
-      Decoder<TYPE>(descr, parquet::Encoding::PLAIN),
+      Decoder<TYPE>(descr, Encoding::PLAIN),
       data_(NULL), len_(0) {}
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
@@ -98,7 +98,7 @@ template <>
 class PlainDecoder<Type::BOOLEAN> : public Decoder<Type::BOOLEAN> {
  public:
   explicit PlainDecoder(const ColumnDescriptor* descr) :
-      Decoder<Type::BOOLEAN>(descr, parquet::Encoding::PLAIN) {}
+      Decoder<Type::BOOLEAN>(descr, Encoding::PLAIN) {}
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
@@ -145,7 +145,7 @@ class PlainEncoder : public Encoder<TYPE> {
   typedef typename type_traits<TYPE>::value_type T;
 
   explicit PlainEncoder(const ColumnDescriptor* descr) :
-      Encoder<TYPE>(descr, parquet::Encoding::PLAIN) {}
+      Encoder<TYPE>(descr, Encoding::PLAIN) {}
 
   virtual void Encode(const T* src, int num_values, OutputStream* dst);
 };
@@ -154,7 +154,7 @@ template <>
 class PlainEncoder<Type::BOOLEAN> : public Encoder<Type::BOOLEAN> {
  public:
   explicit PlainEncoder(const ColumnDescriptor* descr) :
-      Encoder<Type::BOOLEAN>(descr, parquet::Encoding::PLAIN) {}
+      Encoder<Type::BOOLEAN>(descr, Encoding::PLAIN) {}
 
   virtual void Encode(const bool* src, int num_values, OutputStream* dst) {
     throw ParquetException("this API for encoding bools not implemented");

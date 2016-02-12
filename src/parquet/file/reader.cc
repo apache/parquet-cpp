@@ -30,6 +30,8 @@
 #include "parquet/exception.h"
 #include "parquet/file/reader-internal.h"
 
+#include "parquet/util/input.h"
+
 using std::string;
 using std::vector;
 

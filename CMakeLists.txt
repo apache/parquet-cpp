@@ -296,7 +296,6 @@ endif()
 # Library config
 
 set(LIBPARQUET_SRCS
-  src/parquet/column/serialized-page.cc
   src/parquet/column/reader.cc
   src/parquet/column/scanner.cc
 

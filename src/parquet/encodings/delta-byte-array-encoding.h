@@ -27,7 +27,7 @@ namespace parquet_cpp {
 class DeltaByteArrayDecoder : public Decoder<Type::BYTE_ARRAY> {
  public:
   explicit DeltaByteArrayDecoder(const ColumnDescriptor* descr)
-      : Decoder<Type::BYTE_ARRAY>(descr, parquet::Encoding::DELTA_BYTE_ARRAY),
+      : Decoder<Type::BYTE_ARRAY>(descr, Encoding::DELTA_BYTE_ARRAY),
       prefix_len_decoder_(nullptr),
       suffix_decoder_(nullptr) {
   }

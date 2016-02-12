@@ -23,13 +23,11 @@
 #include "parquet/exception.h"
 #include "parquet/types.h"
 
+#include "parquet/schema/descriptor.h"
+
 #include "parquet/util/output.h"
 #include "parquet/util/rle-encoding.h"
 #include "parquet/util/bit-stream-utils.inline.h"
-
-#include "parquet/schema/descriptor.h"
-
-#include "parquet/thrift/parquet_types.h"
 
 namespace parquet_cpp {
 
@@ -57,17 +55,17 @@ class Decoder {
   // the number of values left in this page.
   int values_left() const { return num_values_; }
 
-  const parquet::Encoding::type encoding() const { return encoding_; }
+  const Encoding::type encoding() const { return encoding_; }
 
  protected:
   explicit Decoder(const ColumnDescriptor* descr,
-      const parquet::Encoding::type& encoding)
+      const Encoding::type& encoding)
       : descr_(descr), encoding_(encoding), num_values_(0) {}
 
   // For accessing type-specific metadata, like FIXED_LEN_BYTE_ARRAY
   const ColumnDescriptor* descr_;
 
-  const parquet::Encoding::type encoding_;
+  const Encoding::type encoding_;
   int num_values_;
 };
 
@@ -88,16 +86,16 @@ class Encoder {
     throw ParquetException("Encoder does not implement this type.");
   }
 
-  const parquet::Encoding::type encoding() const { return encoding_; }
+  const Encoding::type encoding() const { return encoding_; }
 
  protected:
   explicit Encoder(const ColumnDescriptor* descr,
-      const parquet::Encoding::type& encoding)
+      const Encoding::type& encoding)
       : descr_(descr), encoding_(encoding) {}
 
   // For accessing type-specific metadata, like FIXED_LEN_BYTE_ARRAY
   const ColumnDescriptor* descr_;
-  const parquet::Encoding::type encoding_;
+  const Encoding::type encoding_;
 };
 
 } // namespace parquet_cpp

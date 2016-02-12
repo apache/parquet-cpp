@@ -20,7 +20,6 @@ install(FILES
   page.h
   levels.h
   reader.h
-  serialized-page.h
   scanner.h
   DESTINATION include/parquet/column)
 

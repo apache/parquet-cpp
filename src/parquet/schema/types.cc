@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "parquet/thrift/parquet_types.h"
+#include "parquet/thrift/util.h"
 
 namespace parquet_cpp {
 
@@ -94,19 +95,6 @@ void GroupNode::Visit(Node::Visitor* visitor) {
 // ----------------------------------------------------------------------
 // Node construction from Parquet metadata
 
-static Type::type ConvertEnum(parquet::Type::type type) {
-  return static_cast<Type::type>(type);
-}
-
-static LogicalType::type ConvertEnum(parquet::ConvertedType::type type) {
-  // item 0 is NONE
-  return static_cast<LogicalType::type>(static_cast<int>(type) + 1);
-}
-
-static Repetition::type ConvertEnum(parquet::FieldRepetitionType::type type) {
-  return static_cast<Repetition::type>(type);
-}
-
 struct NodeParams {
   explicit NodeParams(const std::string& name) :
       name(name) {}
@@ -119,9 +107,9 @@ struct NodeParams {
 static inline NodeParams GetNodeParams(const parquet::SchemaElement* element) {
   NodeParams params(element->name);
 
-  params.repetition = ConvertEnum(element->repetition_type);
+  params.repetition = FromThrift(element->repetition_type);
   if (element->__isset.converted_type) {
-    params.logical_type = ConvertEnum(element->converted_type);
+    params.logical_type = FromThrift(element->converted_type);
   } else {
     params.logical_type = LogicalType::NONE;
   }
@@ -145,7 +133,7 @@ std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element,
 
   std::unique_ptr<PrimitiveNode> result = std::unique_ptr<PrimitiveNode>(
       new PrimitiveNode(params.name, params.repetition,
-          ConvertEnum(element->type), params.logical_type, node_id));
+          FromThrift(element->type), params.logical_type, node_id));
 
   if (element->type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
     result->SetTypeLength(element->type_length);

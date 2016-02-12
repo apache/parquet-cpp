@@ -35,7 +35,7 @@ class DictionaryDecoder : public Decoder<TYPE> {
   // dictionary decoder needs to copy the data out if necessary.
   DictionaryDecoder(const ColumnDescriptor* descr,
       Decoder<TYPE>* dictionary)
-      : Decoder<TYPE>(descr, parquet::Encoding::RLE_DICTIONARY) {
+      : Decoder<TYPE>(descr, Encoding::RLE_DICTIONARY) {
     Init(dictionary);
   }
 

@@ -28,7 +28,7 @@ class DeltaLengthByteArrayDecoder : public Decoder<Type::BYTE_ARRAY> {
  public:
   explicit DeltaLengthByteArrayDecoder(const ColumnDescriptor* descr)
       : Decoder<Type::BYTE_ARRAY>(descr,
-          parquet::Encoding::DELTA_LENGTH_BYTE_ARRAY),
+          Encoding::DELTA_LENGTH_BYTE_ARRAY),
       len_decoder_(nullptr) {
   }
 
