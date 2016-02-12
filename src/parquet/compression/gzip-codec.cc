@@ -24,18 +24,31 @@ namespace parquet_cpp {
 
 // These are magic numbers from zlib.h.  Not clear why they are not defined
 // there.
-static constexpr int WINDOW_BITS = 15;    // Maximum window size
-static constexpr int GZIP_CODEC = 16;     // Output Gzip.
 
-GZipCodec::GZipCodec(Format format) {
+// Maximum window size
+static constexpr int WINDOW_BITS = 15;
+
+// Output Gzip.
+static constexpr int GZIP_CODEC = 16;
+
+// Determine if this is libz or gzip from header.
+static constexpr int DETECT_CODEC = 32;
+
+GZipCodec::GZipCodec(Format format) :
+    format_(format),
+    compressor_initialized_(false),
+    decompressor_initialized_(false) {
+}
+
+void GZipCodec::InitCompressor() {
   memset(&stream_, 0, sizeof(stream_));
 
   int ret;
   // Initialize to run specified format
   int window_bits = WINDOW_BITS;
-  if (format == DEFLATE) {
+  if (format_ == DEFLATE) {
     window_bits = -window_bits;
-  } else if (format == GZIP) {
+  } else if (format_ == GZIP) {
     window_bits += GZIP_CODEC;
   }
   if ((ret = deflateInit2(&stream_, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
@@ -43,36 +56,92 @@ GZipCodec::GZipCodec(Format format) {
     throw ParquetException("zlib deflateInit failed: " +
         std::string(stream_.msg));
   }
+
+  compressor_initialized_ = true;
+  decompressor_initialized_ = false;
 }
 
-void GZipCodec::Decompress(int64_t input_len, const uint8_t* input,
-    int64_t output_len, uint8_t* output) {
-  stream_.zalloc = reinterpret_cast<alloc_func>(0);
-  stream_.zfree = reinterpret_cast<free_func>(0);
-  stream_.next_in = reinterpret_cast<Bytef*>(const_cast<uint8_t*>(input));
-  stream_.avail_in = input_len;
-  stream_.next_out = reinterpret_cast<Bytef*>(output);
-  stream_.avail_out = output_len;
-  int rc = inflateInit2(&stream_, 16+MAX_WBITS);
-  if (rc != Z_OK) {
-    throw ParquetException("zlib internal error.");
+void GZipCodec::InitDecompressor() {
+  memset(&stream_, 0, sizeof(stream_));
+
+  int ret;
+
+  // Initialize to run either deflate or zlib/gzip format
+  int window_bits = format_ == DEFLATE ? -WINDOW_BITS : WINDOW_BITS | DETECT_CODEC;
+  if ((ret = inflateInit2(&stream_, window_bits)) != Z_OK) {
+    throw ParquetException("zlib inflateInit failed: " +  std::string(stream_.msg));
   }
-  rc = inflate(&stream_, Z_FINISH);
-  if (rc == Z_STREAM_END) {
-    rc = inflateEnd(&stream_);
+
+  compressor_initialized_ = false;
+  decompressor_initialized_ = true;
+}
+
+void GZipCodec::Decompress(int64_t input_length, const uint8_t* input,
+    int64_t output_length, uint8_t* output) {
+  if (!decompressor_initialized_) {
+    InitDecompressor();
   }
-  if (rc != Z_OK) {
-    throw ParquetException("Corrupt gzip compressed data.");
+  if (output_length == 0) {
+    // The zlib library does not allow *output to be NULL, even when output_length
+    // is 0 (inflate() will return Z_STREAM_ERROR). We don't consider this an
+    // error, so bail early if no output is expected. Note that we don't signal
+    // an error if the input actually contains compressed data.
+    return;
+  }
+
+  // Reset the stream for this block
+  if (inflateReset(&stream_) != Z_OK) {
+    throw ParquetException("zlib inflateReset failed: " + std::string(stream_.msg));
+  }
+
+  int ret = 0;
+  // gzip can run in streaming mode or non-streaming mode.  We only
+  // support the non-streaming use case where we present it the entire
+  // compressed input and a buffer big enough to contain the entire
+  // compressed output.  In the case where we don't know the output,
+  // we just make a bigger buffer and try the non-streaming mode
+  // from the beginning again.
+  while (ret != Z_STREAM_END) {
+    stream_.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(input));
+    stream_.avail_in = input_length;
+    stream_.next_out = reinterpret_cast<Bytef*>(output);
+    stream_.avail_out = output_length;
+
+    // We know the output size.  In this case, we can use Z_FINISH
+    // which is more efficient.
+    ret = inflate(&stream_, Z_FINISH);
+    if (ret == Z_STREAM_END || ret != Z_OK) break;
+
+    // Failure, buffer was too small
+    std::stringstream ss;
+    ss << "Too small a buffer passed to GZipCodec. InputLength="
+       << input_length << " OutputLength=" << output_length;
+    throw ParquetException(ss.str());
+  }
+
+  // Failure for some other reason
+  if (ret != Z_STREAM_END) {
+    std::stringstream ss;
+    ss << "GZipCodec failed: ";
+    if (stream_.msg != NULL) ss << stream_.msg;
+    throw ParquetException(ss.str());
   }
 }
 
-int64_t GZipCodec::MaxCompressedLen(int64_t input_len, const uint8_t* input) {
+int64_t GZipCodec::MaxCompressedLen(int64_t input_length, const uint8_t* input) {
+  // Most be in compression mode
+  if (!compressor_initialized_) {
+    InitCompressor();
+  }
   // TODO(wesm): deal with zlib < 1.2.3 (see Impala codebase)
-  return deflateBound(&stream_, static_cast<uLong>(input_len));
+  return deflateBound(&stream_, static_cast<uLong>(input_length));
 }
 
 int64_t GZipCodec::Compress(int64_t input_length, const uint8_t* input,
     int64_t output_length, uint8_t* output) {
+  if (!compressor_initialized_) {
+    InitCompressor();
+  }
   stream_.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(input));
   stream_.avail_in = input_length;
   stream_.next_out = reinterpret_cast<Bytef*>(output);
@@ -95,6 +164,7 @@ int64_t GZipCodec::Compress(int64_t input_length, const uint8_t* input,
         std::string(stream_.msg));
   }
 
+  // Actual output length
   return output_length - stream_.avail_out;
 }
 

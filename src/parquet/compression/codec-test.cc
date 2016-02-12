@@ -29,43 +29,59 @@ using std::vector;
 
 namespace parquet_cpp {
 
-void CheckCodecRoundtrip(Codec* codec, const vector<uint8_t>& data) {
-  int max_compressed_len = codec->MaxCompressedLen(data.size(), &data[0]);
+template <typename T>
+void CheckCodecRoundtrip(const vector<uint8_t>& data) {
+  // create multiple compressors to try to break them
+  T c1;
+  T c2;
 
+  int max_compressed_len = c1.MaxCompressedLen(data.size(), &data[0]);
   std::vector<uint8_t> compressed(max_compressed_len);
-  int actual_size = codec->Compress(data.size(), &data[0], max_compressed_len,
+  std::vector<uint8_t> decompressed(data.size());
+
+  // compress with c1
+  int actual_size = c1.Compress(data.size(), &data[0], max_compressed_len,
       &compressed[0]);
   compressed.resize(actual_size);
 
-  std::vector<uint8_t> decompressed(data.size());
-  codec->Decompress(compressed.size(), &compressed[0],
+  // decompress with c2
+  c2.Decompress(compressed.size(), &compressed[0],
+      decompressed.size(), &decompressed[0]);
+
+  ASSERT_TRUE(test::vector_equal(data, decompressed));
+
+  // compress with c2
+  int actual_size2 = c2.Compress(data.size(), &data[0], max_compressed_len,
+      &compressed[0]);
+  ASSERT_EQ(actual_size2, actual_size);
+
+  // decompress with c2
+  c1.Decompress(compressed.size(), &compressed[0],
       decompressed.size(), &decompressed[0]);
 
   ASSERT_TRUE(test::vector_equal(data, decompressed));
 }
 
-void CheckCodec(Codec* codec) {
+template <typename T>
+void CheckCodec() {
   int sizes[] = {10000, 100000};
   for (int data_size : sizes) {
     vector<uint8_t> data;
     test::random_bytes(data_size, 1234, &data);
-    CheckCodecRoundtrip(codec, data);
+    CheckCodecRoundtrip<T>(data);
   }
 }
 
 TEST(TestCompressors, Snappy) {
-  SnappyCodec codec;
-  CheckCodec(&codec);
+  CheckCodec<SnappyCodec>();
 }
 
 TEST(TestCompressors, Lz4) {
-  Lz4Codec codec;
-  CheckCodec(&codec);
+  CheckCodec<Lz4Codec>();
 }
 
 TEST(TestCompressors, GZip) {
-  GZipCodec codec(GZipCodec::GZIP);
-  CheckCodec(&codec);
+  CheckCodec<GZipCodec>();
 }
 
 } // namespace parquet_cpp
