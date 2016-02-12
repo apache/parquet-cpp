@@ -55,7 +55,7 @@ void CheckCodecRoundtrip(const vector<uint8_t>& data) {
       &compressed[0]);
   ASSERT_EQ(actual_size2, actual_size);
 
-  // decompress with c2
+  // decompress with c1
   c1.Decompress(compressed.size(), &compressed[0],
       decompressed.size(), &decompressed[0]);
 
