@@ -25,10 +25,8 @@
 #include <unordered_map>
 
 #include "parquet/types.h"
-#include "parquet/schema/descriptor.h"
-
-// TODO(wesm): Still depends on Thrift
 #include "parquet/column/page.h"
+#include "parquet/schema/descriptor.h"
 
 namespace parquet_cpp {
 
