@@ -40,8 +40,5 @@ before_script:
 
 script:
 - make
-- >
-  if [ $TRAVIS_OS_NAME == linux ]; then
-    valgrind --tool=memcheck --leak-check=yes --error-exitcode=1 ctest;
-  fi
+- source $TRAVIS_BUILD_DIR/ci/run_tests.sh
 - make lint
