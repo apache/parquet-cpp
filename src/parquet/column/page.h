@@ -119,6 +119,34 @@ class DataPageV2 : public Page {
       repetition_levels_byte_length_(repetition_levels_byte_length),
       is_compressed_(is_compressed) {}
 
+  int32_t num_values() const {
+    return num_values_;
+  }
+
+  int32_t num_nulls() const {
+    return num_nulls_;
+  }
+
+  int32_t num_rows() const {
+    return num_rows_;
+  }
+
+  Encoding::type encoding() const {
+    return encoding_;
+  }
+
+  int32_t definition_levels_byte_length() const {
+    return definition_levels_byte_length_;
+  }
+
+  int32_t repetition_levels_byte_length() const {
+    return repetition_levels_byte_length_;
+  }
+
+  bool is_compressed() const {
+    return is_compressed_;
+  }
+
  private:
   int32_t num_values_;
   int32_t num_nulls_;
@@ -143,6 +171,14 @@ class DictionaryPage : public Page {
 
   int32_t num_values() const {
     return num_values_;
+  }
+
+  Encoding::type encoding() const {
+    return encoding_;
+  }
+
+  bool is_sorted() const {
+    return is_sorted_;
   }
 
  private:

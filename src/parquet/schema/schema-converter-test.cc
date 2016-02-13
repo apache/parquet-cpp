@@ -22,10 +22,10 @@
 #include <gtest/gtest.h>
 #include "parquet/util/test-common.h"
 
+#include "parquet/exception.h"
 #include "parquet/schema/converter.h"
-#include "parquet/thrift/parquet_types.h"
-
 #include "parquet/schema/test-util.h"
+#include "parquet/thrift/parquet_types.h"
 
 using std::string;
 using std::vector;

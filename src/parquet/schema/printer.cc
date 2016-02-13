@@ -17,7 +17,11 @@
 
 #include "parquet/schema/printer.h"
 
+#include <memory>
 #include <string>
+
+#include "parquet/schema/types.h"
+#include "parquet/types.h"
 
 namespace parquet_cpp {
 

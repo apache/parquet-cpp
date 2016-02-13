@@ -19,6 +19,7 @@
 
 #include <memory>
 
+#include "parquet/exception.h"
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/thrift/util.h"
 

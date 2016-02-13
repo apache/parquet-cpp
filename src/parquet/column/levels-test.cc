@@ -15,10 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <cstdlib>
-#include <iostream>
-#include <sstream>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 

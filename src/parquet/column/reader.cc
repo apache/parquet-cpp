@@ -18,9 +18,8 @@
 #include "parquet/column/reader.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
-#include <string>
-#include <string.h>
 
 #include "parquet/column/page.h"
 

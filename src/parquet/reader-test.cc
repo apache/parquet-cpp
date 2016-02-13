@@ -18,7 +18,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -26,7 +25,6 @@
 #include "parquet/file/reader.h"
 #include "parquet/column/reader.h"
 #include "parquet/column/scanner.h"
-#include "parquet/util/input.h"
 
 using std::string;
 

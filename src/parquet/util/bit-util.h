@@ -49,7 +49,7 @@ struct make_unsigned<int8_t> {
 
 template <>
 struct make_unsigned<int16_t> {
-typedef uint16_t type;
+  typedef uint16_t type;
 };
 
 template <>

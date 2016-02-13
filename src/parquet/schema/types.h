@@ -26,7 +26,6 @@
 #include <string>
 #include <vector>
 
-#include "parquet/exception.h"
 #include "parquet/types.h"
 #include "parquet/util/macros.h"
 

@@ -18,19 +18,19 @@
 #ifndef PARQUET_FILE_READER_INTERNAL_H
 #define PARQUET_FILE_READER_INTERNAL_H
 
-#include "parquet/file/reader.h"
-
 #include <cstdint>
 #include <memory>
 #include <vector>
 
+#include "parquet/column/page.h"
 #include "parquet/compression/codec.h"
+#include "parquet/file/reader.h"
 #include "parquet/thrift/parquet_types.h"
+#include "parquet/types.h"
 #include "parquet/util/input.h"
 
 namespace parquet_cpp {
 
-class Page;
 class SchemaDescriptor;
 
 // 16 MB is the default maximum page header size
