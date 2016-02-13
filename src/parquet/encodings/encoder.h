@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_ENCODINGS_DECODER_H
-#define PARQUET_ENCODINGS_DECODER_H
+#ifndef PARQUET_ENCODINGS_ENCODER_H
+#define PARQUET_ENCODINGS_ENCODER_H
 
 #include <cstdint>
 
@@ -58,4 +58,4 @@ class Encoder {
 
 } // namespace parquet_cpp
 
-#endif // PARQUET_ENCODINGS_DECODER_H
+#endif // PARQUET_ENCODINGS_ENCODER_H
