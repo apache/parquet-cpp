@@ -18,10 +18,12 @@
 #ifndef PARQUET_DELTA_BIT_PACK_ENCODING_H
 #define PARQUET_DELTA_BIT_PACK_ENCODING_H
 
-#include "parquet/encodings/encodings.h"
-
 #include <algorithm>
+#include <cstdint>
 #include <vector>
+
+#include "parquet/encodings/decoder.h"
+#include "parquet/util/bit-stream-utils.inline.h"
 
 namespace parquet_cpp {
 

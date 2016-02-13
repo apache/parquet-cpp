@@ -18,10 +18,14 @@
 #ifndef PARQUET_PLAIN_ENCODING_H
 #define PARQUET_PLAIN_ENCODING_H
 
-#include "parquet/encodings/encodings.h"
-
 #include <algorithm>
 #include <vector>
+
+#include "parquet/encodings/decoder.h"
+#include "parquet/encodings/encoder.h"
+#include "parquet/schema/descriptor.h"
+#include "parquet/util/bit-stream-utils.inline.h"
+#include "parquet/util/output.h"
 
 namespace parquet_cpp {
 

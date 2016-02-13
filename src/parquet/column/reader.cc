@@ -23,7 +23,8 @@
 
 #include "parquet/column/page.h"
 
-#include "parquet/encodings/encodings.h"
+#include "parquet/encodings/dictionary-encoding.h"
+#include "parquet/encodings/plain-encoding.h"
 
 namespace parquet_cpp {
 

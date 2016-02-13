@@ -18,9 +18,12 @@
 #ifndef PARQUET_DELTA_LENGTH_BYTE_ARRAY_ENCODING_H
 #define PARQUET_DELTA_LENGTH_BYTE_ARRAY_ENCODING_H
 
-#include "parquet/encodings/encodings.h"
-
 #include <algorithm>
+#include <cstdint>
+#include <vector>
+
+#include "parquet/encodings/decoder.h"
+#include "parquet/encodings/delta-bit-pack-encoding.h"
 
 namespace parquet_cpp {
 

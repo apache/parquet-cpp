@@ -26,7 +26,7 @@
 
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
-#include "parquet/encodings/encodings.h"
+#include "parquet/encodings/decoder.h"
 #include "parquet/exception.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
