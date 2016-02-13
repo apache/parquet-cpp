@@ -15,17 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <cstdlib>
-#include <iostream>
-#include <sstream>
-#include <string>
-
 #include <gtest/gtest.h>
 
-#include "parquet/column/page.h"
-#include "parquet/column/reader.h"
-#include "parquet/column/test-util.h"
+#include <cstdint>
+#include <exception>
+#include <string>
 
+#include "parquet/column/test-util.h"
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/thrift/util.h"
 

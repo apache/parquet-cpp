@@ -29,7 +29,7 @@ namespace schema {
 class Node;
 
 void PrintSchema(const Node* schema, std::ostream& stream,
-    size_t indent_width = 2);
+    int indent_width = 2);
 
 } // namespace schema
 

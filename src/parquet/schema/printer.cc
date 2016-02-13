@@ -29,7 +29,7 @@ namespace schema {
 
 class SchemaPrinter : public Node::Visitor {
  public:
-  explicit SchemaPrinter(std::ostream& stream, size_t indent_width) :
+  explicit SchemaPrinter(std::ostream& stream, int indent_width) :
       stream_(stream),
       indent_(0),
       indent_width_(2) {}
@@ -44,8 +44,8 @@ class SchemaPrinter : public Node::Visitor {
 
   std::ostream& stream_;
 
-  size_t indent_;
-  size_t indent_width_;
+  int indent_;
+  int indent_width_;
 };
 
 static void PrintRepLevel(Repetition::type repetition, std::ostream& stream) {
@@ -107,7 +107,7 @@ void SchemaPrinter::Visit(const GroupNode* node) {
   stream_ << " group " << node->name() << " {" << std::endl;
 
   indent_ += indent_width_;
-  for (size_t i = 0; i < node->field_count(); ++i) {
+  for (int i = 0; i < node->field_count(); ++i) {
     node->field(i)->Visit(this);
   }
   indent_ -= indent_width_;
@@ -133,7 +133,7 @@ void SchemaPrinter::Visit(const Node* node) {
 }
 
 void PrintSchema(const Node* schema, std::ostream& stream,
-    size_t indent_width) {
+    int indent_width) {
   SchemaPrinter printer(stream, indent_width);
   printer.Visit(schema);
 }

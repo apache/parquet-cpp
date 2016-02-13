@@ -27,10 +27,13 @@
 #include <vector>
 #include <string>
 
+#include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 
 // Depended on by SerializedPageReader test utilities for now
+#include "parquet/encodings/plain-encoding.h"
 #include "parquet/thrift/util.h"
+#include "parquet/util/input.h"
 
 namespace parquet_cpp {
 

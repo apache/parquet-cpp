@@ -35,8 +35,6 @@
 using std::string;
 using std::vector;
 using std::shared_ptr;
-using parquet::FieldRepetitionType;
-using parquet::SchemaElement;
 
 namespace parquet_cpp {
 

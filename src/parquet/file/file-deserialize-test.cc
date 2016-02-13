@@ -15,23 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <cstdlib>
-#include <iostream>
-#include <sstream>
-#include <string>
-
 #include <gtest/gtest.h>
 
-#include "parquet/types.h"
+#include <algorithm>
+#include <cstdlib>
+#include <cstdint>
+#include <exception>
+#include <memory>
+#include <string>
 
 #include "parquet/column/page.h"
-#include "parquet/column/reader.h"
 #include "parquet/column/test-util.h"
 
 #include "parquet/file/reader-internal.h"
-
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/thrift/util.h"
+#include "parquet/types.h"
+#include "parquet/util/input.h"
 
 namespace parquet_cpp {
 

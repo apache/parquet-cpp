@@ -16,6 +16,7 @@
 // under the License.
 
 #include <cstdlib>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>

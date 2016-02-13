@@ -19,7 +19,6 @@
 #define PARQUET_COLUMN_SCANNER_H
 
 #include <stdio.h>
-
 #include <cstdint>
 #include <memory>
 #include <ostream>
@@ -27,6 +26,7 @@
 #include <vector>
 
 #include "parquet/column/reader.h"
+#include "parquet/exception.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
 

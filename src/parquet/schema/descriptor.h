@@ -19,6 +19,7 @@
 #define PARQUET_SCHEMA_DESCRIPTOR_H
 
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <unordered_map>

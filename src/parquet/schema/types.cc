@@ -74,7 +74,7 @@ bool GroupNode::EqualsInternal(const GroupNode* other) const {
   if (this->field_count() != other->field_count()) {
     return false;
   }
-  for (size_t i = 0; i < this->field_count(); ++i) {
+  for (int i = 0; i < this->field_count(); ++i) {
     if (!this->field(i)->Equals(other->field(i).get())) {
       return false;
     }
