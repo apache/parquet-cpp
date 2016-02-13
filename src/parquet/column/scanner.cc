@@ -25,7 +25,7 @@
 namespace parquet_cpp {
 
 std::shared_ptr<Scanner> Scanner::Make(std::shared_ptr<ColumnReader> col_reader,
-    int32_t batch_size) {
+    int64_t batch_size) {
   switch (col_reader->type()) {
     case Type::BOOLEAN:
       return std::make_shared<BoolScanner>(col_reader, batch_size);
