@@ -19,11 +19,11 @@
 #define PARQUET_COLUMN_LEVELS_H
 
 #include <memory>
+#include <algorithm>
 
 #include "parquet/exception.h"
 #include "parquet/types.h"
 #include "parquet/util/rle-encoding.h"
-#include <algorithm>
 
 namespace parquet_cpp {
 
