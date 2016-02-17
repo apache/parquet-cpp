@@ -136,6 +136,9 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
             std::shared_ptr<DecoderType> decoder(new PlainDecoder<TYPE>(descr_));
             decoders_[static_cast<int>(encoding)] = decoder;
             current_decoder_ = decoder.get();
+            if (type() == Type::BYTE_ARRAY) {
+              byte_pages_.push_back(std::static_pointer_cast<DataPage>(current_page_));
+            } 
             break;
           }
           case Encoding::RLE_DICTIONARY:

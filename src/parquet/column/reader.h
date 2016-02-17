@@ -95,6 +95,12 @@ class ColumnReader {
   // The number of values from the current data page that have been decoded
   // into memory
   int num_decoded_values_;
+
+  // We need to store the data page for BYTE_ARRAY and FLBA since the corresponding types
+  // store pointers into these pages
+  // The user is responsible to free these DataPages
+  // todo(mdeepak) figure out a way to efficiently discard these pages
+  std::vector<std::shared_ptr<DataPage>> byte_pages_;
 };
 
 // API to read values from a single column. This is the main client facing API.

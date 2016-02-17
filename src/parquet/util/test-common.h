@@ -22,6 +22,8 @@
 #include <random>
 #include <vector>
 
+#include "parquet/types.h"
+
 using std::vector;
 
 namespace parquet_cpp {
@@ -81,7 +83,6 @@ static inline vector<bool> flip_coins_seed(size_t n, double p, uint32_t seed) {
   return draws;
 }
 
-
 static inline vector<bool> flip_coins(size_t n, double p) {
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -95,6 +96,16 @@ static inline vector<bool> flip_coins(size_t n, double p) {
   return draws;
 }
 
+void random_bools(int n, uint32_t seed, bool* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d(0, 1);
+
+  for (int i = 0; i < n; ++i) {
+    out[i] = (d(gen) & 0x1);
+  }
+}
+
+
 void random_bytes(int n, uint32_t seed, std::vector<uint8_t>* out) {
   std::mt19937 gen(seed);
   std::uniform_int_distribution<int> d(0, 255);
@@ -104,8 +115,72 @@ void random_bytes(int n, uint32_t seed, std::vector<uint8_t>* out) {
   }
 }
 
-} // namespace test
+template <typename T>
+void random_int_numbers(int n, uint32_t seed, std::vector<T>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<T> d(-10000, 10000);
 
+  for (int i = 0; i < n; ++i) {
+    out->push_back(d(gen));
+  }
+}
+
+template <>
+void random_int_numbers(int n, uint32_t seed, std::vector<Int96>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d(-10000, 10000);
+
+  for (int i = 0; i < n; ++i) {
+    Int96 temp;
+    temp.value[0] = (d(gen));
+    temp.value[1] = (d(gen));
+    temp.value[2] = (d(gen));
+    out->push_back(temp);
+  }
+}
+
+void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
+    std::vector<FLBA>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d(0, 255);
+  FLBA temp;
+  for (int i = 0; i < n; ++i) {
+    temp.ptr = buf;
+    buf += len;
+    for (int j = 0; j < len; ++j) {
+      ((uint8_t*)temp.ptr)[j] = (d(gen) & 0xFF);
+    }
+    out->push_back(temp);
+  }
+}
+
+void random_byte_array(int n, uint32_t seed, uint8_t *buf,
+    std::vector<ByteArray>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d1(1, 12);
+  std::uniform_int_distribution<int> d2(0, 255);
+  ByteArray temp;
+  for (int i = 0; i < n; ++i) {
+    temp.len = (d1(gen));
+    temp.ptr = buf;
+    buf += temp.len;
+    for (int j = 0; j < temp.len; ++j) {
+      ((uint8_t*)temp.ptr)[j] = (d2(gen) & 0xFF);
+    }
+    out->push_back(temp);
+  }
+}
+
+template <typename T>
+void random_real_numbers(int n, uint32_t seed, std::vector<T>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_real_distribution<T> d(-10000.0, 10000.0);
+
+  for (int i = 0; i < n; ++i) {
+    out->push_back(d(gen));
+  }
+}
+} // namespace test
 } // namespace parquet_cpp
 
 #endif // PARQUET_UTIL_TEST_COMMON_H
