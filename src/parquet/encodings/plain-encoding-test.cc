@@ -71,10 +71,10 @@ TEST(BooleanTest2, TestEncodeDecode) {
   size_t nvalues = 10000;
   size_t nbytes = BitUtil::Ceil(nvalues, 8);
 
-  // seed the prng so failure is deterministic
   vector<uint8_t> draws;
   draws.resize(nvalues);
   bool* bool_data = reinterpret_cast<bool*>(draws.data());
+  // seed the prng so failure is deterministic
   random_bools(nvalues, 0.5, bool_data);
 
   PlainEncoder<Type::BOOLEAN> encoder(nullptr);
@@ -105,8 +105,8 @@ TEST(Int32Test, TestEncodeDecode) {
   size_t nvalues = 10000;
   size_t nbytes = nvalues * type_traits<Type::INT32>::value_byte_size;
 
-  // seed the prng so failure is deterministic
   vector<int32_t> draws;
+  // seed the prng so failure is deterministic
   random_int_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT32> encoder(nullptr);
@@ -137,8 +137,8 @@ TEST(Int64Test, TestEncodeDecode) {
   size_t nvalues = 10000;
   size_t nbytes = nvalues * type_traits<Type::INT64>::value_byte_size;
 
-  // seed the prng so failure is deterministic
   vector<int64_t> draws;
+  // seed the prng so failure is deterministic
   random_int_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT64> encoder(nullptr);
@@ -169,8 +169,8 @@ TEST(FloatTest, TestEncodeDecode) {
   size_t nvalues = 10000;
   size_t nbytes = nvalues * type_traits<Type::FLOAT>::value_byte_size;
 
-  // seed the prng so failure is deterministic
   vector<float> draws;
+  // seed the prng so failure is deterministic
   random_real_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::FLOAT> encoder(nullptr);
@@ -201,8 +201,8 @@ TEST(DoubleTest, TestEncodeDecode) {
   size_t nvalues = 10000;
   size_t nbytes = nvalues * type_traits<Type::DOUBLE>::value_byte_size;
 
-  // seed the prng so failure is deterministic
   vector<double> draws;
+  // seed the prng so failure is deterministic
   random_real_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::DOUBLE> encoder(nullptr);
@@ -233,8 +233,8 @@ TEST(Int96Test, TestEncodeDecode) {
   size_t nvalues = 10000;
   size_t nbytes = nvalues * type_traits<Type::INT96>::value_byte_size;
 
-  // seed the prng so failure is deterministic
   vector<Int96> draws;
+  // seed the prng so failure is deterministic
   random_int_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT96> encoder(nullptr);
@@ -268,10 +268,10 @@ TEST(ByteArrayTest, TestEncodeDecode) {
   int max_byte_array_len = 12 + sizeof(uint32_t);
   size_t nbytes = nvalues * max_byte_array_len;
 
-  // seed the prng so failure is deterministic
   vector<ByteArray> draws;
   std::vector<uint8_t> data_buffer;
   data_buffer.resize(nbytes);
+  // seed the prng so failure is deterministic
   random_byte_array(nvalues, 0.5, data_buffer.data(), &draws);
 
   PlainEncoder<Type::BYTE_ARRAY> encoder(nullptr);
@@ -304,10 +304,10 @@ TEST(FLBATest, TestEncodeDecode) {
   int flba_length = 8;
   size_t nbytes = nvalues * flba_length;
 
-  // seed the prng so failure is deterministic
   vector<FLBA> draws;
   std::vector<uint8_t> data_buffer;
   data_buffer.resize(nbytes);
+  // seed the prng so failure is deterministic
   random_fixed_byte_array(nvalues, 0.5, data_buffer.data(), flba_length, &draws);
 
   schema::NodePtr node;

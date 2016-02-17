@@ -137,7 +137,7 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
             decoders_[static_cast<int>(encoding)] = decoder;
             current_decoder_ = decoder.get();
             if (type() == Type::BYTE_ARRAY || type() == Type::FIXED_LEN_BYTE_ARRAY) {
-              byte_pages_.push_back(std::static_pointer_cast<DataPage>(current_page_));
+              byte_pages_.push_back(current_page_);
             }
             break;
           }
