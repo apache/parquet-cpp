@@ -146,10 +146,10 @@ void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
   FLBA temp;
   for (int i = 0; i < n; ++i) {
     temp.ptr = buf;
-    buf += len;
     for (int j = 0; j < len; ++j) {
-      ((uint8_t*)temp.ptr)[j] = (d(gen) & 0xFF);
+      buf[j] = (d(gen) & 0xFF);
     }
+    buf += len;
     out->push_back(temp);
   }
 }
@@ -163,10 +163,10 @@ void random_byte_array(int n, uint32_t seed, uint8_t *buf,
   for (int i = 0; i < n; ++i) {
     temp.len = (d1(gen));
     temp.ptr = buf;
-    buf += temp.len;
     for (int j = 0; j < temp.len; ++j) {
-      ((uint8_t*)temp.ptr)[j] = (d2(gen) & 0xFF);
+      buf[j] = (d2(gen) & 0xFF);
     }
+    buf += temp.len;
     out->push_back(temp);
   }
 }

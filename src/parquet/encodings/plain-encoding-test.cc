@@ -92,7 +92,8 @@ TEST(BooleanTest2, TestEncodeDecode) {
   const uint8_t* decode_data = &decode_buffer[0];
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<bool*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<bool*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -105,7 +106,7 @@ TEST(Int32Test, TestEncodeDecode) {
   size_t nbytes = nvalues * type_traits<Type::INT32>::value_byte_size;
 
   // seed the prng so failure is deterministic
-  vector<int32_t> draws; 
+  vector<int32_t> draws;
   random_int_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT32> encoder(nullptr);
@@ -123,7 +124,8 @@ TEST(Int32Test, TestEncodeDecode) {
   const int32_t* decode_data = reinterpret_cast<int32_t*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<int32_t*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<int32_t*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -136,7 +138,7 @@ TEST(Int64Test, TestEncodeDecode) {
   size_t nbytes = nvalues * type_traits<Type::INT64>::value_byte_size;
 
   // seed the prng so failure is deterministic
-  vector<int64_t> draws; 
+  vector<int64_t> draws;
   random_int_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT64> encoder(nullptr);
@@ -154,7 +156,8 @@ TEST(Int64Test, TestEncodeDecode) {
   const int64_t* decode_data = reinterpret_cast<int64_t*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<int64_t*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<int64_t*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -167,7 +170,7 @@ TEST(FloatTest, TestEncodeDecode) {
   size_t nbytes = nvalues * type_traits<Type::FLOAT>::value_byte_size;
 
   // seed the prng so failure is deterministic
-  vector<float> draws; 
+  vector<float> draws;
   random_real_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::FLOAT> encoder(nullptr);
@@ -185,7 +188,8 @@ TEST(FloatTest, TestEncodeDecode) {
   const float* decode_data = reinterpret_cast<float*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<float*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<float*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -198,7 +202,7 @@ TEST(DoubleTest, TestEncodeDecode) {
   size_t nbytes = nvalues * type_traits<Type::DOUBLE>::value_byte_size;
 
   // seed the prng so failure is deterministic
-  vector<double> draws; 
+  vector<double> draws;
   random_real_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::DOUBLE> encoder(nullptr);
@@ -216,7 +220,8 @@ TEST(DoubleTest, TestEncodeDecode) {
   const double* decode_data = reinterpret_cast<double*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<double*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<double*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -229,7 +234,7 @@ TEST(Int96Test, TestEncodeDecode) {
   size_t nbytes = nvalues * type_traits<Type::INT96>::value_byte_size;
 
   // seed the prng so failure is deterministic
-  vector<Int96> draws; 
+  vector<Int96> draws;
   random_int_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT96> encoder(nullptr);
@@ -247,7 +252,8 @@ TEST(Int96Test, TestEncodeDecode) {
   const Int96* decode_data = reinterpret_cast<Int96*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<Int96*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<Int96*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -263,7 +269,7 @@ TEST(ByteArrayTest, TestEncodeDecode) {
   size_t nbytes = nvalues * max_byte_array_len;
 
   // seed the prng so failure is deterministic
-  vector<ByteArray> draws; 
+  vector<ByteArray> draws;
   std::vector<uint8_t> data_buffer;
   data_buffer.resize(nbytes);
   random_byte_array(nvalues, 0.5, data_buffer.data(), &draws);
@@ -276,12 +282,13 @@ TEST(ByteArrayTest, TestEncodeDecode) {
 
   std::vector<uint8_t> encode_buffer;
   dst.Transfer(&encode_buffer);
-  
+
   std::vector<uint8_t> decode_buffer(nbytes);
   const ByteArray* decode_data = reinterpret_cast<ByteArray*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<ByteArray*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<ByteArray*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -298,7 +305,7 @@ TEST(FLBATest, TestEncodeDecode) {
   size_t nbytes = nvalues * flba_length;
 
   // seed the prng so failure is deterministic
-  vector<FLBA> draws; 
+  vector<FLBA> draws;
   std::vector<uint8_t> data_buffer;
   data_buffer.resize(nbytes);
   random_fixed_byte_array(nvalues, 0.5, data_buffer.data(), flba_length, &draws);
@@ -321,7 +328,8 @@ TEST(FLBATest, TestEncodeDecode) {
   const FLBA* decode_data = reinterpret_cast<FLBA*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(reinterpret_cast<FLBA*>(decode_buffer.data()), nvalues);
+  size_t values_decoded = decoder.Decode(
+      reinterpret_cast<FLBA*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {

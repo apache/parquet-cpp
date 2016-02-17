@@ -23,6 +23,7 @@
 #include <cstring>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
@@ -58,6 +59,10 @@ class ColumnReader {
 
   const ColumnDescriptor* descr() const {
     return descr_;
+  }
+
+  void ClearDataPages() {
+    byte_pages_.clear();
   }
 
  protected:
@@ -100,7 +105,7 @@ class ColumnReader {
   // store pointers into these pages
   // The user is responsible to free these DataPages
   // todo(mdeepak) figure out a way to efficiently discard these pages
-  std::vector<std::shared_ptr<DataPage>> byte_pages_;
+  std::vector<std::shared_ptr<DataPage> > byte_pages_;
 };
 
 // API to read values from a single column. This is the main client facing API.
