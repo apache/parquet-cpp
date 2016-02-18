@@ -5,7 +5,7 @@ cp -r $TRAVIS_BUILD_DIR/thirdparty .
 ./thirdparty/download_thirdparty.sh
 
 if [ $TRAVIS_OS_NAME == "osx" ]; then
-  brew update -q
+  brew update > /dev/null
   brew install thrift
 else
   # Use a C++11 compiler on Linux
