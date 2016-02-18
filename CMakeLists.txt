@@ -111,6 +111,17 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
     # This test has a corresponding .cc file, set it up as an executable.
     set(TEST_PATH "${EXECUTABLE_OUTPUT_PATH}/${TEST_NAME}")
     add_executable(${TEST_NAME} "${REL_TEST_NAME}.cc")
+
+	if(APPLE)
+	  # On OS X / Thrift >= 0.9.2, tr1/tuple.h is not in libc++
+	  SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+		-DGTEST_USE_OWN_TR1_TUPLE=1)
+	else()
+	  # Linux, for Thrift >= 0.9.2
+	  SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+		-DGTEST_USE_OWN_TR1_TUPLE=0)
+	endif()
+
     target_link_libraries(${TEST_NAME} ${PARQUET_TEST_LINK_LIBS})
   else()
     # No executable, just invoke the test (probably a script) directly.
