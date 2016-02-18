@@ -19,6 +19,7 @@
 #define PARQUET_UTIL_TEST_COMMON_H
 
 #include <iostream>
+#include <limits>
 #include <random>
 #include <vector>
 
@@ -96,12 +97,12 @@ static inline vector<bool> flip_coins(size_t n, double p) {
   return draws;
 }
 
-void random_bools(int n, uint32_t seed, bool* out) {
+void random_bools(int n, double p, uint32_t seed, bool* out) {
   std::mt19937 gen(seed);
-  std::uniform_int_distribution<int> d(0, 1);
+  std::bernoulli_distribution d(p);
 
   for (int i = 0; i < n; ++i) {
-    out[i] = (d(gen) & 0x1);
+    out[i] = d(gen);
   }
 }
 
@@ -118,24 +119,24 @@ void random_bytes(int n, uint32_t seed, std::vector<uint8_t>* out) {
 template <typename T>
 void random_int_numbers(int n, uint32_t seed, std::vector<T>* out) {
   std::mt19937 gen(seed);
-  std::uniform_int_distribution<T> d(-10000, 10000);
+  std::uniform_int_distribution<T> d(std::numeric_limits<T>::lowest(),
+      std::numeric_limits<T>::max());
 
   for (int i = 0; i < n; ++i) {
     out->push_back(d(gen));
   }
 }
 
-template <>
 void random_int_numbers(int n, uint32_t seed, std::vector<Int96>* out) {
   std::mt19937 gen(seed);
-  std::uniform_int_distribution<int> d(-10000, 10000);
+  std::uniform_int_distribution<uint32_t> d(std::numeric_limits<uint32_t>::lowest(),
+      std::numeric_limits<uint32_t>::max());
 
+  Int96 *temp = &(*out)[0];
   for (int i = 0; i < n; ++i) {
-    Int96 temp;
-    temp.value[0] = (d(gen));
-    temp.value[1] = (d(gen));
-    temp.value[2] = (d(gen));
-    out->push_back(temp);
+    temp[i].value[0] = d(gen);
+    temp[i].value[1] = d(gen);
+    temp[i].value[2] = d(gen);
   }
 }
 
@@ -147,7 +148,7 @@ void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
   for (int i = 0; i < n; ++i) {
     temp.ptr = buf;
     for (int j = 0; j < len; ++j) {
-      buf[j] = (d(gen) & 0xFF);
+      buf[j] = d(gen) & 0xFF;
     }
     buf += len;
     out->push_back(temp);
@@ -155,16 +156,16 @@ void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
 }
 
 void random_byte_array(int n, uint32_t seed, uint8_t *buf,
-    std::vector<ByteArray>* out) {
+    std::vector<ByteArray>* out, int max_size) {
   std::mt19937 gen(seed);
-  std::uniform_int_distribution<int> d1(1, 12);
+  std::uniform_int_distribution<int> d1(0, max_size);
   std::uniform_int_distribution<int> d2(0, 255);
   ByteArray temp;
   for (int i = 0; i < n; ++i) {
-    temp.len = (d1(gen));
+    temp.len = d1(gen);
     temp.ptr = buf;
     for (int j = 0; j < temp.len; ++j) {
-      buf[j] = (d2(gen) & 0xFF);
+      buf[j] = d2(gen) & 0xFF;
     }
     buf += temp.len;
     out->push_back(temp);
@@ -174,7 +175,8 @@ void random_byte_array(int n, uint32_t seed, uint8_t *buf,
 template <typename T>
 void random_real_numbers(int n, uint32_t seed, std::vector<T>* out) {
   std::mt19937 gen(seed);
-  std::uniform_real_distribution<T> d(-10000.0, 10000.0);
+  std::uniform_real_distribution<T> d(std::numeric_limits<T>::lowest(),
+      std::numeric_limits<T>::max());
 
   for (int i = 0; i < n; ++i) {
     out->push_back(d(gen));

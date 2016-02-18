@@ -75,7 +75,7 @@ TEST(BooleanTest2, TestEncodeDecode) {
   draws.resize(nvalues);
   bool* bool_data = reinterpret_cast<bool*>(draws.data());
   // seed the prng so failure is deterministic
-  random_bools(nvalues, 0.5, bool_data);
+  random_bools(nvalues, 0.5, 0, bool_data);
 
   PlainEncoder<Type::BOOLEAN> encoder(nullptr);
   PlainDecoder<Type::BOOLEAN> decoder(nullptr);
@@ -101,16 +101,17 @@ TEST(BooleanTest2, TestEncodeDecode) {
   }
 }
 
-TEST(Int32Test, TestEncodeDecode) {
+template <typename T, int TYPE>
+void test_int_encode_decode() {
   size_t nvalues = 10000;
-  size_t nbytes = nvalues * type_traits<Type::INT32>::value_byte_size;
+  size_t nbytes = nvalues * type_traits<TYPE>::value_byte_size;
 
-  vector<int32_t> draws;
+  vector<T> draws;
   // seed the prng so failure is deterministic
   random_int_numbers(nvalues, 0.5, &draws);
 
-  PlainEncoder<Type::INT32> encoder(nullptr);
-  PlainDecoder<Type::INT32> decoder(nullptr);
+  PlainEncoder<TYPE> encoder(nullptr);
+  PlainDecoder<TYPE> decoder(nullptr);
 
   InMemoryOutputStream dst;
   encoder.Encode(draws.data(), nvalues, &dst);
@@ -121,11 +122,11 @@ TEST(Int32Test, TestEncodeDecode) {
   ASSERT_EQ(nbytes, encode_buffer.size());
 
   std::vector<uint8_t> decode_buffer(nbytes);
-  const int32_t* decode_data = reinterpret_cast<int32_t*>(decode_buffer.data());
+  const T* decode_data = reinterpret_cast<T*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
   size_t values_decoded = decoder.Decode(
-      reinterpret_cast<int32_t*>(decode_buffer.data()), nvalues);
+      reinterpret_cast<T*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -133,48 +134,22 @@ TEST(Int32Test, TestEncodeDecode) {
   }
 }
 
-TEST(Int64Test, TestEncodeDecode) {
-  size_t nvalues = 10000;
-  size_t nbytes = nvalues * type_traits<Type::INT64>::value_byte_size;
-
-  vector<int64_t> draws;
-  // seed the prng so failure is deterministic
-  random_int_numbers(nvalues, 0.5, &draws);
-
-  PlainEncoder<Type::INT64> encoder(nullptr);
-  PlainDecoder<Type::INT64> decoder(nullptr);
-
-  InMemoryOutputStream dst;
-  encoder.Encode(draws.data(), nvalues, &dst);
-
-  std::vector<uint8_t> encode_buffer;
-  dst.Transfer(&encode_buffer);
-
-  ASSERT_EQ(nbytes, encode_buffer.size());
-
-  std::vector<uint8_t> decode_buffer(nbytes);
-  const int64_t* decode_data = reinterpret_cast<int64_t*>(decode_buffer.data());
-
-  decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(
-      reinterpret_cast<int64_t*>(decode_buffer.data()), nvalues);
-  ASSERT_EQ(nvalues, values_decoded);
-
-  for (size_t i = 0; i < nvalues; ++i) {
-    ASSERT_EQ(draws[i], decode_data[i]) << i;
-  }
+TEST(IntTest, TestEncodeDecode) {
+  test_int_encode_decode<int32_t, Type::INT32>();
+  test_int_encode_decode<int64_t, Type::INT64>();
 }
 
-TEST(FloatTest, TestEncodeDecode) {
+template <typename T, int TYPE>
+void test_real_encode_decode() {
   size_t nvalues = 10000;
-  size_t nbytes = nvalues * type_traits<Type::FLOAT>::value_byte_size;
+  size_t nbytes = nvalues * type_traits<TYPE>::value_byte_size;
 
-  vector<float> draws;
+  vector<T> draws;
   // seed the prng so failure is deterministic
   random_real_numbers(nvalues, 0.5, &draws);
 
-  PlainEncoder<Type::FLOAT> encoder(nullptr);
-  PlainDecoder<Type::FLOAT> decoder(nullptr);
+  PlainEncoder<TYPE> encoder(nullptr);
+  PlainDecoder<TYPE> decoder(nullptr);
 
   InMemoryOutputStream dst;
   encoder.Encode(draws.data(), nvalues, &dst);
@@ -185,11 +160,11 @@ TEST(FloatTest, TestEncodeDecode) {
   ASSERT_EQ(nbytes, encode_buffer.size());
 
   std::vector<uint8_t> decode_buffer(nbytes);
-  const float* decode_data = reinterpret_cast<float*>(decode_buffer.data());
+  const T* decode_data = reinterpret_cast<T*>(decode_buffer.data());
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
   size_t values_decoded = decoder.Decode(
-      reinterpret_cast<float*>(decode_buffer.data()), nvalues);
+      reinterpret_cast<T*>(decode_buffer.data()), nvalues);
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
@@ -197,36 +172,9 @@ TEST(FloatTest, TestEncodeDecode) {
   }
 }
 
-TEST(DoubleTest, TestEncodeDecode) {
-  size_t nvalues = 10000;
-  size_t nbytes = nvalues * type_traits<Type::DOUBLE>::value_byte_size;
-
-  vector<double> draws;
-  // seed the prng so failure is deterministic
-  random_real_numbers(nvalues, 0.5, &draws);
-
-  PlainEncoder<Type::DOUBLE> encoder(nullptr);
-  PlainDecoder<Type::DOUBLE> decoder(nullptr);
-
-  InMemoryOutputStream dst;
-  encoder.Encode(draws.data(), nvalues, &dst);
-
-  std::vector<uint8_t> encode_buffer;
-  dst.Transfer(&encode_buffer);
-
-  ASSERT_EQ(nbytes, encode_buffer.size());
-
-  std::vector<uint8_t> decode_buffer(nbytes);
-  const double* decode_data = reinterpret_cast<double*>(decode_buffer.data());
-
-  decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(
-      reinterpret_cast<double*>(decode_buffer.data()), nvalues);
-  ASSERT_EQ(nvalues, values_decoded);
-
-  for (size_t i = 0; i < nvalues; ++i) {
-    ASSERT_EQ(draws[i], decode_data[i]) << i;
-  }
+TEST(RealTest, TestEncodeDecode) {
+  test_real_encode_decode<float, Type::FLOAT>();
+  test_real_encode_decode<double, Type::DOUBLE>();
 }
 
 TEST(Int96Test, TestEncodeDecode) {
@@ -234,6 +182,7 @@ TEST(Int96Test, TestEncodeDecode) {
   size_t nbytes = nvalues * type_traits<Type::INT96>::value_byte_size;
 
   vector<Int96> draws;
+  draws.resize(nbytes);
   // seed the prng so failure is deterministic
   random_int_numbers(nvalues, 0.5, &draws);
 
@@ -272,7 +221,8 @@ TEST(ByteArrayTest, TestEncodeDecode) {
   std::vector<uint8_t> data_buffer;
   data_buffer.resize(nbytes);
   // seed the prng so failure is deterministic
-  random_byte_array(nvalues, 0.5, data_buffer.data(), &draws);
+  random_byte_array(nvalues, 0.5, data_buffer.data(), &draws,
+      max_byte_array_len);
 
   PlainEncoder<Type::BYTE_ARRAY> encoder(nullptr);
   PlainDecoder<Type::BYTE_ARRAY> decoder(nullptr);
@@ -293,9 +243,7 @@ TEST(ByteArrayTest, TestEncodeDecode) {
 
   for (size_t i = 0; i < nvalues; ++i) {
     ASSERT_EQ(draws[i].len, decode_data[i].len) << i;
-    for (size_t j = 0; j < draws[i].len; ++j) {
-      ASSERT_EQ(draws[i].ptr[j], decode_data[i].ptr[j]) << i;
-    }
+    ASSERT_EQ(0, memcmp(draws[i].ptr, decode_data[i].ptr, draws[i].len)) << i;
   }
 }
 
@@ -333,9 +281,7 @@ TEST(FLBATest, TestEncodeDecode) {
   ASSERT_EQ(nvalues, values_decoded);
 
   for (size_t i = 0; i < nvalues; ++i) {
-    for (size_t j = 0; j < flba_length; ++j) {
-      ASSERT_EQ(draws[i].ptr[j], decode_data[i].ptr[j]) << i;
-    }
+    ASSERT_EQ(0, memcmp(draws[i].ptr, decode_data[i].ptr, flba_length)) << i;
   }
 }
 

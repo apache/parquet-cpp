@@ -67,12 +67,14 @@ inline int PlainDecoder<TYPE>::Decode(T* buffer, int max_values) {
 }
 
 // Template specialization for BYTE_ARRAY
+// BA does not currently own its data
+// the lifetime is tied to the input stream
 template <>
 inline int PlainDecoder<Type::BYTE_ARRAY>::Decode(ByteArray* buffer,
     int max_values) {
   max_values = std::min(max_values, num_values_);
   for (int i = 0; i < max_values; ++i) {
-    int len = buffer[i].len = *reinterpret_cast<const uint32_t*>(data_);
+    uint32_t len = buffer[i].len = *reinterpret_cast<const uint32_t*>(data_);
     if (len_ < sizeof(uint32_t) + len) ParquetException::EofException();
     buffer[i].ptr = data_ + sizeof(uint32_t);
     data_ += sizeof(uint32_t) + len;
@@ -83,6 +85,8 @@ inline int PlainDecoder<Type::BYTE_ARRAY>::Decode(ByteArray* buffer,
 }
 
 // Template specialization for FIXED_LEN_BYTE_ARRAY
+// FLBA does not currently own its data
+// the lifetime is tied to the input stream
 template <>
 inline int PlainDecoder<Type::FIXED_LEN_BYTE_ARRAY>::Decode(
     FixedLenByteArray* buffer, int max_values) {

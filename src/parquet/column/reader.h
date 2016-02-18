@@ -61,10 +61,6 @@ class ColumnReader {
     return descr_;
   }
 
-  void ClearDataPages() {
-    byte_pages_.clear();
-  }
-
  protected:
   virtual bool ReadNewPage() = 0;
 
@@ -100,11 +96,6 @@ class ColumnReader {
   // The number of values from the current data page that have been decoded
   // into memory
   int num_decoded_values_;
-
-  // We need to store the data page for BYTE_ARRAY and FLBA since the corresponding types
-  // store pointers into these pages
-  // The user is responsible for freeing these DataPages by calling ClearDataPages()
-  std::vector<std::shared_ptr<Page> > byte_pages_;
 };
 
 // API to read values from a single column. This is the main client facing API.
