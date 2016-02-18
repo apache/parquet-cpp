@@ -43,6 +43,9 @@ LocalFileSource::~LocalFileSource() {
 void LocalFileSource::Open(const std::string& path) {
   path_ = path;
   file_ = fopen(path_.c_str(), "r");
+  if (nullptr == file_) {
+    throw ParquetException("Failed to open file " + path_);
+  }
   is_open_ = true;
   fseek(file_, 0L, SEEK_END);
   size_ = Tell();
@@ -61,16 +64,32 @@ void LocalFileSource::CloseFile() {
   }
 }
 
+int64_t LocalFileSource::Size() {
+  size_t current_position = Tell();
+  SeekFile(0L, SEEK_END);
+  size_t filesize = Tell();
+  SeekFile(current_position);
+  return filesize;
+}
+
+void LocalFileSource::SeekFile(size_t pos, int origin) {
+  if (0 != fseek(file_, pos, origin)) {
+    CloseFile();
+    throw ParquetException("Failed to seek in file " + path_);
+  }
+}
+
 void LocalFileSource::Seek(int64_t pos) {
-  fseek(file_, pos, SEEK_SET);
+  SeekFile(pos);
 }
 
-int64_t LocalFileSource::Size() const {
-  return size_;
-}
-
-int64_t LocalFileSource::Tell() const {
-  return ftell(file_);
+int64_t LocalFileSource::Tell() {
+  int64_t position = ftell(file_);
+  if (position < 0) {
+    CloseFile();
+    throw ParquetException("Failed to retrieve current position in file " + path_);
+  }
+  return static_cast<size_t>(position);
 }
 
 int64_t LocalFileSource::Read(int64_t nbytes, uint8_t* buffer) {

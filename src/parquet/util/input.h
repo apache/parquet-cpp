@@ -75,6 +75,7 @@ class LocalFileSource : public RandomAccessSource {
 
  private:
   void CloseFile();
+  void SeekFile(size_t pos, int origin = SEEK_SET);
 
   std::string path_;
   FILE* file_;
