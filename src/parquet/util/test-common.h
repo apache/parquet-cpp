@@ -106,7 +106,6 @@ void random_bools(int n, double p, uint32_t seed, bool* out) {
   }
 }
 
-
 void random_bytes(int n, uint32_t seed, std::vector<uint8_t>* out) {
   std::mt19937 gen(seed);
   std::uniform_int_distribution<int> d(0, 255);
@@ -117,17 +116,40 @@ void random_bytes(int n, uint32_t seed, std::vector<uint8_t>* out) {
 }
 
 template <typename T>
-void random_int_numbers(int n, uint32_t seed, std::vector<T>* out) {
+void random_numbers(int n, uint32_t seed, std::vector<T>* out) {
   std::mt19937 gen(seed);
-  std::uniform_int_distribution<T> d(std::numeric_limits<T>::lowest(),
-      std::numeric_limits<T>::max());
+    std::uniform_real_distribution<T> d(std::numeric_limits<T>::lowest(),
+        std::numeric_limits<T>::max());
+
+    for (int i = 0; i < n; ++i) {
+    out->push_back(d(gen));
+  }
+}
+
+template <>
+void random_numbers(int n, uint32_t seed, std::vector<int32_t>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int32_t> d(std::numeric_limits<int32_t>::lowest(),
+      std::numeric_limits<int32_t>::max());
 
   for (int i = 0; i < n; ++i) {
     out->push_back(d(gen));
   }
 }
 
-void random_int_numbers(int n, uint32_t seed, std::vector<Int96>* out) {
+template <>
+void random_numbers(int n, uint32_t seed, std::vector<int64_t>* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int64_t> d(std::numeric_limits<int64_t>::lowest(),
+      std::numeric_limits<int64_t>::max());
+
+  for (int i = 0; i < n; ++i) {
+    out->push_back(d(gen));
+  }
+}
+
+template <>
+void random_numbers(int n, uint32_t seed, std::vector<Int96>* out) {
   std::mt19937 gen(seed);
   std::uniform_int_distribution<uint32_t> d(std::numeric_limits<uint32_t>::lowest(),
       std::numeric_limits<uint32_t>::max());
@@ -171,16 +193,6 @@ void random_byte_array(int n, uint32_t seed, uint8_t *buf,
   }
 }
 
-template <typename T>
-void random_real_numbers(int n, uint32_t seed, std::vector<T>* out) {
-  std::mt19937 gen(seed);
-  std::uniform_real_distribution<T> d(std::numeric_limits<T>::lowest(),
-      std::numeric_limits<T>::max());
-
-  for (int i = 0; i < n; ++i) {
-    out->push_back(d(gen));
-  }
-}
 } // namespace test
 } // namespace parquet_cpp
 

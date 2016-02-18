@@ -102,13 +102,13 @@ TEST(BooleanTest2, TestEncodeDecode) {
 }
 
 template <typename T, int TYPE>
-void test_int_encode_decode() {
+void test_encode_decode() {
   size_t nvalues = 10000;
   size_t nbytes = nvalues * type_traits<TYPE>::value_byte_size;
 
   vector<T> draws;
   // seed the prng so failure is deterministic
-  random_int_numbers(nvalues, 0.5, &draws);
+  random_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<TYPE> encoder(nullptr);
   PlainDecoder<TYPE> decoder(nullptr);
@@ -134,47 +134,11 @@ void test_int_encode_decode() {
   }
 }
 
-TEST(IntTest, TestEncodeDecode) {
-  test_int_encode_decode<int32_t, Type::INT32>();
-  test_int_encode_decode<int64_t, Type::INT64>();
-}
-
-template <typename T, int TYPE>
-void test_real_encode_decode() {
-  size_t nvalues = 10000;
-  size_t nbytes = nvalues * type_traits<TYPE>::value_byte_size;
-
-  vector<T> draws;
-  // seed the prng so failure is deterministic
-  random_real_numbers(nvalues, 0.5, &draws);
-
-  PlainEncoder<TYPE> encoder(nullptr);
-  PlainDecoder<TYPE> decoder(nullptr);
-
-  InMemoryOutputStream dst;
-  encoder.Encode(draws.data(), nvalues, &dst);
-
-  std::vector<uint8_t> encode_buffer;
-  dst.Transfer(&encode_buffer);
-
-  ASSERT_EQ(nbytes, encode_buffer.size());
-
-  std::vector<uint8_t> decode_buffer(nbytes);
-  const T* decode_data = reinterpret_cast<T*>(decode_buffer.data());
-
-  decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
-  size_t values_decoded = decoder.Decode(
-      reinterpret_cast<T*>(decode_buffer.data()), nvalues);
-  ASSERT_EQ(nvalues, values_decoded);
-
-  for (size_t i = 0; i < nvalues; ++i) {
-    ASSERT_EQ(draws[i], decode_data[i]) << i;
-  }
-}
-
-TEST(RealTest, TestEncodeDecode) {
-  test_real_encode_decode<float, Type::FLOAT>();
-  test_real_encode_decode<double, Type::DOUBLE>();
+TEST(IntRealTest, TestEncodeDecode) {
+  test_encode_decode<int32_t, Type::INT32>();
+  test_encode_decode<int64_t, Type::INT64>();
+  test_encode_decode<float, Type::FLOAT>();
+  test_encode_decode<double, Type::DOUBLE>();
 }
 
 TEST(Int96Test, TestEncodeDecode) {
@@ -184,7 +148,7 @@ TEST(Int96Test, TestEncodeDecode) {
   vector<Int96> draws;
   draws.resize(nbytes);
   // seed the prng so failure is deterministic
-  random_int_numbers(nvalues, 0.5, &draws);
+  random_numbers(nvalues, 0.5, &draws);
 
   PlainEncoder<Type::INT96> encoder(nullptr);
   PlainDecoder<Type::INT96> decoder(nullptr);
