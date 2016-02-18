@@ -6,6 +6,7 @@ A C++ library to read parquet files.
 - snappy
 - lz4
 - thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
+- googletest 1.7 [install instructions](https://gist.github.com/massenz/41bb2c8375294f4d9927)
 
 Many package managers support some or all of these dependencies. E.g.:
 ```shell
@@ -14,6 +15,7 @@ ubuntu$ sudo apt-get install libboost-dev libsnappy-dev liblz4-dev
 ```shell
 mac$ brew install snappy lz4 thrift
 ```
+note: there is no googletest package for homebrew.
 
 `setup_build_env.sh` tries to automate setting up a build environment for you
 with third party dependencies.  You use it by running `source
