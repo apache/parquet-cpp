@@ -144,14 +144,13 @@ void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
     std::vector<FLBA>* out) {
   std::mt19937 gen(seed);
   std::uniform_int_distribution<int> d(0, 255);
-  FLBA temp;
+  FLBA *temp = &(*out)[0];
   for (int i = 0; i < n; ++i) {
-    temp.ptr = buf;
+    temp[i].ptr = buf;
     for (int j = 0; j < len; ++j) {
       buf[j] = d(gen) & 0xFF;
     }
     buf += len;
-    out->push_back(temp);
   }
 }
 

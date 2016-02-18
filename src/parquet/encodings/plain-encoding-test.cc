@@ -253,6 +253,7 @@ TEST(FLBATest, TestEncodeDecode) {
   size_t nbytes = nvalues * flba_length;
 
   vector<FLBA> draws;
+  draws.resize(nbytes);
   std::vector<uint8_t> data_buffer;
   data_buffer.resize(nbytes);
   // seed the prng so failure is deterministic
