@@ -45,7 +45,7 @@ class Scanner {
       values_buffered_(0),
       reader_(reader) {
     def_levels_.resize(reader_->descr()->max_definition_level() > 0 ? batch_size_ : 0);
-    rep_levels_.resize(batch_size_);
+    rep_levels_.resize(reader_->descr()->max_repetition_level() > 0 ? batch_size_ : 0);
   }
 
   virtual ~Scanner() {}
@@ -154,12 +154,13 @@ class TypedScanner : public Scanner {
 
   bool NextLevels(int16_t* def_level, int16_t* rep_level) {
     bool is_required = def_levels_.size() == 0;
+    bool is_repeated = rep_levels_.size() > 0;
     if (level_offset_ == levels_buffered_) {
       int16_t* def_levels_data = is_required ? nullptr : &def_levels_[0];
-      levels_buffered_ = typed_reader_->ReadBatch(batch_size_, def_levels_data,
-          &rep_levels_[0], values_, &values_buffered_);
+      int16_t* rep_levels_data = is_repeated ? &rep_levels_[0] : nullptr;
 
-      // TODO: repetition levels
+      levels_buffered_ = typed_reader_->ReadBatch(batch_size_, def_levels_data,
+          rep_levels_data, values_, &values_buffered_);
 
       value_offset_ = 0;
       level_offset_ = 0;
@@ -167,8 +168,8 @@ class TypedScanner : public Scanner {
         return false;
       }
     }
-    *rep_level = 1;
-    *def_level = is_required ? *rep_level : def_levels_[level_offset_];
+    *rep_level = is_repeated ? def_levels_[level_offset_] : 1;
+    *def_level = is_required ? 1 : def_levels_[level_offset_];
     level_offset_++;
 
     return true;
