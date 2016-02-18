@@ -50,12 +50,12 @@ TEST(VectorBooleanTest, TestEncodeDecode) {
   InMemoryOutputStream dst;
   encoder.Encode(draws, nvalues, &dst);
 
-  std::vector<uint8_t> encode_buffer;
+  vector<uint8_t> encode_buffer;
   dst.Transfer(&encode_buffer);
 
   ASSERT_EQ(nbytes, encode_buffer.size());
 
-  std::vector<uint8_t> decode_buffer(nbytes);
+  vector<uint8_t> decode_buffer(nbytes);
   const uint8_t* decode_data = &decode_buffer[0];
 
   decoder.SetData(nvalues, &encode_buffer[0], encode_buffer.size());
@@ -117,7 +117,7 @@ class EncodeDecode{
   vector<uint8_t> input_bytes_;
   vector<uint8_t> output_bytes_;
   vector<uint8_t> data_buffer_;
-  std::vector<uint8_t> encode_buffer_;
+  vector<uint8_t> encode_buffer_;
 };
 
 template<>
