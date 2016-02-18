@@ -23,7 +23,6 @@
 #include <cstring>
 #include <memory>
 #include <unordered_map>
-#include <vector>
 
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
