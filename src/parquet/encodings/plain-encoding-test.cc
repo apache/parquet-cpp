@@ -36,7 +36,7 @@ namespace parquet_cpp {
 
 namespace test {
 
-TEST(BooleanTest1, TestEncodeDecode) {
+TEST(VectorBooleanTest, TestEncodeDecode) {
   // PARQUET-454
   size_t nvalues = 10000;
   size_t nbytes = BitUtil::Ceil(nvalues, 8);
