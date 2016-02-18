@@ -1,35 +1,64 @@
-Parquet-cpp [![Build Status](https://travis-ci.org/apache/parquet-cpp.svg)](https://travis-ci.org/apache/parquet-cpp)
-===========
-A C++ library to read parquet files.
+## parquet-cpp: a C++ library to read and write the Apache Parquet columnar data format.
+
+[![Build Status](https://travis-ci.org/apache/parquet-cpp.svg)](https://travis-ci.org/apache/parquet-cpp)
 
 ## Third Party Dependencies
+
 - snappy
 - lz4
+- zlib
 - thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
+- googletest 1.7.0 (cannot be installed with package managers)
 
-Many package managers support some or all of these dependencies. E.g.:
+You can install these dependencies using a package manager or using the
+`thirdparty/` scripts in this repository. On Homebrew, you can run:
+
 ```shell
-ubuntu$ sudo apt-get install libboost-dev libsnappy-dev liblz4-dev
-```
-```shell
-mac$ brew install snappy lz4 thrift
+ brew install snappy lz4 thrift zlib
 ```
 
-`setup_build_env.sh` tries to automate setting up a build environment for you
+To build the thirdparty libraries in-tree, run:
+
+```shell
+./thirdparty/download_thirdparty.sh
+./thirdparty/build_thirdparty.sh
+source thirdparty/set_thirdparty_env.sh
+```
+
+The provided script `setup_build_env.sh` sets up a build environment for you
 with third party dependencies.  You use it by running `source
 setup_build_env.sh`.  By default, it will create a build directory `build/`.
 You can override the build directory by setting the BUILD_DIR env variable to
 another location.
 
-Also feel free to take a look at our [.travis.yml](.travis.yml) to see how that build env is set up.
+After building the thirdparty libraries, for future development iteration you
+can set the dependency environment variables (detailed below) by running
 
+`source $BUILD_DIR/thirdparty/set_thirdparty_env.sh`
+
+Note, the environment variables are set automatically the first time you run
+`setup_build_env.sh`.
+
+The unit tests depend on `googletest` which cannot be installed with Homebrew
+or normal package managers. If you wish to use system dependencies, we
+recommend that you build googletest in-tree by running:
+
+```
+./thirdparty/download_thirdparty.sh
+./thirdparty/build_thirdparty.sh gtest
+source thirdparty/versions.sh
+export GTEST_HOME=`pwd`/thirdparty/$GTEST_BASEDIR
+```
 
 ## Build
+
 - `cmake .`
+
   - You can customize dependent library locations through various environment variables:
     - THRIFT_HOME customizes the thrift installed location.
     - SNAPPY_HOME customizes the snappy installed location.
     - LZ4_HOME customizes the lz4 installed location.
+
 - `make`
 
 The binaries will be built to ./debug which contains the libraries to link against as
