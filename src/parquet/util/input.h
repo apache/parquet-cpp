@@ -34,6 +34,8 @@ class Buffer;
 // Random
 class RandomAccessSource {
  public:
+  RandomAccessSource(): size_(-1) {}
+
   virtual ~RandomAccessSource() {}
 
   virtual int64_t Size() const = 0;
@@ -49,7 +51,7 @@ class RandomAccessSource {
   std::shared_ptr<Buffer> ReadAt(int64_t pos, int64_t nbytes);
 
  protected:
-  int64_t size_;
+  mutable int64_t size_;
 };
 
 
@@ -74,12 +76,13 @@ class LocalFileSource : public RandomAccessSource {
   const std::string& path() const { return path_;}
 
  private:
-  void CloseFile();
-  void SeekFile(size_t pos, int origin = SEEK_SET);
+  void CloseFile() const;
+  void SeekFile(int64_t pos, int origin = SEEK_SET) const;
 
   std::string path_;
   FILE* file_;
-  bool is_open_;
+  mutable bool is_open_;
+  mutable int64_t position_;
 };
 
 // ----------------------------------------------------------------------

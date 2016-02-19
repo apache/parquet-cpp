@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <string>
+#include <sstream>
 
 #include "parquet/exception.h"
 #include "parquet/util/buffer.h"
@@ -47,9 +48,9 @@ void LocalFileSource::Open(const std::string& path) {
     throw ParquetException("Failed to open file " + path_);
   }
   is_open_ = true;
-  fseek(file_, 0L, SEEK_END);
-  size_ = Tell();
-  Seek(0);
+  size_ = Size();
+  SeekFile(0);
+  position_ = 0;
 }
 
 void LocalFileSource::Close() {
@@ -57,39 +58,47 @@ void LocalFileSource::Close() {
   CloseFile();
 }
 
-void LocalFileSource::CloseFile() {
+void LocalFileSource::CloseFile() const {
   if (is_open_) {
     fclose(file_);
     is_open_ = false;
   }
 }
 
-int64_t LocalFileSource::Size() {
-  size_t current_position = Tell();
-  SeekFile(0L, SEEK_END);
-  size_t filesize = Tell();
-  SeekFile(current_position);
-  return filesize;
+int64_t LocalFileSource::Size() const {
+  if (size_ < 0) {
+    int64_t current_position = Tell();
+    SeekFile(0, SEEK_END);
+    size_ = Tell();
+    SeekFile(current_position);
+  }
+  return size_;
 }
 
-void LocalFileSource::SeekFile(size_t pos, int origin) {
+void LocalFileSource::SeekFile(int64_t pos, int origin) const {
+  if (origin == SEEK_SET && pos >= size_) {
+    std::stringstream ss;
+    ss << "Cannot seek to position " << pos << " in file [" << path_
+       << "] of size " << size_;
+    throw ParquetException(ss.str());
+  }
+
   if (0 != fseek(file_, pos, origin)) {
-    CloseFile();
     throw ParquetException("Failed to seek in file " + path_);
   }
+  position_ = pos;
 }
 
 void LocalFileSource::Seek(int64_t pos) {
   SeekFile(pos);
 }
 
-int64_t LocalFileSource::Tell() {
-  int64_t position = ftell(file_);
-  if (position < 0) {
-    CloseFile();
+int64_t LocalFileSource::Tell() const {
+  position_ = ftell(file_);
+  if (position_ < 0) {
     throw ParquetException("Failed to retrieve current position in file " + path_);
   }
-  return static_cast<size_t>(position);
+  return position_;
 }
 
 int64_t LocalFileSource::Read(int64_t nbytes, uint8_t* buffer) {
