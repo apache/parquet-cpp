@@ -76,8 +76,7 @@ class DataPageBuilder {
       repetition_level_encoding_(Encoding::RLE),
       have_def_levels_(false),
       have_rep_levels_(false),
-      have_values_(false) {
-  }
+      have_values_(false) {}
 
   void AppendDefLevels(const std::vector<int16_t>& levels, int16_t max_level,
       Encoding::type encoding = Encoding::RLE) {
@@ -97,7 +96,7 @@ class DataPageBuilder {
     have_rep_levels_ = true;
   }
 
-  void AppendValues(const std::vector<T>& values,
+  void AppendValues(const std::vector<T>& values, int flba_length = 0,
       Encoding::type encoding = Encoding::PLAIN) {
     if (encoding != Encoding::PLAIN) {
       ParquetException::NYI("only plain encoding currently implemented");
@@ -166,7 +165,7 @@ class DataPageBuilder {
 
 template <>
 void DataPageBuilder<Type::BOOLEAN>::AppendValues(const std::vector<bool>& values,
-    Encoding::type encoding) {
+    int flba_length, Encoding::type encoding) {
   if (encoding != Encoding::PLAIN) {
     ParquetException::NYI("only plain encoding currently implemented");
   }
@@ -179,11 +178,29 @@ void DataPageBuilder<Type::BOOLEAN>::AppendValues(const std::vector<bool>& value
   have_values_ = true;
 }
 
+template <>
+void DataPageBuilder<Type::FIXED_LEN_BYTE_ARRAY>::AppendValues(
+    const std::vector<FLBA>& values, int flba_length, Encoding::type encoding) {
+  if (encoding != Encoding::PLAIN) {
+    ParquetException::NYI("only plain encoding currently implemented");
+  }
+
+  // A mock descriptor to propagate flba_length to encoder
+  ColumnDescriptor descr(schema::PrimitiveNode::MakeFLBA(
+      "c1", Repetition::REQUIRED, flba_length, LogicalType::UTF8), 0, 0);
+  PlainEncoder<Type::FIXED_LEN_BYTE_ARRAY> encoder(&descr);
+  encoder.Encode(&values[0], values.size(), sink_);
+
+  num_values_ = std::max(static_cast<int32_t>(values.size()), num_values_);
+  encoding_ = encoding;
+  have_values_ = true;
+}
+
 template <int TYPE, typename T>
 static std::shared_ptr<DataPage> MakeDataPage(const std::vector<T>& values,
     const std::vector<int16_t>& def_levels, int16_t max_def_level,
     const std::vector<int16_t>& rep_levels, int16_t max_rep_level,
-    std::vector<uint8_t>* out_buffer) {
+    std::vector<uint8_t>* out_buffer, int flba_length = 0) {
   size_t num_values = values.size();
 
   InMemoryOutputStream page_stream;
@@ -197,7 +214,7 @@ static std::shared_ptr<DataPage> MakeDataPage(const std::vector<T>& values,
     page_builder.AppendDefLevels(def_levels, max_def_level);
   }
 
-  page_builder.AppendValues(values);
+  page_builder.AppendValues(values, flba_length);
   page_stream.Transfer(out_buffer);
 
   return std::make_shared<DataPage>(&(*out_buffer)[0], out_buffer->size(),

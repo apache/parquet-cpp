@@ -115,7 +115,7 @@ class TypedScanner : public Scanner {
     int16_t def_level;
     int16_t rep_level;
     NextLevels(&def_level, &rep_level);
-    *is_null = def_level < rep_level;
+    *is_null = def_level < descr()->max_definition_level();
 
     if (*is_null) {
       return true;
@@ -168,8 +168,10 @@ class TypedScanner : public Scanner {
         return false;
       }
     }
-    *rep_level = is_repeated ? def_levels_[level_offset_] : 1;
-    *def_level = is_required ? 1 : def_levels_[level_offset_];
+    *rep_level = is_repeated ?
+        def_levels_[level_offset_] : descr()->max_definition_level();
+    *def_level = is_required ?
+        descr()->max_repetition_level() : def_levels_[level_offset_];
     level_offset_++;
 
     return true;

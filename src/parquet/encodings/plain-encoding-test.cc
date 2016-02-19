@@ -210,7 +210,7 @@ TEST(BAEncodeDecode, TestEncodeDecode) {
 TEST(FLBAEncodeDecode, TestEncodeDecode) {
   schema::NodePtr node;
   node = schema::PrimitiveNode::MakeFLBA("name", Repetition::OPTIONAL,
-      Type::FIXED_LEN_BYTE_ARRAY, flba_length, LogicalType::UTF8);
+      flba_length, LogicalType::UTF8);
   ColumnDescriptor d(node, 0, 0);
   EncodeDecode<FixedLenByteArray, Type::FIXED_LEN_BYTE_ARRAY> obj;
   obj.execute(num_values, &d);

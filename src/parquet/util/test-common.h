@@ -169,6 +169,19 @@ void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
   }
 }
 
+void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
+    std::vector<FLBA>& out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d(0, 255);
+  for (int i = 0; i < n; ++i) {
+    out[i].ptr = buf;
+    for (int j = 0; j < len; ++j) {
+      buf[j] = d(gen) & 0xFF;
+    }
+    buf += len;
+  }
+}
+
 void random_byte_array(int n, uint32_t seed, uint8_t *buf,
     ByteArray* out, int max_size) {
   std::mt19937 gen(seed);
@@ -183,6 +196,22 @@ void random_byte_array(int n, uint32_t seed, uint8_t *buf,
     buf += out[i].len;
   }
 }
+
+void random_byte_array(int n, uint32_t seed, uint8_t *buf,
+    std::vector<ByteArray>& out, int max_size) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d1(0, max_size);
+  std::uniform_int_distribution<int> d2(0, 255);
+  for (int i = 0; i < n; ++i) {
+    out[i].len = d1(gen);
+    out[i].ptr = buf;
+    for (int j = 0; j < out[i].len; ++j) {
+      buf[j] = d2(gen) & 0xFF;
+    }
+    buf += out[i].len;
+  }
+}
+
 } // namespace test
 } // namespace parquet_cpp
 

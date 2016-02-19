@@ -49,8 +49,7 @@ TEST(TestColumnDescriptor, TestAttrs) {
   ASSERT_THROW(descr.type_length(), ParquetException);
 
   // Test FIXED_LEN_BYTE_ARRAY
-  node = PrimitiveNode::MakeFLBA("name", Repetition::OPTIONAL,
-      Type::FIXED_LEN_BYTE_ARRAY, 12, LogicalType::UTF8);
+  node = PrimitiveNode::MakeFLBA("name", Repetition::OPTIONAL, 12, LogicalType::UTF8);
   descr = ColumnDescriptor(node, 4, 1);
 
   ASSERT_EQ(Type::FIXED_LEN_BYTE_ARRAY, descr.physical_type());
