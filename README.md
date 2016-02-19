@@ -1,6 +1,21 @@
 ## parquet-cpp: a C++ library to read and write the Apache Parquet columnar data format.
 
-[![Build Status](https://travis-ci.org/apache/parquet-cpp.svg)](https://travis-ci.org/apache/parquet-cpp)
+<table>
+  <tr>
+    <td>Build Status</td>
+    <td>
+    <a href="https://travis-ci.org/apache/parquet-cpp">
+    <img src="https://travis-ci.org/apache/parquet-cpp.svg?branch=master" alt="travis build status" />
+    </a>
+    </td>
+  </tr>
+  <tr>
+    <td>Test coverage</td>
+    <td>
+      <a href='https://coveralls.io/github/apache/parquet-cpp?branch=master'><img src='https://coveralls.io/repos/github/apache/parquet-cpp/badge.svg?branch=master' alt='Coverage Status' /></a>
+    </td>
+  </tr>
+</table>
 
 ## Third Party Dependencies
 
