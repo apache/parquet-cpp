@@ -19,9 +19,6 @@ addons:
     - bison                        #needed for thrift cpp compilation
     - flex                         #needed for thrift cpp compilation
     - pkg-config                   #needed for thrift cpp compilation
-cache:
-  directories:
-  - $TRAVIS_BUILD_DIR/parquet-build
 
 matrix:
   include:
