@@ -141,8 +141,9 @@ void EncodeDecode<Int96, Type::INT96>::verify_results() {
 template<>
 void EncodeDecode<ByteArray, Type::BYTE_ARRAY>::generate_data() {
   // seed the prng so failure is deterministic
-  int max_byte_array_len = 12 + sizeof(uint32_t);
-  size_t nbytes = num_values_ * max_byte_array_len;
+  int max_byte_array_len = 12;
+  int num_bytes = max_byte_array_len + sizeof(uint32_t);
+  size_t nbytes = num_values_ * num_bytes;
   data_buffer_.resize(nbytes);
   random_byte_array(num_values_, 0, data_buffer_.data(), draws_,
       max_byte_array_len);
@@ -168,7 +169,7 @@ void EncodeDecode<FLBA, Type::FIXED_LEN_BYTE_ARRAY>::generate_data() {
 
 template<>
 void EncodeDecode<FLBA, Type::FIXED_LEN_BYTE_ARRAY>::verify_results() {
-  for (size_t i = 0; i < 1000; ++i) {
+  for (size_t i = 0; i < num_values_; ++i) {
     ASSERT_EQ(0, memcmp(draws_[i].ptr, decode_buf_[i].ptr, flba_length)) << i;
   }
 }
