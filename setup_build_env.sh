@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SOURCE_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 : ${BUILD_DIR:=$SOURCE_DIR/build}
