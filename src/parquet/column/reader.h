@@ -122,7 +122,7 @@ class TypedColumnReader : public ColumnReader {
   // This API is the same for both V1 and V2 of the DataPage
   //
   // @returns: actual number of levels read (see values_read for number of values read)
-  size_t ReadBatch(int batch_size, int16_t* def_levels, int16_t* rep_levels,
+  size_t ReadBatch(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
       T* values, size_t* values_read);
 
  private:
@@ -155,50 +155,58 @@ inline size_t TypedColumnReader<TYPE>::ReadValues(size_t batch_size, T* out) {
 }
 
 template <int TYPE>
-inline size_t TypedColumnReader<TYPE>::ReadBatch(int batch_size, int16_t* def_levels,
+inline size_t TypedColumnReader<TYPE>::ReadBatch(int32_t batch_size, int16_t* def_levels,
     int16_t* rep_levels, T* values, size_t* values_read) {
-  // HasNext invokes ReadNewPage
-  if (!HasNext()) {
-    *values_read = 0;
-    return 0;
-  }
+  *values_read = 0;
+  size_t total_values = 0;
+  int32_t level_offset = 0;
+  int32_t value_offset = 0;
+  size_t current_values_read = 0;
+  while (true) {
+    // HasNext invokes ReadNewPage
+    // Continue reading until there are no new pages
+    // or the batch_size is exhausted
+    if (!HasNext() || batch_size == 0) {
+      break;
+    }
 
-  // TODO(wesm): keep reading data pages until batch_size is reached, or the
-  // row group is finished
-  batch_size = std::min(batch_size, num_buffered_values_);
+    int current_batch_size = std::min(batch_size, num_buffered_values_);
+    batch_size -= current_batch_size;
 
-  size_t num_def_levels = 0;
-  size_t num_rep_levels = 0;
+    size_t num_def_levels = 0;
+    size_t num_rep_levels = 0;
+    size_t values_to_read = 0;
 
-  size_t values_to_read = 0;
+    // If the field is required and non-repeated, there are no definition levels
+    if (descr_->max_definition_level() > 0) {
+      num_def_levels = ReadDefinitionLevels(current_batch_size, def_levels + level_offset);
+      // TODO(wesm): this tallying of values-to-decode can be performed with better
+      // cache-efficiency if fused with the level decoding.
+      for (size_t i = 0; i < num_def_levels; ++i) {
+        if (def_levels[i + level_offset] == descr_->max_definition_level()) {
+          ++values_to_read;
+        }
+      }
+    } else {
+      // Required field, read all values
+      values_to_read = current_batch_size;
+    }
 
-  // If the field is required and non-repeated, there are no definition levels
-  if (descr_->max_definition_level() > 0) {
-    num_def_levels = ReadDefinitionLevels(batch_size, def_levels);
-    // TODO(wesm): this tallying of values-to-decode can be performed with better
-    // cache-efficiency if fused with the level decoding.
-    for (size_t i = 0; i < num_def_levels; ++i) {
-      if (def_levels[i] == descr_->max_definition_level()) {
-        ++values_to_read;
+    // Not present for non-repeated fields
+    if (descr_->max_repetition_level() > 0) {
+      num_rep_levels = ReadRepetitionLevels(current_batch_size, rep_levels + level_offset);
+      if (num_def_levels != num_rep_levels) {
+        throw ParquetException("Number of decoded rep / def levels did not match");
       }
     }
-  } else {
-    // Required field, read all values
-    values_to_read = batch_size;
-  }
 
-  // Not present for non-repeated fields
-  if (descr_->max_repetition_level() > 0) {
-    num_rep_levels = ReadRepetitionLevels(batch_size, rep_levels);
-    if (num_def_levels != num_rep_levels) {
-      throw ParquetException("Number of decoded rep / def levels did not match");
-    }
+    current_values_read = ReadValues(values_to_read, values + value_offset);
+    total_values += std::max(num_def_levels, current_values_read);
+    level_offset += current_batch_size;
+    value_offset += *values_read;
+    *values_read += current_values_read;
   }
-
-  *values_read = ReadValues(values_to_read, values);
-  size_t total_values = std::max(num_def_levels, *values_read);
   num_decoded_values_ += total_values;
-
   return total_values;
 }
 
