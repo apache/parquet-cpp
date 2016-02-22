@@ -170,8 +170,6 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int32_t batch_size, int16_t* de
       break;
     }
     int current_batch_size = std::min(batch_size, num_buffered_values_);
-    batch_size -= current_batch_size;
-
     size_t num_def_levels = 0;
     size_t num_rep_levels = 0;
     size_t values_to_read = 0;
@@ -202,12 +200,14 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int32_t batch_size, int16_t* de
     }
 
     current_values_read = ReadValues(values_to_read, values + value_offset);
-    total_values += std::max(num_def_levels, current_values_read);
-    level_offset += current_batch_size;
-    value_offset += *values_read;
+    size_t current_values = std::max(num_def_levels, current_values_read);
+    batch_size -= current_values;
+    total_values += current_values;
+    num_decoded_values_ += current_values;
+    level_offset += current_values;
+    value_offset += current_values_read;
     *values_read += current_values_read;
   }
-  num_decoded_values_ += total_values;
   return total_values;
 }
 

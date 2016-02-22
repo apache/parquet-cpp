@@ -44,29 +44,45 @@ namespace test {
 
 class TestPrimitiveReader : public ::testing::Test {
  public:
-  void init_def_levels() {
+  void make_pages() {
     num_values_ = 0;
-    def_levels_.resize(num_levels_);
-    random_levels(num_levels_, 0, max_def_level_, def_levels_.data());
-    for (int i = 0; i < num_levels_; i++) {
-      if (def_levels_[i] == max_def_level_) num_values_++;
+    int levels_per_page = num_levels_ / num_pages_;
+    vector<int16_t> defs;
+    vector<int16_t> reps;
+    vector<int32_t> vals;
+    int values_per_page = 0;
+    for (int p = 0; p < num_pages_; p++) {
+      values_per_page = 0;
+      // Create definition levels
+      if (max_def_level_ > 0) {
+        defs.resize(levels_per_page);
+        random_levels(levels_per_page, 0, max_def_level_, defs.data());
+        for (int i = 0; i < levels_per_page; i++) {
+          if (defs[i] == max_def_level_) values_per_page++;
+        }
+        def_levels_.insert(def_levels_.end(), defs.begin(), defs.end());
+      } else {
+        values_per_page = levels_per_page;
+      }
+      // Create repitition levels
+      if (max_rep_level_ > 0) {
+        reps.resize(levels_per_page);
+        random_levels(levels_per_page, 0, max_rep_level_, reps.data());
+        rep_levels_.insert(rep_levels_.end(), reps.begin(), reps.end());
+      }
+      // Create values
+      vals.resize(values_per_page);
+      random_numbers(values_per_page, 0, vals.data());
+      values_.insert(values_.end(), vals.begin(), vals.end());
+      std::shared_ptr<DataPage> page = MakeDataPage<Type::INT32>(vals, defs,
+          max_def_level_, reps, max_rep_level_);
+      pages_.push_back(page);
+
+      num_values_ += values_per_page;
     }
   }
 
-  void init_rep_levels() {
-    rep_levels_.resize(num_levels_);
-    random_levels(num_levels_, 0, max_rep_level_, rep_levels_.data());
-  }
-
-  void init_values() {
-    values_.resize(num_values_);
-    random_numbers(num_values_, 0, values_.data());
-  }
-
   void init_reader() {
-    std::shared_ptr<DataPage> page = MakeDataPage<Type::INT32>(values_, def_levels_,
-        max_def_level_, rep_levels_, max_rep_level_);
-    pages_.push_back(page);
     pager_.reset(new test::MockPageReader(pages_));
     reader_ = ColumnReader::Make(descr_, std::move(pager_));
   }
@@ -77,19 +93,24 @@ class TestPrimitiveReader : public ::testing::Test {
     vector<int16_t> rresult(num_levels_, -1);
     size_t values_read = 0;
     size_t total_values_read = 0;
+    size_t batch_actual = 0;
 
     Int32Reader* reader = static_cast<Int32Reader*>(reader_.get());
-    int offset = num_levels_ / 2;
-    size_t batch_actual = reader->ReadBatch(num_levels_, &dresult[0], &rresult[0],
-        &vresult[0], &values_read);
-    total_values_read += values_read;
-    batch_actual += reader->ReadBatch(offset, &dresult[0] + offset, &rresult[0] + offset,
-        &vresult[0] + values_read, &values_read);
-    total_values_read += values_read;
+    int32_t batch_size = 8;
+    size_t batch = 0;
+    // This will cover both the cases
+    // 1) batch_size < page_size (multiple ReadBatch form a single page)
+    // 2) batch_size > page_size (read from multiple pages)
+    do {
+      batch = reader->ReadBatch(batch_size, &dresult[0] + batch_actual,
+          &rresult[0] + batch_actual, &vresult[0] + total_values_read, &values_read);
+      total_values_read += values_read;
+      batch_actual += batch;
+      batch_size = batch_size * 2;
+    } while (batch > 0);
 
     ASSERT_EQ(num_levels_, batch_actual);
     ASSERT_EQ(num_values_, total_values_read);
-
     ASSERT_TRUE(vector_equal(values_, vresult));
     if (max_def_level_ > 0) {
       ASSERT_TRUE(vector_equal(def_levels_, dresult));
@@ -100,7 +121,7 @@ class TestPrimitiveReader : public ::testing::Test {
   }
 
   void execute() {
-    init_values();
+    make_pages();
     init_reader();
     check_results();
   }
@@ -108,6 +129,7 @@ class TestPrimitiveReader : public ::testing::Test {
  protected:
   int num_levels_;
   int num_values_;
+  int num_pages_;
   int16_t max_def_level_;
   int16_t max_rep_level_;
   const ColumnDescriptor *descr_;
@@ -120,7 +142,8 @@ class TestPrimitiveReader : public ::testing::Test {
 };
 
 TEST_F(TestPrimitiveReader, TestInt32FlatRequired) {
-  num_levels_ = num_values_ = 1000;
+  num_levels_ = 5000;
+  num_pages_ = 50;
   max_def_level_ = 0;
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("a", Repetition::REQUIRED);
@@ -130,25 +153,24 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequired) {
 }
 
 TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
-  num_levels_ = 1000;
+  num_levels_ = 5000;
+  num_pages_ = 50;
   max_def_level_ = 4;
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("b", Repetition::OPTIONAL);
   const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
   descr_ = &descr;
-  init_def_levels();
   execute();
 }
 
 TEST_F(TestPrimitiveReader, TestInt32FlatRepeated) {
-  num_levels_ = 1000;
+  num_levels_ = 5000;
+  num_pages_ = 50;
   max_def_level_ = 4;
   max_rep_level_ = 2;
   NodePtr type = schema::Int32("c", Repetition::REPEATED);
   const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
   descr_ = &descr;
-  init_def_levels();
-  init_rep_levels();
   execute();
 }
 
