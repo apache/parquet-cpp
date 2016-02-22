@@ -183,6 +183,15 @@ void random_byte_array(int n, uint32_t seed, uint8_t *buf,
     buf += out[i].len;
   }
 }
+
+void random_levels(int n, uint32_t seed, int16_t max_level, int16_t* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<uint16_t> d(0, max_level);
+  for (int i = 0; i < n; ++i) {
+    out[i] = d(gen);
+  }
+}
+
 } // namespace test
 } // namespace parquet_cpp
 

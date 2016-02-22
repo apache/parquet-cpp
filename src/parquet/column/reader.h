@@ -169,7 +169,6 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int32_t batch_size, int16_t* de
     if (!HasNext() || batch_size == 0) {
       break;
     }
-
     int current_batch_size = std::min(batch_size, num_buffered_values_);
     batch_size -= current_batch_size;
 
@@ -179,7 +178,8 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int32_t batch_size, int16_t* de
 
     // If the field is required and non-repeated, there are no definition levels
     if (descr_->max_definition_level() > 0) {
-      num_def_levels = ReadDefinitionLevels(current_batch_size, def_levels + level_offset);
+      num_def_levels = ReadDefinitionLevels(current_batch_size,
+          def_levels + level_offset);
       // TODO(wesm): this tallying of values-to-decode can be performed with better
       // cache-efficiency if fused with the level decoding.
       for (size_t i = 0; i < num_def_levels; ++i) {
@@ -194,7 +194,8 @@ inline size_t TypedColumnReader<TYPE>::ReadBatch(int32_t batch_size, int16_t* de
 
     // Not present for non-repeated fields
     if (descr_->max_repetition_level() > 0) {
-      num_rep_levels = ReadRepetitionLevels(current_batch_size, rep_levels + level_offset);
+      num_rep_levels = ReadRepetitionLevels(current_batch_size,
+          rep_levels + level_offset);
       if (num_def_levels != num_rep_levels) {
         throw ParquetException("Number of decoded rep / def levels did not match");
       }
