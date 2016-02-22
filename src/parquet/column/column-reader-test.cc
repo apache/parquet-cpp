@@ -99,8 +99,8 @@ class TestPrimitiveReader : public ::testing::Test {
     int32_t batch_size = 8;
     size_t batch = 0;
     // This will cover both the cases
-    // 1) batch_size < page_size (multiple ReadBatch form a single page)
-    // 2) batch_size > page_size (read from multiple pages)
+    // 1) batch_size < page_size (multiple ReadBatch from a single page)
+    // 2) batch_size > page_size (BatchRead from multiple pages)
     do {
       batch = reader->ReadBatch(batch_size, &dresult[0] + batch_actual,
           &rresult[0] + batch_actual, &vresult[0] + total_values_read, &values_read);
