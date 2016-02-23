@@ -47,12 +47,12 @@ bool operator==(const Int96& a, const Int96& b) {
 }
 
 bool operator==(const ByteArray& a, const ByteArray& b) {
-  return a.len == b.len && 0 == memcmp(a.ptr, a.ptr, a.len);
+  return a.len == b.len && 0 == memcmp(a.ptr, b.ptr, a.len);
 }
 
 static int FLBA_LENGTH = 12;
 bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
-  return 0 == memcmp(a.ptr, a.ptr, FLBA_LENGTH);
+  return 0 == memcmp(a.ptr, b.ptr, FLBA_LENGTH);
 }
 
 namespace test {
@@ -108,12 +108,12 @@ class TestFlatScanner : public ::testing::Test {
     scanner_ = Scanner::Make(ColumnReader::Make(d, std::move(pager)));
   }
 
-  void CheckResults() {
+  void CheckResults(int batch_size) {
     TypedScanner<TYPE>* scanner = reinterpret_cast<TypedScanner<TYPE>* >(scanner_.get());
     T val;
     bool is_null;
     size_t j = 0;
-    scanner->SetBatchSize(32);
+    scanner->SetBatchSize(batch_size);
     for (size_t i = 0; i < num_levels_; i++) {
       ASSERT_TRUE(scanner->NextValue(&val, &is_null)) << i <<"NV"<< j;
       if (!is_null) {
@@ -131,10 +131,10 @@ class TestFlatScanner : public ::testing::Test {
     rep_levels_.clear();
   }
 
-  void Execute(int num_pages, int levels_page, const ColumnDescriptor *d) {
+  void Execute(int num_pages, int levels_page, int batch_size, const ColumnDescriptor *d) {
     MakePages(d, num_pages, levels_page);
     InitScanner(d);
-    CheckResults();
+    CheckResults(batch_size);
     Clear();
   }
 
@@ -152,17 +152,17 @@ class TestFlatScanner : public ::testing::Test {
     d3.reset(new ColumnDescriptor(type, 4, 2));
   }
 
-  void ExecuteAll(int num_pages, int num_levels) {
+  void ExecuteAll(int num_pages, int num_levels, int batch_size) {
     std::shared_ptr<ColumnDescriptor> d1;
     std::shared_ptr<ColumnDescriptor> d2;
     std::shared_ptr<ColumnDescriptor> d3;
     InitDescriptors(d1, d2, d3);
     // evaluate REQUIRED pages
-    Execute(num_pages, num_levels, d1.get());
+    Execute(num_pages, num_levels, batch_size, d1.get());
     // evaluate OPTIONAL pages
-    Execute(num_pages, num_levels, d2.get());
+    Execute(num_pages, num_levels, batch_size, d2.get());
     // evaluate REPEATED pages
-    Execute(num_pages, num_levels, d3.get());
+    Execute(num_pages, num_levels, batch_size, d3.get());
   }
 
  protected:
@@ -219,7 +219,6 @@ void TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY, FLBA>::InitDescriptors(
 typedef TestFlatScanner<Type::INT32, int32_t> TestFlatInt32Scanner;
 typedef TestFlatScanner<Type::INT64, int64_t> TestFlatInt64Scanner;
 typedef TestFlatScanner<Type::INT96, Int96> TestFlatInt96Scanner;
-typedef TestFlatScanner<Type::BOOLEAN, bool> TestFlatBoolScanner;
 typedef TestFlatScanner<Type::FLOAT, float> TestFlatFloatScanner;
 typedef TestFlatScanner<Type::DOUBLE, double> TestFlatDoubleScanner;
 typedef TestFlatScanner<Type::BYTE_ARRAY, ByteArray> TestFlatByteArrayScanner;
@@ -227,33 +226,44 @@ typedef TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY, FLBA> TestFlatFLBAScanner;
 
 static int num_levels_per_page = 100;
 static int num_pages = 20;
+static int batch_size = 32;
 
 TEST_F(TestFlatInt32Scanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 TEST_F(TestFlatInt64Scanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 TEST_F(TestFlatInt96Scanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 TEST_F(TestFlatFloatScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 TEST_F(TestFlatDoubleScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 TEST_F(TestFlatByteArrayScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 TEST_F(TestFlatFLBAScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page);
+  ExecuteAll(num_pages, num_levels_per_page, batch_size);
+}
+
+//PARQUET 502
+TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
+  NodePtr type = schema::PrimitiveNode::MakeFLBA("c1", Repetition::REQUIRED,
+      FLBA_LENGTH, LogicalType::UTF8);
+  const ColumnDescriptor d(type, 0, 0);
+  MakePages(&d, 1, 100);
+  InitScanner(&d);
+  CheckResults(1);
 }
 
 } // namespace test
