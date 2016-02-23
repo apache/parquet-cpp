@@ -81,7 +81,8 @@ class EncodeDecode{
 
   void generate_data() {
     // seed the prng so failure is deterministic
-    random_numbers(num_values_, 0, draws_);
+    random_numbers(num_values_, 0, std::numeric_limits<T>::min(),
+       std::numeric_limits<T>::max(), draws_);
   }
 
   void encode_decode(ColumnDescriptor *d) {
@@ -127,6 +128,13 @@ template<>
 void EncodeDecode<bool, Type::BOOLEAN>::generate_data() {
   // seed the prng so failure is deterministic
   random_bools(num_values_, 0.5, 0, draws_);
+}
+
+template<>
+void EncodeDecode<Int96, Type::INT96>::generate_data() {
+  // seed the prng so failure is deterministic
+    random_Int96_numbers(num_values_, 0, std::numeric_limits<int32_t>::min(),
+       std::numeric_limits<int32_t>::max(), draws_);
 }
 
 template<>

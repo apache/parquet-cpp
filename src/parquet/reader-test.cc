@@ -99,6 +99,7 @@ TEST_F(TestAllTypesPlain, TestFlatScannerInt32) {
   ASSERT_FALSE(scanner->NextValue(&val, &is_null));
 }
 
+
 TEST_F(TestAllTypesPlain, TestSetScannerBatchSize) {
   std::shared_ptr<RowGroupReader> group = reader_->RowGroup(0);
 
@@ -109,6 +110,7 @@ TEST_F(TestAllTypesPlain, TestSetScannerBatchSize) {
   scanner->SetBatchSize(1024);
   ASSERT_EQ(1024, scanner->batch_size());
 }
+
 
 TEST_F(TestAllTypesPlain, DebugPrintWorks) {
   std::stringstream ss;
