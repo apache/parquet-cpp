@@ -33,9 +33,10 @@ install(FILES
 
 add_library(parquet_util STATIC
   buffer.cc
-  input.cc
-  output.cc
   cpu-info.cc
+  input.cc
+  mem-pool.cc
+  output.cc
 )
 
 if(PARQUET_BUILD_TESTS)
@@ -58,5 +59,7 @@ endif()
 
 ADD_PARQUET_TEST(bit-util-test)
 ADD_PARQUET_TEST(buffer-test)
+ADD_PARQUET_TEST(dict-test)
+ADD_PARQUET_TEST(mem-pool-test)
 ADD_PARQUET_TEST(output-test)
 ADD_PARQUET_TEST(rle-test)

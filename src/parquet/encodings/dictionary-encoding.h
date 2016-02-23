@@ -24,6 +24,7 @@
 
 #include "parquet/encodings/decoder.h"
 #include "parquet/encodings/encoder.h"
+#include "parquet/util/mem-pool.h"
 #include "parquet/util/rle-encoding.h"
 
 namespace parquet_cpp {
@@ -133,6 +134,26 @@ inline void DictionaryDecoder<Type::FIXED_LEN_BYTE_ARRAY>::Init(
     offset += fixed_len;
   }
 }
+
+// ----------------------------------------------------------------------
+// Encoding::PLAIN_DICTIONARY implementation
+
+template <int TYPE>
+class DictionaryEncoder : public Encoder<TYPE> {
+ public:
+  typedef typename type_traits<TYPE>::value_type T;
+
+  explicit DictionaryEncoder(const ColumnDescriptor* descr) :
+      Encoder<TYPE>(descr, Encoding::PLAIN_DICTIONARY) {
+    encoder_.SetMemPool(&pool_);
+  }
+
+  void Encode(const T* src, int num_values);
+
+ private:
+  MemPool pool_;
+  DictEncoder<T> encoder_;
+};
 
 } // namespace parquet_cpp
 

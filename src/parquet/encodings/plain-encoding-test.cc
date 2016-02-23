@@ -229,4 +229,5 @@ TEST(FLBAEncodeDecode, TestEncodeDecode) {
 }
 
 } // namespace test
+
 } // namespace parquet_cpp

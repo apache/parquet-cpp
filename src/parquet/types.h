@@ -128,11 +128,24 @@ struct PageType {
 // ----------------------------------------------------------------------
 
 struct ByteArray {
+  ByteArray() {}
+  ByteArray(uint32_t len, const uint8_t* ptr) : len(len), ptr(ptr) {}
   uint32_t len;
   const uint8_t* ptr;
+
+  bool operator==(const ByteArray& other) const {
+    return this->len == other.len &&
+      0 == memcmp(this->ptr, other.ptr, this->len);
+  }
+
+  bool operator!=(const ByteArray& other) const {
+    return this->len != other.len || 0 != memcmp(this->ptr, other.ptr, this->len);
+  }
 };
 
 struct FixedLenByteArray {
+  FixedLenByteArray() {}
+  explicit FixedLenByteArray(const uint8_t* ptr) : ptr(ptr) {}
   const uint8_t* ptr;
 };
 
@@ -140,6 +153,10 @@ typedef FixedLenByteArray FLBA;
 
 MANUALLY_ALIGNED_STRUCT(1) Int96 {
   uint32_t value[3];
+
+  bool operator==(const Int96& other) const {
+    return 0 == memcmp(this->value, other.value, 3 * sizeof(uint32_t));
+  }
 };
 STRUCT_END(Int96, 12);
 

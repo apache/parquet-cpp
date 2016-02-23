@@ -167,9 +167,9 @@ void random_fixed_byte_array(int n, uint32_t seed, uint8_t *buf, int len,
 }
 
 void random_byte_array(int n, uint32_t seed, uint8_t *buf,
-    ByteArray* out, int max_size) {
+    ByteArray* out, int min_size, int max_size) {
   std::mt19937 gen(seed);
-  std::uniform_int_distribution<int> d1(0, max_size);
+  std::uniform_int_distribution<int> d1(min_size, max_size);
   std::uniform_int_distribution<int> d2(0, 255);
   for (int i = 0; i < n; ++i) {
     out[i].len = d1(gen);
@@ -179,6 +179,11 @@ void random_byte_array(int n, uint32_t seed, uint8_t *buf,
     }
     buf += out[i].len;
   }
+}
+
+void random_byte_array(int n, uint32_t seed, uint8_t *buf,
+    ByteArray* out, int max_size) {
+  random_byte_array(n, seed, buf, out, 0, max_size);
 }
 
 } // namespace test
