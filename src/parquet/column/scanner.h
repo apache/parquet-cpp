@@ -57,7 +57,7 @@ class Scanner {
   virtual void PrintNext(std::ostream& out, int width) = 0;
 
   bool HasNext() {
-    return value_offset_ < values_buffered_ || reader_->HasNext();
+    return level_offset_ < levels_buffered_ || reader_->HasNext();
   }
 
   const ColumnDescriptor* descr() const {
@@ -122,7 +122,7 @@ class TypedScanner : public Scanner {
 
   // Returns true if there is a next value
   bool NextValue(T* val, bool* is_null) {
-    if (value_offset_ == values_buffered_) {
+    if (level_offset_ == levels_buffered_) {
       if (!HasNext()) {
         // Out of data pages
         return false;

@@ -76,7 +76,7 @@ class TestPrimitiveReader : public ::testing::Test {
     values_.resize(num_values_);
     random_numbers(num_values_, seed, std::numeric_limits<int32_t>::min(),
        std::numeric_limits<int32_t>::max(), values_.data());
-    RandomPaginate<Type::INT32, int32_t>(d, values_, def_levels_, max_def_level_,
+    Paginate<Type::INT32, int32_t>(d, values_, def_levels_, max_def_level_,
         rep_levels_, max_rep_level_, levels_per_page, values_per_page, pages_);
   }
 

@@ -194,7 +194,7 @@ static std::shared_ptr<DataPage> MakeDataPage(const ColumnDescriptor *d,
 }
 
 template <int TYPE, typename T>
-static void RandomPaginate(const ColumnDescriptor *d, const std::vector<T>& values,
+static void Paginate(const ColumnDescriptor *d, const std::vector<T>& values,
     const std::vector<int16_t>& def_levels, int16_t max_def_level,
     const std::vector<int16_t>& rep_levels, int16_t max_rep_level,
     int num_levels_per_page, const std::vector<int>& values_per_page,
