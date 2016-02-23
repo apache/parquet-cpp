@@ -131,7 +131,8 @@ class TestFlatScanner : public ::testing::Test {
     rep_levels_.clear();
   }
 
-  void Execute(int num_pages, int levels_page, int batch_size, const ColumnDescriptor *d) {
+  void Execute(int num_pages, int levels_page, int batch_size,
+      const ColumnDescriptor *d) {
     MakePages(d, num_pages, levels_page);
     InitScanner(d);
     CheckResults(batch_size);
