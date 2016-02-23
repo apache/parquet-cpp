@@ -52,7 +52,7 @@ bool operator==(const ByteArray& a, const ByteArray& b) {
 
 static int FLBA_LENGTH = 12;
 bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
- return 0 == memcmp(a.ptr, a.ptr, FLBA_LENGTH);
+  return 0 == memcmp(a.ptr, a.ptr, FLBA_LENGTH);
 }
 
 namespace test {
@@ -140,11 +140,15 @@ class TestFlatScanner : public ::testing::Test {
 
   void InitDescriptors(std::shared_ptr<ColumnDescriptor>& d1,
       std::shared_ptr<ColumnDescriptor>& d2, std::shared_ptr<ColumnDescriptor>& d3) {
-    NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED, static_cast<Type::type>(TYPE));
+    NodePtr type;
+    type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
+        static_cast<Type::type>(TYPE));
     d1.reset(new ColumnDescriptor(type, 0, 0));
-    type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL, static_cast<Type::type>(TYPE));
+    type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL,
+        static_cast<Type::type>(TYPE));
     d2.reset(new ColumnDescriptor(type, 4, 0));
-    type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED, static_cast<Type::type>(TYPE));
+    type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED,
+        static_cast<Type::type>(TYPE));
     d3.reset(new ColumnDescriptor(type, 4, 2));
   }
 
@@ -152,7 +156,6 @@ class TestFlatScanner : public ::testing::Test {
     std::shared_ptr<ColumnDescriptor> d1;
     std::shared_ptr<ColumnDescriptor> d2;
     std::shared_ptr<ColumnDescriptor> d3;
-    
     InitDescriptors(d1, d2, d3);
     // evaluate REQUIRED pages
     Execute(num_pages, num_levels, d1.get());
@@ -193,7 +196,8 @@ template<>
 void TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY, FLBA>::InitValues() {
   size_t nbytes = num_values_ * FLBA_LENGTH;
   data_buffer_.resize(nbytes);
-  random_fixed_byte_array(num_values_, 0, data_buffer_.data(), FLBA_LENGTH, values_.data());
+  random_fixed_byte_array(num_values_, 0, data_buffer_.data(), FLBA_LENGTH,
+      values_.data());
 }
 
 template<>
