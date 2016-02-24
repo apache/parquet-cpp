@@ -80,7 +80,7 @@ class TestPrimitiveReader : public ::testing::Test {
         rep_levels_, max_rep_level_, levels_per_page, values_per_page, pages_);
   }
 
-  void InitReader(const ColumnDescriptor *d) {
+  void InitReader(const ColumnDescriptor* d) {
     std::unique_ptr<PageReader> pager_;
     pager_.reset(new test::MockPageReader(pages_));
     reader_ = ColumnReader::Make(d, std::move(pager_));

@@ -165,6 +165,22 @@ class DataPageBuilder {
   }
 };
 
+template<>
+void DataPageBuilder<Type::BOOLEAN>::AppendValues(const ColumnDescriptor *d,
+    const std::vector<bool>& values, Encoding::type encoding) {
+  if (encoding != Encoding::PLAIN) {
+    ParquetException::NYI("only plain encoding currently implemented");
+  }
+  size_t bytes_to_encode = values.size() * sizeof(bool);
+
+  PlainEncoder<Type::BOOLEAN> encoder(d);
+  encoder.Encode(values, values.size(), sink_);
+
+  num_values_ = std::max(static_cast<int32_t>(values.size()), num_values_);
+  encoding_ = encoding;
+  have_values_ = true;
+}
+
 template <int TYPE, typename T>
 static std::shared_ptr<DataPage> MakeDataPage(const ColumnDescriptor *d,
     const std::vector<T>& values,

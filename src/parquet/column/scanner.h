@@ -114,9 +114,33 @@ class TypedScanner : public Scanner {
         return false;
       }
     }
-    *rep_level = descr()->is_repeated() ? rep_levels_[level_offset_] : 0;
-    *def_level = descr()->is_optional() ? def_levels_[level_offset_] : 1;
+    *def_level = descr()->is_optional() ?
+      def_levels_[level_offset_] : descr()->max_definition_level();
+    *rep_level = descr()->is_repeated() ? 
+      rep_levels_[level_offset_] : descr()->max_repetition_level();
     level_offset_++;
+    return true;
+  }
+
+  bool Next(T* val, int16_t* def_level, int16_t* rep_level, bool* is_null) {
+     if (level_offset_ == levels_buffered_) {
+      if (!HasNext()) {
+        // Out of data pages
+        return false;
+      }
+    }
+
+    NextLevels(def_level, rep_level);
+    *is_null = *def_level < descr()->max_definition_level();
+
+    if (*is_null) {
+      return true;
+    }
+
+    if (value_offset_ == values_buffered_) {
+      throw ParquetException("Value was non-null, but has not been buffered");
+    }
+    *val = values_[value_offset_++];
     return true;
   }
 
