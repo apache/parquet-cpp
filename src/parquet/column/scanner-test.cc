@@ -57,10 +57,16 @@ bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
 
 namespace test {
 
-template <int TYPE>
+template <int N> class TypeValue {
+ public:
+  static const int value = N;
+};
+template <int N> const int TypeValue<N>::value;
+
+template <typename TYPE>
 class TestFlatScanner : public ::testing::Test {
  public:
-  typedef typename type_traits<TYPE>::value_type T;
+  typedef typename type_traits<TYPE::value>::value_type T;
 
   void InitValues() {
     random_numbers(num_values_, 0, std::numeric_limits<T>::min(),
@@ -100,7 +106,7 @@ class TestFlatScanner : public ::testing::Test {
     // Create values
     values_.resize(num_values_);
     InitValues();
-    Paginate<TYPE, T>(d, values_, def_levels_, max_def_level,
+    Paginate<TYPE::value>(d, values_, def_levels_, max_def_level,
         rep_levels_, max_rep_level, levels_per_page, values_per_page, pages_);
   }
 
@@ -110,7 +116,8 @@ class TestFlatScanner : public ::testing::Test {
   }
 
   void CheckResults(int batch_size, const ColumnDescriptor *d) {
-    TypedScanner<TYPE>* scanner = reinterpret_cast<TypedScanner<TYPE>* >(scanner_.get());
+    TypedScanner<TYPE::value>* scanner =
+      reinterpret_cast<TypedScanner<TYPE::value>* >(scanner_.get());
     T val;
     bool is_null;
     int16_t def_level;
@@ -152,13 +159,13 @@ class TestFlatScanner : public ::testing::Test {
       std::shared_ptr<ColumnDescriptor>& d2, std::shared_ptr<ColumnDescriptor>& d3) {
     NodePtr type;
     type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
-        static_cast<Type::type>(TYPE));
+        static_cast<Type::type>(TYPE::value));
     d1.reset(new ColumnDescriptor(type, 0, 0));
     type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL,
-        static_cast<Type::type>(TYPE));
+        static_cast<Type::type>(TYPE::value));
     d2.reset(new ColumnDescriptor(type, 4, 0));
     type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED,
-        static_cast<Type::type>(TYPE));
+        static_cast<Type::type>(TYPE::value));
     d3.reset(new ColumnDescriptor(type, 4, 2));
   }
 
@@ -187,18 +194,18 @@ class TestFlatScanner : public ::testing::Test {
 };
 
 template<>
-void TestFlatScanner<Type::BOOLEAN>::InitValues() {
+void TestFlatScanner<TypeValue<Type::BOOLEAN> >::InitValues() {
   values_ = flip_coins(num_values_, 0);
 }
 
 template<>
-void TestFlatScanner<Type::INT96>::InitValues() {
+void TestFlatScanner<TypeValue<Type::INT96> >::InitValues() {
   random_Int96_numbers(num_values_, 0, std::numeric_limits<int32_t>::min(),
       std::numeric_limits<int32_t>::max(), values_.data());
 }
 
 template<>
-void TestFlatScanner<Type::BYTE_ARRAY>::InitValues() {
+void TestFlatScanner<TypeValue<Type::BYTE_ARRAY> >::InitValues() {
   int max_byte_array_len = 12;
   int num_bytes = max_byte_array_len + sizeof(uint32_t);
   size_t nbytes = num_values_ * num_bytes;
@@ -208,7 +215,7 @@ void TestFlatScanner<Type::BYTE_ARRAY>::InitValues() {
 }
 
 template<>
-void TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY>::InitValues() {
+void TestFlatScanner<TypeValue<Type::FIXED_LEN_BYTE_ARRAY> >::InitValues() {
   size_t nbytes = num_values_ * FLBA_LENGTH;
   data_buffer_.resize(nbytes);
   random_fixed_byte_array(num_values_, 0, data_buffer_.data(), FLBA_LENGTH,
@@ -216,7 +223,7 @@ void TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY>::InitValues() {
 }
 
 template<>
-void TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY>::InitDescriptors(
+void TestFlatScanner<TypeValue<Type::FIXED_LEN_BYTE_ARRAY> >::InitDescriptors(
     std::shared_ptr<ColumnDescriptor>& d1, std::shared_ptr<ColumnDescriptor>& d2,
     std::shared_ptr<ColumnDescriptor>& d3) {
   NodePtr type = schema::PrimitiveNode::MakeFLBA("c1", Repetition::REQUIRED,
@@ -230,51 +237,21 @@ void TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY>::InitDescriptors(
   d3.reset(new ColumnDescriptor(type, 4, 2));
 }
 
-
-
-typedef TestFlatScanner<Type::BOOLEAN> TestFlatBooleanScanner;
-typedef TestFlatScanner<Type::INT32> TestFlatInt32Scanner;
-typedef TestFlatScanner<Type::INT64> TestFlatInt64Scanner;
-typedef TestFlatScanner<Type::INT96> TestFlatInt96Scanner;
-typedef TestFlatScanner<Type::FLOAT> TestFlatFloatScanner;
-typedef TestFlatScanner<Type::DOUBLE> TestFlatDoubleScanner;
-typedef TestFlatScanner<Type::BYTE_ARRAY> TestFlatByteArrayScanner;
-typedef TestFlatScanner<Type::FIXED_LEN_BYTE_ARRAY> TestFlatFLBAScanner;
+typedef TestFlatScanner<TypeValue<Type::FIXED_LEN_BYTE_ARRAY>> TestFlatFLBAScanner;
 
 static int num_levels_per_page = 100;
 static int num_pages = 20;
 static int batch_size = 32;
 
-TEST_F(TestFlatBooleanScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
+typedef ::testing::Types<TypeValue<Type::BOOLEAN>, TypeValue<Type::INT32>,
+    TypeValue<Type::INT64>, TypeValue<Type::INT96>, TypeValue<Type::FLOAT>,
+    TypeValue<Type::DOUBLE>, TypeValue<Type::BYTE_ARRAY>,
+    TypeValue<Type::FIXED_LEN_BYTE_ARRAY> > Primitives;
 
-TEST_F(TestFlatInt32Scanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
+TYPED_TEST_CASE(TestFlatScanner, Primitives);
 
-TEST_F(TestFlatInt64Scanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
-
-TEST_F(TestFlatInt96Scanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
-
-TEST_F(TestFlatFloatScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
-
-TEST_F(TestFlatDoubleScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
-
-TEST_F(TestFlatByteArrayScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
-}
-
-TEST_F(TestFlatFLBAScanner, TestScanner) {
-  ExecuteAll(num_pages, num_levels_per_page, batch_size);
+TYPED_TEST(TestFlatScanner, TestScanner) {
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size);
 }
 
 //PARQUET 502

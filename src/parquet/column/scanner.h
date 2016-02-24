@@ -116,7 +116,7 @@ class TypedScanner : public Scanner {
     }
     *def_level = descr()->is_optional() ?
       def_levels_[level_offset_] : descr()->max_definition_level();
-    *rep_level = descr()->is_repeated() ? 
+    *rep_level = descr()->is_repeated() ?
       rep_levels_[level_offset_] : descr()->max_repetition_level();
     level_offset_++;
     return true;
