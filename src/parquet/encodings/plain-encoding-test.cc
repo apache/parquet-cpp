@@ -68,10 +68,17 @@ TEST(VectorBooleanTest, TestEncodeDecode) {
   }
 }
 
-template<typename T, int TYPE>
-class EncodeDecode{
+template <typename Type>
+class TestPlainEncoding : public ::testing::Test {
  public:
-  void init_data(int nvalues) {
+  typedef typename Type::c_type T;
+  static constexpr int TYPE = Type::type_num;
+
+  void SetUp() {
+    descr_ = nullptr;
+  }
+
+  void InitData(int nvalues) {
     num_values_ = nvalues;
     input_bytes_.resize(num_values_ * sizeof(T));
     output_bytes_.resize(num_values_ * sizeof(T));
@@ -79,15 +86,15 @@ class EncodeDecode{
     decode_buf_ = reinterpret_cast<T*>(output_bytes_.data());
   }
 
-  void generate_data() {
+  void GenerateData() {
     // seed the prng so failure is deterministic
     random_numbers(num_values_, 0, std::numeric_limits<T>::min(),
        std::numeric_limits<T>::max(), draws_);
   }
 
-  void encode_decode(ColumnDescriptor *d) {
-    PlainEncoder<TYPE> encoder(d);
-    PlainDecoder<TYPE> decoder(d);
+  void EncodeDecode() {
+    PlainEncoder<TYPE> encoder(descr_.get());
+    PlainDecoder<TYPE> decoder(descr_.get());
 
     InMemoryOutputStream dst;
     encoder.Encode(draws_, num_values_, &dst);
@@ -100,17 +107,17 @@ class EncodeDecode{
     ASSERT_EQ(num_values_, values_decoded);
   }
 
-  void verify_results() {
+  void VerifyResults() {
     for (size_t i = 0; i < num_values_; ++i) {
       ASSERT_EQ(draws_[i], decode_buf_[i]) << i;
     }
   }
 
-  void execute(int nvalues, ColumnDescriptor *d) {
-    init_data(nvalues);
-    generate_data();
-    encode_decode(d);
-    verify_results();
+  void Execute(int nvalues) {
+    InitData(nvalues);
+    GenerateData();
+    EncodeDecode();
+    VerifyResults();
   }
 
  private:
@@ -121,24 +128,25 @@ class EncodeDecode{
   vector<uint8_t> output_bytes_;
   vector<uint8_t> data_buffer_;
 
+  std::shared_ptr<ColumnDescriptor> descr_;
   std::shared_ptr<Buffer> encode_buffer_;
 };
 
 template<>
-void EncodeDecode<bool, Type::BOOLEAN>::generate_data() {
+void TestPlainEncoding<BooleanType>::GenerateData() {
   // seed the prng so failure is deterministic
   random_bools(num_values_, 0.5, 0, draws_);
 }
 
 template<>
-void EncodeDecode<Int96, Type::INT96>::generate_data() {
+void TestPlainEncoding<Int96Type>::GenerateData() {
   // seed the prng so failure is deterministic
     random_Int96_numbers(num_values_, 0, std::numeric_limits<int32_t>::min(),
        std::numeric_limits<int32_t>::max(), draws_);
 }
 
 template<>
-void EncodeDecode<Int96, Type::INT96>::verify_results() {
+void TestPlainEncoding<Int96Type>::VerifyResults() {
   for (size_t i = 0; i < num_values_; ++i) {
     ASSERT_EQ(draws_[i].value[0], decode_buf_[i].value[0]) << i;
     ASSERT_EQ(draws_[i].value[1], decode_buf_[i].value[1]) << i;
@@ -147,7 +155,7 @@ void EncodeDecode<Int96, Type::INT96>::verify_results() {
 }
 
 template<>
-void EncodeDecode<ByteArray, Type::BYTE_ARRAY>::generate_data() {
+void TestPlainEncoding<ByteArrayType>::GenerateData() {
   // seed the prng so failure is deterministic
   int max_byte_array_len = 12;
   int num_bytes = max_byte_array_len + sizeof(uint32_t);
@@ -158,7 +166,7 @@ void EncodeDecode<ByteArray, Type::BYTE_ARRAY>::generate_data() {
 }
 
 template<>
-void EncodeDecode<ByteArray, Type::BYTE_ARRAY>::verify_results() {
+void TestPlainEncoding<ByteArrayType>::VerifyResults() {
   for (size_t i = 0; i < num_values_; ++i) {
     ASSERT_EQ(draws_[i].len, decode_buf_[i].len) << i;
     ASSERT_EQ(0, memcmp(draws_[i].ptr, decode_buf_[i].ptr, draws_[i].len)) << i;
@@ -166,8 +174,16 @@ void EncodeDecode<ByteArray, Type::BYTE_ARRAY>::verify_results() {
 }
 
 static int flba_length = 8;
+
 template<>
-void EncodeDecode<FLBA, Type::FIXED_LEN_BYTE_ARRAY>::generate_data() {
+void TestPlainEncoding<FLBAType>::SetUp() {
+  auto node = schema::PrimitiveNode::MakeFLBA("name", Repetition::OPTIONAL,
+      flba_length, LogicalType::UTF8);
+  descr_ = std::make_shared<ColumnDescriptor>(node, 0, 0);
+}
+
+template<>
+void TestPlainEncoding<FLBAType>::GenerateData() {
   // seed the prng so failure is deterministic
   size_t nbytes = num_values_ * flba_length;
   data_buffer_.resize(nbytes);
@@ -176,7 +192,7 @@ void EncodeDecode<FLBA, Type::FIXED_LEN_BYTE_ARRAY>::generate_data() {
 }
 
 template<>
-void EncodeDecode<FLBA, Type::FIXED_LEN_BYTE_ARRAY>::verify_results() {
+void TestPlainEncoding<FLBAType>::VerifyResults() {
   for (size_t i = 0; i < num_values_; ++i) {
     ASSERT_EQ(0, memcmp(draws_[i].ptr, decode_buf_[i].ptr, flba_length)) << i;
   }
@@ -184,48 +200,10 @@ void EncodeDecode<FLBA, Type::FIXED_LEN_BYTE_ARRAY>::verify_results() {
 
 int num_values = 10000;
 
-TEST(BoolEncodeDecode, TestEncodeDecode) {
-  EncodeDecode<bool, Type::BOOLEAN> obj;
-  obj.execute(num_values, nullptr);
-}
+TYPED_TEST_CASE(TestPlainEncoding, ParquetTypes);
 
-TEST(Int32EncodeDecode, TestEncodeDecode) {
-  EncodeDecode<int32_t, Type::INT32> obj;
-  obj.execute(num_values, nullptr);
-}
-
-TEST(Int64EncodeDecode, TestEncodeDecode) {
-  EncodeDecode<int64_t, Type::INT64> obj;
-  obj.execute(num_values, nullptr);
-}
-
-TEST(FloatEncodeDecode, TestEncodeDecode) {
-  EncodeDecode<float, Type::FLOAT> obj;
-  obj.execute(num_values, nullptr);
-}
-
-TEST(DoubleEncodeDecode, TestEncodeDecode) {
-  EncodeDecode<double, Type::DOUBLE> obj;
-  obj.execute(num_values, nullptr);
-}
-
-TEST(Int96EncodeDecode, TestEncodeDecode) {
-  EncodeDecode<Int96, Type::INT96> obj;
-  obj.execute(num_values, nullptr);
-}
-
-TEST(BAEncodeDecode, TestEncodeDecode) {
-  EncodeDecode<ByteArray, Type::BYTE_ARRAY> obj;
-  obj.execute(num_values, nullptr);
-}
-
-TEST(FLBAEncodeDecode, TestEncodeDecode) {
-  schema::NodePtr node;
-  node = schema::PrimitiveNode::MakeFLBA("name", Repetition::OPTIONAL,
-      flba_length, LogicalType::UTF8);
-  ColumnDescriptor d(node, 0, 0);
-  EncodeDecode<FixedLenByteArray, Type::FIXED_LEN_BYTE_ARRAY> obj;
-  obj.execute(num_values, &d);
+TYPED_TEST(TestPlainEncoding, BasicRoundTrip) {
+  this->Execute(num_values);
 }
 
 } // namespace test

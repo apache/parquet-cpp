@@ -258,6 +258,22 @@ struct type_traits<Type::FIXED_LEN_BYTE_ARRAY> {
   static constexpr const char* printf_code = "s";
 };
 
+template <Type::type TYPE>
+struct DataType {
+ public:
+  static constexpr Type::type type_num = TYPE;
+  typedef typename type_traits<TYPE>::value_type c_type;
+};
+
+typedef DataType<Type::BOOLEAN> BooleanType;
+typedef DataType<Type::INT32> Int32Type;
+typedef DataType<Type::INT64> Int64Type;
+typedef DataType<Type::INT96> Int96Type;
+typedef DataType<Type::FLOAT> FloatType;
+typedef DataType<Type::DOUBLE> DoubleType;
+typedef DataType<Type::BYTE_ARRAY> ByteArrayType;
+typedef DataType<Type::FIXED_LEN_BYTE_ARRAY> FLBAType;
+
 template <int TYPE>
 inline std::string format_fwf(int width) {
   std::stringstream ss;

@@ -24,6 +24,7 @@
 
 #include "parquet/encodings/decoder.h"
 #include "parquet/encodings/encoder.h"
+#include "parquet/util/dict-encoding.h"
 #include "parquet/util/mem-pool.h"
 #include "parquet/util/rle-encoding.h"
 
