@@ -157,6 +157,10 @@ MANUALLY_ALIGNED_STRUCT(1) Int96 {
   bool operator==(const Int96& other) const {
     return 0 == memcmp(this->value, other.value, 3 * sizeof(uint32_t));
   }
+
+  bool operator!=(const Int96& other) const {
+    return !(*this == other);
+  }
 };
 STRUCT_END(Int96, 12);
 

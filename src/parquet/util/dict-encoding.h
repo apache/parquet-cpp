@@ -130,12 +130,9 @@ class DictEncoder : public DictEncoderBase {
     pool_ = pool;
   }
 
-  /// Encode value. Returns the number of bytes added to the dictionary page length
-  /// (will be 0 if this value is already in the dictionary) or -1 if the dictionary is
-  /// full (in which case the caller should give up on dictionary encoding). Note that
-  /// this does not actually write any data, just buffers the value's index to be
-  /// written later.
-  int Put(const T& value);
+  /// Encode value. Note that this does not actually write any data, just
+  /// buffers the value's index to be written later.
+  void Put(const T& value);
 
   virtual void WriteDict(uint8_t* buffer);
 
@@ -154,9 +151,8 @@ class DictEncoder : public DictEncoderBase {
   /// Hash function for mapping a value to a bucket.
   inline uint32_t Hash(const T& value) const;
 
-  /// Adds value to the hash table and updates dict_encoded_size_. Returns
-  /// number of bytes added to dictionary encoded size
-  int AddDictKey(const T& value);
+  /// Adds value to the hash table and updates dict_encoded_size_
+  void AddDictKey(const T& value);
 };
 
 template<typename T>
@@ -187,7 +183,7 @@ inline bool DictEncoder<FixedLenByteArray>::SlotDifferent(
 }
 
 template <typename T>
-inline int DictEncoder<T>::Put(const T& v) {
+inline void DictEncoder<T>::Put(const T& v) {
   uint32_t j = Hash(v) & mod_bitmask_;
   hash_slot_t index = hash_slots_[j];
 
@@ -204,7 +200,7 @@ inline int DictEncoder<T>::Put(const T& v) {
     // Not in the hash table, so we insert it now
     index = uniques_.size();
     hash_slots_[j] = index;
-    bytes_added = AddDictKey(v);
+    AddDictKey(v);
 
     if (UNLIKELY(uniques_.size() >
             static_cast<size_t>(hash_table_size_ * MAX_HASH_LOAD))) {
@@ -213,7 +209,6 @@ inline int DictEncoder<T>::Put(const T& v) {
   }
 
   buffered_indices_.push_back(index);
-  return bytes_added;
 }
 
 template <typename T>
@@ -252,15 +247,13 @@ inline void DictEncoder<T>::DoubleTableSize() {
 }
 
 template<typename T>
-inline int DictEncoder<T>::AddDictKey(const T& v) {
+inline void DictEncoder<T>::AddDictKey(const T& v) {
   uniques_.push_back(v);
-  int increment = sizeof(T);
-  dict_encoded_size_ += increment;
-  return increment;
+  dict_encoded_size_ += sizeof(T);
 }
 
 template<>
-inline int DictEncoder<ByteArray>::AddDictKey(const ByteArray& v) {
+inline void DictEncoder<ByteArray>::AddDictKey(const ByteArray& v) {
   uint8_t* heap = pool_->Allocate(v.len);
   if (UNLIKELY(heap == nullptr)) {
     throw ParquetException("out of memory");
@@ -268,13 +261,11 @@ inline int DictEncoder<ByteArray>::AddDictKey(const ByteArray& v) {
   memcpy(heap, v.ptr, v.len);
 
   uniques_.push_back(ByteArray(v.len, heap));
-
   dict_encoded_size_ += v.len + sizeof(uint32_t);
-  return v.len + sizeof(uint32_t);
 }
 
 template<>
-inline int DictEncoder<FixedLenByteArray>::AddDictKey(const FixedLenByteArray& v) {
+inline void DictEncoder<FixedLenByteArray>::AddDictKey(const FixedLenByteArray& v) {
   uint8_t* heap = pool_->Allocate(type_length_);
   if (UNLIKELY(heap == nullptr)) {
     throw ParquetException("out of memory");
@@ -283,7 +274,6 @@ inline int DictEncoder<FixedLenByteArray>::AddDictKey(const FixedLenByteArray& v
 
   uniques_.push_back(FixedLenByteArray(heap));
   dict_encoded_size_ += type_length_;
-  return type_length_;
 }
 
 template <typename T>

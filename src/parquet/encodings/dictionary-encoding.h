@@ -149,7 +149,31 @@ class DictionaryEncoder : public Encoder<TYPE> {
     encoder_.SetMemPool(&pool_);
   }
 
-  void Encode(const T* src, int num_values);
+  void Encode(const T* src, int num_values) {
+    for (int i = 0; i < num_values; ++i) {
+      encoder_.Put(src[i]);
+    }
+  }
+
+  // Returns an estimate for the size of the encoded indices
+  int EstimatedEncodedSize() {
+    return encoder_.EstimatedDataEncodedSize();
+  }
+
+  // Returns number of bytes written
+  int WriteIndices(uint8_t* buffer, int buffer_len) {
+    return encoder_.WriteIndices(buffer, buffer_len);
+  }
+
+  void WriteDict(uint8_t* buffer) {
+    encoder_.WriteDict(buffer);
+  }
+  int dict_num_entries() {
+    return encoder_.num_entries();
+  }
+  int dict_encoded_size() {
+    return encoder_.dict_encoded_size();
+  }
 
  private:
   MemPool pool_;
