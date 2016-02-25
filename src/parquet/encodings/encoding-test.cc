@@ -257,7 +257,9 @@ class TestDictionaryEncoding : public ::testing::Test {
     int values_decoded = decoder.Decode(decode_buf_, num_values_);
     ASSERT_EQ(num_values_, values_decoded);
 
-    // The DictionaryDecoder must stay alive
+    // TODO(wesm): The DictionaryDecoder must stay alive because the decoded
+    // values' data is owned by a buffer inside the DictionaryEncoder. We
+    // should revisit when data lifetime is reviewed more generally.
     VerifyResults<T>(decode_buf_, draws_, num_values_);
   }
 

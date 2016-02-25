@@ -59,7 +59,7 @@ class PlainDecoder : public Decoder<TYPE> {
   }
 
  private:
-    using Decoder<TYPE>::descr_;
+  using Decoder<TYPE>::descr_;
   const uint8_t* data_;
   int len_;
 };
@@ -176,7 +176,7 @@ class PlainEncoder : public Encoder<TYPE> {
   explicit PlainEncoder(const ColumnDescriptor* descr) :
       Encoder<TYPE>(descr, Encoding::PLAIN) {}
 
-  virtual void Encode(const T* src, int num_values, OutputStream* dst);
+  void Encode(const T* src, int num_values, OutputStream* dst);
 };
 
 template <>

@@ -36,7 +36,9 @@ namespace parquet_cpp {
 
 // Initially 1024 elements
 static constexpr int INITIAL_HASH_TABLE_SIZE = 1 << 10;
-static constexpr int32_t HASH_SLOT_EMPTY = std::numeric_limits<int32_t>::max();
+
+typedef int32_t hash_slot_t;
+static constexpr hash_slot_t HASH_SLOT_EMPTY = std::numeric_limits<int32_t>::max();
 
 // The maximum load factor for the hash table before resizing.
 static constexpr double MAX_HASH_LOAD = 0.7;
@@ -92,8 +94,6 @@ class DictEncoderBase {
       hash_slots_(hash_table_size_, HASH_SLOT_EMPTY),
       pool_(pool),
       dict_encoded_size_(0) {}
-
-  typedef int32_t hash_slot_t;
 
   /// Size of the table. Must be a power of 2.
   int hash_table_size_;
