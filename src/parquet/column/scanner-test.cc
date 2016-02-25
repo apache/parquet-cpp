@@ -103,7 +103,7 @@ class TestFlatScanner : public ::testing::Test {
     TypedScanner<Type::type_num>* scanner =
       reinterpret_cast<TypedScanner<Type::type_num>* >(scanner_.get());
     T val;
-    bool is_null;
+    bool is_null = false;
     int16_t def_level;
     int16_t rep_level;
     size_t j = 0;
@@ -121,7 +121,7 @@ class TestFlatScanner : public ::testing::Test {
       }
     }
     ASSERT_EQ(num_values_, j);
-    ASSERT_FALSE(scanner->HasNext());
+    ASSERT_FALSE(scanner->Next(&val, &def_level, &rep_level, &is_null));
   }
 
   void Clear() {
@@ -238,6 +238,31 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
   MakePages(&d, 1, 100);
   InitScanner(&d);
   CheckResults(1, &d);
+}
+
+TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
+  NodePtr type = schema::PrimitiveNode::MakeFLBA("c1", Repetition::REQUIRED,
+      FLBA_LENGTH, LogicalType::UTF8);
+  const ColumnDescriptor d(type, 4, 0);
+  MakePages(&d, 1, 100);
+  InitScanner(&d);
+  TypedScanner<FLBAType::type_num>* scanner =
+    reinterpret_cast<TypedScanner<FLBAType::type_num>* >(scanner_.get());
+  FLBA val;
+  bool is_null = false;
+  size_t j = 0;
+  std::stringstream ss;
+  scanner->SetBatchSize(batch_size);
+  for (size_t i = 0; i < num_levels_; i++) {
+    scanner->PrintNext(ss, 17);
+    std::string result = ss.str();
+    if (!is_null) {
+      ASSERT_EQ(0, result.compare(0, 4, "NULL"));
+    }
+    ASSERT_LE(0, result.size());
+    ss.clear();
+  }
+  ASSERT_THROW(scanner->PrintNext(ss, 17), ParquetException);
 }
 
 } // namespace test

@@ -172,10 +172,12 @@ class TypedScanner : public Scanner {
 
   virtual void PrintNext(std::ostream& out, int width) {
     T val;
-    bool is_null;
-
+    bool is_null = false;
     char buffer[25];
-    NextValue(&val, &is_null);
+
+    if (!NextValue(&val, &is_null)) {
+      throw ParquetException("No more values buffered");
+    }
 
     if (is_null) {
       std::string null_fmt = format_fwf<Type::BYTE_ARRAY>(width);
