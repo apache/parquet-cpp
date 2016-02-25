@@ -117,15 +117,6 @@ void VerifyResults(T* result, T* expected, int num_values) {
 }
 
 template <>
-void VerifyResults<Int96>(Int96* result, Int96* expected, int num_values) {
-  for (int i = 0; i < num_values; ++i) {
-    ASSERT_EQ(expected[i].value[0], result[i].value[0]) << i;
-    ASSERT_EQ(expected[i].value[1], result[i].value[1]) << i;
-    ASSERT_EQ(expected[i].value[2], result[i].value[2]) << i;
-  }
-}
-
-template <>
 void VerifyResults<FLBA>(FLBA* result, FLBA* expected, int num_values) {
   for (int i = 0; i < num_values; ++i) {
     ASSERT_EQ(0, memcmp(expected[i].ptr, result[i].ptr, flba_length)) << i;
