@@ -99,7 +99,7 @@ void GenerateData<ByteArray>(int num_values, ByteArray* out, vector<uint8_t>* he
   int num_bytes = max_byte_array_len + sizeof(uint32_t);
   int nbytes = num_values * num_bytes;
   heap->resize(nbytes);
-  random_byte_array(num_values, 0, heap->data(), out, max_byte_array_len);
+  random_byte_array(num_values, 0, heap->data(), out, 2, max_byte_array_len);
 }
 
 static int flba_length = 8;
@@ -237,13 +237,13 @@ class TestDictionaryEncoding : public ::testing::Test {
   void EncodeDecode() {
     DictionaryEncoder<TYPE> encoder(descr_.get());
 
-    auto dict = std::make_shared<OwnedMutableBuffer>();
+    dict_buffer_ = std::make_shared<OwnedMutableBuffer>();
     auto indices = std::make_shared<OwnedMutableBuffer>();
 
     ASSERT_NO_THROW(encoder.Encode(draws_, num_values_));
 
-    dict->Resize(encoder.dict_encoded_size());
-    encoder.WriteDict(dict->mutable_data());
+    dict_buffer_->Resize(encoder.dict_encoded_size());
+    encoder.WriteDict(dict_buffer_->mutable_data());
 
     indices->Resize(encoder.EstimatedEncodedSize());
     int actual_bytes = encoder.WriteIndices(indices->mutable_data(),
@@ -251,7 +251,8 @@ class TestDictionaryEncoding : public ::testing::Test {
     indices->Resize(actual_bytes);
 
     PlainDecoder<TYPE> dict_decoder(descr_.get());
-    dict_decoder.SetData(encoder.dict_num_entries(), dict->data(), dict->size());
+    dict_decoder.SetData(encoder.dict_num_entries(), dict_buffer_->data(),
+        dict_buffer_->size());
 
     DictionaryDecoder<TYPE> decoder(descr_.get(), &dict_decoder);
 
@@ -274,6 +275,8 @@ class TestDictionaryEncoding : public ::testing::Test {
   vector<uint8_t> input_bytes_;
   vector<uint8_t> output_bytes_;
   vector<uint8_t> data_buffer_;
+
+  std::shared_ptr<OwnedMutableBuffer> dict_buffer_;
   std::shared_ptr<Buffer> encode_buffer_;
   std::shared_ptr<ColumnDescriptor> descr_;
 };

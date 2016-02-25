@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iostream>
 #include <vector>
 
 #include "parquet/encodings/decoder.h"
@@ -146,7 +147,11 @@ class DictionaryEncoder : public Encoder<TYPE> {
 
   explicit DictionaryEncoder(const ColumnDescriptor* descr) :
       Encoder<TYPE>(descr, Encoding::PLAIN_DICTIONARY) {
-    encoder_.SetMemPool(&pool_);
+    encoder_.set_mem_pool(&pool_);
+    if (descr != nullptr &&
+        descr->physical_type() == Type::FIXED_LEN_BYTE_ARRAY) {
+      encoder_.set_type_length(descr->type_length());
+    }
   }
 
   void Encode(const T* src, int num_values) {

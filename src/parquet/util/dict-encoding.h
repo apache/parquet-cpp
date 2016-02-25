@@ -126,8 +126,12 @@ class DictEncoder : public DictEncoderBase {
 
   // TODO(wesm): think about how to address the construction semantics in
   // encodings/dictionary-encoding.h
-  void SetMemPool(MemPool* pool) {
+  void set_mem_pool(MemPool* pool) {
     pool_ = pool;
+  }
+
+  void set_type_length(int type_length) {
+    type_length_ = type_length;
   }
 
   /// Encode value. Note that this does not actually write any data, just
@@ -255,7 +259,7 @@ inline void DictEncoder<T>::AddDictKey(const T& v) {
 template<>
 inline void DictEncoder<ByteArray>::AddDictKey(const ByteArray& v) {
   uint8_t* heap = pool_->Allocate(v.len);
-  if (UNLIKELY(heap == nullptr)) {
+  if (UNLIKELY(v.len > 0 && heap == nullptr)) {
     throw ParquetException("out of memory");
   }
   memcpy(heap, v.ptr, v.len);
@@ -267,7 +271,7 @@ inline void DictEncoder<ByteArray>::AddDictKey(const ByteArray& v) {
 template<>
 inline void DictEncoder<FixedLenByteArray>::AddDictKey(const FixedLenByteArray& v) {
   uint8_t* heap = pool_->Allocate(type_length_);
-  if (UNLIKELY(heap == nullptr)) {
+  if (UNLIKELY(type_length_ > 0 && heap == nullptr)) {
     throw ParquetException("out of memory");
   }
   memcpy(heap, v.ptr, type_length_);
