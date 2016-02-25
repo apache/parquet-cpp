@@ -84,6 +84,26 @@ const ColumnDescriptor* SchemaDescriptor::Column(size_t i) const {
   return &leaves_[i];
 }
 
+int ColumnDescriptor::type_scale() const {
+  if (primitive_node_->physical_type() != Type::FIXED_LEN_BYTE_ARRAY) {
+    throw ParquetException("Not a FIXED_LEN_BYTE_ARRAY");
+  }
+  if (primitive_node_->logical_type() != LogicalType::DECIMAL) {
+    throw ParquetException("Not a Decimal");
+  }
+  return primitive_node_->decimal_metadata().scale;
+}
+
+int ColumnDescriptor::type_precision() const {
+  if (primitive_node_->physical_type() != Type::FIXED_LEN_BYTE_ARRAY) {
+    throw ParquetException("Not a FIXED_LEN_BYTE_ARRAY");
+  }
+  if (primitive_node_->logical_type() != LogicalType::DECIMAL) {
+    throw ParquetException("Not a Decimal");
+  }
+  return primitive_node_->decimal_metadata().precision;
+}
+
 int ColumnDescriptor::type_length() const {
   if (primitive_node_->physical_type() != Type::FIXED_LEN_BYTE_ARRAY) {
     throw ParquetException("Not a FIXED_LEN_BYTE_ARRAY");

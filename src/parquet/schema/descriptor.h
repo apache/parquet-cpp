@@ -54,6 +54,10 @@ class ColumnDescriptor {
     return primitive_node_->physical_type();
   }
 
+  LogicalType::type logical_type() const {
+    return primitive_node_->logical_type();
+  }
+
   const std::string& name() const {
     return primitive_node_->name();
   }
@@ -71,6 +75,10 @@ class ColumnDescriptor {
   }
 
   int type_length() const;
+
+  int type_precision() const;
+
+  int type_scale() const;
 
  private:
   schema::NodePtr node_;
