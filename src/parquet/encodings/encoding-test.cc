@@ -143,70 +143,7 @@ std::shared_ptr<ColumnDescriptor> ExampleDescr<FLBA>() {
 // Plain encoding tests
 
 template <typename Type>
-class TestPlainEncoding : public ::testing::Test {
- public:
-  typedef typename Type::c_type T;
-  static constexpr int TYPE = Type::type_num;
-
-  void SetUp() {
-    descr_ = ExampleDescr<T>();
-  }
-
-  void InitData(int nvalues) {
-    num_values_ = nvalues;
-    input_bytes_.resize(num_values_ * sizeof(T));
-    output_bytes_.resize(num_values_ * sizeof(T));
-    draws_ = reinterpret_cast<T*>(input_bytes_.data());
-    decode_buf_ = reinterpret_cast<T*>(output_bytes_.data());
-  }
-
-  virtual void EncodeDecode() {
-    PlainEncoder<TYPE> encoder(descr_.get());
-    PlainDecoder<TYPE> decoder(descr_.get());
-
-    InMemoryOutputStream dst;
-    encoder.Encode(draws_, num_values_, &dst);
-
-    encode_buffer_ = dst.GetBuffer();
-
-    decoder.SetData(num_values_, encode_buffer_->data(),
-        encode_buffer_->size());
-    int values_decoded = decoder.Decode(decode_buf_, num_values_);
-    ASSERT_EQ(num_values_, values_decoded);
-  }
-
-  void Execute(int nvalues) {
-    InitData(nvalues);
-    GenerateData<T>(nvalues, draws_, &data_buffer_);
-    EncodeDecode();
-    VerifyResults<T>(decode_buf_, draws_, nvalues);
-  }
-
- private:
-  int num_values_;
-  T* draws_;
-  T* decode_buf_;
-  vector<uint8_t> input_bytes_;
-  vector<uint8_t> output_bytes_;
-  vector<uint8_t> data_buffer_;
-  std::shared_ptr<Buffer> encode_buffer_;
-  std::shared_ptr<ColumnDescriptor> descr_;
-};
-
-TYPED_TEST_CASE(TestPlainEncoding, ParquetTypes);
-
-TYPED_TEST(TestPlainEncoding, BasicRoundTrip) {
-  this->Execute(10000);
-}
-
-// ----------------------------------------------------------------------
-// Dictionary encoding tests
-
-typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
-                         ByteArrayType, FLBAType> DictEncodedTypes;
-
-template <typename Type>
-class TestDictionaryEncoding : public ::testing::Test {
+class TestEncodingBase : public ::testing::Test {
  public:
   typedef typename Type::c_type T;
   static constexpr int TYPE = Type::type_num;
@@ -218,17 +155,102 @@ class TestDictionaryEncoding : public ::testing::Test {
     }
   }
 
-  void InitData(int nvalues) {
-    num_values_ = nvalues;
+  void InitData(int nvalues, int repeats) {
+    num_values_ = nvalues * repeats;
     input_bytes_.resize(num_values_ * sizeof(T));
     output_bytes_.resize(num_values_ * sizeof(T));
     draws_ = reinterpret_cast<T*>(input_bytes_.data());
     decode_buf_ = reinterpret_cast<T*>(output_bytes_.data());
+    GenerateData<T>(nvalues, draws_, &data_buffer_);
+
+    // add some repeated values
+    for (int j = 1; j < repeats; ++j) {
+      for (int i = 0; i < nvalues; ++i) {
+        draws_[nvalues * j + i] = draws_[i];
+      }
+    }
   }
 
-  void EncodeDecode() {
-    MemPool pool;
-    DictEncoder<T> encoder(&pool, type_length_);
+  virtual void CheckRoundtrip() = 0;
+
+  void Execute(int nvalues, int repeats) {
+    InitData(nvalues, repeats);
+    CheckRoundtrip();
+  }
+
+ protected:
+  MemPool pool_;
+
+  int num_values_;
+  int type_length_;
+  T* draws_;
+  T* decode_buf_;
+  vector<uint8_t> input_bytes_;
+  vector<uint8_t> output_bytes_;
+  vector<uint8_t> data_buffer_;
+
+  std::shared_ptr<Buffer> encode_buffer_;
+  std::shared_ptr<ColumnDescriptor> descr_;
+};
+
+// Member variables are not visible to templated subclasses. Possibly figure
+// out an alternative to this class layering at some point
+#define USING_BASE_MEMBERS()                    \
+  using TestEncodingBase<Type>::pool_;          \
+  using TestEncodingBase<Type>::descr_;         \
+  using TestEncodingBase<Type>::num_values_;    \
+  using TestEncodingBase<Type>::draws_;         \
+  using TestEncodingBase<Type>::data_buffer_;   \
+  using TestEncodingBase<Type>::type_length_;   \
+  using TestEncodingBase<Type>::encode_buffer_; \
+  using TestEncodingBase<Type>::decode_buf_;
+
+
+template <typename Type>
+class TestPlainEncoding : public TestEncodingBase<Type> {
+ public:
+  typedef typename Type::c_type T;
+  static constexpr int TYPE = Type::type_num;
+
+  virtual void CheckRoundtrip() {
+    PlainEncoder<TYPE> encoder(descr_.get());
+    PlainDecoder<TYPE> decoder(descr_.get());
+    InMemoryOutputStream dst;
+    encoder.Encode(draws_, num_values_, &dst);
+
+    encode_buffer_ = dst.GetBuffer();
+
+    decoder.SetData(num_values_, encode_buffer_->data(),
+        encode_buffer_->size());
+    int values_decoded = decoder.Decode(decode_buf_, num_values_);
+    ASSERT_EQ(num_values_, values_decoded);
+    VerifyResults<T>(decode_buf_, draws_, num_values_);
+  }
+
+ protected:
+  USING_BASE_MEMBERS();
+};
+
+TYPED_TEST_CASE(TestPlainEncoding, ParquetTypes);
+
+TYPED_TEST(TestPlainEncoding, BasicRoundTrip) {
+  this->Execute(10000, 1);
+}
+
+// ----------------------------------------------------------------------
+// Dictionary encoding tests
+
+typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
+                         ByteArrayType, FLBAType> DictEncodedTypes;
+
+template <typename Type>
+class TestDictionaryEncoding : public TestEncodingBase<Type> {
+ public:
+  typedef typename Type::c_type T;
+  static constexpr int TYPE = Type::type_num;
+
+  void CheckRoundtrip() {
+    DictEncoder<T> encoder(&pool_, type_length_);
 
     dict_buffer_ = std::make_shared<OwnedMutableBuffer>();
     auto indices = std::make_shared<OwnedMutableBuffer>();
@@ -251,7 +273,8 @@ class TestDictionaryEncoding : public ::testing::Test {
     dict_decoder.SetData(encoder.num_entries(), dict_buffer_->data(),
         dict_buffer_->size());
 
-    DictionaryDecoder<TYPE> decoder(descr_.get(), &dict_decoder);
+    DictionaryDecoder<TYPE> decoder(descr_.get());
+    decoder.SetDict(&dict_decoder);
 
     decoder.SetData(num_values_, indices->data(), indices->size());
     int values_decoded = decoder.Decode(decode_buf_, num_values_);
@@ -263,33 +286,9 @@ class TestDictionaryEncoding : public ::testing::Test {
     VerifyResults<T>(decode_buf_, draws_, num_values_);
   }
 
-  void Execute(int nvalues, int repeats) {
-    InitData(nvalues * repeats);
-    GenerateData<T>(nvalues, draws_, &data_buffer_);
-
-    // add some repeated values
-    for (int j = 1; j < repeats; ++j) {
-      for (int i = 0; i < nvalues; ++i) {
-        draws_[nvalues * j + i] = draws_[i];
-      }
-    }
-
-    EncodeDecode();
-  }
-
- private:
-  int num_values_;
-  T* draws_;
-  T* decode_buf_;
-  vector<T> input_bytes_;
-  vector<T> output_bytes_;
-  vector<uint8_t> data_buffer_;
-
-  int type_length_;
-
+ protected:
+  USING_BASE_MEMBERS();
   std::shared_ptr<OwnedMutableBuffer> dict_buffer_;
-  std::shared_ptr<Buffer> encode_buffer_;
-  std::shared_ptr<ColumnDescriptor> descr_;
 };
 
 TYPED_TEST_CASE(TestDictionaryEncoding, DictEncodedTypes);
@@ -300,8 +299,9 @@ TYPED_TEST(TestDictionaryEncoding, BasicRoundTrip) {
 
 TEST(TestDictionaryEncoding, CannotDictDecodeBoolean) {
   PlainDecoder<Type::BOOLEAN> dict_decoder(nullptr);
-  ASSERT_THROW(DictionaryDecoder<Type::BOOLEAN> decoder(nullptr, &dict_decoder),
-      ParquetException);
+  DictionaryDecoder<Type::BOOLEAN> decoder(nullptr);
+
+  ASSERT_THROW(decoder.SetDict(&dict_decoder), ParquetException);
 }
 
 } // namespace test

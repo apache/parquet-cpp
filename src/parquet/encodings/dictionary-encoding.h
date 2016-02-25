@@ -42,14 +42,12 @@ class DictionaryDecoder : public Decoder<TYPE> {
   // Initializes the dictionary with values from 'dictionary'. The data in
   // dictionary is not guaranteed to persist in memory after this call so the
   // dictionary decoder needs to copy the data out if necessary.
-  DictionaryDecoder(const ColumnDescriptor* descr,
-      Decoder<TYPE>* dictionary)
+  explicit DictionaryDecoder(const ColumnDescriptor* descr)
       : Decoder<TYPE>(descr, Encoding::RLE_DICTIONARY) {
-    Init(dictionary);
   }
 
   // Perform type-specific initiatialization
-  void Init(Decoder<TYPE>* dictionary);
+  void SetDict(Decoder<TYPE>* dictionary);
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
@@ -89,20 +87,20 @@ class DictionaryDecoder : public Decoder<TYPE> {
 };
 
 template <int TYPE>
-inline void DictionaryDecoder<TYPE>::Init(Decoder<TYPE>* dictionary) {
+inline void DictionaryDecoder<TYPE>::SetDict(Decoder<TYPE>* dictionary) {
   int num_dictionary_values = dictionary->values_left();
   dictionary_.resize(num_dictionary_values);
   dictionary->Decode(&dictionary_[0], num_dictionary_values);
 }
 
 template <>
-inline void DictionaryDecoder<Type::BOOLEAN>::Init(
+inline void DictionaryDecoder<Type::BOOLEAN>::SetDict(
     Decoder<Type::BOOLEAN>* dictionary) {
   ParquetException::NYI("Dictionary encoding is not implemented for boolean values");
 }
 
 template <>
-inline void DictionaryDecoder<Type::BYTE_ARRAY>::Init(
+inline void DictionaryDecoder<Type::BYTE_ARRAY>::SetDict(
     Decoder<Type::BYTE_ARRAY>* dictionary) {
   int num_dictionary_values = dictionary->values_left();
   dictionary_.resize(num_dictionary_values);
@@ -122,7 +120,7 @@ inline void DictionaryDecoder<Type::BYTE_ARRAY>::Init(
 }
 
 template <>
-inline void DictionaryDecoder<Type::FIXED_LEN_BYTE_ARRAY>::Init(
+inline void DictionaryDecoder<Type::FIXED_LEN_BYTE_ARRAY>::SetDict(
     Decoder<Type::FIXED_LEN_BYTE_ARRAY>* dictionary) {
   int num_dictionary_values = dictionary->values_left();
   dictionary_.resize(num_dictionary_values);
