@@ -110,8 +110,19 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
       ss << " can not be applied to a primitive type";
       throw ParquetException(ss.str());
   }
-  decimal_metadata_.precision = precision;
-  decimal_metadata_.scale = scale;
+  if (type == Type::FIXED_LEN_BYTE_ARRAY) {
+    if (length <= 0) {
+      ss << "Invalid length '";
+      ss << length;
+      ss << "' for type FIXED_LEN_BYTE_ARRAY";
+      throw ParquetException(ss.str());
+    }
+    type_length_ = length;
+    if (logical_type == LogicalType::DECIMAL) {
+      decimal_metadata_.precision = precision;
+      decimal_metadata_.scale = scale;
+    }
+  }
 }
 
 bool PrimitiveNode::EqualsInternal(const PrimitiveNode* other) const {

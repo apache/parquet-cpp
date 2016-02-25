@@ -46,7 +46,7 @@ TEST(TestColumnDescriptor, TestAttrs) {
 
   ASSERT_EQ(Type::BYTE_ARRAY, descr.physical_type());
 
-  ASSERT_EQ(0, descr.type_length());
+  ASSERT_EQ(-1, descr.type_length());
 
   // Test FIXED_LEN_BYTE_ARRAY
   node = PrimitiveNode::Make("name", Repetition::OPTIONAL,

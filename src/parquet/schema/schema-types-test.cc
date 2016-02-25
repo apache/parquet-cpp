@@ -154,13 +154,16 @@ TEST_F(TestPrimitiveNode, Equals) {
   ASSERT_FALSE(node1.Equals(&node4));
   ASSERT_TRUE(node1.Equals(&node5));
 
-  PrimitiveNode flba1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY);
+  PrimitiveNode flba1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
+      LogicalType::NONE, 1);
   flba1.SetTypeLength(12);
 
-  PrimitiveNode flba2("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY);
+  PrimitiveNode flba2("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
+      LogicalType::NONE, 1);
   flba2.SetTypeLength(12);
 
-  PrimitiveNode flba3("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY);
+  PrimitiveNode flba3("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
+      LogicalType::NONE, 1);
   flba3.SetTypeLength(16);
 
   ASSERT_TRUE(flba1.Equals(&flba2));

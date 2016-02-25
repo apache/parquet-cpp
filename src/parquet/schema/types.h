@@ -178,7 +178,7 @@ class PrimitiveNode : public Node {
   static inline NodePtr Make(const std::string& name,
       Repetition::type repetition, Type::type type,
       LogicalType::type logical_type = LogicalType::NONE,
-      int length = 0, int precision = 0, int scale = 0) {
+      int length = -1, int precision = -1, int scale = -1) {
     return NodePtr(new PrimitiveNode(name, repetition, type, logical_type,
           length, precision, scale));
   }
