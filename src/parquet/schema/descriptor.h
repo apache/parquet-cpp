@@ -24,7 +24,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
 #include "parquet/schema/types.h"
 #include "parquet/types.h"
 
@@ -63,15 +62,15 @@ class ColumnDescriptor {
   }
 
   bool is_required() const {
-    return max_definition_level_ == 0;
+    return primitive_node_->is_required();
   }
 
   bool is_optional() const {
-    return max_definition_level_ > 0;
+    return primitive_node_->is_optional();
   }
 
   bool is_repeated() const {
-    return max_repetition_level_ > 0;
+    return primitive_node_->is_repeated();
   }
 
   int type_length() const;

@@ -241,7 +241,7 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
 }
 
 TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
-  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
+  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::OPTIONAL,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
   const ColumnDescriptor d(type, 4, 0);
   MakePages(&d, 1, 100);
