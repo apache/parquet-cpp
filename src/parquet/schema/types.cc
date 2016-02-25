@@ -44,7 +44,7 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
     Type::type type, LogicalType::type logical_type,
     int length, int precision, int scale, int id) :
   Node(Node::PRIMITIVE, name, repetition, logical_type, id),
-  physical_type_(type) {
+  physical_type_(type), type_length_(length) {
   std::stringstream ss;
   // Check if the physical and logical types match
   // Mapping referred from Apache parquet-mr as on 2016-02-22
@@ -110,14 +110,8 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
       ss << " can not be applied to a primitive type";
       throw ParquetException(ss.str());
   }
-
-  if (type == Type::FIXED_LEN_BYTE_ARRAY) {
-    type_length_ = length;
-    if (logical_type == LogicalType::DECIMAL) {
-      decimal_metadata_.scale = scale;
-      decimal_metadata_.precision = precision;
-    }
-  }
+  decimal_metadata_.precision = precision;
+  decimal_metadata_.scale = scale;
 }
 
 bool PrimitiveNode::EqualsInternal(const PrimitiveNode* other) const {
