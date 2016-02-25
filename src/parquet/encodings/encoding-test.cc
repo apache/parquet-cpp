@@ -29,6 +29,7 @@
 #include "parquet/schema/types.h"
 #include "parquet/util/bit-util.h"
 #include "parquet/util/buffer.h"
+#include "parquet/util/dict-encoding.h"
 #include "parquet/util/output.h"
 #include "parquet/util/test-common.h"
 
@@ -212,6 +213,9 @@ class TestDictionaryEncoding : public ::testing::Test {
 
   void SetUp() {
     descr_ = ExampleDescr<T>();
+    if (descr_) {
+      type_length_ = descr_->type_length();
+    }
   }
 
   void InitData(int nvalues) {
@@ -223,23 +227,28 @@ class TestDictionaryEncoding : public ::testing::Test {
   }
 
   void EncodeDecode() {
-    DictionaryEncoder<TYPE> encoder(descr_.get());
+    MemPool pool;
+    DictEncoder<T> encoder(&pool, type_length_);
 
     dict_buffer_ = std::make_shared<OwnedMutableBuffer>();
     auto indices = std::make_shared<OwnedMutableBuffer>();
 
-    ASSERT_NO_THROW(encoder.Encode(draws_, num_values_));
-
+    ASSERT_NO_THROW(
+        {
+          for (int i = 0; i < num_values_; ++i) {
+            encoder.Put(draws_[i]);
+          }
+        });
     dict_buffer_->Resize(encoder.dict_encoded_size());
     encoder.WriteDict(dict_buffer_->mutable_data());
 
-    indices->Resize(encoder.EstimatedEncodedSize());
+    indices->Resize(encoder.EstimatedDataEncodedSize());
     int actual_bytes = encoder.WriteIndices(indices->mutable_data(),
         indices->size());
     indices->Resize(actual_bytes);
 
     PlainDecoder<TYPE> dict_decoder(descr_.get());
-    dict_decoder.SetData(encoder.dict_num_entries(), dict_buffer_->data(),
+    dict_decoder.SetData(encoder.num_entries(), dict_buffer_->data(),
         dict_buffer_->size());
 
     DictionaryDecoder<TYPE> decoder(descr_.get(), &dict_decoder);
@@ -275,6 +284,8 @@ class TestDictionaryEncoding : public ::testing::Test {
   vector<T> input_bytes_;
   vector<T> output_bytes_;
   vector<uint8_t> data_buffer_;
+
+  int type_length_;
 
   std::shared_ptr<OwnedMutableBuffer> dict_buffer_;
   std::shared_ptr<Buffer> encode_buffer_;

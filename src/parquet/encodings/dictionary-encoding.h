@@ -137,54 +137,6 @@ inline void DictionaryDecoder<Type::FIXED_LEN_BYTE_ARRAY>::Init(
   }
 }
 
-// ----------------------------------------------------------------------
-// Encoding::PLAIN_DICTIONARY implementation
-
-template <int TYPE>
-class DictionaryEncoder : public Encoder<TYPE> {
- public:
-  typedef typename type_traits<TYPE>::value_type T;
-
-  explicit DictionaryEncoder(const ColumnDescriptor* descr) :
-      Encoder<TYPE>(descr, Encoding::PLAIN_DICTIONARY) {
-    encoder_.set_mem_pool(&pool_);
-    if (descr != nullptr &&
-        descr->physical_type() == Type::FIXED_LEN_BYTE_ARRAY) {
-      encoder_.set_type_length(descr->type_length());
-    }
-  }
-
-  void Encode(const T* src, int num_values) {
-    for (int i = 0; i < num_values; ++i) {
-      encoder_.Put(src[i]);
-    }
-  }
-
-  // Returns an estimate for the size of the encoded indices
-  int EstimatedEncodedSize() {
-    return encoder_.EstimatedDataEncodedSize();
-  }
-
-  // Returns number of bytes written
-  int WriteIndices(uint8_t* buffer, int buffer_len) {
-    return encoder_.WriteIndices(buffer, buffer_len);
-  }
-
-  void WriteDict(uint8_t* buffer) {
-    encoder_.WriteDict(buffer);
-  }
-  int dict_num_entries() {
-    return encoder_.num_entries();
-  }
-  int dict_encoded_size() {
-    return encoder_.dict_encoded_size();
-  }
-
- private:
-  MemPool pool_;
-  DictEncoder<T> encoder_;
-};
-
 } // namespace parquet_cpp
 
 #endif
