@@ -296,6 +296,12 @@ TYPED_TEST(TestDictionaryEncoding, BasicRoundTrip) {
   this->Execute(2500, 2);
 }
 
+TEST(TestDictionaryEncoding, CannotDictDecodeBoolean) {
+  PlainDecoder<Type::BOOLEAN> dict_decoder(nullptr);
+  ASSERT_THROW(DictionaryDecoder<Type::BOOLEAN> decoder(nullptr, &dict_decoder),
+      ParquetException);
+}
+
 } // namespace test
 
 } // namespace parquet_cpp
