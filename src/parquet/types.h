@@ -264,7 +264,6 @@ struct type_traits<Type::FIXED_LEN_BYTE_ARRAY> {
 
 template <Type::type TYPE>
 struct DataType {
- public:
   static constexpr Type::type type_num = TYPE;
   typedef typename type_traits<TYPE>::value_type c_type;
 };
