@@ -97,8 +97,7 @@ void GenerateData<ByteArray>(int num_values, ByteArray* out, vector<uint8_t>* he
   // seed the prng so failure is deterministic
   int max_byte_array_len = 12;
   int num_bytes = max_byte_array_len + sizeof(uint32_t);
-  int nbytes = num_values * num_bytes;
-  heap->resize(nbytes);
+  heap->resize(num_values * max_byte_array_len);
   random_byte_array(num_values, 0, heap->data(), out, 2, max_byte_array_len);
 }
 
@@ -107,9 +106,7 @@ static int flba_length = 8;
 template <>
 void GenerateData<FLBA>(int num_values, FLBA* out, vector<uint8_t>* heap) {
   // seed the prng so failure is deterministic
-  int nbytes = num_values * flba_length;
-  heap->resize(nbytes);
-  ASSERT_EQ(nbytes, heap->size());
+  heap->resize(num_values * flba_length);
   random_fixed_byte_array(num_values, 0, heap->data(), flba_length, out);
 }
 
@@ -259,21 +256,31 @@ class TestDictionaryEncoding : public ::testing::Test {
     decoder.SetData(num_values_, indices->data(), indices->size());
     int values_decoded = decoder.Decode(decode_buf_, num_values_);
     ASSERT_EQ(num_values_, values_decoded);
+
+    // The DictionaryDecoder must stay alive
+    VerifyResults<T>(decode_buf_, draws_, num_values_);
   }
 
-  void Execute(int nvalues) {
-    InitData(nvalues);
+  void Execute(int nvalues, int repeats) {
+    InitData(nvalues * repeats);
     GenerateData<T>(nvalues, draws_, &data_buffer_);
+
+    // add some repeated values
+    for (int j = 1; j < repeats; ++j) {
+      for (int i = 0; i < nvalues; ++i) {
+        draws_[nvalues * j + i] = draws_[i];
+      }
+    }
+
     EncodeDecode();
-    VerifyResults<T>(decode_buf_, draws_, nvalues);
   }
 
  private:
   int num_values_;
   T* draws_;
   T* decode_buf_;
-  vector<uint8_t> input_bytes_;
-  vector<uint8_t> output_bytes_;
+  vector<T> input_bytes_;
+  vector<T> output_bytes_;
   vector<uint8_t> data_buffer_;
 
   std::shared_ptr<OwnedMutableBuffer> dict_buffer_;
@@ -284,7 +291,7 @@ class TestDictionaryEncoding : public ::testing::Test {
 TYPED_TEST_CASE(TestDictionaryEncoding, DictEncodedTypes);
 
 TYPED_TEST(TestDictionaryEncoding, BasicRoundTrip) {
-  this->Execute(10000);
+  this->Execute(2500, 2);
 }
 
 } // namespace test
