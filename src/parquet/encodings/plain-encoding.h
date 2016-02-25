@@ -40,7 +40,13 @@ class PlainDecoder : public Decoder<TYPE> {
 
   explicit PlainDecoder(const ColumnDescriptor* descr) :
       Decoder<TYPE>(descr, Encoding::PLAIN),
-      data_(NULL), len_(0) {}
+      data_(NULL), len_(0) {
+    if (descr_ && descr_->physical_type() == Type::FIXED_LEN_BYTE_ARRAY) {
+      type_length_ = descr_->type_length();
+    } else {
+      type_length_ = -1;
+    }
+  }
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
@@ -50,18 +56,11 @@ class PlainDecoder : public Decoder<TYPE> {
 
   virtual int Decode(T* buffer, int max_values);
 
-  int type_length() const {
-    if (descr_ && descr_->physical_type() == Type::FIXED_LEN_BYTE_ARRAY) {
-      return descr_->type_length();
-    } else {
-      return -1;
-    }
-  }
-
  private:
   using Decoder<TYPE>::descr_;
   const uint8_t* data_;
   int len_;
+  int type_length_;
 };
 
 // Decode routine templated on C++ type rather than type enum
@@ -116,7 +115,7 @@ template <int TYPE>
 inline int PlainDecoder<TYPE>::Decode(T* buffer, int max_values) {
   max_values = std::min(max_values, num_values_);
   int bytes_consumed = DecodePlain<T>(data_, len_, max_values,
-      type_length(), buffer);
+      type_length_, buffer);
   data_ += bytes_consumed;
   len_ -= bytes_consumed;
   num_values_ -= max_values;
