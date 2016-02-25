@@ -40,6 +40,86 @@ bool Node::EqualsInternal(const Node* other) const {
 // ----------------------------------------------------------------------
 // Primitive node
 
+PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetition,
+    Type::type type, LogicalType::type logical_type,
+    int length, int precision, int scale, int id) :
+  Node(Node::PRIMITIVE, name, repetition, logical_type, id),
+  physical_type_(type) {
+  std::stringstream ss;
+  // Check if the physical and logical types match
+  // Mapping referred from Apache parquet-mr as on 2016-02-22
+  switch (logical_type) {
+    case LogicalType::NONE:
+      // Logical type not set
+      break;
+    case LogicalType::UTF8:
+    case LogicalType::JSON:
+    case LogicalType::BSON:
+      if (!(type == Type::BYTE_ARRAY)) {
+        ss << logical_type_to_string(logical_type);
+        ss << " can only annotate BYTE_ARRAY fields";
+        throw ParquetException(ss.str());
+      }
+      break;
+    case LogicalType::DECIMAL:
+      if (!((type == Type::INT32) ||
+            (type == Type::INT64) ||
+            (type == Type::BYTE_ARRAY) ||
+            (type == Type::FIXED_LEN_BYTE_ARRAY))) {
+        ss << "DECIMAL can only annotate INT32, INT64, BYTE_ARRAY, and FIXED";
+        throw ParquetException(ss.str());
+      }
+      break;
+    case LogicalType::DATE:
+    case LogicalType::TIME_MILLIS:
+    case LogicalType::UINT_8:
+    case LogicalType::UINT_16:
+    case LogicalType::UINT_32:
+    case LogicalType::INT_8:
+    case LogicalType::INT_16:
+    case LogicalType::INT_32:
+      if (!(type == Type::INT32)) {
+        ss << logical_type_to_string(logical_type);
+        ss << " can only annotate INT32";
+        throw ParquetException(ss.str());
+      }
+      break;
+    case LogicalType::TIMESTAMP_MILLIS:
+    case LogicalType::UINT_64:
+    case LogicalType::INT_64:
+      if (!(type == Type::INT64)) {
+        ss << logical_type_to_string(logical_type);
+        ss << " can only annotate INT64";
+        throw ParquetException(ss.str());
+      }
+      break;
+    case LogicalType::INTERVAL:
+      if (!(type == Type::FIXED_LEN_BYTE_ARRAY) && (length == 12)) {
+        ss << "INTERVAL can only annotate FIXED_LEN_BYTE_ARRAY(12)";
+        throw ParquetException(ss.str());
+      }
+      break;
+    case LogicalType::ENUM:
+      if (!(type == Type::BYTE_ARRAY)) {
+        ss << "ENUM can only annotate BYTE_ARRAY fields";
+        throw ParquetException(ss.str());
+      }
+      break;
+    default:
+      ss << logical_type_to_string(logical_type);
+      ss << " can not be applied to a primitive type";
+      throw ParquetException(ss.str());
+  }
+
+  if (type == Type::FIXED_LEN_BYTE_ARRAY) {
+    type_length_ = length;
+    if (logical_type == LogicalType::DECIMAL) {
+      decimal_metadata_.scale = scale;
+      decimal_metadata_.precision = precision;
+    }
+  }
+}
+
 bool PrimitiveNode::EqualsInternal(const PrimitiveNode* other) const {
   if (physical_type_ != other->physical_type_) {
     return false;
@@ -134,14 +214,8 @@ std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element,
 
   std::unique_ptr<PrimitiveNode> result = std::unique_ptr<PrimitiveNode>(
       new PrimitiveNode(params.name, params.repetition,
-          FromThrift(element->type), params.logical_type, node_id));
-
-  if (element->type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
-    result->SetTypeLength(element->type_length);
-    if (params.logical_type == LogicalType::DECIMAL) {
-      result->SetDecimalMetadata(element->scale, element->precision);
-    }
-  }
+          FromThrift(element->type), params.logical_type,
+          element->type_length, element->precision, element->scale, node_id));
 
   // Return as unique_ptr to the base type
   return std::unique_ptr<Node>(result.release());

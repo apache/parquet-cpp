@@ -207,14 +207,14 @@ template<>
 void TestFlatScanner<FLBAType>::InitDescriptors(
     std::shared_ptr<ColumnDescriptor>& d1, std::shared_ptr<ColumnDescriptor>& d2,
     std::shared_ptr<ColumnDescriptor>& d3) {
-  NodePtr type = schema::PrimitiveNode::MakeFLBA("c1", Repetition::REQUIRED,
-      FLBA_LENGTH, LogicalType::UTF8);
+  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
   d1.reset(new ColumnDescriptor(type, 0, 0));
-  type = schema::PrimitiveNode::MakeFLBA("c2", Repetition::OPTIONAL,
-      FLBA_LENGTH, LogicalType::UTF8);
+  type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
   d2.reset(new ColumnDescriptor(type, 4, 0));
-  type = schema::PrimitiveNode::MakeFLBA("c3", Repetition::REPEATED,
-      FLBA_LENGTH, LogicalType::UTF8);
+  type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
   d3.reset(new ColumnDescriptor(type, 4, 2));
 }
 
@@ -232,8 +232,8 @@ TYPED_TEST(TestFlatScanner, TestScanner) {
 
 //PARQUET 502
 TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
-  NodePtr type = schema::PrimitiveNode::MakeFLBA("c1", Repetition::REQUIRED,
-      FLBA_LENGTH, LogicalType::UTF8);
+  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
   const ColumnDescriptor d(type, 0, 0);
   MakePages(&d, 1, 100);
   InitScanner(&d);
@@ -241,28 +241,27 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
 }
 
 TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
-  NodePtr type = schema::PrimitiveNode::MakeFLBA("c1", Repetition::REQUIRED,
-      FLBA_LENGTH, LogicalType::UTF8);
+  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
   const ColumnDescriptor d(type, 4, 0);
   MakePages(&d, 1, 100);
   InitScanner(&d);
   TypedScanner<FLBAType::type_num>* scanner =
     reinterpret_cast<TypedScanner<FLBAType::type_num>* >(scanner_.get());
-  FLBA val;
   bool is_null = false;
   size_t j = 0;
-  std::stringstream ss;
   scanner->SetBatchSize(batch_size);
+  std::stringstream ss_fail;
   for (size_t i = 0; i < num_levels_; i++) {
+    std::stringstream ss;
     scanner->PrintNext(ss, 17);
     std::string result = ss.str();
-    if (!is_null) {
+    if (is_null) {
       ASSERT_EQ(0, result.compare(0, 4, "NULL"));
     }
-    ASSERT_LE(0, result.size());
-    ss.clear();
+    ASSERT_LE(17, result.size()) << i;
   }
-  ASSERT_THROW(scanner->PrintNext(ss, 17), ParquetException);
+  ASSERT_THROW(scanner->PrintNext(ss_fail, 17), ParquetException);
 }
 
 } // namespace test

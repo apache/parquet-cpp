@@ -177,17 +177,10 @@ class PrimitiveNode : public Node {
 
   static inline NodePtr Make(const std::string& name,
       Repetition::type repetition, Type::type type,
-      LogicalType::type logical_type = LogicalType::NONE) {
-    return NodePtr(new PrimitiveNode(name, repetition, type, logical_type));
-  }
-
-  // Alternate constructor for FIXED_LEN_BYTE_ARRAY (FLBA)
-  static inline NodePtr MakeFLBA(const std::string& name,
-      Repetition::type repetition, int32_t type_length,
-      LogicalType::type logical_type = LogicalType::NONE) {
-    NodePtr result = Make(name, repetition, Type::FIXED_LEN_BYTE_ARRAY, logical_type);
-    static_cast<PrimitiveNode*>(result.get())->SetTypeLength(type_length);
-    return result;
+      LogicalType::type logical_type = LogicalType::NONE,
+      int length = 0, int precision = 0, int scale = 0) {
+    return NodePtr(new PrimitiveNode(name, repetition, type, logical_type,
+          length, precision, scale));
   }
 
   virtual bool Equals(const Node* other) const;
@@ -208,11 +201,8 @@ class PrimitiveNode : public Node {
 
  private:
   PrimitiveNode(const std::string& name, Repetition::type repetition,
-      Type::type type,
-      LogicalType::type logical_type = LogicalType::NONE,
-      int id = -1) :
-      Node(Node::PRIMITIVE, name, repetition, logical_type, id),
-      physical_type_(type) {}
+      Type::type type, LogicalType::type logical_type = LogicalType::NONE,
+      int length = 0, int precision = 0, int scale = 0, int id = -1);
 
   Type::type physical_type_;
   int32_t type_length_;
