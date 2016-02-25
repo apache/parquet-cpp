@@ -267,7 +267,7 @@ if (UNIX)
   add_custom_target(lint ${BUILD_SUPPORT_DIR}/cpplint.py
   --verbose=2
   --linelength=90
-  --filter=-whitespace/comments,-readability/todo,-build/header_guard,-build/include_order,-runtime/references,-readability/check
+  --filter=-whitespace/comments,-readability/todo,-build/header_guard,-runtime/references,-readability/check
     `find ${CMAKE_CURRENT_SOURCE_DIR}/src -name \\*.cc -or -name \\*.h | sed -e '/parquet\\/thrift/g'`)
 endif (UNIX)
 

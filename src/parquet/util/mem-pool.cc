@@ -20,8 +20,9 @@
 
 #include "parquet/util/mem-pool.h"
 
-#include <algorithm>
 #include <stdio.h>
+
+#include <algorithm>
 #include <cstdint>
 #include <sstream>
 #include <string>

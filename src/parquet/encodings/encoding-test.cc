@@ -15,13 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include <gtest/gtest.h>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "parquet/schema/descriptor.h"
 #include "parquet/encodings/dictionary-encoding.h"
