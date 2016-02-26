@@ -208,13 +208,13 @@ void TestFlatScanner<FLBAType>::InitDescriptors(
     std::shared_ptr<ColumnDescriptor>& d1, std::shared_ptr<ColumnDescriptor>& d2,
     std::shared_ptr<ColumnDescriptor>& d3) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   d1.reset(new ColumnDescriptor(type, 0, 0));
   type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   d2.reset(new ColumnDescriptor(type, 4, 0));
   type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   d3.reset(new ColumnDescriptor(type, 4, 2));
 }
 
@@ -233,7 +233,7 @@ TYPED_TEST(TestFlatScanner, TestScanner) {
 //PARQUET 502
 TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   const ColumnDescriptor d(type, 0, 0);
   MakePages(&d, 1, 100);
   InitScanner(&d);
@@ -242,7 +242,7 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
 
 TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::OPTIONAL,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH);
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   const ColumnDescriptor d(type, 4, 0);
   MakePages(&d, 1, 100);
   InitScanner(&d);

@@ -224,6 +224,7 @@ class PrimitiveNode : public Node {
 
   FRIEND_TEST(TestPrimitiveNode, Attrs);
   FRIEND_TEST(TestPrimitiveNode, Equals);
+  FRIEND_TEST(TestPrimitiveNode, PhysicalLogicalMapping);
   FRIEND_TEST(TestPrimitiveNode, FromParquet);
 };
 

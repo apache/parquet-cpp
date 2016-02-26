@@ -69,6 +69,21 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
         ss << "DECIMAL can only annotate INT32, INT64, BYTE_ARRAY, and FIXED";
         throw ParquetException(ss.str());
       }
+      if (precision <= 0) {
+        ss << "Invalid DECIMAL precision: " << precision;
+        throw ParquetException(ss.str());
+      }
+      if (scale < 0) {
+        ss << "Invalid DECIMAL scale: " << scale;
+        throw ParquetException(ss.str());
+      }
+      if (scale > precision) {
+        ss << "Invalid DECIMAL scale " << scale;
+        ss << " cannot be greater than precision " << precision;
+        throw ParquetException(ss.str());
+      }
+      decimal_metadata_.precision = precision;
+      decimal_metadata_.scale = scale;
       break;
     case LogicalType::DATE:
     case LogicalType::TIME_MILLIS:
@@ -94,7 +109,7 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
       }
       break;
     case LogicalType::INTERVAL:
-      if (!(type == Type::FIXED_LEN_BYTE_ARRAY) && (length == 12)) {
+      if (!((type == Type::FIXED_LEN_BYTE_ARRAY) && (length == 12))) {
         ss << "INTERVAL can only annotate FIXED_LEN_BYTE_ARRAY(12)";
         throw ParquetException(ss.str());
       }
@@ -112,16 +127,10 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
   }
   if (type == Type::FIXED_LEN_BYTE_ARRAY) {
     if (length <= 0) {
-      ss << "Invalid length '";
-      ss << length;
-      ss << "' for type FIXED_LEN_BYTE_ARRAY";
+      ss << "Invalid FIXED_LEN_BYTE_ARRAY length: " << length;
       throw ParquetException(ss.str());
     }
     type_length_ = length;
-    if (logical_type == LogicalType::DECIMAL) {
-      decimal_metadata_.precision = precision;
-      decimal_metadata_.scale = scale;
-    }
   }
 }
 
