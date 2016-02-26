@@ -73,6 +73,37 @@ TEST_F(TestSchemaDescriptor, InitNonGroup) {
   ASSERT_THROW(descr_.Init(node), ParquetException);
 }
 
+TEST_F(TestSchemaDescriptor, DescriptorRepetitionValues) {
+  NodeVector fields;
+  NodePtr schema;
+
+  NodePtr item1 = Int32("item", Repetition::REQUIRED);
+  fields.push_back(item1);
+  NodePtr list(GroupNode::Make("list", Repetition::REPEATED,
+          {item1}, LogicalType::LIST));
+  fields.push_back(list);
+  NodePtr bag(GroupNode::Make("bag", Repetition::OPTIONAL, {list}));
+  fields.push_back(bag);
+
+  schema = GroupNode::Make("schema", Repetition::REPEATED, fields);
+
+  descr_.Init(schema);
+
+  size_t nleaves = 3;
+  // 3 leaves
+  ASSERT_EQ(nleaves, descr_.num_columns());
+
+  const ColumnDescriptor* col = descr_.Column(0);
+  EXPECT_TRUE(col->is_required());
+  col = descr_.Column(1);
+  EXPECT_TRUE(!col->is_required());
+  EXPECT_TRUE(col->is_repeated());
+  col = descr_.Column(2);
+  EXPECT_TRUE(!col->is_required());
+  EXPECT_TRUE(col->is_optional());
+  EXPECT_TRUE(col->is_repeated());
+}
+
 TEST_F(TestSchemaDescriptor, BuildTree) {
   NodeVector fields;
   NodePtr schema;

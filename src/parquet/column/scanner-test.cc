@@ -267,5 +267,7 @@ TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
   ASSERT_THROW(scanner->PrintNext(ss_fail, 17), ParquetException);
 }
 
+//Test for GroupNode
+
 } // namespace test
 } // namespace parquet_cpp

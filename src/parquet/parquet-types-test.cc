@@ -17,14 +17,9 @@
 
 #include <gtest/gtest.h>
 
-#include <iosfwd>
 #include <string>
-#include <vector>
 
 #include "parquet/types.h"
-
-using std::string;
-using std::vector;
 
 namespace parquet_cpp {
 

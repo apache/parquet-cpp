@@ -202,7 +202,7 @@ class PrimitiveNode : public Node {
  private:
   PrimitiveNode(const std::string& name, Repetition::type repetition,
       Type::type type, LogicalType::type logical_type = LogicalType::NONE,
-      int length = 0, int precision = 0, int scale = 0, int id = -1);
+      int length = -1, int precision = -1, int scale = -1, int id = -1);
 
   Type::type physical_type_;
   int32_t type_length_;

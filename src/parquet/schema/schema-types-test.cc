@@ -188,12 +188,14 @@ TEST_F(TestPrimitiveNode, PhysicalLogicalMapping) {
         Type::BYTE_ARRAY, LogicalType::INTERVAL), ParquetException);
   ASSERT_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::ENUM), ParquetException);
+  ASSERT_NO_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
+      Type::BYTE_ARRAY, LogicalType::ENUM));
   ASSERT_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, 0, 2, 4), ParquetException);
   ASSERT_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
       Type::FLOAT, LogicalType::DECIMAL, 0, 2, 4), ParquetException);
   ASSERT_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, 0, 0, 4), ParquetException);
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, 0, 4, 0), ParquetException);
   ASSERT_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, 10, 0, 4), ParquetException);
   ASSERT_THROW(PrimitiveNode::Make("foo", Repetition::REQUIRED,
