@@ -51,6 +51,9 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
   switch (logical_type) {
     case LogicalType::NONE:
       // Logical type not set
+      // Clients should be able to read these values
+      decimal_metadata_.precision = precision;
+      decimal_metadata_.scale = scale;
       break;
     case LogicalType::UTF8:
     case LogicalType::JSON:

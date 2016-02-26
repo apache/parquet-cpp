@@ -248,6 +248,9 @@ TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
   InitScanner(&d);
   TypedScanner<FLBAType::type_num>* scanner =
     reinterpret_cast<TypedScanner<FLBAType::type_num>* >(scanner_.get());
+  ASSERT_EQ(10, scanner->descr()->type_precision());
+  ASSERT_EQ(2, scanner->descr()->type_scale());
+  ASSERT_EQ(FLBA_LENGTH, scanner->descr()->type_length());
   bool is_null = false;
   size_t j = 0;
   scanner->SetBatchSize(batch_size);
