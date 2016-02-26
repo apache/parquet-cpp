@@ -140,21 +140,25 @@ class TestFlatScanner : public ::testing::Test {
   }
 
   void InitDescriptors(std::shared_ptr<ColumnDescriptor>& d1,
-      std::shared_ptr<ColumnDescriptor>& d2, std::shared_ptr<ColumnDescriptor>& d3) {
+      std::shared_ptr<ColumnDescriptor>& d2, std::shared_ptr<ColumnDescriptor>& d3,
+      int length) {
     NodePtr type;
-    type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED, Type::type_num);
+    type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED, Type::type_num,
+       LogicalType::NONE, length);
     d1.reset(new ColumnDescriptor(type, 0, 0));
-    type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL, Type::type_num);
+    type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL, Type::type_num,
+       LogicalType::NONE, length);
     d2.reset(new ColumnDescriptor(type, 4, 0));
-    type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED, Type::type_num);
+    type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED, Type::type_num,
+       LogicalType::NONE, length);
     d3.reset(new ColumnDescriptor(type, 4, 2));
   }
 
-  void ExecuteAll(int num_pages, int num_levels, int batch_size) {
+  void ExecuteAll(int num_pages, int num_levels, int batch_size, int type_length) {
     std::shared_ptr<ColumnDescriptor> d1;
     std::shared_ptr<ColumnDescriptor> d2;
     std::shared_ptr<ColumnDescriptor> d3;
-    InitDescriptors(d1, d2, d3);
+    InitDescriptors(d1, d2, d3, type_length);
     // evaluate REQUIRED pages
     Execute(num_pages, num_levels, batch_size, d1.get());
     // evaluate OPTIONAL pages
@@ -203,31 +207,25 @@ void TestFlatScanner<FLBAType>::InitValues() {
       values_.data());
 }
 
-template<>
-void TestFlatScanner<FLBAType>::InitDescriptors(
-    std::shared_ptr<ColumnDescriptor>& d1, std::shared_ptr<ColumnDescriptor>& d2,
-    std::shared_ptr<ColumnDescriptor>& d3) {
-  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
-  d1.reset(new ColumnDescriptor(type, 0, 0));
-  type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
-  d2.reset(new ColumnDescriptor(type, 4, 0));
-  type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED,
-      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
-  d3.reset(new ColumnDescriptor(type, 4, 2));
-}
-
 typedef TestFlatScanner<FLBAType> TestFlatFLBAScanner;
 
 static int num_levels_per_page = 100;
 static int num_pages = 20;
 static int batch_size = 32;
 
-TYPED_TEST_CASE(TestFlatScanner, ParquetTypes);
+typedef ::testing::Types<BooleanType, Int32Type, Int64Type, Int96Type,
+                         FloatType, DoubleType, ByteArrayType> TestTypes;
+
+typedef TestFlatScanner<FLBAType> TestFLBAFlatScanner;
+
+TYPED_TEST_CASE(TestFlatScanner, TestTypes);
 
 TYPED_TEST(TestFlatScanner, TestScanner) {
-  this->ExecuteAll(num_pages, num_levels_per_page, batch_size);
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, 0);
+}
+
+TEST_F(TestFLBAFlatScanner, TestScanner) {
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, FLBA_LENGTH);
 }
 
 //PARQUET 502
