@@ -62,15 +62,15 @@ class ColumnDescriptor {
   }
 
   bool is_required() const {
-    return primitive_node_->is_required();
+    return max_definition_level_ == 0;
   }
 
   bool is_optional() const {
-    return primitive_node_->is_optional();
+    return max_definition_level_ > 0;
   }
 
   bool is_repeated() const {
-    return primitive_node_->is_repeated();
+    return max_repetition_level_ > 0;
   }
 
   int type_length() const;
