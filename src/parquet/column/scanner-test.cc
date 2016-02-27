@@ -106,7 +106,7 @@ class TestFlatScanner : public ::testing::Test {
     bool is_null = false;
     int16_t def_level;
     int16_t rep_level;
-    size_t j = 0;
+    int j = 0;
     scanner->SetBatchSize(batch_size);
     for (int i = 0; i < num_levels_; i++) {
       ASSERT_TRUE(scanner->Next(&val, &def_level, &rep_level, &is_null)) << i << j;

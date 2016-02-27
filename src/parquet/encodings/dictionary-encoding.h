@@ -316,8 +316,8 @@ inline void DictEncoder<T>::Put(const T& v) {
     hash_slots_[j] = index;
     AddDictKey(v);
 
-    if (UNLIKELY(uniques_.size() >
-            static_cast<size_t>(hash_table_size_ * MAX_HASH_LOAD))) {
+    if (UNLIKELY(static_cast<int>(uniques_.size()) >
+            hash_table_size_ * MAX_HASH_LOAD)) {
       DoubleTableSize();
     }
   }
