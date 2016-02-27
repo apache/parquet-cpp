@@ -58,17 +58,17 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
     case LogicalType::UTF8:
     case LogicalType::JSON:
     case LogicalType::BSON:
-      if (!(type == Type::BYTE_ARRAY)) {
+      if (type != Type::BYTE_ARRAY) {
         ss << logical_type_to_string(logical_type);
         ss << " can only annotate BYTE_ARRAY fields";
         throw ParquetException(ss.str());
       }
       break;
     case LogicalType::DECIMAL:
-      if (!((type == Type::INT32) ||
-            (type == Type::INT64) ||
-            (type == Type::BYTE_ARRAY) ||
-            (type == Type::FIXED_LEN_BYTE_ARRAY))) {
+      if ((type != Type::INT32) &&
+            (type != Type::INT64) &&
+            (type != Type::BYTE_ARRAY) &&
+            (type != Type::FIXED_LEN_BYTE_ARRAY)) {
         ss << "DECIMAL can only annotate INT32, INT64, BYTE_ARRAY, and FIXED";
         throw ParquetException(ss.str());
       }
@@ -96,7 +96,7 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
     case LogicalType::INT_8:
     case LogicalType::INT_16:
     case LogicalType::INT_32:
-      if (!(type == Type::INT32)) {
+      if (type != Type::INT32) {
         ss << logical_type_to_string(logical_type);
         ss << " can only annotate INT32";
         throw ParquetException(ss.str());
@@ -105,20 +105,20 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
     case LogicalType::TIMESTAMP_MILLIS:
     case LogicalType::UINT_64:
     case LogicalType::INT_64:
-      if (!(type == Type::INT64)) {
+      if (type != Type::INT64) {
         ss << logical_type_to_string(logical_type);
         ss << " can only annotate INT64";
         throw ParquetException(ss.str());
       }
       break;
     case LogicalType::INTERVAL:
-      if (!((type == Type::FIXED_LEN_BYTE_ARRAY) && (length == 12))) {
+      if ((type != Type::FIXED_LEN_BYTE_ARRAY) || (length != 12)) {
         ss << "INTERVAL can only annotate FIXED_LEN_BYTE_ARRAY(12)";
         throw ParquetException(ss.str());
       }
       break;
     case LogicalType::ENUM:
-      if (!(type == Type::BYTE_ARRAY)) {
+      if (type != Type::BYTE_ARRAY) {
         ss << "ENUM can only annotate BYTE_ARRAY fields";
         throw ParquetException(ss.str());
       }
@@ -138,16 +138,19 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
 }
 
 bool PrimitiveNode::EqualsInternal(const PrimitiveNode* other) const {
-  if (physical_type_ != other->physical_type_) {
+  bool is_equal = true;
+  if ((physical_type_ != other->physical_type_) ||
+      (logical_type_ != other->logical_type_)) {
     return false;
-  } else if (logical_type_ == LogicalType::DECIMAL) {
-    // TODO(wesm): metadata
-    ParquetException::NYI("comparing decimals");
-    return false;
-  } else if (physical_type_ == Type::FIXED_LEN_BYTE_ARRAY) {
-    return type_length_ == other->type_length_;
   }
-  return true;
+  if (logical_type_ == LogicalType::DECIMAL) {
+    is_equal &= (decimal_metadata_.precision == other->decimal_metadata_.precision) &&
+      (decimal_metadata_.scale == other->decimal_metadata_.scale);
+  }
+  if (physical_type_ == Type::FIXED_LEN_BYTE_ARRAY) {
+    is_equal &= (type_length_ == other->type_length_);
+  }
+  return is_equal;
 }
 
 bool PrimitiveNode::Equals(const Node* other) const {

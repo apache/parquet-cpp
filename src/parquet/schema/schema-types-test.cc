@@ -156,19 +156,26 @@ TEST_F(TestPrimitiveNode, Equals) {
   ASSERT_TRUE(node1.Equals(&node5));
 
   PrimitiveNode flba1("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
-      LogicalType::NONE, 1);
-  flba1.SetTypeLength(12);
+      LogicalType::DECIMAL, 12, 4, 2);
 
   PrimitiveNode flba2("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
-      LogicalType::NONE, 1);
+      LogicalType::DECIMAL, 1, 4, 2);
   flba2.SetTypeLength(12);
 
   PrimitiveNode flba3("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
-      LogicalType::NONE, 1);
+      LogicalType::DECIMAL, 1, 4, 2);
   flba3.SetTypeLength(16);
+
+  PrimitiveNode flba4("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
+      LogicalType::DECIMAL, 12, 4, 0);
+
+  PrimitiveNode flba5("foo", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
+      LogicalType::NONE, 12, 4, 0);
 
   ASSERT_TRUE(flba1.Equals(&flba2));
   ASSERT_FALSE(flba1.Equals(&flba3));
+  ASSERT_FALSE(flba1.Equals(&flba4));
+  ASSERT_FALSE(flba1.Equals(&flba5));
 }
 
 TEST_F(TestPrimitiveNode, PhysicalLogicalMapping) {
@@ -263,11 +270,14 @@ TEST_F(TestGroupNode, Equals) {
   // This is copied in the GroupNode ctor, so this is okay
   f2.push_back(Float("four", Repetition::OPTIONAL));
   GroupNode group4("group", Repetition::REPEATED, f2);
+  GroupNode group5("group", Repetition::REPEATED, Fields1());
 
+  ASSERT_TRUE(group1.Equals(&group1));
   ASSERT_TRUE(group1.Equals(&group2));
   ASSERT_FALSE(group1.Equals(&group3));
 
   ASSERT_FALSE(group1.Equals(&group4));
+  ASSERT_FALSE(group5.Equals(&group4));
 }
 
 } // namespace schema
