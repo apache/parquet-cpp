@@ -113,10 +113,10 @@ class TestFlatScanner : public ::testing::Test {
       if (!is_null) {
         ASSERT_EQ(values_[j++], val) << i <<"V"<< j;
       }
-      if (!d->is_required()) {
+      if (d->max_definition_level() > 0) {
         ASSERT_EQ(def_levels_[i], def_level) << i <<"D"<< j;
       }
-      if (d->is_repeated()) {
+      if (d->max_repetition_level() > 0) {
         ASSERT_EQ(rep_levels_[i], rep_level) << i <<"R"<< j;
       }
     }
@@ -238,7 +238,7 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
   CheckResults(1, &d);
 }
 
-TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
+TEST_F(TestFlatFLBAScanner, TestDescriptorAPI) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::OPTIONAL,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   const ColumnDescriptor d(type, 4, 0);
@@ -249,6 +249,16 @@ TEST_F(TestFlatFLBAScanner, TestScannerCoverage) {
   ASSERT_EQ(10, scanner->descr()->type_precision());
   ASSERT_EQ(2, scanner->descr()->type_scale());
   ASSERT_EQ(FLBA_LENGTH, scanner->descr()->type_length());
+}
+
+TEST_F(TestFlatFLBAScanner, TestFLBAPrinterNext) {
+  NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::OPTIONAL,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
+  const ColumnDescriptor d(type, 4, 0);
+  MakePages(&d, 1, 100);
+  InitScanner(&d);
+  TypedScanner<FLBAType::type_num>* scanner =
+    reinterpret_cast<TypedScanner<FLBAType::type_num>* >(scanner_.get());
   bool is_null = false;
   size_t j = 0;
   scanner->SetBatchSize(batch_size);

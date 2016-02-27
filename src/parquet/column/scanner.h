@@ -45,8 +45,8 @@ class Scanner {
       values_buffered_(0),
       reader_(reader) {
     // TODO: don't allocate for required fields
-    def_levels_.resize(!reader->descr()->is_required() ? batch_size_ : 0);
-    rep_levels_.resize(reader->descr()->is_repeated() ? batch_size_ : 0);
+    def_levels_.resize(descr()->max_definition_level() > 0 ? batch_size_ : 0);
+    rep_levels_.resize(descr()->max_repetition_level() > 0 ? batch_size_ : 0);
   }
 
   virtual ~Scanner() {}
@@ -114,10 +114,8 @@ class TypedScanner : public Scanner {
         return false;
       }
     }
-    *def_level = !descr()->is_required() ?
-      def_levels_[level_offset_] : descr()->max_definition_level();
-    *rep_level = descr()->is_repeated() ?
-      rep_levels_[level_offset_] : descr()->max_repetition_level();
+    *def_level = descr()->max_definition_level() > 0 ? def_levels_[level_offset_] : 0;
+    *rep_level = descr()->max_repetition_level() > 0 ? rep_levels_[level_offset_] : 0;
     level_offset_++;
     return true;
   }

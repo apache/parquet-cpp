@@ -23,5 +23,5 @@ install(FILES
   DESTINATION include/parquet)
 
 ADD_PARQUET_TEST(public-api-test)
-ADD_PARQUET_TEST(parquet-types-test)
+ADD_PARQUET_TEST(types-test)
 ADD_PARQUET_TEST(reader-test)
