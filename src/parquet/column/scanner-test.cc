@@ -108,7 +108,7 @@ class TestFlatScanner : public ::testing::Test {
     int16_t rep_level;
     size_t j = 0;
     scanner->SetBatchSize(batch_size);
-    for (size_t i = 0; i < num_levels_; i++) {
+    for (int i = 0; i < num_levels_; i++) {
       ASSERT_TRUE(scanner->Next(&val, &def_level, &rep_level, &is_null)) << i << j;
       if (!is_null) {
         ASSERT_EQ(values_[j++], val) << i <<"V"<< j;
@@ -193,7 +193,7 @@ template<>
 void TestFlatScanner<ByteArrayType>::InitValues() {
   int max_byte_array_len = 12;
   int num_bytes = max_byte_array_len + sizeof(uint32_t);
-  size_t nbytes = num_values_ * num_bytes;
+  int nbytes = num_values_ * num_bytes;
   data_buffer_.resize(nbytes);
   random_byte_array(num_values_, 0, data_buffer_.data(), values_.data(),
       max_byte_array_len);
@@ -201,7 +201,7 @@ void TestFlatScanner<ByteArrayType>::InitValues() {
 
 template<>
 void TestFlatScanner<FLBAType>::InitValues() {
-  size_t nbytes = num_values_ * FLBA_LENGTH;
+  int nbytes = num_values_ * FLBA_LENGTH;
   data_buffer_.resize(nbytes);
   random_fixed_byte_array(num_values_, 0, data_buffer_.data(), FLBA_LENGTH,
       values_.data());

@@ -186,7 +186,7 @@ static inline std::string FixedLenByteArrayToString(const FixedLenByteArray& a, 
 }
 
 static inline int ByteCompare(const ByteArray& x1, const ByteArray& x2) {
-  int len = std::min(x1.len, x2.len);
+  uint32_t len = std::min(x1.len, x2.len);
   int cmp = memcmp(x1.ptr, x2.ptr, len);
   if (cmp != 0) return cmp;
   if (len < x1.len) return 1;
