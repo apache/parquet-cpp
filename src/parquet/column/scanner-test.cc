@@ -259,7 +259,6 @@ TEST_F(TestFlatFLBAScanner, TestFLBAPrinterNext) {
   InitScanner(&d);
   TypedScanner<FLBAType::type_num>* scanner =
     reinterpret_cast<TypedScanner<FLBAType::type_num>* >(scanner_.get());
-  bool is_null = false;
   size_t j = 0;
   scanner->SetBatchSize(batch_size);
   std::stringstream ss_fail;
@@ -267,9 +266,6 @@ TEST_F(TestFlatFLBAScanner, TestFLBAPrinterNext) {
     std::stringstream ss;
     scanner->PrintNext(ss, 17);
     std::string result = ss.str();
-    if (is_null) {
-      ASSERT_EQ(0, result.compare(0, 4, "NULL"));
-    }
     ASSERT_LE(17, result.size()) << i;
   }
   ASSERT_THROW(scanner->PrintNext(ss_fail, 17), ParquetException);
