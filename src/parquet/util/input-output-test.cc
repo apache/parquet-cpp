@@ -61,10 +61,12 @@ class TestFileReaders : public ::testing::Test {
     if (file_exists(test_path_)) {
       std::remove(test_path_.c_str());
     }
+    test_data_ = "testingdata";
+
     std::ofstream stream;
     stream.open(test_path_.c_str());
-    stream << "testingdata";
-    filesize_ = 10;
+    stream << test_data_;
+    filesize_ = test_data_.size();
   }
 
   void TearDown() {
@@ -80,6 +82,7 @@ class TestFileReaders : public ::testing::Test {
  protected:
   ReaderType source;
   std::string test_path_;
+  std::string test_data_;
   int filesize_;
 };
 
@@ -89,6 +92,21 @@ TYPED_TEST_CASE(TestFileReaders, ReaderTypes);
 
 TYPED_TEST(TestFileReaders, NonExistentFile) {
   ASSERT_THROW(this->source.Open("0xDEADBEEF.txt"), ParquetException);
+}
+
+TYPED_TEST(TestFileReaders, Read) {
+  this->source.Open(this->test_path_);
+
+  ASSERT_EQ(this->filesize_, this->source.Size());
+
+  std::shared_ptr<Buffer> buffer = this->source.Read(4);
+  ASSERT_EQ(4, buffer->size());
+  ASSERT_EQ(0, memcmp(this->test_data_.c_str(), buffer->data(), 4));
+
+  // Read past EOF
+  buffer = this->source.Read(10);
+  ASSERT_EQ(7, buffer->size());
+  ASSERT_EQ(0, memcmp(this->test_data_.c_str() + 4, buffer->data(), 7));
 }
 
 TYPED_TEST(TestFileReaders, FileDisappeared) {
