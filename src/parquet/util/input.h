@@ -58,7 +58,7 @@ class LocalFileSource : public RandomAccessSource {
   LocalFileSource() : file_(nullptr), is_open_(false) {}
   virtual ~LocalFileSource();
 
-  void Open(const std::string& path);
+  virtual void Open(const std::string& path);
 
   virtual void Close();
   virtual int64_t Size() const;
@@ -95,7 +95,7 @@ class MemoryMapSource : public LocalFileSource {
   virtual ~MemoryMapSource();
 
   virtual void Close();
-  void Open(const std::string& path);
+  virtual void Open(const std::string& path);
 
   virtual int64_t Tell() const;
   virtual void Seek(int64_t pos);
