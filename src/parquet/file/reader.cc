@@ -65,7 +65,9 @@ RowGroupStatistics RowGroupReader::GetColumnStats(int i) const {
 // ParquetFileReader public API
 
 ParquetFileReader::ParquetFileReader() : schema_(nullptr) {}
-ParquetFileReader::~ParquetFileReader() {}
+ParquetFileReader::~ParquetFileReader() {
+  Close();
+}
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(const std::string& path,
     bool memory_map) {
