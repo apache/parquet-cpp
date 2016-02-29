@@ -259,10 +259,9 @@ TEST_F(TestFlatFLBAScanner, TestFLBAPrinterNext) {
   InitScanner(&d);
   TypedScanner<FLBAType::type_num>* scanner =
     reinterpret_cast<TypedScanner<FLBAType::type_num>* >(scanner_.get());
-  size_t j = 0;
   scanner->SetBatchSize(batch_size);
   std::stringstream ss_fail;
-  for (size_t i = 0; i < num_levels_; i++) {
+  for (int i = 0; i < num_levels_; i++) {
     std::stringstream ss;
     scanner->PrintNext(ss, 17);
     std::string result = ss.str();
@@ -270,8 +269,6 @@ TEST_F(TestFlatFLBAScanner, TestFLBAPrinterNext) {
   }
   ASSERT_THROW(scanner->PrintNext(ss_fail, 17), ParquetException);
 }
-
-//Test for GroupNode
 
 } // namespace test
 } // namespace parquet_cpp
