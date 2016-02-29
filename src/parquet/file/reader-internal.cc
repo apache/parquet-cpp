@@ -211,6 +211,10 @@ std::unique_ptr<ParquetFileReader::Contents> SerializedFile::Open(
   return result;
 }
 
+SerializedFile::~SerializedFile() {
+  Close();
+}
+
 void SerializedFile::Close() {
   source_->Close();
 }
