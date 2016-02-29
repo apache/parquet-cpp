@@ -19,6 +19,7 @@
 
 #include <sys/mman.h>
 #include <algorithm>
+#include <sstream>
 #include <string>
 
 #include "parquet/exception.h"
@@ -43,11 +44,30 @@ LocalFileSource::~LocalFileSource() {
 
 void LocalFileSource::Open(const std::string& path) {
   path_ = path;
-  file_ = fopen(path_.c_str(), "r");
+  file_ = fopen(path_.c_str(), "rb");
+  if (file_ == nullptr || ferror(file_)) {
+    std::stringstream ss;
+    ss << "Unable to open file: " << path;
+    throw ParquetException(ss.str());
+  }
   is_open_ = true;
-  fseek(file_, 0L, SEEK_END);
+  SeekFile(0, SEEK_END);
   size_ = LocalFileSource::Tell();
   Seek(0);
+}
+
+void LocalFileSource::SeekFile(int64_t pos, int origin) {
+  if (origin == SEEK_SET && (pos < 0 || pos >= size_)) {
+    std::stringstream ss;
+    ss << "Position " << pos << " is not in range.";
+    throw ParquetException(ss.str());
+  }
+
+  if (0 != fseek(file_, pos, origin)) {
+    std::stringstream ss;
+    ss << "File seek to position " << pos << " failed.";
+    throw ParquetException(ss.str());
+  }
 }
 
 void LocalFileSource::Close() {
@@ -63,7 +83,7 @@ void LocalFileSource::CloseFile() {
 }
 
 void LocalFileSource::Seek(int64_t pos) {
-  fseek(file_, pos, SEEK_SET);
+  SeekFile(pos);
 }
 
 int64_t LocalFileSource::Size() const {
@@ -71,7 +91,15 @@ int64_t LocalFileSource::Size() const {
 }
 
 int64_t LocalFileSource::Tell() const {
-  return ftell(file_);
+  int64_t position = ftell(file_);
+  if (position < 0) {
+    throw ParquetException("ftell failed, did the file disappear?");
+  }
+  return position;
+}
+
+int LocalFileSource::file_descriptor() const {
+  return fileno(file_);
 }
 
 int64_t LocalFileSource::Read(int64_t nbytes, uint8_t* buffer) {
@@ -119,6 +147,12 @@ void MemoryMapSource::CloseFile() {
 }
 
 void MemoryMapSource::Seek(int64_t pos) {
+  if (pos < 0 || pos >= size_) {
+    std::stringstream ss;
+    ss << "Position " << pos << " is not in range.";
+    throw ParquetException(ss.str());
+  }
+
   pos_ = pos;
 }
 

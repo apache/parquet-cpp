@@ -18,8 +18,8 @@
 #ifndef PARQUET_UTIL_INPUT_H
 #define PARQUET_UTIL_INPUT_H
 
-#include <stdio.h>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
@@ -73,8 +73,12 @@ class LocalFileSource : public RandomAccessSource {
   bool is_open() const { return is_open_;}
   const std::string& path() const { return path_;}
 
+  // Return the integer file descriptor
+  int file_descriptor() const;
+
  protected:
   void CloseFile();
+  void SeekFile(int64_t pos, int origin = SEEK_SET);
 
   std::string path_;
   FILE* file_;

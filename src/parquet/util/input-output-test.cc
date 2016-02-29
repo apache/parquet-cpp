@@ -18,10 +18,16 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "parquet/exception.h"
 #include "parquet/util/buffer.h"
+#include "parquet/util/input.h"
 #include "parquet/util/output.h"
 #include "parquet/util/test-common.h"
 
@@ -41,6 +47,61 @@ TEST(TestInMemoryOutputStream, Basics) {
   Buffer data_buf(data.data(), data.size());
 
   ASSERT_TRUE(data_buf.Equals(*buffer));
+}
+
+static bool file_exists(const std::string& path) {
+  return std::ifstream(path.c_str()).good();
+}
+
+template <typename ReaderType>
+class TestFileReaders : public ::testing::Test {
+ public:
+  void SetUp() {
+    test_path_ = "parquet-input-output-test.txt";
+    if (file_exists(test_path_)) {
+      std::remove(test_path_.c_str());
+    }
+    std::ofstream stream;
+    stream.open(test_path_.c_str());
+    stream << "testingdata";
+    filesize_ = 10;
+  }
+
+  void TearDown() {
+    DeleteTestFile();
+  }
+
+  void DeleteTestFile() {
+    if (file_exists(test_path_)) {
+      std::remove(test_path_.c_str());
+    }
+  }
+
+ protected:
+  ReaderType source;
+  std::string test_path_;
+  int filesize_;
+};
+
+typedef ::testing::Types<LocalFileSource, MemoryMapSource> ReaderTypes;
+
+TYPED_TEST_CASE(TestFileReaders, ReaderTypes);
+
+TYPED_TEST(TestFileReaders, NonExistentFile) {
+  ASSERT_THROW(this->source.Open("0xDEADBEEF.txt"), ParquetException);
+}
+
+TYPED_TEST(TestFileReaders, FileDisappeared) {
+  this->source.Open(this->test_path_);
+  this->source.Seek(4);
+  this->DeleteTestFile();
+  this->source.Close();
+}
+
+TYPED_TEST(TestFileReaders, BadSeek) {
+  this->source.Open(this->test_path_);
+
+  ASSERT_THROW(this->source.Seek(this->filesize_ + 1), ParquetException);
 }
 
 } // namespace parquet_cpp
