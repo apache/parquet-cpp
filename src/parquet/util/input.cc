@@ -17,6 +17,7 @@
 
 #include "parquet/util/input.h"
 
+#include <sys/mman.h>
 #include <algorithm>
 #include <string>
 
@@ -45,7 +46,7 @@ void LocalFileSource::Open(const std::string& path) {
   file_ = fopen(path_.c_str(), "r");
   is_open_ = true;
   fseek(file_, 0L, SEEK_END);
-  size_ = Tell();
+  size_ = LocalFileSource::Tell();
   Seek(0);
 }
 
@@ -85,6 +86,57 @@ std::shared_ptr<Buffer> LocalFileSource::Read(int64_t nbytes) {
   if (bytes_read < nbytes) {
     result->Resize(bytes_read);
   }
+  return result;
+}
+// ----------------------------------------------------------------------
+// MemoryMapSource methods
+
+MemoryMapSource::~MemoryMapSource() {
+  CloseFile();
+}
+
+void MemoryMapSource::Open(const std::string& path) {
+  LocalFileSource::Open(path);
+  data_ = reinterpret_cast<uint8_t*>(mmap(nullptr, size_, PROT_READ,
+          MAP_SHARED, fileno(file_), 0));
+  if (data_ == nullptr) {
+    throw ParquetException("Memory mapping file failed");
+  }
+  pos_  = 0;
+}
+
+void MemoryMapSource::Close() {
+  // Pure virtual
+  CloseFile();
+}
+
+void MemoryMapSource::CloseFile() {
+  if (data_ != nullptr) {
+    munmap(data_, size_);
+  }
+
+  LocalFileSource::CloseFile();
+}
+
+void MemoryMapSource::Seek(int64_t pos) {
+  pos_ = pos;
+}
+
+int64_t MemoryMapSource::Tell() const {
+  return pos_;
+}
+
+int64_t MemoryMapSource::Read(int64_t nbytes, uint8_t* buffer) {
+  int64_t bytes_available = std::min(nbytes, size_ - pos_);
+  memcpy(buffer, data_ + pos_, bytes_available);
+  pos_ += bytes_available;
+  return bytes_available;
+}
+
+std::shared_ptr<Buffer> MemoryMapSource::Read(int64_t nbytes) {
+  int64_t bytes_available = std::min(nbytes, size_ - pos_);
+  auto result = std::make_shared<Buffer>(data_ + pos_, bytes_available);
+  pos_ += bytes_available;
   return result;
 }
 

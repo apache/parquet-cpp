@@ -68,7 +68,7 @@ ParquetFileReader::ParquetFileReader() : schema_(nullptr) {}
 ParquetFileReader::~ParquetFileReader() {}
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(const std::string& path) {
-  std::unique_ptr<LocalFileSource> file(new LocalFileSource());
+  std::unique_ptr<MemoryMapSource> file(new MemoryMapSource());
   file->Open(path);
 
   auto contents = SerializedFile::Open(std::move(file));
