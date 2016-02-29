@@ -244,8 +244,7 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
 # Build with C++11 and SSE3 by default
 # TODO(wesm): These compiler warning suppressions should be removed one by one
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -msse3 -Wall -Wno-unused-value -Wno-unused-variable")
-
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -msse3 -Wall -Wno-unused-variable")
 
 if (APPLE)
   # Use libc++ to avoid linker errors on some platforms
