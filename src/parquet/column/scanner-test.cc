@@ -52,48 +52,6 @@ class TestFlatScanner : public ::testing::Test {
  public:
   typedef typename Type::c_type T;
 
-  void InitValues() {
-    random_numbers(num_values_, 0, std::numeric_limits<T>::min(),
-        std::numeric_limits<T>::max(), values_.data());
-  }
-
-  void MakePages(const ColumnDescriptor *d, int num_pages, int levels_per_page) {
-    num_levels_ = levels_per_page * num_pages;
-    num_values_ = 0;
-    uint32_t seed = 0;
-    int16_t zero = 0;
-    int16_t max_def_level = d->max_definition_level();
-    int16_t max_rep_level = d->max_repetition_level();
-    vector<int> values_per_page(num_pages, levels_per_page);
-    // Create definition levels
-    if (max_def_level > 0) {
-      def_levels_.resize(num_levels_);
-      random_numbers(num_levels_, seed, zero, max_def_level, def_levels_.data());
-      for (int p = 0; p < num_pages; p++) {
-        int num_values_per_page = 0;
-        for (int i = 0; i < levels_per_page; i++) {
-          if (def_levels_[i + p * levels_per_page] == max_def_level) {
-            num_values_per_page++;
-            num_values_++;
-          }
-        }
-        values_per_page[p] = num_values_per_page;
-      }
-    } else {
-      num_values_ = num_levels_;
-    }
-    // Create repitition levels
-    if (max_rep_level > 0) {
-      rep_levels_.resize(num_levels_);
-      random_numbers(num_levels_, seed, zero, max_rep_level, rep_levels_.data());
-    }
-    // Create values
-    values_.resize(num_values_);
-    InitValues();
-    Paginate<Type::type_num>(d, values_, def_levels_, max_def_level,
-        rep_levels_, max_rep_level, levels_per_page, values_per_page, pages_);
-  }
-
   void InitScanner(const ColumnDescriptor *d) {
     std::unique_ptr<PageReader> pager(new test::MockPageReader(pages_));
     scanner_ = Scanner::Make(ColumnReader::Make(d, std::move(pager)));
@@ -131,9 +89,11 @@ class TestFlatScanner : public ::testing::Test {
     rep_levels_.clear();
   }
 
-  void Execute(int num_pages, int levels_page, int batch_size,
+  void Execute(int num_pages, int levels_per_page, int batch_size,
       const ColumnDescriptor *d) {
-    MakePages(d, num_pages, levels_page);
+    num_values_ = MakePlainPages<Type>(d, num_pages, levels_per_page, def_levels_, rep_levels_,
+        values_, data_buffer_, pages_);
+    num_levels_ = num_pages * levels_per_page;
     InitScanner(d);
     CheckResults(batch_size, d);
     Clear();
@@ -178,35 +138,6 @@ class TestFlatScanner : public ::testing::Test {
   vector<uint8_t> data_buffer_; // For BA and FLBA
 };
 
-template<>
-void TestFlatScanner<BooleanType>::InitValues() {
-  values_ = flip_coins(num_values_, 0);
-}
-
-template<>
-void TestFlatScanner<Int96Type>::InitValues() {
-  random_Int96_numbers(num_values_, 0, std::numeric_limits<int32_t>::min(),
-      std::numeric_limits<int32_t>::max(), values_.data());
-}
-
-template<>
-void TestFlatScanner<ByteArrayType>::InitValues() {
-  int max_byte_array_len = 12;
-  int num_bytes = max_byte_array_len + sizeof(uint32_t);
-  int nbytes = num_values_ * num_bytes;
-  data_buffer_.resize(nbytes);
-  random_byte_array(num_values_, 0, data_buffer_.data(), values_.data(),
-      max_byte_array_len);
-}
-
-template<>
-void TestFlatScanner<FLBAType>::InitValues() {
-  int nbytes = num_values_ * FLBA_LENGTH;
-  data_buffer_.resize(nbytes);
-  random_fixed_byte_array(num_values_, 0, data_buffer_.data(), FLBA_LENGTH,
-      values_.data());
-}
-
 typedef TestFlatScanner<FLBAType> TestFlatFLBAScanner;
 
 static int num_levels_per_page = 100;
@@ -233,7 +164,9 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   const ColumnDescriptor d(type, 0, 0);
-  MakePages(&d, 1, 100);
+  num_values_ = MakePlainPages<FLBAType>(&d, 1, 100, def_levels_, rep_levels_, values_,
+      data_buffer_, pages_);
+  num_levels_ = 1 * 100;
   InitScanner(&d);
   CheckResults(1, &d);
 }
