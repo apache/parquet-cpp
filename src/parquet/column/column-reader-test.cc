@@ -45,7 +45,6 @@ namespace test {
 
 class TestPrimitiveReader : public ::testing::Test {
  public:
-
   void InitReader(const ColumnDescriptor* d) {
     std::unique_ptr<PageReader> pager_;
     pager_.reset(new test::MockPageReader(pages_));
@@ -89,9 +88,21 @@ class TestPrimitiveReader : public ::testing::Test {
     ASSERT_EQ(0, values_read);
   }
 
-  void execute(int num_pages, int levels_per_page, const ColumnDescriptor *d) {
-    num_values_ = MakePlainPages<Int32Type>(d, num_pages, levels_per_page, def_levels_,
-        rep_levels_, values_, data_buffer_, pages_);
+  void executePlain(int num_pages, int levels_per_page, const ColumnDescriptor *d) {
+    num_values_ = MakePages<Int32Type>(d, num_pages, levels_per_page, def_levels_,
+        rep_levels_, values_, data_buffer_, pages_, Encoding::PLAIN);
+    num_levels_ = num_pages * levels_per_page;
+    InitReader(d);
+    CheckResults();
+    values_.clear();
+    def_levels_.clear();
+    rep_levels_.clear();
+    pages_.clear();
+  }
+
+  void executeDict(int num_pages, int levels_per_page, const ColumnDescriptor *d) {
+    num_values_ = MakePages<Int32Type>(d, num_pages, levels_per_page, def_levels_,
+        rep_levels_, values_, data_buffer_, pages_, Encoding::RLE_DICTIONARY);
     num_levels_ = num_pages * levels_per_page;
     InitReader(d);
     CheckResults();
@@ -117,7 +128,8 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequired) {
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("a", Repetition::REQUIRED);
   const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
-  execute(num_pages, levels_per_page, &descr);
+  executePlain(num_pages, levels_per_page, &descr);
+  executeDict(num_pages, levels_per_page, &descr);
 }
 
 TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
@@ -127,7 +139,8 @@ TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("b", Repetition::OPTIONAL);
   const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
-  execute(num_pages, levels_per_page, &descr);
+  executePlain(num_pages, levels_per_page, &descr);
+  // executeDict(num_pages, levels_per_page, &descr);
 }
 
 TEST_F(TestPrimitiveReader, TestInt32FlatRepeated) {
@@ -137,7 +150,8 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRepeated) {
   max_rep_level_ = 2;
   NodePtr type = schema::Int32("c", Repetition::REPEATED);
   const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
-  execute(num_pages, levels_per_page, &descr);
+  executePlain(num_pages, levels_per_page, &descr);
+  //  executeDict(num_pages, levels_per_page, &descr);
 }
 
 } // namespace test

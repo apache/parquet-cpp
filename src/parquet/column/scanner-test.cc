@@ -91,7 +91,7 @@ class TestFlatScanner : public ::testing::Test {
 
   void Execute(int num_pages, int levels_per_page, int batch_size,
       const ColumnDescriptor *d) {
-    num_values_ = MakePlainPages<Type>(d, num_pages, levels_per_page, def_levels_, rep_levels_,
+    num_values_ = MakePages<Type>(d, num_pages, levels_per_page, def_levels_, rep_levels_,
         values_, data_buffer_, pages_);
     num_levels_ = num_pages * levels_per_page;
     InitScanner(d);
@@ -164,7 +164,7 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
   const ColumnDescriptor d(type, 0, 0);
-  num_values_ = MakePlainPages<FLBAType>(&d, 1, 100, def_levels_, rep_levels_, values_,
+  num_values_ = MakePages<FLBAType>(&d, 1, 100, def_levels_, rep_levels_, values_,
       data_buffer_, pages_);
   num_levels_ = 1 * 100;
   InitScanner(&d);
