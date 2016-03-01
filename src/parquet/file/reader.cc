@@ -93,7 +93,9 @@ void ParquetFileReader::Open(std::unique_ptr<ParquetFileReader::Contents> conten
 }
 
 void ParquetFileReader::Close() {
-  contents_->Close();
+  if (contents_) {
+    contents_->Close();
+  }
 }
 
 int ParquetFileReader::num_row_groups() const {
