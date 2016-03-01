@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   bool memory_map = true;
 
   // Read command-line options
-  char *param, *value;
+  char *param;
   for (int i = 1; i < argc; i++) {
     if ((param = std::strstr(argv[i], "--only-stats"))) {
       print_values = false;

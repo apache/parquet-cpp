@@ -218,13 +218,13 @@ bool CheckRoundTrip(const vector<int>& values, int bit_width) {
       return false;
     }
   }
-  int encoded_len = encoder.Flush();
+  encoder.Flush();
   int out;
 
   RleDecoder decoder(buffer, len, bit_width);
   for (size_t i = 0; i < values.size(); ++i) {
-    uint64_t val;
     bool result = decoder.Get(&out);
+    EXPECT_TRUE(result);
     if (values[i] != out) {
       return false;
     }
@@ -354,7 +354,6 @@ TEST(BitRle, Random) {
   std::random_device rd;
   std::uniform_int_distribution<int> dist(1, 20);
 
-  uint32_t seed = 0;
   for (int iter = 0; iter < niters; ++iter) {
     // generate a seed with device entropy
     uint32_t seed = rd();
