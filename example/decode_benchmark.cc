@@ -228,7 +228,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
   }
   DeltaBitPackDecoder<Type::INT64> decoder(nullptr);
   DeltaBitPackEncoder encoder(mini_block_size);
-  for (int i = 0; i < values.size(); ++i) {
+  for (size_t i = 0; i < values.size(); ++i) {
     encoder.Add(values[i]);
   }
 
@@ -262,7 +262,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const vector<int64_t>& value
     sw.Start();\
     for (int k = 0; k < benchmark_iters; ++k) {
       decoder.SetData(encoder.num_values(), buffer, len);
-      for (int i = 0; i < values.size();) {
+      for (size_t i = 0; i < values.size();) {
         int n = decoder.Decode(buf, benchmark_batch_size);
         for (int j = 0; j < n; ++j) {
           result += buf[j];
@@ -363,7 +363,7 @@ void TestDeltaLengthByteArray() {
   values.push_back("Foobar");
   values.push_back("ABCDEF");
 
-  for (int i = 0; i < values.size(); ++i) {
+  for (size_t i = 0; i < values.size(); ++i) {
     encoder.Add(values[i]);
   }
 
@@ -401,7 +401,7 @@ void TestDeltaByteArray() {
   values.push_back("nacarat");
   values.push_back("nacelle");
 
-  for (int i = 0; i < values.size(); ++i) {
+  for (size_t i = 0; i < values.size(); ++i) {
     encoder.Add(values[i]);
   }
 
