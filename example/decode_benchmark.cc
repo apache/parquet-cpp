@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <parquet/parquet.h>
 #include <iostream>
 #include <stdio.h>
 

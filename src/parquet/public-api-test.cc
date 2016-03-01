@@ -16,7 +16,10 @@
 // under the License.
 
 #include <gtest/gtest.h>
-#include "parquet/parquet.h"
+
+#include "parquet/api/io.h"
+#include "parquet/api/reader.h"
+#include "parquet/api/schema.h"
 
 namespace parquet_cpp {
 
