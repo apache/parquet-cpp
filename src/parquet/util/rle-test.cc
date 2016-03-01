@@ -218,13 +218,12 @@ bool CheckRoundTrip(const vector<int>& values, int bit_width) {
       return false;
     }
   }
-  encoder.Flush();
+  int encoded_len = encoder.Flush();
   int out;
 
-  RleDecoder decoder(buffer, len, bit_width);
+  RleDecoder decoder(buffer, encoded_len, bit_width);
   for (size_t i = 0; i < values.size(); ++i) {
-    bool result = decoder.Get(&out);
-    EXPECT_TRUE(result);
+    EXPECT_TRUE(decoder.Get(&out));
     if (values[i] != out) {
       return false;
     }
