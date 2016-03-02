@@ -40,9 +40,8 @@ namespace parquet_cpp {
 
 using schema::NodePtr;
 
-static int FLBA_LENGTH = 12;
 bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
-  return 0 == memcmp(a.ptr, b.ptr, FLBA_LENGTH);
+  return 0 == memcmp(a.ptr, b.ptr, test::FLBA_LENGTH);
 }
 
 namespace test {
@@ -69,7 +68,8 @@ class TestFlatScanner : public ::testing::Test {
     for (int i = 0; i < num_levels_; i++) {
       ASSERT_TRUE(scanner->Next(&val, &def_level, &rep_level, &is_null)) << i << j;
       if (!is_null) {
-        ASSERT_EQ(values_[j++], val) << i <<"V"<< j;
+        ASSERT_EQ(values_[j], val) << i <<"V"<< j;
+        j++;
       }
       if (d->max_definition_level() > 0) {
         ASSERT_EQ(def_levels_[i], def_level) << i <<"D"<< j;
@@ -90,9 +90,9 @@ class TestFlatScanner : public ::testing::Test {
   }
 
   void Execute(int num_pages, int levels_per_page, int batch_size,
-      const ColumnDescriptor *d) {
+      const ColumnDescriptor *d, Encoding::type encoding) {
     num_values_ = MakePages<Type>(d, num_pages, levels_per_page, def_levels_, rep_levels_,
-        values_, data_buffer_, pages_);
+        values_, data_buffer_, pages_, encoding);
     num_levels_ = num_pages * levels_per_page;
     InitScanner(d);
     CheckResults(batch_size, d);
@@ -114,17 +114,18 @@ class TestFlatScanner : public ::testing::Test {
     d3.reset(new ColumnDescriptor(type, 4, 2));
   }
 
-  void ExecuteAll(int num_pages, int num_levels, int batch_size, int type_length) {
+  void ExecuteAll(int num_pages, int num_levels, int batch_size, int type_length,
+      Encoding::type encoding = Encoding::PLAIN) {
     std::shared_ptr<ColumnDescriptor> d1;
     std::shared_ptr<ColumnDescriptor> d2;
     std::shared_ptr<ColumnDescriptor> d3;
     InitDescriptors(d1, d2, d3, type_length);
     // evaluate REQUIRED pages
-    Execute(num_pages, num_levels, batch_size, d1.get());
+    Execute(num_pages, num_levels, batch_size, d1.get(), encoding);
     // evaluate OPTIONAL pages
-    Execute(num_pages, num_levels, batch_size, d2.get());
+    Execute(num_pages, num_levels, batch_size, d2.get(), encoding);
     // evaluate REPEATED pages
-    Execute(num_pages, num_levels, batch_size, d3.get());
+    Execute(num_pages, num_levels, batch_size, d3.get(), encoding);
   }
 
  protected:
@@ -144,19 +145,34 @@ static int num_levels_per_page = 100;
 static int num_pages = 20;
 static int batch_size = 32;
 
-typedef ::testing::Types<BooleanType, Int32Type, Int64Type, Int96Type,
+typedef ::testing::Types<Int32Type, Int64Type, Int96Type,
                          FloatType, DoubleType, ByteArrayType> TestTypes;
 
+typedef TestFlatScanner<BooleanType> TestBooleanFlatScanner;
 typedef TestFlatScanner<FLBAType> TestFLBAFlatScanner;
 
 TYPED_TEST_CASE(TestFlatScanner, TestTypes);
 
-TYPED_TEST(TestFlatScanner, TestScanner) {
-  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, 0);
+TYPED_TEST(TestFlatScanner, TestPlainScanner) {
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, 0, Encoding::PLAIN);
 }
 
-TEST_F(TestFLBAFlatScanner, TestScanner) {
+TYPED_TEST(TestFlatScanner, TestDictScanner) {
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, 0,
+      Encoding::RLE_DICTIONARY);
+}
+
+TEST_F(TestBooleanFlatScanner, TestPlainScanner) {
   this->ExecuteAll(num_pages, num_levels_per_page, batch_size, FLBA_LENGTH);
+}
+
+TEST_F(TestFLBAFlatScanner, TestPlainScanner) {
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, FLBA_LENGTH);
+}
+
+TEST_F(TestFLBAFlatScanner, TestDictScanner) {
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, FLBA_LENGTH,
+      Encoding::RLE_DICTIONARY);
 }
 
 //PARQUET 502

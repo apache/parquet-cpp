@@ -44,6 +44,8 @@ namespace parquet_cpp {
 
 namespace test {
 
+static int FLBA_LENGTH = 12;
+
 class MockPageReader : public PageReader {
  public:
   explicit MockPageReader(const vector<shared_ptr<Page> >& pages) :
@@ -198,7 +200,7 @@ class DictionaryPageBuilder {
     int actual_bytes = encoder.WriteIndices(rle_indices_->mutable_data(),
       rle_indices_->size());
     rle_indices_->Resize(actual_bytes);
-    num_dict_values_ = dict_buffer_->size() / sizeof(TC);
+    num_dict_values_ = encoder.num_entries();
 
     sink_->Write(reinterpret_cast<const uint8_t*>(dict_buffer_->data()),
         dict_buffer_->size());
@@ -356,20 +358,20 @@ static void InitValues(int num_values, vector<T>& values,
 }
 
 template<>
-void InitValues(int num_values,  vector<bool>& values,
+void InitValues<bool>(int num_values,  vector<bool>& values,
      vector<uint8_t>& buffer) {
   values = flip_coins(num_values, 0);
 }
 
 template<>
-void InitValues(int num_values, vector<Int96>& values,
+void InitValues<Int96>(int num_values, vector<Int96>& values,
     vector<uint8_t>& buffer) {
   random_Int96_numbers(num_values, 0, std::numeric_limits<int32_t>::min(),
       std::numeric_limits<int32_t>::max(), values.data());
 }
 
 template<>
-void InitValues(int num_values, vector<ByteArray>& values,
+void InitValues<ByteArray>(int num_values, vector<ByteArray>& values,
     vector<uint8_t>& buffer) {
   int max_byte_array_len = 12;
   int num_bytes = max_byte_array_len + sizeof(uint32_t);
@@ -380,31 +382,36 @@ void InitValues(int num_values, vector<ByteArray>& values,
 }
 
 template<>
-void InitValues(int num_values, vector<FLBA>& values,
+void InitValues<FLBA>(int num_values, vector<FLBA>& values,
     vector<uint8_t>& buffer) {
-  int flba_length = 12;
-  size_t nbytes = num_values * flba_length;
+  size_t nbytes = num_values * FLBA_LENGTH;
   buffer.resize(nbytes);
-  random_fixed_byte_array(num_values, 0, buffer.data(), flba_length,
+  random_fixed_byte_array(num_values, 0, buffer.data(), FLBA_LENGTH,
       values.data());
 }
 
 template <typename T>
-static void InitDictValues(int num_values, int dict_per_page,
+static void InitDictValues(int num_values, int num_dicts,
     vector<T>& values, vector<uint8_t>& buffer) {
-  int repeat_factor = num_values / dict_per_page;
-  InitValues<T>(dict_per_page, values, buffer);
+  int repeat_factor = num_values / num_dicts;
+  InitValues<T>(num_dicts, values, buffer);
   // add some repeated values
   for (int j = 1; j < repeat_factor; ++j) {
-    for (int i = 0; i < dict_per_page; ++i) {
-      values[dict_per_page * j + i] = values[i];
+    for (int i = 0; i < num_dicts; ++i) {
+      memcpy(&values[num_dicts * j + i], &values[i], sizeof(T));
     }
   }
   // computed only dict_per_page * repeat_factor - 1 values < num_values
   // compute remaining
-  for (int i = dict_per_page * repeat_factor; i < num_values; ++i) {
-    values[i] = values[i - dict_per_page * repeat_factor];
+  for (int i = num_dicts * repeat_factor; i < num_values; ++i) {
+    memcpy(&values[i], &values[i - num_dicts * repeat_factor], sizeof(T));
   }
+}
+
+template <>
+void InitDictValues<bool>(int num_values, int dict_per_page,
+    vector<bool>& values, vector<uint8_t>& buffer) {
+  //No op for bool
 }
 
 // Generates plain pages from randomly generated data
