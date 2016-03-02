@@ -59,13 +59,13 @@ static void InitDictValues(int num_values, int num_dicts,
   // add some repeated values
   for (int j = 1; j < repeat_factor; ++j) {
     for (int i = 0; i < num_dicts; ++i) {
-      memcpy(&values[num_dicts * j + i], &values[i], sizeof(T));
+      std::memcpy(&values[num_dicts * j + i], &values[i], sizeof(T));
     }
   }
   // computed only dict_per_page * repeat_factor - 1 values < num_values
   // compute remaining
   for (int i = num_dicts * repeat_factor; i < num_values; ++i) {
-    memcpy(&values[i], &values[i - num_dicts * repeat_factor], sizeof(T));
+    std::memcpy(&values[i], &values[i - num_dicts * repeat_factor], sizeof(T));
   }
 }
 
@@ -245,21 +245,22 @@ class DictionaryPageBuilder {
   static constexpr int TN = TYPE::type_num;
 
   // This class writes data and metadata to the passed inputs
-  explicit DictionaryPageBuilder(const ColumnDescriptor *d,
-      InMemoryOutputStream* sink, Encoding::type encoding = Encoding::RLE_DICTIONARY) :
-      sink_(sink),
+  explicit DictionaryPageBuilder(const ColumnDescriptor *d) :
       num_dict_values_(0),
-      encoding_(Encoding::RLE_DICTIONARY),
       have_values_(false) {
         int type_length = 0;
         if (TN == Type::FIXED_LEN_BYTE_ARRAY) {
           type_length = d->type_length();
         }
         encoder_.reset(new DictEncoder<TC>(&pool_, type_length));
-        encoding_ = encoding;
   }
 
-  void AppendValues(const vector<TC>& values) {
+  ~DictionaryPageBuilder() {
+    pool_.FreeAll();
+  }
+
+  shared_ptr<Buffer> AppendValues(const vector<TC>& values) {
+    shared_ptr<OwnedMutableBuffer> rle_indices = std::make_shared<OwnedMutableBuffer>();
     int num_values = values.size();
     // Dictionary encoding
     for (int i = 0; i < num_values; ++i) {
@@ -267,58 +268,41 @@ class DictionaryPageBuilder {
     }
     num_dict_values_ = encoder_->num_entries();
     have_values_ = true;
+    rle_indices->Resize(sizeof(int) * encoder_->EstimatedDataEncodedSize());
+    int actual_bytes = encoder_->WriteIndices(rle_indices->mutable_data(),
+        rle_indices->size());
+    rle_indices->Resize(actual_bytes);
+    encoder_->ClearIndices();
+    return rle_indices;
   }
 
-  void WriteDict() {
+  shared_ptr<Buffer> WriteDict() {
     shared_ptr<OwnedMutableBuffer> dict_buffer = std::make_shared<OwnedMutableBuffer>();
     dict_buffer->Resize(encoder_->dict_encoded_size());
     encoder_->WriteDict(dict_buffer->mutable_data());
-    sink_->Write(reinterpret_cast<const uint8_t*>(dict_buffer->data()),
-        dict_buffer->size());
+    return dict_buffer;
   }
 
   int32_t num_values() const {
     return num_dict_values_;
   }
 
-  Encoding::type encoding() const {
-    return encoding_;
-  }
-
-  void rle_indices(shared_ptr<OwnedMutableBuffer>& rle_indices) {
-    rle_indices->Resize(sizeof(int) * encoder_->EstimatedDataEncodedSize());
-    int actual_bytes = encoder_->WriteIndices(rle_indices->mutable_data(),
-      rle_indices->size());
-    rle_indices->Resize(actual_bytes);
-  }
-
-  void free_pool() {
-    pool_.FreeAll();
-  }
-
-  void clear_indices() {
-    encoder_->ClearIndices();
-  }
-
  private:
-  InMemoryOutputStream* sink_;
   MemPool pool_;
   shared_ptr<DictEncoder<TC> > encoder_;
   int32_t num_dict_values_;
-  Encoding::type encoding_;
-
   bool have_values_;
 };
 
 template<>
-DictionaryPageBuilder<BooleanType>::DictionaryPageBuilder(const ColumnDescriptor *d,
-    InMemoryOutputStream* sink, Encoding::type encoding) {
+DictionaryPageBuilder<BooleanType>::DictionaryPageBuilder(const ColumnDescriptor *d) {
   ParquetException::NYI("only plain encoding currently implemented for boolean");
 }
 
 template<>
-void DictionaryPageBuilder<BooleanType>::WriteDict() {
+shared_ptr<Buffer> DictionaryPageBuilder<BooleanType>::WriteDict() {
   ParquetException::NYI("only plain encoding currently implemented for boolean");
+  return nullptr;
 }
 
 template <typename Type>
@@ -326,27 +310,20 @@ static shared_ptr<DictionaryPage> MakeDictPage(const ColumnDescriptor *d,
     const vector<typename Type::c_type>& values, const vector<int>& values_per_page,
     Encoding::type encoding, vector<shared_ptr<Buffer> >& rle_indices) {
   InMemoryOutputStream page_stream;
-  test::DictionaryPageBuilder<Type> page_builder(d, &page_stream, encoding);
+  test::DictionaryPageBuilder<Type> page_builder(d);
   int num_pages = values_per_page.size();
   int value_start = 0;
 
   for (int i = 0; i < num_pages; i++) {
-    page_builder.AppendValues(slice(values, value_start,
-          value_start + values_per_page[i]));
-    shared_ptr<OwnedMutableBuffer> indices_buff = std::make_shared<OwnedMutableBuffer>();
-    page_builder.rle_indices(indices_buff);
-    rle_indices.push_back(indices_buff);
+    rle_indices.push_back(page_builder.AppendValues(slice(values, value_start,
+          value_start + values_per_page[i])));
     value_start += values_per_page[i];
-    page_builder.clear_indices();
   }
 
-  page_builder.WriteDict();
+  auto buffer = page_builder.WriteDict();
 
-  auto buffer = page_stream.GetBuffer();
-
-  page_builder.free_pool();
   return std::make_shared<DictionaryPage>(buffer, page_builder.num_values(),
-      page_builder.encoding());
+      Encoding::PLAIN);
 }
 
 // Given def/rep levels and values create multiple dict pages
@@ -418,7 +395,7 @@ static void PaginatePlain(const ColumnDescriptor *d,
   }
 }
 
-// Generates plain pages from randomly generated data
+// Generates pages from randomly generated data
 template <typename Type>
 static int MakePages(const ColumnDescriptor *d, int num_pages, int levels_per_page,
     vector<int16_t>& def_levels, vector<int16_t>& rep_levels,

@@ -205,7 +205,7 @@ TYPED_TEST(TestFlatScanner, TestDictScanner) {
 }
 
 TEST_F(TestBooleanFlatScanner, TestPlainScanner) {
-  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, FLBA_LENGTH);
+  this->ExecuteAll(num_pages, num_levels_per_page, batch_size, 0);
 }
 
 TEST_F(TestFLBAFlatScanner, TestPlainScanner) {
