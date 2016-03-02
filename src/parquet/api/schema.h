@@ -15,25 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <iostream>
+#ifndef PARQUET_API_SCHEMA_H
+#define PARQUET_API_SCHEMA_H
 
-#include <parquet/api/reader.h>
-#include <parquet/api/schema.h>
+// Schemas
+#include "parquet/schema/descriptor.h"
+#include "parquet/schema/printer.h"
+#include "parquet/schema/types.h"
 
-using namespace parquet_cpp;
-
-int main(int argc, char** argv) {
-  std::string filename = argv[1];
-
-  try {
-    std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename);
-    PrintSchema(reader->descr()->schema().get(), std::cout);
-  } catch (const std::exception& e) {
-    std::cerr << "Parquet error: "
-              << e.what()
-              << std::endl;
-    return -1;
-  }
-
-  return 0;
-}
+#endif // PARQUET_API_SCHEMA_H

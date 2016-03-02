@@ -345,6 +345,7 @@ if(APPLE)
 endif()
 
 add_subdirectory(src/parquet)
+add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/compression)
 add_subdirectory(src/parquet/encodings)
