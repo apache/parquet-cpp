@@ -103,8 +103,6 @@ class DataPageBuilder {
 
   void AppendValues(const ColumnDescriptor *d, const vector<T>& values,
       Encoding::type encoding = Encoding::PLAIN) {
-    int bytes_to_encode = values.size() * sizeof(T);
-
     PlainEncoder<Type::type_num> encoder(d);
     encoder.Encode(&values[0], values.size(), sink_);
 
@@ -149,7 +147,7 @@ class DataPageBuilder {
     }
 
     // TODO: compute a more precise maximum size for the encoded levels
-    vector<uint8_t> encode_buffer(levels.size() * 4);
+    vector<uint8_t> encode_buffer(levels.size() * 2);
 
     // We encode into separate memory from the output stream because the
     // RLE-encoded bytes have to be preceded in the stream by their absolute
@@ -188,17 +186,15 @@ class DictionaryPageBuilder {
     if (TN == Type::FIXED_LEN_BYTE_ARRAY) {
       type_length = d->type_length();
     }
+    int num_values = values.size();
     DictEncoder<TC> encoder(&pool_, type_length);
-    ASSERT_NO_THROW(
-        {
-          for (int i = 0; i < values.size(); ++i) {
-            encoder.Put(values[i]);
-          }
-        });
-  // Dictionary encoding
+    for (int i = 0; i < num_values; ++i) {
+      encoder.Put(values[i]);
+    }
+    // Dictionary encoding
     dict_buffer_->Resize(encoder.dict_encoded_size());
     encoder.WriteDict(dict_buffer_->mutable_data());
-    rle_indices_->Resize(encoder.EstimatedDataEncodedSize());
+    rle_indices_->Resize(4*encoder.EstimatedDataEncodedSize());
     int actual_bytes = encoder.WriteIndices(rle_indices_->mutable_data(),
       rle_indices_->size());
     rle_indices_->Resize(actual_bytes);
@@ -227,6 +223,10 @@ class DictionaryPageBuilder {
     return rle_indices_->size();
   }
 
+  void free_pool() {
+    pool_.FreeAll();
+  }
+
  private:
   InMemoryOutputStream* sink_;
   shared_ptr<OwnedMutableBuffer> rle_indices_;
@@ -243,8 +243,6 @@ template <typename Type>
 static shared_ptr<DictionaryPage> MakeDictPage(const ColumnDescriptor *d,
     const vector<typename Type::c_type>& values, Encoding::type encoding,
     vector<uint8_t>& rle_indices) {
-  size_t num_bytes = values.size() * sizeof(typename Type::c_type);
-
   InMemoryOutputStream page_stream;
   test::DictionaryPageBuilder<Type> page_builder(&page_stream);
 
@@ -255,6 +253,7 @@ static shared_ptr<DictionaryPage> MakeDictPage(const ColumnDescriptor *d,
 
   auto buffer = page_stream.GetBuffer();
 
+  page_builder.free_pool();
   return std::make_shared<DictionaryPage>(buffer, page_builder.num_values(),
       page_builder.encoding());
 }
@@ -293,7 +292,6 @@ static shared_ptr<DataPage> MakeDataPage(const ColumnDescriptor *d,
   if (!rep_levels.empty()) {
     page_builder.AppendRepLevels(rep_levels, max_rep_level);
   }
-
   if (!def_levels.empty()) {
     page_builder.AppendDefLevels(def_levels, max_def_level);
   }
@@ -303,7 +301,7 @@ static shared_ptr<DataPage> MakeDataPage(const ColumnDescriptor *d,
     num_values = page_builder.num_values();
   } else {//DICTIONARY PAGES
     page_stream.Write(indices, indices_size);
-    num_values = num_vals;
+    num_values = std::max(page_builder.num_values(), num_vals);
   }
 
   auto buffer = page_stream.GetBuffer();
