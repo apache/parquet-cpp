@@ -255,7 +255,6 @@ class DictionaryPageBuilder {
         if (TN == Type::FIXED_LEN_BYTE_ARRAY) {
           type_length = d->type_length();
         }
-        dict_buffer_ = std::make_shared<OwnedMutableBuffer>();
         encoder_.reset(new DictEncoder<TC>(&pool_, type_length));
         encoding_ = encoding;
   }
@@ -266,14 +265,16 @@ class DictionaryPageBuilder {
     for (int i = 0; i < num_values; ++i) {
       encoder_->Put(values[i]);
     }
-    dict_buffer_->Resize(encoder_->dict_encoded_size());
-    encoder_->WriteDict(dict_buffer_->mutable_data());
-    sink_->Write(reinterpret_cast<const uint8_t*>(dict_buffer_->data()),
-        dict_buffer_->size());
-
     num_dict_values_ = encoder_->num_entries();
-
     have_values_ = true;
+  }
+
+  void WriteDict() {
+    shared_ptr<OwnedMutableBuffer> dict_buffer = std::make_shared<OwnedMutableBuffer>();
+    dict_buffer->Resize(encoder_->dict_encoded_size());
+    encoder_->WriteDict(dict_buffer->mutable_data());
+    sink_->Write(reinterpret_cast<const uint8_t*>(dict_buffer->data()),
+        dict_buffer->size());
   }
 
   int32_t num_values() const {
@@ -284,21 +285,23 @@ class DictionaryPageBuilder {
     return encoding_;
   }
 
-  int32_t rle_indices(shared_ptr<OwnedMutableBuffer>& rle_indices) {
+  void rle_indices(shared_ptr<OwnedMutableBuffer>& rle_indices) {
     rle_indices->Resize(sizeof(int) * encoder_->EstimatedDataEncodedSize());
     int actual_bytes = encoder_->WriteIndices(rle_indices->mutable_data(),
       rle_indices->size());
     rle_indices->Resize(actual_bytes);
-    return rle_indices->size();
   }
 
   void free_pool() {
     pool_.FreeAll();
   }
 
+  void clear_indices() {
+    encoder_->ClearIndices();
+  }
+
  private:
   InMemoryOutputStream* sink_;
-  shared_ptr<OwnedMutableBuffer> dict_buffer_;
   MemPool pool_;
   shared_ptr<DictEncoder<TC> > encoder_;
   int32_t num_dict_values_;
@@ -314,22 +317,30 @@ DictionaryPageBuilder<BooleanType>::DictionaryPageBuilder(const ColumnDescriptor
 }
 
 template<>
-void DictionaryPageBuilder<BooleanType>::AppendValues(const vector<TC>& values) {
+void DictionaryPageBuilder<BooleanType>::WriteDict() {
   ParquetException::NYI("only plain encoding currently implemented for boolean");
 }
 
 template <typename Type>
 static shared_ptr<DictionaryPage> MakeDictPage(const ColumnDescriptor *d,
-    const vector<typename Type::c_type>& values, Encoding::type encoding,
-    vector<uint8_t>& rle_indices) {
+    const vector<typename Type::c_type>& values, const vector<int>& values_per_page,
+    Encoding::type encoding, vector<shared_ptr<Buffer> >& rle_indices) {
   InMemoryOutputStream page_stream;
   test::DictionaryPageBuilder<Type> page_builder(d, &page_stream, encoding);
+  int num_pages = values_per_page.size();
+  int value_start = 0;
 
-  page_builder.AppendValues(values);
+  for (int i = 0; i < num_pages; i++) {
+    page_builder.AppendValues(slice(values, value_start,
+          value_start + values_per_page[i]));
+    shared_ptr<OwnedMutableBuffer> indices_buff = std::make_shared<OwnedMutableBuffer>();
+    page_builder.rle_indices(indices_buff);
+    rle_indices.push_back(indices_buff);
+    value_start += values_per_page[i];
+    page_builder.clear_indices();
+  }
 
-  shared_ptr<OwnedMutableBuffer> indices_buff = std::make_shared<OwnedMutableBuffer>();
-  int indices_size = page_builder.rle_indices(indices_buff);
-  rle_indices.assign(indices_buff->data(), indices_buff->data() + indices_size);
+  page_builder.WriteDict();
 
   auto buffer = page_stream.GetBuffer();
 
@@ -347,16 +358,30 @@ static void PaginateDict(const ColumnDescriptor *d,
     int num_levels_per_page, const vector<int>& values_per_page,
     vector<shared_ptr<Page> >& pages,
     Encoding::type encoding = Encoding::RLE_DICTIONARY) {
-  vector<uint8_t> rle_indices;
-  shared_ptr<DictionaryPage> dict_page = MakeDictPage<Type>(d, values, encoding,
-      rle_indices);
+  int num_pages = values_per_page.size();
+  vector<shared_ptr<Buffer> > rle_indices;
+  shared_ptr<DictionaryPage> dict_page = MakeDictPage<Type>(d, values, values_per_page,
+      encoding, rle_indices);
   pages.push_back(dict_page);
-
-  shared_ptr<DataPage> data_page = MakeDataPage<Int32Type>(d, {}, values.size(),
-      encoding, rle_indices.data(), rle_indices.size(),
-      def_levels, d->max_definition_level(),
-      rep_levels, d->max_repetition_level());
-  pages.push_back(data_page);
+  int def_level_start = 0;
+  int def_level_end = 0;
+  int rep_level_start = 0;
+  int rep_level_end = 0;
+  for (int i = 0; i < num_pages; i++) {
+    if (max_def_level > 0) {
+      def_level_start = i * num_levels_per_page;
+      def_level_end = (i + 1) * num_levels_per_page;
+    }
+    if (max_rep_level > 0) {
+      rep_level_start = i * num_levels_per_page;
+      rep_level_end = (i + 1) * num_levels_per_page;
+    }
+    shared_ptr<DataPage> data_page = MakeDataPage<Int32Type>(d, {}, values_per_page[i],
+        encoding, rle_indices[i]->data(), rle_indices[i]->size(),
+        slice(def_levels, def_level_start, def_level_end), max_def_level,
+        slice(rep_levels, rep_level_start, rep_level_end), max_rep_level);
+    pages.push_back(data_page);
+  }
 }
 
 // Given def/rep levels and values create multiple plain pages
