@@ -104,10 +104,10 @@ static void InitDictValues(int num_values, int num_dicts,
   }
 }
 
-template <>
+template<>
 void InitDictValues<bool>(int num_values, int dict_per_page,
     vector<bool>& values, vector<uint8_t>& buffer) {
-  //No op for bool
+  // No op for bool
 }
 
 
@@ -231,7 +231,6 @@ class DataPageBuilder {
   }
 };
 
-
 template<>
 void DataPageBuilder<BooleanType>::AppendValues(const ColumnDescriptor *d,
     const vector<bool>& values, Encoding::type encoding) {
@@ -267,7 +266,7 @@ static shared_ptr<DataPage> MakeDataPage(const ColumnDescriptor *d,
   if (encoding == Encoding::PLAIN) {
     page_builder.AppendValues(d, values, encoding);
     num_values = page_builder.num_values();
-  } else {//DICTIONARY PAGES
+  } else {// DICTIONARY PAGES
     page_stream.Write(indices, indices_size);
     num_values = std::max(page_builder.num_values(), num_vals);
   }
