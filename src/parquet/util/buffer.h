@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "parquet/util/macros.h"
+#include "parquet/util/mem-allocator.h"
 
 namespace parquet_cpp {
 
@@ -119,7 +120,8 @@ class ResizableBuffer : public MutableBuffer {
 
  protected:
   ResizableBuffer(uint8_t* data, int64_t size) :
-      MutableBuffer(data, size) {}
+      MutableBuffer(data, size), capacity_(size) {}
+  int64_t capacity_;
 };
 
 // A ResizableBuffer whose memory is owned by the class instance. For example,
@@ -127,12 +129,41 @@ class ResizableBuffer : public MutableBuffer {
 // garbage-collected
 class OwnedMutableBuffer : public ResizableBuffer {
  public:
-  OwnedMutableBuffer();
-  virtual void Resize(int64_t new_size);
+  explicit OwnedMutableBuffer(int64_t size = 0,
+      MemoryAllocator* allocator = default_allocator());
+  virtual ~OwnedMutableBuffer();
+  void Resize(int64_t new_size) override;
+  void Reserve(int64_t new_capacity);
+  uint8_t& operator[](int64_t i);
 
  private:
   // TODO: aligned allocations
-  std::vector<uint8_t> buffer_owner_;
+  MemoryAllocator* allocator_;
+
+  OwnedMutableBuffer(OwnedMutableBuffer& buffer) = delete;
+  OwnedMutableBuffer& operator=(OwnedMutableBuffer& buffer) = delete;
+};
+
+template <class T>
+class Vector {
+ public:
+  explicit Vector(int64_t size, MemoryAllocator* allocator);
+  void Resize(int64_t new_size);
+  void Reserve(int64_t new_capacity);
+  void Clear();
+  void Assign(int64_t size, const T val);
+  inline T& operator[](int64_t i) {
+    return data_[i];
+  }
+
+ private:
+  OwnedMutableBuffer buffer_;
+  int64_t size_;
+  int64_t capacity_;
+  T* data_;
+
+  Vector(Vector& buffer) = delete;
+  Vector& operator=(Vector& buffer) = delete;
 };
 
 } // namespace parquet_cpp
