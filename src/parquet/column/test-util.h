@@ -305,6 +305,13 @@ shared_ptr<Buffer> DictionaryPageBuilder<BooleanType>::WriteDict() {
   return nullptr;
 }
 
+template<>
+shared_ptr<Buffer> DictionaryPageBuilder<BooleanType>::AppendValues(
+    const vector<TC>& values) {
+  ParquetException::NYI("only plain encoding currently implemented for boolean");
+  return nullptr;
+}
+
 template <typename Type>
 static shared_ptr<DictionaryPage> MakeDictPage(const ColumnDescriptor *d,
     const vector<typename Type::c_type>& values, const vector<int>& values_per_page,
