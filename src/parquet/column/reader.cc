@@ -37,32 +37,42 @@ ColumnReader::ColumnReader(const ColumnDescriptor* descr,
 
 template <int TYPE>
 void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
-  int encoding = static_cast<int>(Encoding::RLE_DICTIONARY);
+  Encoding::type encode_type = page->encoding();
+  if (encode_type == Encoding::PLAIN_DICTIONARY ||
+      encode_type == Encoding::PLAIN) {
+    encode_type = Encoding::RLE_DICTIONARY;
+  }
+
+  int encoding = static_cast<int>(encode_type);
 
   auto it = decoders_.find(encoding);
   if (it != decoders_.end()) {
     throw ParquetException("Column cannot have more than one dictionary.");
   }
 
-  PlainDecoder<TYPE> dictionary(descr_);
-  dictionary.SetData(page->num_values(), page->data(), page->size());
+  if (encode_type == Encoding::RLE_DICTIONARY) {
+    PlainDecoder<TYPE> dictionary(descr_);
+    dictionary.SetData(page->num_values(), page->data(), page->size());
 
-  // The dictionary is fully decoded during DictionaryDecoder::Init, so the
-  // DictionaryPage buffer is no longer required after this step
-  //
-  // TODO(wesm): investigate whether this all-or-nothing decoding of the
-  // dictionary makes sense and whether performance can be improved
+    // The dictionary is fully decoded during DictionaryDecoder::Init, so the
+    // DictionaryPage buffer is no longer required after this step
+    //
+    // TODO(wesm): investigate whether this all-or-nothing decoding of the
+    // dictionary makes sense and whether performance can be improved
 
-  auto decoder = std::make_shared<DictionaryDecoder<TYPE> >(descr_);
-  decoder->SetDict(&dictionary);
+    auto decoder = std::make_shared<DictionaryDecoder<TYPE> >(descr_);
+    decoder->SetDict(&dictionary);
+    decoders_[encoding] = decoder;
+  } else {
+    throw ParquetException("Only RLE_DICTIONARY is supported.");
+  }
 
-  decoders_[encoding] = decoder;
   current_decoder_ = decoders_[encoding].get();
 }
 
 // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
 // encoding.
-static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
+static bool IsRleDictionaryIndexEncoding(const Encoding::type& e) {
   return e == Encoding::RLE_DICTIONARY ||
     e == Encoding::PLAIN_DICTIONARY;
 }
@@ -124,12 +134,16 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
       // first page with this encoding.
       Encoding::type encoding = page->encoding();
 
-      if (IsDictionaryIndexEncoding(encoding)) {
+      if (IsRleDictionaryIndexEncoding(encoding)) {
         encoding = Encoding::RLE_DICTIONARY;
       }
 
       auto it = decoders_.find(static_cast<int>(encoding));
       if (it != decoders_.end()) {
+        if (encoding == Encoding::RLE_DICTIONARY &&
+            current_decoder_->encoding() != Encoding::RLE_DICTIONARY) {
+            throw ParquetException("Dictionary decoder is not RLE_DICTIONARY.");
+        }
         current_decoder_ = it->second.get();
       } else {
         switch (encoding) {
