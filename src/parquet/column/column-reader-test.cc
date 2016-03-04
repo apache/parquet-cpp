@@ -155,7 +155,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRepeated) {
   ExecuteDict(num_pages, levels_per_page, &descr);
 }
 
-TEST_F(TestPrimitiveReader, TestPageReader) {
+TEST_F(TestPrimitiveReader, TestDictionaryEncodedPages) {
   max_def_level_ = 0;
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("a", Repetition::REQUIRED);

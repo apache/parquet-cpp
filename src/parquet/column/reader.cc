@@ -63,7 +63,7 @@ void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
     decoder->SetDict(&dictionary);
     decoders_[encoding] = decoder;
   } else {
-    throw ParquetException("Only RLE_DICTIONARY is supported.");
+    ParquetException::NYI("only plain dictionary encoding has been implemented");
   }
 
   current_decoder_ = decoders_[encoding].get();
