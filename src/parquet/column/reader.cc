@@ -37,20 +37,19 @@ ColumnReader::ColumnReader(const ColumnDescriptor* descr,
 
 template <int TYPE>
 void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
-  Encoding::type encode_type = page->encoding();
-  if (encode_type == Encoding::PLAIN_DICTIONARY ||
-      encode_type == Encoding::PLAIN) {
-    encode_type = Encoding::RLE_DICTIONARY;
+  int encoding = static_cast<int>(page->encoding());
+  if (page->encoding() == Encoding::PLAIN_DICTIONARY ||
+      page->encoding() == Encoding::PLAIN) {
+    encoding = static_cast<int>(Encoding::RLE_DICTIONARY);
   }
-
-  int encoding = static_cast<int>(encode_type);
 
   auto it = decoders_.find(encoding);
   if (it != decoders_.end()) {
     throw ParquetException("Column cannot have more than one dictionary.");
   }
 
-  if (encode_type == Encoding::RLE_DICTIONARY) {
+  if (page->encoding() == Encoding::PLAIN_DICTIONARY ||
+      page->encoding() == Encoding::PLAIN) {
     PlainDecoder<TYPE> dictionary(descr_);
     dictionary.SetData(page->num_values(), page->data(), page->size());
 
@@ -72,7 +71,7 @@ void TypedColumnReader<TYPE>::ConfigureDictionary(const DictionaryPage* page) {
 
 // PLAIN_DICTIONARY is deprecated but used to be used as a dictionary index
 // encoding.
-static bool IsRleDictionaryIndexEncoding(const Encoding::type& e) {
+static bool IsDictionaryIndexEncoding(const Encoding::type& e) {
   return e == Encoding::RLE_DICTIONARY ||
     e == Encoding::PLAIN_DICTIONARY;
 }
@@ -134,15 +133,14 @@ bool TypedColumnReader<TYPE>::ReadNewPage() {
       // first page with this encoding.
       Encoding::type encoding = page->encoding();
 
-      if (IsRleDictionaryIndexEncoding(encoding)) {
+      if (IsDictionaryIndexEncoding(encoding)) {
         encoding = Encoding::RLE_DICTIONARY;
       }
 
       auto it = decoders_.find(static_cast<int>(encoding));
       if (it != decoders_.end()) {
-        if (encoding == Encoding::RLE_DICTIONARY &&
-            current_decoder_->encoding() != Encoding::RLE_DICTIONARY) {
-            throw ParquetException("Dictionary decoder is not RLE_DICTIONARY.");
+        if (encoding == Encoding::RLE_DICTIONARY) {
+            DCHECK(current_decoder_->encoding() == Encoding::RLE_DICTIONARY);
         }
         current_decoder_ = it->second.get();
       } else {
