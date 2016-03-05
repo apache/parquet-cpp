@@ -64,6 +64,9 @@ string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
 
 # Top level cmake file, set options
 if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+  option(PARQUET_USE_SSE
+	"Build with SSE4 optimizations"
+	OFF)
   option(PARQUET_BUILD_TESTS
 	"Build the libparquet test suite"
 	ON)
@@ -246,7 +249,10 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 # TODO(wesm): These compiler warning suppressions should be removed one by one
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 
-# add_definitions(-DPARQUET_USE_SSE)
+if (PARQUET_USE_SSE)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+  add_definitions(-DPARQUET_USE_SSE)
+endif()
 
 if (APPLE)
   # Use libc++ to avoid linker errors on some platforms
