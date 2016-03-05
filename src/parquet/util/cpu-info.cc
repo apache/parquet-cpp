@@ -24,7 +24,8 @@
 #include <sys/sysctl.h>
 #endif
 
-#include <mmintrin.h>
+// #include <mmintrin.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>

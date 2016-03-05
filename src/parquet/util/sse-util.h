@@ -21,7 +21,9 @@
 #ifndef PARQUET_UTIL_SSE_UTIL_H
 #define PARQUET_UTIL_SSE_UTIL_H
 
+#ifdef PARQUET_USE_SSE
 #include <emmintrin.h>
+#endif 
 
 namespace parquet_cpp {
 
@@ -70,6 +72,8 @@ namespace SSEUtil {
     1 << 15,
   };
 } // namespace SSEUtil
+
+#ifdef PARQUET_USE_SSE
 
 /// Define the SSE 4.2 intrinsics.  The caller must first verify at runtime (or codegen
 /// IR load time) that the processor supports SSE 4.2 before calling these.  These are
@@ -214,7 +218,36 @@ static inline int64_t POPCNT_popcnt_u64(uint64_t a) {
   return 0;
 }
 
-#endif
+#endif // IR_COMPILE
+
+#else
+
+static inline uint32_t SSE4_crc32_u8(uint32_t crc, uint8_t v) {
+  DCHECK(false) << "SSE support is not enabled";
+  return 0;
+}
+
+static inline uint32_t SSE4_crc32_u16(uint32_t crc, uint16_t v) {
+  DCHECK(false) << "SSE support is not enabled";
+  return 0;
+}
+
+static inline uint32_t SSE4_crc32_u32(uint32_t crc, uint32_t v) {
+  DCHECK(false) << "SSE support is not enabled";
+  return 0;
+}
+
+static inline uint32_t SSE4_crc32_u64(uint32_t crc, uint64_t v) {
+  DCHECK(false) << "SSE support is not enabled";
+  return 0;
+}
+
+static inline int64_t POPCNT_popcnt_u64(uint64_t a) {
+  DCHECK(false) << "SSE support is not enabled";
+  return 0;
+}
+
+#endif // PARQUET_USE_SSE
 
 } // namespace parquet_cpp
 
