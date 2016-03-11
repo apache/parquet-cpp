@@ -34,8 +34,8 @@ struct RowGroupStatistics {
   int64_t num_values;
   int64_t null_count;
   int64_t distinct_count;
-  std::string min;
-  std::string max;
+  const std::string* min;
+  const std::string* max;
 };
 
 class RowGroupReader {

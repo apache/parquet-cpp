@@ -191,8 +191,8 @@ RowGroupStatistics SerializedRowGroup::GetColumnStats(int i) {
   result.num_values = meta_data.num_values;
   result.null_count = meta_data.statistics.null_count;
   result.distinct_count = meta_data.statistics.distinct_count;
-  result.max = meta_data.statistics.max;
-  result.min = meta_data.statistics.min;
+  result.max = &meta_data.statistics.max;
+  result.min = &meta_data.statistics.min;
 
   return result;
 }

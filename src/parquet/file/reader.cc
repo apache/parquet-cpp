@@ -161,8 +161,8 @@ void ParquetFileReader::DebugPrint(std::ostream& stream, bool print_values) {
              << stats.num_values << " values, "
              << stats.null_count << " null values, "
              << stats.distinct_count << " distinct values, "
-             << stats.max << " max, "
-             << stats.min << " min, "
+             << *stats.max << " max, "
+             << *stats.min << " min, "
              << std::endl;
     }
 
