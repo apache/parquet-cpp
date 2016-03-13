@@ -67,6 +67,9 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_TESTS
 	"Build the libparquet test suite"
 	ON)
+  option(PARQUET_TEST_MEMCHECK
+	"Run the test suite using valgrind --tool=memcheck"
+	OFF)
   option(PARQUET_BUILD_EXECUTABLES
 	"Build the libparquet executable CLI tools"
 	ON)
@@ -128,8 +131,13 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
     set(TEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/${REL_TEST_NAME})
   endif()
 
-  add_test(${TEST_NAME}
-    ${BUILD_SUPPORT_DIR}/run-test.sh ${TEST_PATH})
+  if (PARQUET_TEST_MEMCHECK)
+	add_test(${TEST_NAME}
+      valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
+  else()
+	add_test(${TEST_NAME}
+      ${BUILD_SUPPORT_DIR}/run-test.sh ${TEST_PATH})
+  endif()
   if(ARGN)
     set_tests_properties(${TEST_NAME} PROPERTIES ${ARGN})
   endif()
