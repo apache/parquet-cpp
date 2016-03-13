@@ -132,6 +132,8 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
   endif()
 
   if (PARQUET_TEST_MEMCHECK)
+	SET_TARGET_PROPERTIES(${TEST_NAME}
+	  PROPERTIES COMPILE_FLAGS -DPARQUET_VALGRIND)
 	add_test(${TEST_NAME}
       valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
   else()
