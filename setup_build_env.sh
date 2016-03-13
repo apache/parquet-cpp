@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 
-if [ -n "${BASH_VERSION}" ]; then
-    SOURCE_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-elif [ -n "${ZSH_VERSION}" ]; then
-    SOURCE_DIR=$(cd "$(dirname "${(%):-%N}")"; pwd)
-fi
+SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 : ${BUILD_DIR:=$SOURCE_DIR/build}
 
 # Create an isolated thirdparty
