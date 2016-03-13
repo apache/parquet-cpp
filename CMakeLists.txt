@@ -248,7 +248,7 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 
 if (PARQUET_USE_SSE)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
   add_definitions(-DPARQUET_USE_SSE)
 endif()
 
