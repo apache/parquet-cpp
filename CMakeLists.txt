@@ -25,13 +25,6 @@ if (NOT "$ENV{PARQUET_GCC_ROOT}" STREQUAL "")
   set(CMAKE_CXX_COMPILER ${GCC_ROOT}/bin/g++)
 endif()
 
-if ("$ENV{PARQUET_USE_CCACHE}")
-  set(CMAKE_C_COMPILER_ARG1 ${CMAKE_C_COMPILER})
-  set(CMAKE_CXX_COMPILER_ARG1 ${CMAKE_CXX_COMPILER})
-  set(CMAKE_C_COMPILER ccache)
-  set(CMAKE_CXX_COMPILER ccache)
-endif()
-
 # generate CTest input files
 enable_testing()
 
@@ -132,10 +125,11 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
   endif()
 
   if (PARQUET_TEST_MEMCHECK)
-	SET_TARGET_PROPERTIES(${TEST_NAME}
-	  PROPERTIES COMPILE_FLAGS -DPARQUET_VALGRIND)
+	SET_PROPERTY(TARGET ${TEST_NAME}
+	  APPEND_STRING PROPERTY
+	  COMPILE_FLAGS " -DPARQUET_VALGRIND")
 	add_test(${TEST_NAME}
-      valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
+	  valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
   else()
 	add_test(${TEST_NAME}
       ${BUILD_SUPPORT_DIR}/run-test.sh ${TEST_PATH})
