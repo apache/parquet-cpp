@@ -28,11 +28,15 @@ TEST(TestAllocator, AllocateFree) {
   uint8_t* data = allocator.Malloc(100);
   ASSERT_TRUE(nullptr != data);
   data[99] = 55;
-  allocator.Free(data);
+  allocator.Free(data, 100);
 
   data = allocator.Malloc(0);
   ASSERT_EQ(nullptr, data);
-  allocator.Free(data);
+  allocator.Free(data, 0);
+
+  data = allocator.Malloc(1);
+  ASSERT_THROW(allocator.Free(data, 2), ParquetException);
+  ASSERT_NO_THROW(allocator.Free(data, 1));
 
   int64_t to_alloc = std::numeric_limits<int64_t>::max();
   ASSERT_THROW(allocator.Malloc(to_alloc), ParquetException);
@@ -51,11 +55,11 @@ TEST(TestAllocator, TotalMax) {
   ASSERT_EQ(110, allocator.TotalMemory());
   ASSERT_EQ(110, allocator.MaxMemory());
 
-  allocator.Free(data);
+  allocator.Free(data, 100);
   ASSERT_EQ(10, allocator.TotalMemory());
   ASSERT_EQ(110, allocator.MaxMemory());
 
-  allocator.Free(data2);
+  allocator.Free(data2, 10);
   ASSERT_EQ(0, allocator.TotalMemory());
   ASSERT_EQ(110, allocator.MaxMemory());
 }

@@ -17,6 +17,7 @@
 
 #include "parquet/util/buffer.h"
 
+#include <algorithm>
 #include <cstdint>
 
 #include "parquet/exception.h"
@@ -42,7 +43,7 @@ OwnedMutableBuffer::OwnedMutableBuffer(int64_t size, MemoryAllocator* allocator)
 
 OwnedMutableBuffer::~OwnedMutableBuffer() {
   if (mutable_data_) {
-    allocator_->Free(mutable_data_);
+    allocator_->Free(mutable_data_, capacity_);
   }
 }
 
@@ -51,7 +52,7 @@ void OwnedMutableBuffer::Reserve(int64_t new_capacity) {
     if (mutable_data_) {
       uint8_t* new_data = allocator_->Malloc(new_capacity);
       memcpy(new_data, mutable_data_, size_);
-      allocator_->Free(mutable_data_);
+      allocator_->Free(mutable_data_, capacity_);
       mutable_data_ = new_data;
     } else {
       mutable_data_ = allocator_->Malloc(new_capacity);
@@ -72,9 +73,10 @@ uint8_t& OwnedMutableBuffer::operator[](int64_t i) {
 
 template <class T>
 Vector<T>::Vector(int64_t size, MemoryAllocator* allocator) :
-    buffer_(size * sizeof(T), allocator), size_(size), capacity_(size) {
+    buffer_(new OwnedMutableBuffer(size * sizeof(T), allocator)),
+    size_(size), capacity_(size) {
   if (size > 0) {
-    data_ = reinterpret_cast<T*>(buffer_.mutable_data());
+    data_ = reinterpret_cast<T*>(buffer_->mutable_data());
   } else {
     data_ = nullptr;
   }
@@ -83,8 +85,8 @@ Vector<T>::Vector(int64_t size, MemoryAllocator* allocator) :
 template <class T>
 void Vector<T>::Reserve(int64_t new_capacity) {
   if (new_capacity > capacity_) {
-    buffer_.Resize(new_capacity * sizeof(T));
-    data_ = reinterpret_cast<T*>(buffer_.mutable_data());
+    buffer_->Resize(new_capacity * sizeof(T));
+    data_ = reinterpret_cast<T*>(buffer_->mutable_data());
     capacity_ = new_capacity;
   }
 }
@@ -96,16 +98,19 @@ void Vector<T>::Resize(int64_t new_size) {
 }
 
 template <class T>
-void Vector<T>::Clear() {
-  Resize(0);
-}
-
-template <class T>
 void Vector<T>::Assign(int64_t size, const T val) {
   Resize(size);
   for (int64_t i = 0; i < size_; i++) {
     data_[i] = val;
   }
+}
+
+template <class T>
+void Vector<T>::Swap(Vector<T>& v) {
+  buffer_.swap(v.buffer_);
+  std::swap(size_, v.size_);
+  std::swap(capacity_, v.capacity_);
+  std::swap(data_, v.data_);
 }
 
 template class Vector<int32_t>;

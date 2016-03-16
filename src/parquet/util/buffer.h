@@ -140,8 +140,7 @@ class OwnedMutableBuffer : public ResizableBuffer {
   // TODO: aligned allocations
   MemoryAllocator* allocator_;
 
-  OwnedMutableBuffer(OwnedMutableBuffer& buffer) = delete;
-  OwnedMutableBuffer& operator=(OwnedMutableBuffer& buffer) = delete;
+  DISALLOW_COPY_AND_ASSIGN(OwnedMutableBuffer);
 };
 
 template <class T>
@@ -150,20 +149,19 @@ class Vector {
   explicit Vector(int64_t size, MemoryAllocator* allocator);
   void Resize(int64_t new_size);
   void Reserve(int64_t new_capacity);
-  void Clear();
   void Assign(int64_t size, const T val);
+  void Swap(Vector<T>& v);
   inline T& operator[](int64_t i) {
     return data_[i];
   }
 
  private:
-  OwnedMutableBuffer buffer_;
+  std::unique_ptr<OwnedMutableBuffer> buffer_;
   int64_t size_;
   int64_t capacity_;
   T* data_;
 
-  Vector(Vector& buffer) = delete;
-  Vector& operator=(Vector& buffer) = delete;
+  DISALLOW_COPY_AND_ASSIGN(Vector);
 };
 
 } // namespace parquet_cpp

@@ -368,11 +368,7 @@ inline void DictEncoder<T>::DoubleTableSize() {
   hash_table_size_ = new_size;
   mod_bitmask_ = new_size - 1;
 
-  hash_slots_.Clear();
-  hash_slots_.Reserve(hash_table_size_);
-  for (int i = 0; i < hash_table_size_; i++) {
-    hash_slots_[i] = new_hash_slots[i];
-  }
+  hash_slots_.Swap(new_hash_slots);
 }
 
 template<typename T>

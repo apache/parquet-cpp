@@ -116,7 +116,7 @@ TYPED_TEST(TestFileReaders, FileDisappeared) {
   this->DeleteTestFile();
   this->source.Close();
 }
-//
+
 TYPED_TEST(TestFileReaders, BadSeek) {
   this->source.Open(this->test_path_);
   ASSERT_THROW(this->source.Seek(this->filesize_ + 1), ParquetException);

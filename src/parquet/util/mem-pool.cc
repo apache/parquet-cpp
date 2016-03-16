@@ -52,7 +52,7 @@ MemPool::~MemPool() {
   int64_t total_bytes_released = 0;
   for (size_t i = 0; i < chunks_.size(); ++i) {
     total_bytes_released += chunks_[i].size;
-    allocator_->Free(chunks_[i].data);
+    allocator_->Free(chunks_[i].data, chunks_[i].size);
   }
 
   DCHECK(chunks_.empty()) << "Must call FreeAll() or AcquireData() for this pool";
@@ -71,7 +71,7 @@ void MemPool::FreeAll() {
   int64_t total_bytes_released = 0;
   for (size_t i = 0; i < chunks_.size(); ++i) {
     total_bytes_released += chunks_[i].size;
-    allocator_->Free(chunks_[i].data);
+    allocator_->Free(chunks_[i].data, chunks_[i].size);
   }
   chunks_.clear();
   next_chunk_size_ = INITIAL_CHUNK_SIZE;
@@ -109,7 +109,6 @@ bool MemPool::FindChunk(int64_t min_size) {
     chunk_size = std::max<int64_t>(min_size, next_chunk_size_);
 
     // Allocate a new chunk. Return early if malloc fails.
-//    uint8_t* buf = reinterpret_cast<uint8_t*>(malloc(chunk_size));
     uint8_t* buf = allocator_->Malloc(chunk_size);
     if (UNLIKELY(buf == NULL)) {
       DCHECK_EQ(current_chunk_idx_, static_cast<int>(chunks_.size()));

@@ -29,7 +29,7 @@ class MemoryAllocator {
 
   // Returns nullptr if size is 0
   virtual uint8_t* Malloc(int64_t size) = 0;
-  virtual void Free(uint8_t* p) = 0;
+  virtual void Free(uint8_t* p, int64_t size) = 0;
 };
 
 MemoryAllocator* default_allocator();
@@ -40,18 +40,17 @@ class TrackingAllocator: public MemoryAllocator {
   virtual ~TrackingAllocator();
 
   uint8_t* Malloc(int64_t size) override;
-  void Free(uint8_t* p) override;
+  void Free(uint8_t* p, int64_t size) override;
 
-  inline int64_t TotalMemory() {
+  int64_t TotalMemory() {
     return total_memory_;
   }
 
-  inline int64_t MaxMemory() {
+  int64_t MaxMemory() {
     return max_memory_;
   }
 
  private:
-  static const uint64_t OFFSET = sizeof(int64_t);
   int64_t total_memory_;
   int64_t max_memory_;
 };
