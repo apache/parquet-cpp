@@ -76,6 +76,14 @@ class RowGroupReader {
 
 class ParquetFileReader {
  public:
+  struct MemoryUsage {
+    // Estimated dynamic memory usage (not including memory usage for dictionaries).
+    int64_t memory;
+    // This flag is set if any column is dictionary-encoded.
+    bool has_dictionary;
+    MemoryUsage() : memory(0), has_dictionary(false) {}
+  };
+
   // Forward declare the PIMPL
   struct Contents {
     virtual ~Contents() {}
@@ -87,6 +95,11 @@ class ParquetFileReader {
     virtual int64_t num_rows() const = 0;
     virtual int num_columns() const = 0;
     virtual int num_row_groups() const = 0;
+    virtual int64_t metadata_length() const = 0;
+
+    // Estimate dynamic memory usage from FileMetaData
+    virtual MemoryUsage EstimateMemoryUsage(bool memory_map,
+        std::list<int>& selected_columns) = 0;
 
     // Return const-poitner to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const {
@@ -95,7 +108,7 @@ class ParquetFileReader {
     SchemaDescriptor schema_;
   };
 
-  ParquetFileReader();
+  explicit ParquetFileReader(MemoryAllocator* allocator = default_allocator());
   ~ParquetFileReader();
 
   // API Convenience to open a serialized Parquet file on disk
@@ -125,8 +138,12 @@ class ParquetFileReader {
     return schema_->Column(i);
   }
 
-  void DebugPrint(std::ostream& stream, std::list<int> selected_columns,
-      bool print_values = true);
+  // Estimate dynamic memory usage
+  MemoryUsage EstimateMemoryUsage(bool memory_map, std::list<int>& selected_columns,
+      int64_t batch_size);
+
+  void DebugPrint(std::ostream& stream, std::list<int>& selected_columns,
+      int64_t batch_size, bool print_values = true);
 
  private:
   // PIMPL idiom
@@ -136,6 +153,10 @@ class ParquetFileReader {
 
   // The SchemaDescriptor is provided by the Contents impl
   const SchemaDescriptor* schema_;
+
+  MemoryAllocator* allocator_;
+
+  void CheckSelectedColumns(std::list<int>& selected_columns);
 };
 
 

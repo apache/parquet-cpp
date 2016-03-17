@@ -17,6 +17,7 @@
 
 #include "parquet/file/reader.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <sstream>
@@ -69,7 +70,8 @@ RowGroupStatistics RowGroupReader::GetColumnStats(int i) const {
 // ----------------------------------------------------------------------
 // ParquetFileReader public API
 
-ParquetFileReader::ParquetFileReader() : schema_(nullptr) {}
+ParquetFileReader::ParquetFileReader(MemoryAllocator* allocator)
+  : schema_(nullptr), allocator_(allocator) {}
 ParquetFileReader::~ParquetFileReader() {
   Close();
 }
@@ -78,7 +80,7 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
     std::unique_ptr<RandomAccessSource> source, MemoryAllocator* allocator) {
   auto contents = SerializedFile::Open(std::move(source), allocator);
 
-  std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
+  std::unique_ptr<ParquetFileReader> result(new ParquetFileReader(allocator));
   result->Open(std::move(contents));
 
   return result;
@@ -138,11 +140,7 @@ std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
 // the fixed initial size is just for an example
 #define COL_WIDTH "20"
 
-void ParquetFileReader::DebugPrint(std::ostream& stream,
-    std::list<int> selected_columns, bool print_values) {
-  stream << "File statistics:\n";
-  stream << "Total rows: " << num_rows() << "\n";
-
+void ParquetFileReader::CheckSelectedColumns(std::list<int>& selected_columns) {
   if (selected_columns.size() == 0) {
     for (int i = 0; i < num_columns(); i++) {
       selected_columns.push_back(i);
@@ -154,7 +152,38 @@ void ParquetFileReader::DebugPrint(std::ostream& stream,
       }
     }
   }
+}
 
+ParquetFileReader::MemoryUsage ParquetFileReader::EstimateMemoryUsage(bool memory_map,
+    std::list<int>& selected_columns, int64_t batch_size) {
+  CheckSelectedColumns(selected_columns);
+
+  ParquetFileReader::MemoryUsage memory_usage =
+      contents_->EstimateMemoryUsage(memory_map, selected_columns);
+
+  int64_t scanner_memory = 0;
+  for (int r = 0; r < num_row_groups(); ++r) {
+    auto group_reader = RowGroup(r);
+    int64_t rowgroup_memory = 0;
+    for (auto i : selected_columns) {
+      std::shared_ptr<ColumnReader> col_reader = group_reader->Column(i);
+      std::shared_ptr<Scanner> scanner = Scanner::Make(col_reader, 1, allocator_);
+      rowgroup_memory += scanner->buffer_size() * batch_size;
+    }
+    scanner_memory = std::max(scanner_memory, rowgroup_memory);
+  }
+  memory_usage.memory =
+      std::max(memory_usage.memory+scanner_memory, contents_->metadata_length());
+
+  return memory_usage;
+}
+
+void ParquetFileReader::DebugPrint(std::ostream& stream,
+    std::list<int>& selected_columns, int64_t batch_size, bool print_values) {
+  CheckSelectedColumns(selected_columns);
+
+  stream << "File statistics:\n";
+  stream << "Total rows: " << num_rows() << "\n";
   for (auto i : selected_columns) {
     const ColumnDescriptor* descr = schema_->Column(i);
     stream << "Column " << i << ": "
@@ -203,9 +232,7 @@ void ParquetFileReader::DebugPrint(std::ostream& stream,
       snprintf(buffer, bufsize, fmt.c_str(), column_schema(i)->name().c_str());
       stream << buffer;
 
-      // This is OK in this method as long as the RowGroupReader does not get
-      // deleted
-      scanners[j++] = Scanner::Make(col_reader);
+      scanners[j++] = Scanner::Make(col_reader, batch_size, allocator_);
     }
     stream << "\n";
 

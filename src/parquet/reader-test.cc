@@ -45,13 +45,14 @@ class TestAllTypesPlain : public ::testing::Test {
     std::stringstream ss;
     ss << dir_string << "/" << "alltypes_plain.parquet";
 
-    reader_ = ParquetFileReader::OpenFile(ss.str());
+    reader_ = ParquetFileReader::OpenFile(ss.str(), false, &allocator_);
   }
 
   void TearDown() {}
 
  protected:
   std::unique_ptr<ParquetFileReader> reader_;
+  TrackingAllocator allocator_;
 };
 
 TEST_F(TestAllTypesPlain, NoopConstructDestruct) {
@@ -125,7 +126,7 @@ TEST_F(TestAllTypesPlain, DebugPrintWorks) {
   std::stringstream ss;
 
   std::list<int> columns;
-  reader_->DebugPrint(ss, columns);
+  reader_->DebugPrint(ss, columns, 128);
 
   std::string result = ss.str();
   ASSERT_GT(result.size(), 0);
@@ -138,7 +139,7 @@ TEST_F(TestAllTypesPlain, ColumnSelection) {
   columns.push_back(5);
   columns.push_back(0);
   columns.push_back(10);
-  reader_->DebugPrint(ss, columns);
+  reader_->DebugPrint(ss, columns, 128);
 
   std::string result = ss.str();
   ASSERT_GT(result.size(), 0);
@@ -149,13 +150,43 @@ TEST_F(TestAllTypesPlain, ColumnSelectionOutOfRange) {
 
   std::list<int> columns;
   columns.push_back(100);
-  ASSERT_THROW(reader_->DebugPrint(ss, columns), ParquetException);
+  ASSERT_THROW(reader_->DebugPrint(ss, columns, 128), ParquetException);
 
   columns.clear();
   columns.push_back(-1);
-  ASSERT_THROW(reader_->DebugPrint(ss, columns), ParquetException);
+  ASSERT_THROW(reader_->DebugPrint(ss, columns, 128), ParquetException);
 }
 
+TEST_F(TestAllTypesPlain, MemoryEstimation) {
+  std::stringstream ss;
+
+  int64_t batch_size = 128;
+  std::list<int> columns;
+
+  columns.push_back(0);
+  columns.push_back(5);
+  ParquetFileReader::MemoryUsage memory_usage1 =
+      reader_->EstimateMemoryUsage(false, columns, batch_size);
+  reader_->DebugPrint(ss, columns, batch_size, true);
+  ASSERT_GT(allocator_.MaxMemory(), memory_usage1.memory);
+  ASSERT_TRUE(memory_usage1.has_dictionary);
+
+  columns.push_back(9);
+  ParquetFileReader::MemoryUsage memory_usage2
+      = reader_->EstimateMemoryUsage(false, columns, batch_size);
+  reader_->DebugPrint(ss, columns, batch_size, true);
+  ASSERT_GT(allocator_.MaxMemory(), memory_usage2.memory);
+  ASSERT_TRUE(memory_usage2.has_dictionary);
+  ASSERT_GT(memory_usage2.memory, memory_usage1.memory);
+
+  columns.clear();
+  ParquetFileReader::MemoryUsage memory_usage_all
+      = reader_->EstimateMemoryUsage(false, columns, batch_size);
+  reader_->DebugPrint(ss, columns, batch_size, true);
+  ASSERT_GT(allocator_.MaxMemory(), memory_usage_all.memory);
+  ASSERT_TRUE(memory_usage_all.has_dictionary);
+  ASSERT_GT(memory_usage_all.memory, memory_usage2.memory);
+}
 
 class TestLocalFileSource : public ::testing::Test {
  public:
