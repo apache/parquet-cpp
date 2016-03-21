@@ -29,6 +29,7 @@
 namespace parquet_cpp {
 
 class ColumnReader;
+class ExternalInputStream;
 
 struct RowGroupStatistics {
   int64_t num_values;
@@ -99,6 +100,9 @@ class ParquetFileReader {
   // API Convenience to open a serialized Parquet file on disk
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
       bool memory_map = true, MemoryAllocator* allocator = default_allocator());
+
+  static std::unique_ptr<ParquetFileReader> OpenStream(std::shared_ptr<ExternalInputStream> stream,
+      MemoryAllocator* allocator = default_allocator());
 
   void Open(std::unique_ptr<Contents> contents);
   void Close();

@@ -173,6 +173,49 @@ std::shared_ptr<Buffer> MemoryMapSource::Read(int64_t nbytes) {
   pos_ += bytes_available;
   return result;
 }
+// ----------------------------------------------------------------------
+// StreamSource
+StreamSource::StreamSource(const std::shared_ptr<ExternalInputStream>& stream) :
+    stream_(stream),
+    offset_(0) {
+  size_ = stream->GetLength();
+}
+
+int64_t StreamSource::Tell() const {
+  return offset_;
+}
+
+void StreamSource::Seek(int64_t pos) {
+  if (pos < 0 || pos >= size_) {
+    std::stringstream ss;
+    ss << "Cannot seek to " << pos
+      << ". File length is " << size_;
+    throw ParquetException(ss.str());
+  }
+  offset_ = pos;
+}
+
+int64_t StreamSource::Read(int64_t nbytes, uint8_t* out) {
+  int64_t bytes_read = 0;
+  int64_t bytes_available = std::min(nbytes, size_ - offset_);
+  bytes_read = stream_->Read(bytes_available, offset_, out);
+  offset_ += bytes_read;
+  return bytes_read;
+}
+
+std::shared_ptr<Buffer> StreamSource::Read(int64_t nbytes) {
+  int64_t bytes_available = std::min(nbytes, size_ - offset_);
+  auto result = std::make_shared<OwnedMutableBuffer>();
+  result->Resize(bytes_available);
+
+  int64_t bytes_read = 0;
+  bytes_read = stream_->Read(bytes_available, offset_, result->mutable_data());
+  if (bytes_read < bytes_available) {
+    result->Resize(bytes_read);
+  }
+  offset_ += bytes_read;
+  return result;
+}
 
 // ----------------------------------------------------------------------
 // BufferReader
@@ -231,6 +274,28 @@ const uint8_t* InMemoryInputStream::Read(int64_t num_to_read, int64_t* num_bytes
 
 void InMemoryInputStream::Advance(int64_t num_bytes) {
   offset_ += num_bytes;
+}
+
+// ----------------------------------------------------------------------
+// ExternalInputStreamImpl
+
+ExternalInputStreamImpl::ExternalInputStreamImpl(
+    const std::shared_ptr<Buffer>& buffer) :
+    buffer_(buffer) {
+  len_ = buffer_->size();
+}
+
+const uint8_t* ExternalInputStreamImpl::Peek(int64_t num_to_peek, int64_t offset,
+    int64_t* num_bytes) {
+  *num_bytes = std::min(static_cast<int64_t>(num_to_peek), len_ - offset);
+  return buffer_->data() + offset;
+}
+
+int64_t ExternalInputStreamImpl::Read(int64_t num_to_read, int64_t offset, uint8_t* buffer) {
+  int64_t num_bytes;
+  const uint8_t* result = Peek(num_to_read, offset, &num_bytes);
+  memcpy(buffer, result, num_bytes);
+  return num_bytes;
 }
 
 } // namespace parquet_cpp

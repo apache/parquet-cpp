@@ -74,6 +74,18 @@ ParquetFileReader::~ParquetFileReader() {
   Close();
 }
 
+std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenStream(std::shared_ptr<ExternalInputStream> stream,
+    MemoryAllocator* allocator) {
+  std::unique_ptr<StreamSource> file(new StreamSource(stream));
+
+  auto contents = SerializedFile::Open(std::move(file), allocator);
+
+  std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
+  result->Open(std::move(contents));
+
+  return result;
+}
+
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(const std::string& path,
     bool memory_map, MemoryAllocator* allocator) {
   std::unique_ptr<LocalFileSource> file;
