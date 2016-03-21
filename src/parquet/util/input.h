@@ -187,7 +187,7 @@ class ExternalInputStreamImpl : public ExternalInputStream {
 // A stream-like object that reads from an ExternalInputStream
 class StreamSource : public RandomAccessSource {
  public:
-  explicit StreamSource(const std::shared_ptr<ExternalInputStream>& stream);
+  explicit StreamSource(ExternalInputStream* stream);
   virtual void Close() {}
   virtual int64_t Tell() const;
   virtual void Seek(int64_t pos);
@@ -195,7 +195,8 @@ class StreamSource : public RandomAccessSource {
   virtual std::shared_ptr<Buffer> Read(int64_t nbytes);
 
  private:
-  std::shared_ptr<ExternalInputStream> stream_;
+  // parquet-cpp should not manage this object
+  ExternalInputStream* stream_;
   int64_t offset_;
 };
 

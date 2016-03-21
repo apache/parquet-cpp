@@ -175,7 +175,7 @@ std::shared_ptr<Buffer> MemoryMapSource::Read(int64_t nbytes) {
 }
 // ----------------------------------------------------------------------
 // StreamSource
-StreamSource::StreamSource(const std::shared_ptr<ExternalInputStream>& stream) :
+StreamSource::StreamSource(ExternalInputStream* stream) :
     stream_(stream),
     offset_(0) {
   size_ = stream->GetLength();

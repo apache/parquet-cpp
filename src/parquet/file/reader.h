@@ -102,7 +102,7 @@ class ParquetFileReader {
       bool memory_map = true, MemoryAllocator* allocator = default_allocator());
 
   static std::unique_ptr<ParquetFileReader> OpenStream(
-      std::shared_ptr<ExternalInputStream> stream,
+      ExternalInputStream* stream,
       MemoryAllocator* allocator = default_allocator());
 
   void Open(std::unique_ptr<Contents> contents);

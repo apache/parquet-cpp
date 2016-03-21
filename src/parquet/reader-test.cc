@@ -45,7 +45,7 @@ class TestAllTypesPlainExternalStream : public ::testing::Test {
     std::stringstream ss;
     ss << dir_string << "/" << "alltypes_plain.parquet";
 
-    std::ifstream parquet_file(ss.str().c_str());
+    std::ifstream parquet_file(ss.str());
     parquet_file.seekg(0, parquet_file.end);
     std::streamsize file_size = parquet_file.tellg();
     parquet_file.seekg(0, parquet_file.beg);
@@ -54,16 +54,18 @@ class TestAllTypesPlainExternalStream : public ::testing::Test {
     buffer->Resize(file_size);
 
     if (!parquet_file.read(reinterpret_cast<char*>(buffer->mutable_data()), file_size)) {
-        throw ParquetException("Could not read file into buffer\n");
+      throw ParquetException("Could not read file into buffer\n");
     }
-    std::shared_ptr<ExternalInputStream> stream(new ExternalInputStreamImpl(buffer));
-
-    reader_ = ParquetFileReader::OpenStream(stream);
+    stream_ = new ExternalInputStreamImpl(buffer);
+    reader_ = ParquetFileReader::OpenStream(stream_);
   }
 
-  void TearDown() {}
+  void TearDown() {
+    free(stream_);
+  }
 
  protected:
+  ExternalInputStream* stream_;
   std::unique_ptr<ParquetFileReader> reader_;
 };
 
