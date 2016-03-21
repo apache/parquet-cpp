@@ -291,7 +291,8 @@ const uint8_t* ExternalInputStreamImpl::Peek(int64_t num_to_peek, int64_t offset
   return buffer_->data() + offset;
 }
 
-int64_t ExternalInputStreamImpl::Read(int64_t num_to_read, int64_t offset, uint8_t* buffer) {
+int64_t ExternalInputStreamImpl::Read(int64_t num_to_read, int64_t offset,
+    uint8_t* buffer) {
   int64_t num_bytes;
   const uint8_t* result = Peek(num_to_read, offset, &num_bytes);
   memcpy(buffer, result, num_bytes);

@@ -44,11 +44,11 @@ class TestAllTypesPlainExternalStream : public ::testing::Test {
 
     std::stringstream ss;
     ss << dir_string << "/" << "alltypes_plain.parquet";
- 
+
     std::ifstream parquet_file(ss.str().c_str());
-    parquet_file.seekg (0, parquet_file.end);
+    parquet_file.seekg(0, parquet_file.end);
     std::streamsize file_size = parquet_file.tellg();
-    parquet_file.seekg (0, parquet_file.beg);
+    parquet_file.seekg(0, parquet_file.beg);
 
     auto buffer = std::make_shared<OwnedMutableBuffer>();
     buffer->Resize(file_size);

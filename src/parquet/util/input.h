@@ -140,19 +140,20 @@ class BufferReader : public RandomAccessSource {
 };
 
 // ----------------------------------------------------------------------
-// External Streaming input interfaces that contain a parquet file
+// External streaming input interface that contains a parquet file
 class ExternalInputStream {
  public:
-  // Returns 'num_to_peek' bytes at location 'offset' in the stream
+  // Returns 'num_to_peek' bytes at location 'offset' in the external stream
   // without advancing the current position.
   // *num_bytes will contain the number of bytes returned which can only be
   // less than num_to_peek at end of stream cases.
   // Since the position is not advanced, calls to this function are idempotent.
   // The buffer returned to the caller is still owned by the input stream and must
   // stay valid until the next call to Peek() or Read().
-  virtual const uint8_t* Peek(int64_t num_to_peek, int64_t offset, int64_t* num_bytes) = 0;
+  virtual const uint8_t* Peek(int64_t num_to_peek, int64_t offset,
+          int64_t* num_bytes) = 0;
 
-  // Read interface to read from stream at an offset into a specified buffer 
+  // Read interface to read from stream at an offset into a specified buffer
   // Returns the number of bytes read.
   virtual int64_t Read(int64_t num_to_read, int64_t offset, uint8_t* buffer) = 0;
 
