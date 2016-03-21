@@ -33,16 +33,19 @@ using std::vector;
 
 namespace parquet_cpp {
 
+using schema::ColumnPath;
+
 namespace schema {
 
 TEST(TestColumnDescriptor, TestAttrs) {
   NodePtr node = PrimitiveNode::Make("name", Repetition::OPTIONAL,
       Type::BYTE_ARRAY, LogicalType::UTF8);
-  ColumnDescriptor descr(node, 4, 1);
+  ColumnDescriptor descr(node, 4, 1, ColumnPath::FromDotString("name"));
 
   ASSERT_EQ("name", descr.name());
   ASSERT_EQ(4, descr.max_definition_level());
   ASSERT_EQ(1, descr.max_repetition_level());
+  ASSERT_EQ("name", descr.path()->toDotString());
 
   ASSERT_EQ(Type::BYTE_ARRAY, descr.physical_type());
 
@@ -51,7 +54,7 @@ TEST(TestColumnDescriptor, TestAttrs) {
   // Test FIXED_LEN_BYTE_ARRAY
   node = PrimitiveNode::Make("name", Repetition::OPTIONAL,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, 12, 10, 4);
-  descr = ColumnDescriptor(node, 4, 1);
+  descr = ColumnDescriptor(node, 4, 1, ColumnPath::FromDotString("name"));
 
   ASSERT_EQ(Type::FIXED_LEN_BYTE_ARRAY, descr.physical_type());
   ASSERT_EQ(12, descr.type_length());

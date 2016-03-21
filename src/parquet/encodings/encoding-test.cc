@@ -37,6 +37,8 @@ using std::vector;
 
 namespace parquet_cpp {
 
+using schema::ColumnPath;
+
 namespace test {
 
 TEST(VectorBooleanTest, TestEncodeDecode) {
@@ -134,7 +136,8 @@ template <>
 std::shared_ptr<ColumnDescriptor> ExampleDescr<FLBA>() {
   auto node = schema::PrimitiveNode::Make("name", Repetition::OPTIONAL,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, flba_length, 10, 2);
-  return std::make_shared<ColumnDescriptor>(node, 0, 0);
+  return std::make_shared<ColumnDescriptor>(node, 0, 0,
+      ColumnPath::FromDotString("name"));
 }
 
 // ----------------------------------------------------------------------

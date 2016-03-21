@@ -78,6 +78,21 @@ struct DecimalMetadata {
   int32_t precision;
 };
 
+class ColumnPath {
+ public:
+  ColumnPath() : path_() {}
+  explicit ColumnPath(const std::vector<std::string>& path) : path_(path) {}
+  explicit ColumnPath(std::vector<std::string>&& path) : path_(path) {}
+
+  static std::shared_ptr<ColumnPath> FromDotString(const std::string& dotstring);
+
+  std::shared_ptr<ColumnPath> extend(const std::string& node_name) const;
+  std::string toDotString() const;
+
+ protected:
+  std::vector<std::string> path_;
+};
+
 // Base class for logical schema types. A type has a name, repetition level,
 // and optionally a logical type (ConvertedType in Parquet metadata parlance)
 class Node {

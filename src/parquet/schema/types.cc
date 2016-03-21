@@ -17,6 +17,7 @@
 
 #include "parquet/schema/types.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "parquet/exception.h"
@@ -26,6 +27,36 @@
 namespace parquet_cpp {
 
 namespace schema {
+
+// ----------------------------------------------------------------------
+// ColumnPath
+
+std::shared_ptr<ColumnPath> ColumnPath::FromDotString(const std::string& dotstring) {
+  std::stringstream ss(dotstring);
+  std::string item;
+  std::vector<std::string> path;
+  while (std::getline(ss, item, '.')) {
+    path.push_back(item);
+  }
+  return std::shared_ptr<ColumnPath>(new ColumnPath(std::move(path)));
+}
+
+std::shared_ptr<ColumnPath> ColumnPath::extend(const std::string& node_name) const {
+  std::vector<std::string> path;
+  path.reserve(path_.size() + 1);
+  path.resize(path_.size() + 1);
+  std::copy(path_.cbegin(), path_.cend(), path.begin());
+  path[path_.size()] = node_name;
+
+  return std::shared_ptr<ColumnPath>(new ColumnPath(std::move(path)));
+}
+
+std::string ColumnPath::toDotString() const {
+  return std::accumulate(path_.cbegin(), path_.cend(), std::string(),
+      [](const std::string &str1, const std::string &str2) {
+          return str1.empty() ? str2 : str1 + "." + str2;
+      });
+}
 
 // ----------------------------------------------------------------------
 // Base node

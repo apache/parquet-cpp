@@ -38,6 +38,7 @@ using std::shared_ptr;
 
 namespace parquet_cpp {
 
+using schema::ColumnPath;
 using schema::NodePtr;
 
 static int FLBA_LENGTH = 12;
@@ -147,13 +148,13 @@ class TestFlatScanner : public ::testing::Test {
     NodePtr type;
     type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED, Type::type_num,
        LogicalType::NONE, length);
-    d1.reset(new ColumnDescriptor(type, 0, 0));
+    d1.reset(new ColumnDescriptor(type, 0, 0, ColumnPath::FromDotString("c1")));
     type = schema::PrimitiveNode::Make("c2", Repetition::OPTIONAL, Type::type_num,
        LogicalType::NONE, length);
-    d2.reset(new ColumnDescriptor(type, 4, 0));
+    d2.reset(new ColumnDescriptor(type, 4, 0, ColumnPath::FromDotString("c2")));
     type = schema::PrimitiveNode::Make("c3", Repetition::REPEATED, Type::type_num,
        LogicalType::NONE, length);
-    d3.reset(new ColumnDescriptor(type, 4, 2));
+    d3.reset(new ColumnDescriptor(type, 4, 2, ColumnPath::FromDotString("c3")));
   }
 
   void ExecuteAll(int num_pages, int num_levels, int batch_size, int type_length,
@@ -227,7 +228,7 @@ TEST_F(TestFLBAFlatScanner, TestPlainDictScanner) {
 TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::REQUIRED,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
-  const ColumnDescriptor d(type, 0, 0);
+  const ColumnDescriptor d(type, 0, 0, ColumnPath::FromDotString("c1"));
   num_values_ = MakePages<FLBAType>(&d, 1, 100, def_levels_, rep_levels_, values_,
       data_buffer_, pages_);
   num_levels_ = 1 * 100;
@@ -238,7 +239,7 @@ TEST_F(TestFlatFLBAScanner, TestSmallBatch) {
 TEST_F(TestFlatFLBAScanner, TestDescriptorAPI) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::OPTIONAL,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
-  const ColumnDescriptor d(type, 4, 0);
+  const ColumnDescriptor d(type, 4, 0, ColumnPath::FromDotString("c1"));
   num_values_ = MakePages<FLBAType>(&d, 1, 100, def_levels_, rep_levels_, values_,
       data_buffer_, pages_);
   num_levels_ = 1 * 100;
@@ -253,7 +254,7 @@ TEST_F(TestFlatFLBAScanner, TestDescriptorAPI) {
 TEST_F(TestFlatFLBAScanner, TestFLBAPrinterNext) {
   NodePtr type = schema::PrimitiveNode::Make("c1", Repetition::OPTIONAL,
       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::DECIMAL, FLBA_LENGTH, 10, 2);
-  const ColumnDescriptor d(type, 4, 0);
+  const ColumnDescriptor d(type, 4, 0, ColumnPath::FromDotString("c1"));
   num_values_ = MakePages<FLBAType>(&d, 1, 100, def_levels_, rep_levels_, values_,
       data_buffer_, pages_);
   num_levels_ = 1 * 100;
