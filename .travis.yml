@@ -33,9 +33,9 @@ matrix:
     - make -j4 || exit 1
     - ctest 
     - echo "Printing logs"
-    - ls $TRAVIS_BUILD_DIR/parquet-build
-    - cat $TRAVIS_BUILD_DIR/parquet-build/test-logs/*
-    - cat $TRAVIS_BUILD_DIR/parquet-build/build/test-logs/*
+    - ls $TRAVIS_BUILD_DIR/parquet-build/Testing/
+    - ls $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary
+    - cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log
     - sudo pip install cpp_coveralls
     - export PARQUET_ROOT=$TRAVIS_BUILD_DIR
     - $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
