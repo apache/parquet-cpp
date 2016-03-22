@@ -31,7 +31,9 @@ matrix:
     script:
     - make lint
     - make -j4 || exit 1
-    - ctest || exit 1
+    - ctest 
+    - echo "Printing logs"
+    - cat $TRAVIS_BUILD_DIR/build/test-logs/*
     - sudo pip install cpp_coveralls
     - export PARQUET_ROOT=$TRAVIS_BUILD_DIR
     - $TRAVIS_BUILD_DIR/ci/upload_coverage.sh

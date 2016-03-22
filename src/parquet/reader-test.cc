@@ -56,6 +56,7 @@ class TestAllTypesPlainExternalStream : public ::testing::Test {
     if (!parquet_file.read(reinterpret_cast<char*>(buffer->mutable_data()), file_size)) {
       throw ParquetException("Could not read file into buffer\n");
     }
+    parquet_file.close();
     stream_ = new ExternalInputStreamImpl(buffer);
     reader_ = ParquetFileReader::OpenStream(stream_);
   }
