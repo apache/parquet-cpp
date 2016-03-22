@@ -40,13 +40,13 @@ namespace schema {
 TEST(TestColumnPath, TestAttrs) {
   ColumnPath path(std::vector<std::string>({"toplevel", "leaf"}));
 
-  ASSERT_EQ(path.toDotString(), "toplevel.leaf");
+  ASSERT_EQ(path.ToDotString(), "toplevel.leaf");
 
   std::shared_ptr<ColumnPath> path_ptr = ColumnPath::FromDotString("toplevel.leaf");
-  ASSERT_EQ(path_ptr->toDotString(), "toplevel.leaf");
+  ASSERT_EQ(path_ptr->ToDotString(), "toplevel.leaf");
 
   std::shared_ptr<ColumnPath> extended = path_ptr->extend("anotherlevel");
-  ASSERT_EQ(extended->toDotString(), "toplevel.leaf.anotherlevel");
+  ASSERT_EQ(extended->ToDotString(), "toplevel.leaf.anotherlevel");
 }
 
 // ----------------------------------------------------------------------

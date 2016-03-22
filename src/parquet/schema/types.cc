@@ -51,7 +51,7 @@ std::shared_ptr<ColumnPath> ColumnPath::extend(const std::string& node_name) con
   return std::shared_ptr<ColumnPath>(new ColumnPath(std::move(path)));
 }
 
-std::string ColumnPath::toDotString() const {
+std::string ColumnPath::ToDotString() const {
   return std::accumulate(path_.cbegin(), path_.cend(), std::string(),
       [](const std::string &str1, const std::string &str2) {
           return str1.empty() ? str2 : str1 + "." + str2;

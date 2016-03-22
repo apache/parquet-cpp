@@ -87,7 +87,7 @@ class ColumnPath {
   static std::shared_ptr<ColumnPath> FromDotString(const std::string& dotstring);
 
   std::shared_ptr<ColumnPath> extend(const std::string& node_name) const;
-  std::string toDotString() const;
+  std::string ToDotString() const;
 
  protected:
   std::vector<std::string> path_;

@@ -45,7 +45,7 @@ TEST(TestColumnDescriptor, TestAttrs) {
   ASSERT_EQ("name", descr.name());
   ASSERT_EQ(4, descr.max_definition_level());
   ASSERT_EQ(1, descr.max_repetition_level());
-  ASSERT_EQ("name", descr.path()->toDotString());
+  ASSERT_EQ("name", descr.path()->ToDotString());
 
   ASSERT_EQ(Type::BYTE_ARRAY, descr.physical_type());
 
