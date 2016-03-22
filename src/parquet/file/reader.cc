@@ -134,22 +134,23 @@ std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
 #define COL_WIDTH "20"
 
 void ParquetFileReader::DebugPrint(std::ostream& stream,
-    std::list<int> columns, bool print_values) {
+    std::list<int> selected_columns, bool print_values) {
   stream << "File statistics:\n";
   stream << "Total rows: " << num_rows() << "\n";
 
-  // Verify correctness of selected columns
-  if (columns.size() == 0) {
+  if (selected_columns.size() == 0) {
     for (int i = 0; i < num_columns(); i++) {
-      columns.push_back(i);
+      selected_columns.push_back(i);
     }
   } else {
-    int n_cols = num_columns();
-    auto out_of_range = [n_cols](int i)->bool{ return i < 0 || i >= n_cols; };
-    columns.remove_if(out_of_range);
+    for (auto i : selected_columns) {
+      if (i < 0 || i >= num_columns()) {
+        throw ParquetException("Selected column is out of range");
+      }
+    }
   }
 
-  for (auto i : columns) {
+  for (auto i : selected_columns) {
     const ColumnDescriptor* descr = schema_->Column(i);
     stream << "Column " << i << ": "
            << descr->name()
@@ -164,7 +165,7 @@ void ParquetFileReader::DebugPrint(std::ostream& stream,
     auto group_reader = RowGroup(r);
 
     // Print column metadata
-    for (auto i : columns) {
+    for (auto i : selected_columns) {
       RowGroupStatistics stats = group_reader->GetColumnStats(i);
 
       stream << "Column " << i << ": "
@@ -185,9 +186,9 @@ void ParquetFileReader::DebugPrint(std::ostream& stream,
     char buffer[bufsize];
 
     // Create readers for selected columns and print contents
-    vector<std::shared_ptr<Scanner> > scanners(columns.size(), NULL);
+    vector<std::shared_ptr<Scanner> > scanners(selected_columns.size(), NULL);
     int j = 0;
-    for (auto i : columns) {
+    for (auto i : selected_columns) {
       std::shared_ptr<ColumnReader> col_reader = group_reader->Column(i);
 
       std::stringstream ss;

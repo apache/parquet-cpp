@@ -138,12 +138,22 @@ TEST_F(TestAllTypesPlain, ColumnSelection) {
   columns.push_back(5);
   columns.push_back(0);
   columns.push_back(10);
-  columns.push_back(-100);
-  columns.push_back(100);
   reader_->DebugPrint(ss, columns);
 
   std::string result = ss.str();
   ASSERT_GT(result.size(), 0);
+}
+
+TEST_F(TestAllTypesPlain, ColumnSelectionOutOfRange) {
+  std::stringstream ss;
+
+  std::list<int> columns;
+  columns.push_back(100);
+  ASSERT_THROW(reader_->DebugPrint(ss, columns), ParquetException);
+
+  columns.clear();
+  columns.push_back(-1);
+  ASSERT_THROW(reader_->DebugPrint(ss, columns), ParquetException);
 }
 
 

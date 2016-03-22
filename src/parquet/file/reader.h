@@ -120,7 +120,7 @@ class ParquetFileReader {
     return schema_->Column(i);
   }
 
-  void DebugPrint(std::ostream& stream, std::list<int> columns,
+  void DebugPrint(std::ostream& stream, std::list<int> selected_columns,
       bool print_values = true);
 
  private:
