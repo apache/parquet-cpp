@@ -29,7 +29,7 @@
 namespace parquet_cpp {
 
 class ColumnReader;
-class ExternalInputStream;
+class RandomAccessSource;
 
 struct RowGroupStatistics {
   int64_t num_values;
@@ -101,8 +101,8 @@ class ParquetFileReader {
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
       bool memory_map = true, MemoryAllocator* allocator = default_allocator());
 
-  static std::unique_ptr<ParquetFileReader> OpenStream(
-      ExternalInputStream* stream,
+  static std::unique_ptr<ParquetFileReader> Open(
+      std::unique_ptr<RandomAccessSource> source,
       MemoryAllocator* allocator = default_allocator());
 
   void Open(std::unique_ptr<Contents> contents);

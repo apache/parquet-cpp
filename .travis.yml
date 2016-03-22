@@ -56,5 +56,3 @@ before_script:
 - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
 - cmake -DCMAKE_CXX_FLAGS="-Werror" $TRAVIS_BUILD_DIR
 - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
-
-after_failure:

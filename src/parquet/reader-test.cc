@@ -22,7 +22,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <fstream>
 
 #include "parquet/file/reader.h"
 #include "parquet/file/reader-internal.h"
@@ -37,72 +36,6 @@ namespace parquet_cpp {
 
 const char* data_dir = std::getenv("PARQUET_TEST_DATA");
 
-class TestAllTypesPlainExternalStream : public ::testing::Test {
- public:
-  void SetUp() {
-    std::string dir_string(data_dir);
-
-    std::stringstream ss;
-    ss << dir_string << "/" << "alltypes_plain.parquet";
-
-    std::ifstream parquet_file(ss.str());
-    parquet_file.seekg(0, parquet_file.end);
-    std::streamsize file_size = parquet_file.tellg();
-    parquet_file.seekg(0, parquet_file.beg);
-
-    auto buffer = std::make_shared<OwnedMutableBuffer>();
-    buffer->Resize(file_size);
-
-    if (!parquet_file.read(reinterpret_cast<char*>(buffer->mutable_data()), file_size)) {
-      throw ParquetException("Could not read file into buffer\n");
-    }
-    parquet_file.close();
-    stream_.reset(new ExternalInputStreamImpl(buffer));
-    reader_ = ParquetFileReader::OpenStream(stream_.get());
-  }
-
-  void TearDown() {}
-
- protected:
-  std::unique_ptr<ExternalInputStream> stream_;
-  std::unique_ptr<ParquetFileReader> reader_;
-};
-
-TEST_F(TestAllTypesPlainExternalStream, NoopConstructDestruct) {
-}
-
-TEST_F(TestAllTypesPlainExternalStream, TestBatchRead) {
-  std::shared_ptr<RowGroupReader> group = reader_->RowGroup(0);
-
-  // column 0, id
-  std::shared_ptr<Int32Reader> col =
-    std::dynamic_pointer_cast<Int32Reader>(group->Column(0));
-
-  int16_t def_levels[4];
-  int16_t rep_levels[4];
-  int32_t values[4];
-
-  // This file only has 8 rows
-  ASSERT_EQ(8, reader_->num_rows());
-  // This file only has 1 row group
-  ASSERT_EQ(1, reader_->num_row_groups());
-  // This row group must have 8 rows
-  ASSERT_EQ(8, group->num_rows());
-
-  ASSERT_TRUE(col->HasNext());
-  int64_t values_read;
-  int levels_read = col->ReadBatch(4, def_levels, rep_levels, values, &values_read);
-  ASSERT_EQ(4, levels_read);
-  ASSERT_EQ(4, values_read);
-
-  // Now read past the end of the file
-  ASSERT_TRUE(col->HasNext());
-  levels_read = col->ReadBatch(5, def_levels, rep_levels, values, &values_read);
-  ASSERT_EQ(4, levels_read);
-  ASSERT_EQ(4, values_read);
-
-  ASSERT_FALSE(col->HasNext());
-}
 
 class TestAllTypesPlain : public ::testing::Test {
  public:
