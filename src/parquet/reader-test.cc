@@ -57,16 +57,14 @@ class TestAllTypesPlainExternalStream : public ::testing::Test {
       throw ParquetException("Could not read file into buffer\n");
     }
     parquet_file.close();
-    stream_ = new ExternalInputStreamImpl(buffer);
-    reader_ = ParquetFileReader::OpenStream(stream_);
+    stream_.reset(new ExternalInputStreamImpl(buffer));
+    reader_ = ParquetFileReader::OpenStream(stream_.get());
   }
 
-  void TearDown() {
-    free(stream_);
-  }
+  void TearDown() {}
 
  protected:
-  ExternalInputStream* stream_;
+  std::unique_ptr<ExternalInputStream> stream_;
   std::unique_ptr<ParquetFileReader> reader_;
 };
 
