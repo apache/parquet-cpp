@@ -52,10 +52,14 @@ std::shared_ptr<ColumnPath> ColumnPath::extend(const std::string& node_name) con
 }
 
 std::string ColumnPath::ToDotString() const {
-  return std::accumulate(path_.cbegin(), path_.cend(), std::string(),
-      [](const std::string &str1, const std::string &str2) {
-          return str1.empty() ? str2 : str1 + "." + str2;
-      });
+  std::stringstream ss;
+  for (auto it = path_.cbegin(); it != path_.cend(); ++it) {
+    if (it != path_.cbegin()) {
+      ss << ".";
+    }
+    ss << *it;
+  }
+  return ss.str();
 }
 
 // ----------------------------------------------------------------------
