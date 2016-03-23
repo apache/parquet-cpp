@@ -114,7 +114,8 @@ class Node {
       name_(name),
       repetition_(repetition),
       logical_type_(logical_type),
-      id_(id) {}
+      id_(id),
+      parent_(nullptr) {}
 
   virtual ~Node() {}
 
