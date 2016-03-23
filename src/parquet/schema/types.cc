@@ -72,6 +72,10 @@ bool Node::EqualsInternal(const Node* other) const {
     logical_type_ == other->logical_type_;
 }
 
+void Node::SetParent(const Node* p_parent) {
+    parent_ = p_parent;
+}
+
 // ----------------------------------------------------------------------
 // Primitive node
 

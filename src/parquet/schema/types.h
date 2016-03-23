@@ -93,9 +93,13 @@ class ColumnPath {
   std::vector<std::string> path_;
 };
 
+class GroupNode;
+
 // Base class for logical schema types. A type has a name, repetition level,
 // and optionally a logical type (ConvertedType in Parquet metadata parlance)
 class Node {
+  friend class GroupNode;
+
  public:
   enum type {
     PRIMITIVE,
@@ -156,6 +160,10 @@ class Node {
     return id_;
   }
 
+  const Node* parent() const {
+    return parent_;
+  }
+
   // Node::Visitor abstract class for walking schemas with the visitor pattern
   class Visitor {
    public:
@@ -172,8 +180,11 @@ class Node {
   Repetition::type repetition_;
   LogicalType::type logical_type_;
   int id_;
+  // Nodes should not be shared, they have a single parent.
+  const Node* parent_;
 
   bool EqualsInternal(const Node* other) const;
+  void SetParent(const Node* p_parent);
 };
 
 // Save our breath all over the place with these typedefs
@@ -274,7 +285,11 @@ class GroupNode : public Node {
       LogicalType::type logical_type = LogicalType::NONE,
       int id = -1) :
       Node(Node::GROUP, name, repetition, logical_type, id),
-      fields_(fields) {}
+      fields_(fields) {
+      for (NodePtr& field : fields_) {
+        field->SetParent(this);
+      }
+    }
 
   NodeVector fields_;
   bool EqualsInternal(const GroupNode* other) const;
