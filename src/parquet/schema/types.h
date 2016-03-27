@@ -98,8 +98,6 @@ class GroupNode;
 // Base class for logical schema types. A type has a name, repetition level,
 // and optionally a logical type (ConvertedType in Parquet metadata parlance)
 class Node {
-  friend class GroupNode;
-
  public:
   enum type {
     PRIMITIVE,
@@ -176,6 +174,8 @@ class Node {
   virtual void Visit(Visitor* visitor) = 0;
 
  protected:
+  friend class GroupNode;
+
   Node::type type_;
   std::string name_;
   Repetition::type repetition_;
