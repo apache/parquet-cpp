@@ -40,7 +40,6 @@ class ColumnDescriptor {
  public:
   ColumnDescriptor(const schema::NodePtr& node, int16_t max_definition_level,
       int16_t max_repetition_level,
-      const std::shared_ptr<schema::ColumnPath>& column_path,
       const SchemaDescriptor* schema_descr = nullptr);
 
   int16_t max_definition_level() const {
@@ -63,9 +62,7 @@ class ColumnDescriptor {
     return primitive_node_->name();
   }
 
-  const std::shared_ptr<schema::ColumnPath>& path() const {
-    return path_;
-  }
+  const std::shared_ptr<schema::ColumnPath> path() const;
 
   int type_length() const;
 
@@ -75,7 +72,6 @@ class ColumnDescriptor {
 
  private:
   schema::NodePtr node_;
-  std::shared_ptr<schema::ColumnPath> path_;
   const schema::PrimitiveNode* primitive_node_;
 
   int16_t max_definition_level_;
@@ -125,7 +121,7 @@ class SchemaDescriptor {
   const schema::GroupNode* group_;
 
   void BuildTree(const schema::NodePtr& node, int16_t max_def_level,
-      int16_t max_rep_level, const std::shared_ptr<schema::ColumnPath>& column_path);
+      int16_t max_rep_level);
 
   // Result of leaf node / tree analysis
   std::vector<ColumnDescriptor> leaves_;

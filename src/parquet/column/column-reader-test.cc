@@ -39,7 +39,6 @@ using std::shared_ptr;
 
 namespace parquet_cpp {
 
-using schema::ColumnPath;
 using schema::NodePtr;
 
 namespace test {
@@ -129,8 +128,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequired) {
   max_def_level_ = 0;
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("a", Repetition::REQUIRED);
-  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_,
-      ColumnPath::FromDotString("a"));
+  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
   ExecutePlain(num_pages, levels_per_page, &descr);
   ExecuteDict(num_pages, levels_per_page, &descr);
 }
@@ -141,8 +139,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatOptional) {
   max_def_level_ = 4;
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("b", Repetition::OPTIONAL);
-  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_,
-      ColumnPath::FromDotString("b"));
+  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
   ExecutePlain(num_pages, levels_per_page, &descr);
   ExecuteDict(num_pages, levels_per_page, &descr);
 }
@@ -153,8 +150,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRepeated) {
   max_def_level_ = 4;
   max_rep_level_ = 2;
   NodePtr type = schema::Int32("c", Repetition::REPEATED);
-  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_,
-      ColumnPath::FromDotString("c"));
+  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
   ExecutePlain(num_pages, levels_per_page, &descr);
   ExecuteDict(num_pages, levels_per_page, &descr);
 }
@@ -163,8 +159,7 @@ TEST_F(TestPrimitiveReader, TestDictionaryEncodedPages) {
   max_def_level_ = 0;
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("a", Repetition::REQUIRED);
-  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_,
-      ColumnPath::FromDotString("a"));
+  const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
   shared_ptr<OwnedMutableBuffer> dummy = std::make_shared<OwnedMutableBuffer>();
 
   shared_ptr<DictionaryPage> dict_page = std::make_shared<DictionaryPage>(dummy,

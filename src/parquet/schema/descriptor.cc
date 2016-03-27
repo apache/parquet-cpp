@@ -22,6 +22,7 @@
 namespace parquet_cpp {
 
 using schema::ColumnPath;
+using schema::Node;
 using schema::NodePtr;
 using schema::PrimitiveNode;
 using schema::GroupNode;
@@ -40,15 +41,13 @@ void SchemaDescriptor::Init(const NodePtr& schema) {
   group_ = static_cast<const GroupNode*>(schema_.get());
   leaves_.clear();
 
-  std::shared_ptr<ColumnPath> column_path(new ColumnPath());
-
   for (int i = 0; i < group_->field_count(); ++i) {
-    BuildTree(group_->field(i), 0, 0, column_path);
+    BuildTree(group_->field(i), 0, 0);
   }
 }
 
 void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
-    int16_t max_rep_level, const std::shared_ptr<ColumnPath>& column_path) {
+    int16_t max_rep_level) {
   if (node->is_optional()) {
     ++max_def_level;
   } else if (node->is_repeated()) {
@@ -61,23 +60,19 @@ void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
   // Now, walk the schema and create a ColumnDescriptor for each leaf node
   if (node->is_group()) {
     const GroupNode* group = static_cast<const GroupNode*>(node.get());
-    std::shared_ptr<ColumnPath> group_path = column_path->extend(group->name());
     for (int i = 0; i < group->field_count(); ++i) {
-      BuildTree(group->field(i), max_def_level, max_rep_level, group_path);
+      BuildTree(group->field(i), max_def_level, max_rep_level);
     }
   } else {
     // Primitive node, append to leaves
-    leaves_.push_back(ColumnDescriptor(node, max_def_level, max_rep_level,
-      column_path->extend(node->name()), this));
+    leaves_.push_back(ColumnDescriptor(node, max_def_level, max_rep_level, this));
   }
 }
 
 ColumnDescriptor::ColumnDescriptor(const schema::NodePtr& node,
     int16_t max_definition_level, int16_t max_repetition_level,
-    const std::shared_ptr<ColumnPath>& column_path,
     const SchemaDescriptor* schema_descr) :
       node_(node),
-      path_(column_path),
       max_definition_level_(max_definition_level),
       max_repetition_level_(max_repetition_level),
       schema_descr_(schema_descr) {
@@ -101,6 +96,21 @@ int ColumnDescriptor::type_precision() const {
 
 int ColumnDescriptor::type_length() const {
   return primitive_node_->type_length();
+}
+
+const std::shared_ptr<ColumnPath> ColumnDescriptor::path() const {
+  // Build the path in reverse order as we traverse the nodes to the top
+  std::vector<std::string> rpath_;
+  const Node* node = primitive_node_;
+  // The schema node is not part of the ColumnPath
+  while (node->parent()) {
+    rpath_.push_back(node->name());
+    node = node->parent();
+  }
+
+  // Build ColumnPath in correct order
+  std::vector<std::string> path_(rpath_.crbegin(), rpath_.crend());
+  return std::make_shared<ColumnPath>(std::move(path_));
 }
 
 } // namespace parquet_cpp
