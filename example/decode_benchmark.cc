@@ -26,7 +26,7 @@
 #include "parquet/encodings/delta-length-byte-array-encoding.h"
 #include "parquet/util/stopwatch.h"
 
-using namespace parquet_cpp;
+using namespace parquet;
 using namespace std;
 
 /**
