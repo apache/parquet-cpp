@@ -20,7 +20,7 @@
 #include <parquet/api/reader.h>
 #include <parquet/api/schema.h>
 
-using namespace parquet_cpp;
+using namespace parquet;
 
 int main(int argc, char** argv) {
   std::string filename = argv[1];
