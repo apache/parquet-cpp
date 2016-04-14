@@ -210,6 +210,15 @@ class PageReader {
   virtual std::shared_ptr<Page> NextPage() = 0;
 };
 
+class PageWriter {
+ public:
+  virtual ~PageWriter() {}
+
+  virtual void Close() = 0;
+
+  // TODO: WritePage
+};
+
 } // namespace parquet
 
 #endif // PARQUET_COLUMN_PAGE_H

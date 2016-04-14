@@ -317,10 +317,13 @@ endif()
 
 set(LIBPARQUET_SRCS
   src/parquet/column/reader.cc
+  src/parquet/column/writer.cc
   src/parquet/column/scanner.cc
 
   src/parquet/file/reader.cc
   src/parquet/file/reader-internal.cc
+  src/parquet/file/writer.cc
+  src/parquet/file/writer-internal.cc
 
   src/parquet/schema/converter.cc
   src/parquet/schema/descriptor.cc
