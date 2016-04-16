@@ -34,9 +34,18 @@ namespace test {
 
 class TestPrimitiveWriter : public ::testing::Test {
  public:
-  void SetUp() {
+  void SetUpSchemaRequiredNonRepeated() {
     node = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);  
     schema = std::make_shared<ColumnDescriptor>(node, 0, 0);
+  }
+
+  void SetUpSchemaOptionalNonRepeated() {
+    node = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
+    schema = std::make_shared<ColumnDescriptor>(node, 1, 0);
+  }
+
+  void SetUp() {
+    SetUpSchemaRequiredNonRepeated();
   }
 
   std::unique_ptr<Int64Reader> BuildReader(const std::shared_ptr<Buffer>& buffer) {
@@ -59,26 +68,43 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   // Small dataset that should fit inside a single page
   std::vector<int64_t> values(100);
   std::fill(values.begin(), values.end(), 128);
+  values[1] = -1;
+  std::vector<int16_t> definition_levels(100);
+  std::fill(definition_levels.begin(), definition_levels.end(), 1);
+  definition_levels[1] = 0;
+  std::vector<int16_t> repetition_levels(100);
+
+  // Output buffers
+  std::vector<int64_t> values_out(100);
+  std::vector<int16_t> definition_levels_out(100);
+  std::vector<int16_t> repetition_levels_out(100);
   
   // Test case 1: required and non-repeated, so no definition or repetition levels
-  InMemoryOutputStream sink;
-  std::unique_ptr<Int64Writer> writer = BuildWriter(&sink);
+  std::unique_ptr<InMemoryOutputStream> sink(new InMemoryOutputStream());
+  std::unique_ptr<Int64Writer> writer = BuildWriter(sink.get());
   writer->WriteBatch(values.size(), nullptr, nullptr, values.data());
   writer->Close();
-  writer.reset();
 
-  std::unique_ptr<Int64Reader> reader = BuildReader(sink.GetBuffer());
-  std::vector<int64_t> values_out(100);
-  std::vector<int16_t> definition_levels(100);
-  std::vector<int16_t> repetition_levels(100);
+  std::unique_ptr<Int64Reader> reader = BuildReader(sink->GetBuffer());
   int64_t values_read = 0;
-  reader->ReadBatch(values.size(), definition_levels.data(), repetition_levels.data(), values_out.data(), &values_read);
-  reader.reset();
+  reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
   ASSERT_EQ(values_read, 100);
   ASSERT_EQ(values_out, values);
   
   // Test case 2: optional and non-repeated, with definition level but not repetition levels
-  // TODO
+  SetUpSchemaOptionalNonRepeated();
+  sink.reset(new InMemoryOutputStream());
+  writer = BuildWriter(sink.get());
+  // TODO: Implement definition_levels
+  // writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
+  // writer->Close();
+  
+  // reader = BuildReader(sink->GetBuffer());
+  // values_read = 0;
+  // reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
+  // ASSERT_EQ(values_read, 99);
+  // ASSERT_EQ(values_out, values);
+  // TODO: values is not the expected data
 
   // Test case 3: optional and repeated, so definition and repetition levels 
   // TODO
