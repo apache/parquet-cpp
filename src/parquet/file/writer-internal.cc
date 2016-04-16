@@ -78,6 +78,8 @@ void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values, i
   // TODO: crc checksum
   
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
+  sink_->Write(repetition_levels->data(), repetition_levels->size());
+  sink_->Write(definition_levels->data(), definition_levels->size());
   sink_->Write(values->data(), values->size());
 }
 

@@ -161,8 +161,7 @@ inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def
       }
     }
 
-    // TODO: Write definition levels
-    // WriteDefinitionLevels(num_values, def_levels);
+    WriteDefinitionLevels(num_values, def_levels);
   } else {
     // Required field, write all values
     values_to_write = num_values;

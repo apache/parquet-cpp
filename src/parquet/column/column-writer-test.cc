@@ -68,7 +68,6 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   // Small dataset that should fit inside a single page
   std::vector<int64_t> values(100);
   std::fill(values.begin(), values.end(), 128);
-  values[1] = -1;
   std::vector<int16_t> definition_levels(100);
   std::fill(definition_levels.begin(), definition_levels.end(), 1);
   definition_levels[1] = 0;
@@ -96,15 +95,17 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   sink.reset(new InMemoryOutputStream());
   writer = BuildWriter(sink.get());
   // TODO: Implement definition_levels
-  // writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
-  // writer->Close();
+  writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
+  writer->Close();
   
-  // reader = BuildReader(sink->GetBuffer());
-  // values_read = 0;
-  // reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
-  // ASSERT_EQ(values_read, 99);
-  // ASSERT_EQ(values_out, values);
-  // TODO: values is not the expected data
+  reader = BuildReader(sink->GetBuffer());
+  values_read = 0;
+  reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
+  ASSERT_EQ(values_read, 99);
+  std::vector<int64_t> values_expected(99);
+  std::fill(values_expected.begin(), values_expected.end(), 128);
+  values_out.resize(99);
+  ASSERT_EQ(values_out, values_expected);
 
   // Test case 3: optional and repeated, so definition and repetition levels 
   // TODO

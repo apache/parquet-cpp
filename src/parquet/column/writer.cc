@@ -40,19 +40,36 @@ void ColumnWriter::InitSinks() {
   repetition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(new InMemoryOutputStream()); 
   values_sink_ = std::unique_ptr<InMemoryOutputStream>(new InMemoryOutputStream()); 
 }
+  
+void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, int16_t* levels) {
+  definition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels), sizeof(int16_t) * num_levels);
+}
 
 void ColumnWriter::WriteNewPage() {
   // TODO: Currently we only support writing DataPages
   std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->GetBuffer();
   std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->GetBuffer();
   std::shared_ptr<Buffer> values = values_sink_->GetBuffer();
+  
+  if (descr_->max_definition_level() > 0) {
+    // TODO: This only works with due to some RLE specifics
+    std::shared_ptr<OwnedMutableBuffer> definition_levels_rle = std::make_shared<OwnedMutableBuffer>(2 * num_buffered_values_ + sizeof(uint32_t), allocator_);
+    definition_level_encoder_.Init(Encoding::RLE,
+        descr_->max_definition_level(),
+        num_buffered_values_, definition_levels_rle->mutable_data() + sizeof(uint32_t), definition_levels_rle->size() - sizeof(uint32_t));
+    int encoded = definition_level_encoder_.Encode(num_buffered_values_, reinterpret_cast<const int16_t*>(definition_levels->data()));
+    DCHECK_EQ(encoded, num_buffered_values_);
+    reinterpret_cast<uint32_t*>(definition_levels_rle->mutable_data())[0] = definition_level_encoder_.len();
+    definition_levels_rle->Resize(definition_level_encoder_.len() + sizeof(uint32_t));
+    definition_levels = std::static_pointer_cast<Buffer>(definition_levels_rle);
+  }
 
   // TODO: Encodings are hard-coded
   pager_->WriteDataPage(num_buffered_values_, num_buffered_encoded_values_,
       // num_nulls = Difference of enocoded and actual values
       num_buffered_values_ - num_buffered_encoded_values_,
       definition_levels, Encoding::RLE,
-      repetition_levels, Encoding::BIT_PACKED,
+      repetition_levels, Encoding::RLE,
       values, Encoding::PLAIN);
 
   // Re-initialize the sinks as GetBuffer made them invalid.
