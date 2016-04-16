@@ -38,6 +38,8 @@ struct SerializerState {
 // This subclass delimits pages appearing in a serialized stream, each preceded
 // by a serialized Thrift format::PageHeader indicating the type of each page
 // and the page metadata.
+//
+// TODO: Currently only writes DataPageV2 style pages.
 class SerializedPageWriter : public PageWriter {
  public:
   SerializedPageWriter(OutputStream* sink,
@@ -45,28 +47,22 @@ class SerializedPageWriter : public PageWriter {
 
   virtual ~SerializedPageWriter() {}
 
-  void WritePage(const std::shared_ptr<Buffer>& definition_levels,
-      const std::shared_ptr<Buffer>& repetition_levels,
-      const std::shared_ptr<Buffer>& values);
-
-  void set_max_page_header_size(uint32_t size) {
-    max_page_header_size_ = size;
-  }
+  void WriteDataPage(int32_t num_rows, int32_t num_values, int32_t num_nulls,
+      const std::shared_ptr<Buffer>& definition_levels, Encoding::type definition_level_encoding,
+      const std::shared_ptr<Buffer>& repetition_levels, Encoding::type repetition_level_encoding,
+      const std::shared_ptr<Buffer>& values, Encoding::type encoding) override;
 
   void Close() override;
 
  private:
   OutputStream* sink_;
-
-  // TODO: Continue here.
-  format::PageHeader current_page_header_;
-  std::shared_ptr<Page> current_page_;
+  MemoryAllocator* allocator_;
 
   // Compression codec to use.
-  std::unique_ptr<Codec> decompressor_;
-  OwnedMutableBuffer decompression_buffer_;
-  // Maximum allowed page size
-  uint32_t max_page_header_size_;
+  std::unique_ptr<Codec> compressor_;
+  OwnedMutableBuffer compression_buffer_;
+
+  // TODO: Statistics
 };
 
 // RowGroupWriter::Contents implementation for the Parquet file specification

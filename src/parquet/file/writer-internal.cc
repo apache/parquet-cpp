@@ -29,6 +29,58 @@ namespace parquet {
 // FIXME: copied from reader-internal.cc
 static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
+SerializedPageWriter::SerializedPageWriter(OutputStream* sink,
+        Compression::type codec,
+        MemoryAllocator* allocator) : sink_(sink), allocator_(allocator) {
+  compressor_ = Codec::Create(codec);
+}
+
+void SerializedPageWriter::Close() {}
+  
+void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values, int32_t num_nulls,
+        const std::shared_ptr<Buffer>& definition_levels, Encoding::type definition_level_encoding,
+        const std::shared_ptr<Buffer>& repetition_levels, Encoding::type repetition_level_encoding,
+        const std::shared_ptr<Buffer>& values, Encoding::type encoding) {
+  int64_t uncompressed_size = definition_levels->size() + repetition_levels->size() + values->size();
+ 
+  // Concatenate data into a single buffer
+  std::shared_ptr<OwnedMutableBuffer> uncompressed_data = std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
+  uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
+  memcpy(uncompressed_ptr, definition_levels->data(), definition_levels->size());
+  uncompressed_ptr += definition_levels->size();
+  memcpy(uncompressed_ptr, repetition_levels->data(), repetition_levels->size());
+  uncompressed_ptr += repetition_levels->size();
+  memcpy(uncompressed_ptr, values->data(), values->size());
+  
+  // Compress the data
+  int64_t compressed_size = uncompressed_size;
+  std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
+  if (compressor_) {
+    // TODO
+    // int64_t max_compressed_size = compressor_->MaxCompressedLen(uncompressed_data.size(), uncompressed_data.data());
+    // OwnedMutableBuffer compressed_data(compressor_->MaxCompressedLen(uncompressed_data.size(), uncompressed_data.data()));
+  }
+  // Compressed data is not needed anymore, so immediately get rid of it. 
+  uncompressed_data.reset();
+
+  format::DataPageHeader data_page_header;
+  data_page_header.__set_num_values(num_rows);
+  data_page_header.__set_encoding(ToThrift(encoding));
+  data_page_header.__set_definition_level_encoding(ToThrift(definition_level_encoding));
+  data_page_header.__set_repetition_level_encoding(ToThrift(repetition_level_encoding));
+  // TODO: statistics
+
+  format::PageHeader page_header;
+  page_header.__set_type(format::PageType::DATA_PAGE);
+  page_header.__set_uncompressed_page_size(uncompressed_size);
+  page_header.__set_compressed_page_size(compressed_size);
+  page_header.__set_data_page_header(data_page_header);
+  // TODO: crc checksum
+  
+  SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
+  sink_->Write(values->data(), values->size());
+}
+
 int RowGroupSerializer::num_columns() const {
   return schema_->num_columns();
 }
@@ -46,7 +98,7 @@ PageWriter* RowGroupSerializer::NextColumn(Compression::type codec) {
     throw ParquetException("All columns have already been written.");
   }
   current_column_index_++;
-  
+
   if (current_column_writer_) {
     current_column_writer_->Close();
   }
@@ -90,7 +142,7 @@ void FileSerializer::Close() {
 int FileSerializer::num_columns() const {
   return schema_.num_columns();
 }
-  
+
 RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   if (row_group_writer_) {
     row_group_writer_->Close();
@@ -98,7 +150,7 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   num_rows_ += num_rows;
   // TODO: Create Contents
   std::unique_ptr<RowGroupWriter::Contents> contents(new RowGroupSerializer(num_rows, &schema_, sink_.get(), allocator_));
-  row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_)); 
+  row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_));
   return row_group_writer_.get();
 }
 
@@ -119,9 +171,9 @@ void FileSerializer::WriteMetaData() {
   // TODO: key_value_metadata
   // TODO: created_by
   // TODO: fill metadata
-  SerializeThriftMsg(&metadata, 1024, sink_.get()); 
+  SerializeThriftMsg(&metadata, 1024, sink_.get());
   metadata_len = sink_->Tell() - metadata_len;
-  
+
   // Write Footer
   sink_->Write(PARQUET_MAGIC, 4);
   sink_->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
