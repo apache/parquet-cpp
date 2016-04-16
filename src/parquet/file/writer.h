@@ -53,7 +53,7 @@ class RowGroupWriter {
     // virtual void WriteRowGroupStatitics();
     virtual PageWriter* NextColumn(Compression::type codec) = 0;
     virtual void Close() = 0;
-    
+
     // Return const-poitner to make it clear that this object is not to be copied
     virtual const SchemaDescriptor* schema() const = 0;
   };
@@ -104,7 +104,7 @@ class ParquetFileWriter {
     }
     SchemaDescriptor schema_;
   };
-  
+
   ParquetFileWriter();
   ~ParquetFileWriter();
 
@@ -138,7 +138,7 @@ class ParquetFileWriter {
   const ColumnDescriptor* column_schema(int i) const {
     return schema_->Column(i);
   }
- 
+
  private:
   // PIMPL idiom
   // This is declared in the .cc file so that we can hide compiled Thrift

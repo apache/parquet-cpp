@@ -48,8 +48,10 @@ class SerializedPageWriter : public PageWriter {
   virtual ~SerializedPageWriter() {}
 
   void WriteDataPage(int32_t num_rows, int32_t num_values, int32_t num_nulls,
-      const std::shared_ptr<Buffer>& definition_levels, Encoding::type definition_level_encoding,
-      const std::shared_ptr<Buffer>& repetition_levels, Encoding::type repetition_level_encoding,
+      const std::shared_ptr<Buffer>& definition_levels,
+      Encoding::type definition_level_encoding,
+      const std::shared_ptr<Buffer>& repetition_levels,
+      Encoding::type repetition_level_encoding,
       const std::shared_ptr<Buffer>& values, Encoding::type encoding) override;
 
   void Close() override;
@@ -78,7 +80,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   int num_columns() const override;
   int64_t num_rows() const override;
   const SchemaDescriptor* schema() const override;
-  
+
   // TODO: PARQUET-579
   // void WriteRowGroupStatitics() override;
   PageWriter* NextColumn(Compression::type codec) override;
@@ -89,7 +91,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   const SchemaDescriptor* schema_;
   OutputStream* sink_;
   MemoryAllocator* allocator_;
-  
+
   int64_t current_column_index_;
   std::unique_ptr<PageWriter> current_column_writer_;
 };
@@ -99,8 +101,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
 class FileSerializer : public ParquetFileWriter::Contents {
  public:
-  // TODO?: This class does _not_ take ownership of the data source. You must manage its
-  // lifetime separately
+  // TODO: (??) This class does _not_ take ownership of the data source.
+  // You must manage its lifetime separately
   static std::unique_ptr<ParquetFileWriter::Contents> Open(
       std::unique_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
@@ -114,7 +116,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
   virtual ~FileSerializer();
 
  private:
-  // TODO?: This class takes ownership of the provided data sink
+  // TODO: (??) This class takes ownership of the provided data sink
   explicit FileSerializer(std::unique_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator);
