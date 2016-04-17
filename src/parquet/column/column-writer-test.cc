@@ -35,7 +35,7 @@ namespace test {
 class TestPrimitiveWriter : public ::testing::Test {
  public:
   void SetUpSchemaRequiredNonRepeated() {
-    node = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);  
+    node = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
     schema = std::make_shared<ColumnDescriptor>(node, 0, 0);
   }
 
@@ -55,12 +55,15 @@ class TestPrimitiveWriter : public ::testing::Test {
 
   std::unique_ptr<Int64Reader> BuildReader(const std::shared_ptr<Buffer>& buffer) {
     std::unique_ptr<InMemoryInputStream> source(new InMemoryInputStream(buffer));
-    std::unique_ptr<SerializedPageReader> page_reader(new SerializedPageReader(std::move(source), Compression::UNCOMPRESSED));
-    return std::unique_ptr<Int64Reader>(new Int64Reader(schema.get(), std::move(page_reader)));
+    std::unique_ptr<SerializedPageReader> page_reader(
+        new SerializedPageReader(std::move(source), Compression::UNCOMPRESSED));
+    return std::unique_ptr<Int64Reader>(
+        new Int64Reader(schema.get(), std::move(page_reader)));
   }
 
   std::unique_ptr<Int64Writer> BuildWriter(OutputStream* sink) {
-    std::unique_ptr<SerializedPageWriter> pager(new SerializedPageWriter(sink, Compression::UNCOMPRESSED));
+    std::unique_ptr<SerializedPageWriter> pager(
+        new SerializedPageWriter(sink, Compression::UNCOMPRESSED));
     return std::unique_ptr<Int64Writer>(new Int64Writer(schema.get(), std::move(pager)));
   }
 
@@ -83,7 +86,7 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   std::vector<int64_t> values_out(100);
   std::vector<int16_t> definition_levels_out(100);
   std::vector<int16_t> repetition_levels_out(100);
-  
+
   // Test case 1: required and non-repeated, so no definition or repetition levels
   std::unique_ptr<InMemoryOutputStream> sink(new InMemoryOutputStream());
   std::unique_ptr<Int64Writer> writer = BuildWriter(sink.get());
@@ -92,37 +95,42 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
 
   std::unique_ptr<Int64Reader> reader = BuildReader(sink->GetBuffer());
   int64_t values_read = 0;
-  reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
+  reader->ReadBatch(values.size(), definition_levels_out.data(),
+      repetition_levels_out.data(), values_out.data(), &values_read);
   ASSERT_EQ(values_read, 100);
   ASSERT_EQ(values_out, values);
-  
-  // Test case 2: optional and non-repeated, with definition level but not repetition levels
+
+  // Test case 2: optional and non-repeated, with definition levels
+  // but no repetition levels
   SetUpSchemaOptionalNonRepeated();
   sink.reset(new InMemoryOutputStream());
   writer = BuildWriter(sink.get());
   writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
   writer->Close();
-  
+
   reader = BuildReader(sink->GetBuffer());
   values_read = 0;
-  reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
+  reader->ReadBatch(values.size(), definition_levels_out.data(),
+      repetition_levels_out.data(), values_out.data(), &values_read);
   ASSERT_EQ(values_read, 99);
   std::vector<int64_t> values_expected(99);
   std::fill(values_expected.begin(), values_expected.end(), 128);
   values_out.resize(99);
   ASSERT_EQ(values_out, values_expected);
 
-  // Test case 3: optional and repeated, so definition and repetition levels 
+  // Test case 3: optional and repeated, so definition and repetition levels
   SetUpSchemaOptionalRepeated();
   sink.reset(new InMemoryOutputStream());
   writer = BuildWriter(sink.get());
-  writer->WriteBatch(values.size(), definition_levels.data(), repetition_levels.data(), values.data());
+  writer->WriteBatch(values.size(), definition_levels.data(),
+      repetition_levels.data(), values.data());
   writer->Close();
-  
+
   reader = BuildReader(sink->GetBuffer());
   values_read = 0;
   values_out.resize(100);
-  reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
+  reader->ReadBatch(values.size(), definition_levels_out.data(),
+      repetition_levels_out.data(), values_out.data(), &values_read);
   ASSERT_EQ(values_read, 99);
   values_out.resize(99);
   ASSERT_EQ(values_out, values_expected);

@@ -24,7 +24,9 @@ using parquet::schema::GroupNode;
 
 namespace parquet {
 
-RowGroupWriter::RowGroupWriter(std::unique_ptr<Contents> contents, MemoryAllocator* allocator) : contents_(std::move(contents)), allocator_(allocator) {
+RowGroupWriter::RowGroupWriter(std::unique_ptr<Contents> contents,
+    MemoryAllocator* allocator):
+  contents_(std::move(contents)), allocator_(allocator) {
   schema_ = contents_->schema();
 }
 

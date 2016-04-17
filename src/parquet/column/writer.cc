@@ -24,34 +24,42 @@ namespace parquet {
 // ----------------------------------------------------------------------
 // ColumnWriter
 
-ColumnWriter::ColumnWriter(const ColumnDescriptor* descr, std::unique_ptr<PageWriter> pager,
-        MemoryAllocator* allocator) :  descr_(descr), pager_(std::move(pager)), allocator_(allocator),
-        num_buffered_values_(0), num_buffered_encoded_values_(0), 
-        // TODO: Get from WriterProperties
-        num_buffered_values_next_size_check_(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK),
-        num_rows_(0)
-  {
+ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
+    std::unique_ptr<PageWriter> pager, MemoryAllocator* allocator):
+    descr_(descr), pager_(std::move(pager)), allocator_(allocator),
+    num_buffered_values_(0), num_buffered_encoded_values_(0),
+    // TODO: Get from WriterProperties
+    num_buffered_values_next_size_check_(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK),
+    num_rows_(0) {
   // TODO: Initialize level encoders already here
   InitSinks();
 }
 
 void ColumnWriter::InitSinks() {
-  definition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(new InMemoryOutputStream()); 
-  repetition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(new InMemoryOutputStream()); 
-  values_sink_ = std::unique_ptr<InMemoryOutputStream>(new InMemoryOutputStream()); 
+  definition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(
+      new InMemoryOutputStream());
+  repetition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(
+      new InMemoryOutputStream());
+  values_sink_ = std::unique_ptr<InMemoryOutputStream>(
+      new InMemoryOutputStream());
 }
-  
+
 void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, int16_t* levels) {
-  definition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels), sizeof(int16_t) * num_levels);
+  definition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels),
+      sizeof(int16_t) * num_levels);
 }
-  
+
 void ColumnWriter::WriteRepetitionLevels(int64_t num_levels, int16_t* levels) {
-  repetition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels), sizeof(int16_t) * num_levels);
+  repetition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels),
+      sizeof(int16_t) * num_levels);
 }
-  
-std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(const std::shared_ptr<Buffer>& buffer, int16_t max_level) {
+
+std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
+    const std::shared_ptr<Buffer>& buffer, int16_t max_level) {
   // TODO: This only works with due to some RLE specifics
-  std::shared_ptr<OwnedMutableBuffer> buffer_rle = std::make_shared<OwnedMutableBuffer>(2 * num_buffered_values_ + sizeof(uint32_t), allocator_);
+  int64_t rle_size = 2 * num_buffered_values_ + sizeof(uint32_t);
+  std::shared_ptr<OwnedMutableBuffer> buffer_rle =
+    std::make_shared<OwnedMutableBuffer>(rle_size, allocator_);
   level_encoder_.Init(Encoding::RLE, max_level,
       num_buffered_values_, buffer_rle->mutable_data() + sizeof(uint32_t),
       buffer_rle->size() - sizeof(uint32_t));
@@ -68,13 +76,15 @@ void ColumnWriter::WriteNewPage() {
   std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->GetBuffer();
   std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->GetBuffer();
   std::shared_ptr<Buffer> values = values_sink_->GetBuffer();
-  
+
   if (descr_->max_definition_level() > 0) {
-    definition_levels = RleEncodeLevels(definition_levels, descr_->max_definition_level());
+    definition_levels = RleEncodeLevels(definition_levels,
+        descr_->max_definition_level());
   }
 
   if (descr_->max_repetition_level() > 0) {
-    repetition_levels = RleEncodeLevels(repetition_levels, descr_->max_repetition_level());
+    repetition_levels = RleEncodeLevels(repetition_levels,
+        descr_->max_repetition_level());
   }
 
   // TODO: Encodings are hard-coded
@@ -92,8 +102,8 @@ void ColumnWriter::WriteNewPage() {
 void ColumnWriter::Close() {
   // TODO: no-op if already closed
   // TODO: Check if enough rows were written
- 
-  // Write all outstanding data to a new page 
+
+  // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) {
     WriteNewPage();
   }
@@ -109,7 +119,8 @@ TypedColumnWriter<TYPE>::TypedColumnWriter(const ColumnDescriptor* schema,
       std::unique_ptr<PageWriter> pager, MemoryAllocator* allocator) :
       ColumnWriter(schema, std::move(pager), allocator) {
   // Get decoder type from WriterProperties
-  current_encoder_ = std::unique_ptr<EncoderType>(new PlainEncoder<TYPE>(schema, allocator));
+  current_encoder_ = std::unique_ptr<EncoderType>(
+      new PlainEncoder<TYPE>(schema, allocator));
 }
 
 // ----------------------------------------------------------------------

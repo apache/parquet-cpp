@@ -36,31 +36,37 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink,
 }
 
 void SerializedPageWriter::Close() {}
-  
-void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values, int32_t num_nulls,
-        const std::shared_ptr<Buffer>& definition_levels, Encoding::type definition_level_encoding,
-        const std::shared_ptr<Buffer>& repetition_levels, Encoding::type repetition_level_encoding,
-        const std::shared_ptr<Buffer>& values, Encoding::type encoding) {
-  int64_t uncompressed_size = definition_levels->size() + repetition_levels->size() + values->size();
- 
+
+void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
+    int32_t num_nulls, const std::shared_ptr<Buffer>& definition_levels,
+    Encoding::type definition_level_encoding,
+    const std::shared_ptr<Buffer>& repetition_levels,
+    Encoding::type repetition_level_encoding,
+    const std::shared_ptr<Buffer>& values, Encoding::type encoding) {
+  int64_t uncompressed_size = definition_levels->size() + repetition_levels->size()
+    + values->size();
+
   // Concatenate data into a single buffer
-  std::shared_ptr<OwnedMutableBuffer> uncompressed_data = std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
+  std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
+    std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
   memcpy(uncompressed_ptr, definition_levels->data(), definition_levels->size());
   uncompressed_ptr += definition_levels->size();
   memcpy(uncompressed_ptr, repetition_levels->data(), repetition_levels->size());
   uncompressed_ptr += repetition_levels->size();
   memcpy(uncompressed_ptr, values->data(), values->size());
-  
+
   // Compress the data
   int64_t compressed_size = uncompressed_size;
   std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
   if (compressor_) {
     // TODO
-    // int64_t max_compressed_size = compressor_->MaxCompressedLen(uncompressed_data.size(), uncompressed_data.data());
-    // OwnedMutableBuffer compressed_data(compressor_->MaxCompressedLen(uncompressed_data.size(), uncompressed_data.data()));
+    // int64_t max_compressed_size = compressor_->MaxCompressedLen(
+    // uncompressed_data.size(), uncompressed_data.data());
+    // OwnedMutableBuffer compressed_data(compressor_->MaxCompressedLen(
+    // uncompressed_data.size(), uncompressed_data.data()));
   }
-  // Compressed data is not needed anymore, so immediately get rid of it. 
+  // Compressed data is not needed anymore, so immediately get rid of it.
   uncompressed_data.reset();
 
   format::DataPageHeader data_page_header;
@@ -76,7 +82,7 @@ void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values, i
   page_header.__set_compressed_page_size(compressed_size);
   page_header.__set_data_page_header(data_page_header);
   // TODO: crc checksum
-  
+
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   sink_->Write(repetition_levels->data(), repetition_levels->size());
   sink_->Write(definition_levels->data(), definition_levels->size());
@@ -151,7 +157,8 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   }
   num_rows_ += num_rows;
   // TODO: Create Contents
-  std::unique_ptr<RowGroupWriter::Contents> contents(new RowGroupSerializer(num_rows, &schema_, sink_.get(), allocator_));
+  std::unique_ptr<RowGroupWriter::Contents> contents(
+      new RowGroupSerializer(num_rows, &schema_, sink_.get(), allocator_));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_));
   return row_group_writer_.get();
 }

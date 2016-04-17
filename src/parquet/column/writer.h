@@ -65,7 +65,8 @@ class ColumnWriter {
   // Write multiple repetition levels
   void WriteRepetitionLevels(int64_t num_levels, int16_t* levels);
 
-  std::shared_ptr<Buffer> RleEncodeLevels(const std::shared_ptr<Buffer>& buffer, int16_t max_level);
+  std::shared_ptr<Buffer> RleEncodeLevels(const std::shared_ptr<Buffer>& buffer,
+      int16_t max_level);
 
   const ColumnDescriptor* descr_;
 
@@ -75,7 +76,7 @@ class ColumnWriter {
   LevelEncoder level_encoder_;
 
   MemoryAllocator* allocator_;
-  
+
   // The total number of values stored in the data page. This is the maximum of
   // the number of encoded definition levels or encoded values. For
   // non-repeated, required columns, this is equal to the number of encoded
@@ -97,7 +98,7 @@ class ColumnWriter {
   std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
   std::unique_ptr<InMemoryOutputStream> repetition_levels_sink_;
   std::unique_ptr<InMemoryOutputStream> values_sink_;
- 
+
  private:
   void InitSinks();
 };
@@ -109,8 +110,9 @@ class TypedColumnWriter : public ColumnWriter {
   typedef typename type_traits<TYPE>::value_type T;
 
   TypedColumnWriter(const ColumnDescriptor* schema,
-      std::unique_ptr<PageWriter> pager, MemoryAllocator* allocator = default_allocator());
-  
+      std::unique_ptr<PageWriter> pager,
+      MemoryAllocator* allocator = default_allocator());
+
   // Write a batch of repetition levels, definition levels, and values to the
   // column.
   void WriteBatch(int64_t num_values, int16_t* def_levels, int16_t* rep_levels,
@@ -127,7 +129,6 @@ class TypedColumnWriter : public ColumnWriter {
   // void CommitPages() override;
   // void ClosePages() override;
 
-
   // Map of encoding type to the respective encoder object. For example, a
   // column chunk's data pages may include both dictionary-encoded and
   // plain-encoded data.
@@ -139,14 +140,15 @@ class TypedColumnWriter : public ColumnWriter {
 };
 
 // TODO: This is just chosen at random, we should make better estimates.
-// See also: parquet-column/src/main/java/org/apache/parquet/column/impl/ColumnWriteStoreV2.java:sizeCheck
+// See also: parquet-column/../column/impl/ColumnWriteStoreV2.java:sizeCheck
 const int64_t PAGE_ROW_COUNT = 1000;
 
 template <int TYPE>
 inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def_levels,
     int16_t* rep_levels, T* values) {
   // Calculate how much rows we can write before we have to do the next size check.
-  // int64_t values_to_next_size_check = num_buffered_values_next_size_check_ - num_buffered_values_;
+  // int64_t values_to_next_size_check = num_buffered_values_next_size_check_
+  // - num_buffered_values_;
   // TODO: Chunking, size check
 
   int64_t values_to_write = 0;
