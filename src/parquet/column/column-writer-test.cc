@@ -44,6 +44,11 @@ class TestPrimitiveWriter : public ::testing::Test {
     schema = std::make_shared<ColumnDescriptor>(node, 1, 0);
   }
 
+  void SetUpSchemaOptionalRepeated() {
+    node = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
+    schema = std::make_shared<ColumnDescriptor>(node, 1, 1);
+  }
+
   void SetUp() {
     SetUpSchemaRequiredNonRepeated();
   }
@@ -72,6 +77,7 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   std::fill(definition_levels.begin(), definition_levels.end(), 1);
   definition_levels[1] = 0;
   std::vector<int16_t> repetition_levels(100);
+  std::fill(repetition_levels.begin(), repetition_levels.end(), 0);
 
   // Output buffers
   std::vector<int64_t> values_out(100);
@@ -94,7 +100,6 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   SetUpSchemaOptionalNonRepeated();
   sink.reset(new InMemoryOutputStream());
   writer = BuildWriter(sink.get());
-  // TODO: Implement definition_levels
   writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
   writer->Close();
   
@@ -108,7 +113,19 @@ TEST_F(TestPrimitiveWriter, WriteReadLoopSinglePage) {
   ASSERT_EQ(values_out, values_expected);
 
   // Test case 3: optional and repeated, so definition and repetition levels 
-  // TODO
+  SetUpSchemaOptionalRepeated();
+  sink.reset(new InMemoryOutputStream());
+  writer = BuildWriter(sink.get());
+  writer->WriteBatch(values.size(), definition_levels.data(), repetition_levels.data(), values.data());
+  writer->Close();
+  
+  reader = BuildReader(sink->GetBuffer());
+  values_read = 0;
+  values_out.resize(100);
+  reader->ReadBatch(values.size(), definition_levels_out.data(), repetition_levels_out.data(), values_out.data(), &values_read);
+  ASSERT_EQ(values_read, 99);
+  values_out.resize(99);
+  ASSERT_EQ(values_out, values_expected);
 }
 
 } // namespace test

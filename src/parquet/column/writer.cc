@@ -44,6 +44,24 @@ void ColumnWriter::InitSinks() {
 void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, int16_t* levels) {
   definition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels), sizeof(int16_t) * num_levels);
 }
+  
+void ColumnWriter::WriteRepetitionLevels(int64_t num_levels, int16_t* levels) {
+  repetition_levels_sink_->Write(reinterpret_cast<uint8_t*>(levels), sizeof(int16_t) * num_levels);
+}
+  
+std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(const std::shared_ptr<Buffer>& buffer, int16_t max_level) {
+  // TODO: This only works with due to some RLE specifics
+  std::shared_ptr<OwnedMutableBuffer> buffer_rle = std::make_shared<OwnedMutableBuffer>(2 * num_buffered_values_ + sizeof(uint32_t), allocator_);
+  level_encoder_.Init(Encoding::RLE, max_level,
+      num_buffered_values_, buffer_rle->mutable_data() + sizeof(uint32_t),
+      buffer_rle->size() - sizeof(uint32_t));
+  int encoded = level_encoder_.Encode(num_buffered_values_,
+      reinterpret_cast<const int16_t*>(buffer->data()));
+  DCHECK_EQ(encoded, num_buffered_values_);
+  reinterpret_cast<uint32_t*>(buffer_rle->mutable_data())[0] = level_encoder_.len();
+  buffer_rle->Resize(level_encoder_.len() + sizeof(uint32_t));
+  return std::static_pointer_cast<Buffer>(buffer_rle);
+}
 
 void ColumnWriter::WriteNewPage() {
   // TODO: Currently we only support writing DataPages
@@ -52,16 +70,11 @@ void ColumnWriter::WriteNewPage() {
   std::shared_ptr<Buffer> values = values_sink_->GetBuffer();
   
   if (descr_->max_definition_level() > 0) {
-    // TODO: This only works with due to some RLE specifics
-    std::shared_ptr<OwnedMutableBuffer> definition_levels_rle = std::make_shared<OwnedMutableBuffer>(2 * num_buffered_values_ + sizeof(uint32_t), allocator_);
-    definition_level_encoder_.Init(Encoding::RLE,
-        descr_->max_definition_level(),
-        num_buffered_values_, definition_levels_rle->mutable_data() + sizeof(uint32_t), definition_levels_rle->size() - sizeof(uint32_t));
-    int encoded = definition_level_encoder_.Encode(num_buffered_values_, reinterpret_cast<const int16_t*>(definition_levels->data()));
-    DCHECK_EQ(encoded, num_buffered_values_);
-    reinterpret_cast<uint32_t*>(definition_levels_rle->mutable_data())[0] = definition_level_encoder_.len();
-    definition_levels_rle->Resize(definition_level_encoder_.len() + sizeof(uint32_t));
-    definition_levels = std::static_pointer_cast<Buffer>(definition_levels_rle);
+    definition_levels = RleEncodeLevels(definition_levels, descr_->max_definition_level());
+  }
+
+  if (descr_->max_repetition_level() > 0) {
+    repetition_levels = RleEncodeLevels(repetition_levels, descr_->max_repetition_level());
   }
 
   // TODO: Encodings are hard-coded

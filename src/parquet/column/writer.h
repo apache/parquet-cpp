@@ -65,16 +65,14 @@ class ColumnWriter {
   // Write multiple repetition levels
   void WriteRepetitionLevels(int64_t num_levels, int16_t* levels);
 
+  std::shared_ptr<Buffer> RleEncodeLevels(const std::shared_ptr<Buffer>& buffer, int16_t max_level);
+
   const ColumnDescriptor* descr_;
 
   std::unique_ptr<PageWriter> pager_;
   std::shared_ptr<Page> current_page_;
 
-  // Not set if full schema for this field has no optional or repeated elements
-  LevelEncoder definition_level_encoder_;
-
-  // Not set for flat schemas.
-  LevelEncoder repetition_level_encoder_;
+  LevelEncoder level_encoder_;
 
   MemoryAllocator* allocator_;
   
@@ -169,8 +167,7 @@ inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def
 
   // Not present for non-repeated fields
   if (descr_->max_repetition_level() > 0) {
-    // TODO: Write repetition levels
-    // WriteRepetitionLevels(num_values, rep_levels);
+    WriteRepetitionLevels(num_values, rep_levels);
   }
 
   WriteValues(values_to_write, values);
