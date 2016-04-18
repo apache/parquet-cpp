@@ -172,7 +172,7 @@ class Node {
    public:
     virtual ~Visitor() {}
 
-    virtual void Visit(const Node* node) = 0;
+    virtual void Visit(Node* node) = 0;
   };
   class ConstVisitor {
    public:
