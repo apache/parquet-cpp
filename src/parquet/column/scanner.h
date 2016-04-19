@@ -70,6 +70,8 @@ class Scanner {
 
   int64_t batch_size() const { return batch_size_;}
 
+  int64_t buffer_size() const { return value_buffer_.size(); }
+
   void SetBatchSize(int64_t batch_size) {
     batch_size_ = batch_size;
   }

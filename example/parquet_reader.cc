@@ -24,7 +24,7 @@
 using namespace parquet;
 
 int main(int argc, char** argv) {
-  if (argc > 3) {
+  if (argc > 5) {
     std::cerr << "Usage: parquet_reader [--only-stats] [--no-memory-map] [--columns=...] <file>"
               << std::endl;
     return -1;
@@ -56,9 +56,19 @@ int main(int argc, char** argv) {
   }
 
   try {
+    TrackingAllocator allocator;
     std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename,
-        memory_map);
-    reader->DebugPrint(std::cout, columns, print_values);
+        memory_map, &allocator);
+    int64_t batch_size = 128;
+    ParquetFileReader::MemoryUsage memory_usage =
+        reader->EstimateMemoryUsage(memory_map, columns, batch_size);
+
+    reader->DebugPrint(std::cout, columns, batch_size, print_values);
+
+    std::cout << "Estimated memory use: " << memory_usage.memory << " bytes "
+        << (memory_usage.has_dictionary ? "(+ memory for " : "(no ")
+        << "dictionary encoding)\n"
+        << "Actual memory use: " << allocator.MaxMemory() << " bytes\n";
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "
               << e.what()

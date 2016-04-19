@@ -19,6 +19,7 @@
 #define PARQUET_FILE_READER_INTERNAL_H
 
 #include <cstdint>
+#include <list>
 #include <memory>
 #include <vector>
 
@@ -104,7 +105,10 @@ class SerializedFile : public ParquetFileReader::Contents {
   virtual int64_t num_rows() const;
   virtual int num_columns() const;
   virtual int num_row_groups() const;
+  virtual int64_t metadata_length() const;
   virtual ~SerializedFile();
+  virtual ParquetFileReader::MemoryUsage EstimateMemoryUsage(bool memory_map,
+      std::list<int>& selected_columns);
 
  private:
   // This class takes ownership of the provided data source
@@ -114,6 +118,7 @@ class SerializedFile : public ParquetFileReader::Contents {
   std::unique_ptr<RandomAccessSource> source_;
   format::FileMetaData metadata_;
   MemoryAllocator* allocator_;
+  uint32_t metadata_length_;
 
   void ParseMetaData();
 };

@@ -107,9 +107,7 @@ int64_t LocalFileSource::Read(int64_t nbytes, uint8_t* buffer) {
 }
 
 std::shared_ptr<Buffer> LocalFileSource::Read(int64_t nbytes) {
-  auto result = std::make_shared<OwnedMutableBuffer>(0, allocator_);
-  result->Resize(nbytes);
-
+  auto result = std::make_shared<OwnedMutableBuffer>(nbytes, allocator_);
   int64_t bytes_read = Read(nbytes, result->mutable_data());
   if (bytes_read < nbytes) {
     result->Resize(bytes_read);

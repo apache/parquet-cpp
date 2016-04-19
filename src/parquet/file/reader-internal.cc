@@ -245,6 +245,32 @@ int SerializedFile::num_row_groups() const {
   return metadata_.row_groups.size();
 }
 
+int64_t SerializedFile::metadata_length() const {
+  return static_cast<int64_t>(metadata_length_);
+}
+
+ParquetFileReader::MemoryUsage SerializedFile::EstimateMemoryUsage(bool memory_map,
+    std::list<int>& selected_columns) {
+  ParquetFileReader::MemoryUsage memory_usage;
+  for (format::RowGroup rg : metadata_.row_groups) {
+    for (auto i : selected_columns) {
+      format::ColumnMetaData md = rg.columns[i].meta_data;
+      if (!memory_map) {
+        memory_usage.memory += md.total_compressed_size;
+      }
+      if (md.codec != format::CompressionCodec::UNCOMPRESSED) {
+        memory_usage.memory += md.total_uncompressed_size;
+      }
+      for (format::Encoding::type en : md.encodings) {
+        memory_usage.has_dictionary = memory_usage.has_dictionary
+            || en == format::Encoding::PLAIN_DICTIONARY
+            || en == format::Encoding::RLE_DICTIONARY;
+      }
+    }
+  }
+  return memory_usage;
+}
+
 SerializedFile::SerializedFile(
     std::unique_ptr<RandomAccessSource> source,
     MemoryAllocator* allocator = default_allocator()) :
@@ -266,20 +292,20 @@ void SerializedFile::ParseMetaData() {
     throw ParquetException("Invalid parquet file. Corrupt footer.");
   }
 
-  uint32_t metadata_len = *reinterpret_cast<uint32_t*>(footer_buffer);
-  int64_t metadata_start = filesize - FOOTER_SIZE - metadata_len;
-  if (FOOTER_SIZE + metadata_len > filesize) {
+  metadata_length_ = *reinterpret_cast<uint32_t*>(footer_buffer);
+  int64_t metadata_start = filesize - FOOTER_SIZE - metadata_length_;
+  if (FOOTER_SIZE + metadata_length_ > filesize) {
     throw ParquetException("Invalid parquet file. File is less than "
         "file metadata size.");
   }
   source_->Seek(metadata_start);
 
-  OwnedMutableBuffer metadata_buffer(metadata_len, allocator_);
-  bytes_read = source_->Read(metadata_len, &metadata_buffer[0]);
-  if (bytes_read != metadata_len) {
+  OwnedMutableBuffer metadata_buffer(metadata_length_, allocator_);
+  bytes_read = source_->Read(metadata_length_, &metadata_buffer[0]);
+  if (bytes_read != metadata_length_) {
     throw ParquetException("Invalid parquet file. Could not read metadata bytes.");
   }
-  DeserializeThriftMsg(&metadata_buffer[0], &metadata_len, &metadata_);
+  DeserializeThriftMsg(&metadata_buffer[0], &metadata_length_, &metadata_);
 
   schema::FlatSchemaConverter converter(&metadata_.schema[0],
       metadata_.schema.size());
