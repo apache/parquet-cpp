@@ -31,7 +31,14 @@ RowGroupWriter::RowGroupWriter(std::unique_ptr<Contents> contents,
 }
 
 void RowGroupWriter::Close() {
-  contents_->Close();
+  if (contents_) {
+    contents_->Close();
+    contents_.reset();
+  }
+}
+
+ColumnWriter* RowGroupWriter::NextColumn() {
+  return contents_->NextColumn();
 }
 
 // ----------------------------------------------------------------------
@@ -44,9 +51,9 @@ ParquetFileWriter::~ParquetFileWriter() {
 }
 
 std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
-    std::unique_ptr<OutputStream> sink, std::shared_ptr<GroupNode>& schema,
+    std::shared_ptr<OutputStream> sink, std::shared_ptr<GroupNode>& schema,
     MemoryAllocator* allocator) {
-  auto contents = FileSerializer::Open(std::move(sink), schema, allocator);
+  auto contents = FileSerializer::Open(sink, schema, allocator);
 
   std::unique_ptr<ParquetFileWriter> result(new ParquetFileWriter());
   result->Open(std::move(contents));
@@ -62,7 +69,12 @@ void ParquetFileWriter::Open(std::unique_ptr<ParquetFileWriter::Contents> conten
 void ParquetFileWriter::Close() {
   if (contents_) {
     contents_->Close();
+    contents_.reset();
   }
+}
+
+RowGroupWriter* ParquetFileWriter::AppendRowGroup(int64_t num_rows) {
+  return contents_->AppendRowGroup(num_rows);
 }
 
 } // namespace parquet

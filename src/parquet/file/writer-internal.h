@@ -83,7 +83,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
   // TODO: PARQUET-579
   // void WriteRowGroupStatitics() override;
-  PageWriter* NextColumn(Compression::type codec) override;
+  ColumnWriter* NextColumn() override;
   void Close() override;
 
  private:
@@ -93,7 +93,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   MemoryAllocator* allocator_;
 
   int64_t current_column_index_;
-  std::unique_ptr<PageWriter> current_column_writer_;
+  std::shared_ptr<ColumnWriter> current_column_writer_;
 };
 
 // An implementation of ParquetFileWriter::Contents that deals with the Parquet
@@ -104,7 +104,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
   // TODO: (??) This class does _not_ take ownership of the data source.
   // You must manage its lifetime separately
   static std::unique_ptr<ParquetFileWriter::Contents> Open(
-      std::unique_ptr<OutputStream> sink,
+      std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator = default_allocator());
   void Close() override;
@@ -117,11 +117,11 @@ class FileSerializer : public ParquetFileWriter::Contents {
 
  private:
   // TODO: (??) This class takes ownership of the provided data sink
-  explicit FileSerializer(std::unique_ptr<OutputStream> sink,
+  explicit FileSerializer(std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator);
 
-  std::unique_ptr<OutputStream> sink_;
+  std::shared_ptr<OutputStream> sink_;
   format::FileMetaData metadata_;
   MemoryAllocator* allocator_;
   SerializerState::state state_;
@@ -130,10 +130,6 @@ class FileSerializer : public ParquetFileWriter::Contents {
   std::unique_ptr<RowGroupWriter> row_group_writer_;
 
   void StartFile();
-  void StartRowGroup();
-  void EndRowGroup();
-  void StartColumn();
-  void EndColumn();
   void WriteMetaData();
 };
 

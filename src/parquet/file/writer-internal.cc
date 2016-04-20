@@ -17,6 +17,7 @@
 
 #include "parquet/file/writer-internal.h"
 
+#include "parquet/column/writer.h"
 #include "parquet/schema/converter.h"
 #include "parquet/thrift/util.h"
 #include "parquet/util/output.h"
@@ -28,6 +29,9 @@ namespace parquet {
 
 // FIXME: copied from reader-internal.cc
 static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
+
+// ----------------------------------------------------------------------
+// SerializedPageWriter
 
 SerializedPageWriter::SerializedPageWriter(OutputStream* sink,
         Compression::type codec,
@@ -89,6 +93,9 @@ void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
   sink_->Write(values->data(), values->size());
 }
 
+// ----------------------------------------------------------------------
+// RowGroupSerializer
+
 int RowGroupSerializer::num_columns() const {
   return schema_->num_columns();
 }
@@ -101,8 +108,8 @@ const SchemaDescriptor* RowGroupSerializer::schema() const  {
   return schema_;
 }
 
-PageWriter* RowGroupSerializer::NextColumn(Compression::type codec) {
-  if (current_column_index_ == schema_->num_columns()) {
+ColumnWriter* RowGroupSerializer::NextColumn() {
+  if (current_column_index_ == schema_->num_columns() - 1) {
     throw ParquetException("All columns have already been written.");
   }
   current_column_index_++;
@@ -111,12 +118,16 @@ PageWriter* RowGroupSerializer::NextColumn(Compression::type codec) {
     current_column_writer_->Close();
   }
 
-  current_column_writer_.reset(new SerializedPageWriter(sink_, codec, allocator_));
+  std::unique_ptr<PageWriter> pager(new SerializedPageWriter(sink_,
+        Compression::UNCOMPRESSED, allocator_));
+  auto column_descr = schema_->Column(current_column_index_);
+  current_column_writer_ = ColumnWriter::Make(column_descr,
+      std::move(pager), allocator_);
   return current_column_writer_.get();
 }
 
 void RowGroupSerializer::Close() {
-  if (current_column_index_ != schema_->num_columns()) {
+  if (current_column_index_ != schema_->num_columns() - 1) {
     throw ParquetException("Not all column were written in the current rowgroup.");
   }
 
@@ -126,11 +137,14 @@ void RowGroupSerializer::Close() {
   }
 }
 
+// ----------------------------------------------------------------------
+// FileSerializer
+
 std::unique_ptr<ParquetFileWriter::Contents> FileSerializer::Open(
-    std::unique_ptr<OutputStream> sink, std::shared_ptr<GroupNode>& schema,
+    std::shared_ptr<OutputStream> sink, std::shared_ptr<GroupNode>& schema,
     MemoryAllocator* allocator) {
   std::unique_ptr<ParquetFileWriter::Contents> result(
-      new FileSerializer(std::move(sink), schema, allocator));
+      new FileSerializer(sink, schema, allocator));
 
   return result;
 }
@@ -156,7 +170,8 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
     row_group_writer_->Close();
   }
   num_rows_ += num_rows;
-  // TODO: Create Contents
+  num_row_groups_++;
+
   std::unique_ptr<RowGroupWriter::Contents> contents(
       new RowGroupSerializer(num_rows, &schema_, sink_.get(), allocator_));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_));
@@ -171,28 +186,32 @@ void FileSerializer::WriteMetaData() {
   // Write MetaData
   uint32_t metadata_len = sink_->Tell();
   format::FileMetaData metadata;
-  // TODO: version
+
   SchemaFlattener flattener(static_cast<GroupNode*>(schema_.schema().get()),
       &metadata.schema);
   flattener.Flatten();
-  // TODO: num_rows
+
+  // TODO: Currently we only write version 1 files
+  metadata.__set_version(1);
+  metadata.__set_num_rows(num_rows_);
   // TODO: row_groups
-  // TODO: key_value_metadata
-  // TODO: created_by
-  // TODO: fill metadata
+  // TODO: Support key_value_metadata
+  // TODO: Get from WriterProperties
+  metadata.__set_created_by("parquet-cpp");
+
   SerializeThriftMsg(&metadata, 1024, sink_.get());
   metadata_len = sink_->Tell() - metadata_len;
 
   // Write Footer
-  sink_->Write(PARQUET_MAGIC, 4);
   sink_->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
+  sink_->Write(PARQUET_MAGIC, 4);
 }
 
 FileSerializer::FileSerializer(
-    std::unique_ptr<OutputStream> sink,
+    std::shared_ptr<OutputStream> sink,
     std::shared_ptr<GroupNode>& schema,
     MemoryAllocator* allocator = default_allocator()) :
-        sink_(std::move(sink)), allocator_(allocator),
+        sink_(sink), allocator_(allocator),
         state_(SerializerState::STARTED),
         num_row_groups_(0), num_rows_(0) {
   schema_.Init(schema);

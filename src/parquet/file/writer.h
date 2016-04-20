@@ -51,7 +51,7 @@ class RowGroupWriter {
 
     // TODO: PARQUET-579
     // virtual void WriteRowGroupStatitics();
-    virtual PageWriter* NextColumn(Compression::type codec) = 0;
+    virtual ColumnWriter* NextColumn() = 0;
     virtual void Close() = 0;
 
     // Return const-poitner to make it clear that this object is not to be copied
@@ -64,7 +64,7 @@ class RowGroupWriter {
   // column. Ownership is solely within the RowGroupWriter.
   // The ColumnWriter is only valid until the next call to NextColumn or Close.
   // TODO: Pass a std::weak_ref?
-  ColumnWriter* NextColumn(Compression::type codec);
+  ColumnWriter* NextColumn();
   void Close();
   int num_columns() const;
   int64_t num_rows() const;
@@ -113,7 +113,7 @@ class ParquetFileWriter {
   //     bool memory_map = true, MemoryAllocator* allocator = default_allocator());
 
   static std::unique_ptr<ParquetFileWriter> Open(
-      std::unique_ptr<OutputStream> sink,
+      std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator = default_allocator());
 
