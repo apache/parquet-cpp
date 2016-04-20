@@ -56,7 +56,7 @@ TEST(TestBufferedReader, Basics) {
   BufferReader reader(buffer);
 
   uint8_t out[4];
-  reader.Read(4, out);
+  ASSERT_EQ(4, reader.Read(4, out));
   ASSERT_EQ(4, reader.Tell());
   ASSERT_EQ(0, out[0]);
   ASSERT_EQ(1, out[1]);
@@ -66,11 +66,17 @@ TEST(TestBufferedReader, Basics) {
   reader.Seek(8);
   ASSERT_EQ(8, reader.Tell());
 
-  auto out_buffer = reader.Read(4);
+  auto out_buffer = reader.Read(5);
   ASSERT_EQ(8, out_buffer->data()[0]);
   ASSERT_EQ(9, out_buffer->data()[1]);
   ASSERT_EQ(10, out_buffer->data()[2]);
   ASSERT_EQ(11, out_buffer->data()[3]);
+  ASSERT_EQ(12, out_buffer->data()[4]);
+
+  // Read past the end of the buffer
+  ASSERT_EQ(13, reader.Tell());
+  ASSERT_EQ(0, reader.Read(4, out));
+  ASSERT_EQ(0, reader.Read(4)->size());
 
   reader.Close();
 }
