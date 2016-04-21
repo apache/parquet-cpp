@@ -34,6 +34,64 @@
 
 namespace parquet {
 
+TEST(TestChunkedInMemoryInputStream, Basics) {
+  int64_t source_size = 256;
+  int64_t chunk_size = 50;
+  auto buf = std::make_shared<OwnedMutableBuffer>(source_size);
+  ASSERT_EQ(source_size, buf->size());
+  for (int i = 0; i < source_size; i++) {
+    buf->mutable_data()[i] = (uint8_t)i;
+  }
+
+  std::unique_ptr<BufferReader> source(new BufferReader(buf));
+  std::unique_ptr<MemoryAllocator> allocator(new TrackingAllocator());
+  std::unique_ptr<ChunkedInMemoryInputStream> stream(new ChunkedInMemoryInputStream(
+      source.get(), allocator.get(), 0, source_size, chunk_size));
+
+  const uint8_t* output;
+  int64_t bytes_read;
+
+  output = stream->Peek(10, &bytes_read);
+  ASSERT_EQ(10, bytes_read);
+  for (int i = 0; i < 10; i++) {
+    ASSERT_EQ(i, output[i]) << i;
+  }
+  output = stream->Read(10, &bytes_read);
+  ASSERT_EQ(10, bytes_read);
+  for (int i = 0; i < 10; i++) {
+    ASSERT_EQ(i, output[i]) << i;
+  }
+  output = stream->Read(10, &bytes_read);
+  ASSERT_EQ(10, bytes_read);
+  for (int i = 0; i < 10; i++) {
+    ASSERT_EQ(10 + i, output[i]) << i;
+  }
+  stream->Advance(10);
+  stream->Advance(10);
+  // source is at offset 40
+  // read across buffer boundary. buffer size is 50
+  output = stream->Read(20, &bytes_read);
+  ASSERT_EQ(20, bytes_read);
+  for (int i = 0; i < 20; i++) {
+    ASSERT_EQ(40 + i, output[i]) << i;
+  }
+  // read more than original chunk_size
+  output = stream->Read(60, &bytes_read);
+  ASSERT_EQ(60, bytes_read);
+  for (int i = 0; i < 60; i++) {
+    ASSERT_EQ(60 + i, output[i]) << i;
+  }
+
+  stream->Advance(120);
+  // source is at offset 240
+  // read outside of source boundary. source size is 256
+  output = stream->Read(30, &bytes_read);
+  ASSERT_EQ(16, bytes_read);
+  for (int i = 0; i < 16; i++) {
+    ASSERT_EQ(240 + i, output[i]) << i;
+  }
+}
+
 TEST(TestInMemoryOutputStream, Basics) {
   std::unique_ptr<InMemoryOutputStream> stream(new InMemoryOutputStream(8));
 

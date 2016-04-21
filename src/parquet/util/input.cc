@@ -203,7 +203,6 @@ std::shared_ptr<Buffer> BufferReader::Read(int64_t nbytes) {
 
 // ----------------------------------------------------------------------
 // InMemoryInputStream
-
 InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer)
     : buffer_(buffer), offset_(0) {
   len_ = buffer_->size();
@@ -224,4 +223,49 @@ void InMemoryInputStream::Advance(int64_t num_bytes) {
   offset_ += num_bytes;
 }
 
-}  // namespace parquet
+// ----------------------------------------------------------------------
+// ChunkedInMemoryInputStream
+ChunkedInMemoryInputStream::ChunkedInMemoryInputStream(RandomAccessSource* source,
+    MemoryAllocator* pool, int64_t start, int64_t end, int64_t chunk_size) :
+    source_(source), stream_offset_(start), stream_end_(end), buffer_offset_(0) {
+  buffer_ = std::make_shared<OwnedMutableBuffer>(chunk_size, pool);
+  chunk_size_ = buffer_->size();
+  buffer_offset_ = chunk_size_;
+}
+
+const uint8_t* ChunkedInMemoryInputStream::Peek(int64_t num_to_peek, int64_t* num_bytes) {
+  *num_bytes = std::min(static_cast<int64_t>(num_to_peek), stream_end_ - stream_offset_);
+  // increase the buffer size if needed
+  if (*num_bytes > chunk_size_) {
+    buffer_->Resize(*num_bytes);
+    chunk_size_ = buffer_->size();
+    if (chunk_size_ < *num_bytes) {
+      throw ParquetException("Unable to read column data into buffer.");
+    }
+  }
+  // Read more data when buffer has insufficient left or when resized
+  if (*num_bytes >  (chunk_size_ - buffer_offset_)) {
+    source_->Seek(stream_offset_);
+    chunk_size_ = std::min(chunk_size_, stream_end_ - stream_offset_);
+    int64_t bytes_read = source_->Read(chunk_size_, buffer_->mutable_data());
+    if (bytes_read < *num_bytes) {
+      throw ParquetException("Failed reading column data from source");
+    }
+    buffer_offset_ = 0;
+  }
+  return buffer_->data() + buffer_offset_;
+}
+
+const uint8_t* ChunkedInMemoryInputStream::Read(int64_t num_to_read, int64_t* num_bytes) {
+  const uint8_t* result = Peek(num_to_read, num_bytes);
+  stream_offset_ += *num_bytes;
+  buffer_offset_ += *num_bytes;
+  return result;
+}
+
+void ChunkedInMemoryInputStream::Advance(int64_t num_bytes) {
+  stream_offset_ += num_bytes;
+  buffer_offset_ += num_bytes;
+}
+
+} // namespace parquet

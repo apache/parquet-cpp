@@ -52,11 +52,11 @@ int64_t RowGroupReader::num_rows() const {
   return contents_->num_rows();
 }
 
-std::shared_ptr<ColumnReader> RowGroupReader::Column(int i) {
+std::shared_ptr<ColumnReader> RowGroupReader::Column(int i, int64_t chunk_size) {
   // TODO: boundschecking
   const ColumnDescriptor* descr = schema_->Column(i);
 
-  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i);
+  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i, chunk_size);
   return ColumnReader::Make(descr, std::move(page_reader), allocator_);
 }
 

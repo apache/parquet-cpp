@@ -47,7 +47,8 @@ class RowGroupReader {
     virtual int num_columns() const = 0;
     virtual int64_t num_rows() const = 0;
     virtual RowGroupStatistics GetColumnStats(int i) = 0;
-    virtual std::unique_ptr<PageReader> GetColumnPageReader(int i) = 0;
+    virtual std::unique_ptr<PageReader> GetColumnPageReader(int i,
+		int64_t chunk_size) = 0;
   };
 
   RowGroupReader(const SchemaDescriptor* schema, std::unique_ptr<Contents> contents,
@@ -55,7 +56,7 @@ class RowGroupReader {
 
   // Construct a ColumnReader for the indicated row group-relative
   // column. Ownership is shared with the RowGroupReader.
-  std::shared_ptr<ColumnReader> Column(int i);
+  std::shared_ptr<ColumnReader> Column(int i, int64_t chunk_size = 0);
   int num_columns() const;
   int64_t num_rows() const;
 

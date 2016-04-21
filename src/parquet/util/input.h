@@ -29,6 +29,7 @@
 namespace parquet {
 
 class Buffer;
+class OwnedMutableBuffer;
 
 // ----------------------------------------------------------------------
 // Random access input (e.g. file-like)
@@ -180,6 +181,25 @@ class InMemoryInputStream : public InputStream {
   int64_t offset_;
 };
 
-}  // namespace parquet
+// Implementation of an InputStream when only some of the bytes are in memory.
+class ChunkedInMemoryInputStream : public InputStream {
+ public:
+  explicit ChunkedInMemoryInputStream(RandomAccessSource* source,
+      MemoryAllocator* pool, int64_t start, int64_t end, int64_t chunk_size);
+  virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
+  virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
+
+  virtual void Advance(int64_t num_bytes);
+
+ private:
+  std::shared_ptr<OwnedMutableBuffer> buffer_;
+  RandomAccessSource* source_;
+  int64_t stream_offset_;
+  int64_t stream_end_;
+  int64_t buffer_offset_;
+  int64_t chunk_size_;
+};
+
+} // namespace parquet
 
 #endif  // PARQUET_UTIL_INPUT_H

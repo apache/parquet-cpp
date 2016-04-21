@@ -152,7 +152,8 @@ int SerializedRowGroup::num_columns() const {
   return metadata_->columns.size();
 }
 
-std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
+std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i,
+    int64_t chunk_size) {
   // Read column chunk from the file
   const format::ColumnChunk& col = metadata_->columns[i];
 
@@ -163,13 +164,19 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   }
 
   int64_t bytes_to_read = col.meta_data.total_compressed_size;
-  std::shared_ptr<Buffer> buffer = source_->ReadAt(col_start, bytes_to_read);
+  std::unique_ptr<InputStream> stream;
 
-  if (buffer->size() < bytes_to_read) {
-    throw ParquetException("Unable to read column chunk data");
+  if (chunk_size == 0) {
+    std::shared_ptr<Buffer> buffer = source_->ReadAt(col_start, bytes_to_read);
+    if (buffer->size() < bytes_to_read) {
+      throw ParquetException("Unable to read column chunk data");
+    }
+    stream.reset(new InMemoryInputStream(buffer));
+  } else {
+    stream.reset(new ChunkedInMemoryInputStream(source_, allocator_, col_start,
+        col_start + bytes_to_read, chunk_size));
   }
 
-  std::unique_ptr<InputStream> stream(new InMemoryInputStream(buffer));
   return std::unique_ptr<PageReader>(new SerializedPageReader(
       std::move(stream), FromThrift(col.meta_data.codec), allocator_));
 }
