@@ -122,7 +122,7 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
         Compression::UNCOMPRESSED, allocator_));
   auto column_descr = schema_->Column(current_column_index_);
   current_column_writer_ = ColumnWriter::Make(column_descr,
-      std::move(pager), allocator_);
+      std::move(pager), num_rows_, allocator_);
   return current_column_writer_.get();
 }
 

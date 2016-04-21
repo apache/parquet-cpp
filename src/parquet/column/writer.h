@@ -39,10 +39,11 @@ const int32_t DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK = 10000;
 class ColumnWriter {
  public:
   ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
-      MemoryAllocator* allocator = default_allocator());
+      int64_t expected_rows, MemoryAllocator* allocator = default_allocator());
 
   static std::shared_ptr<ColumnWriter> Make(const ColumnDescriptor*,
-      std::unique_ptr<PageWriter>, MemoryAllocator* allocator = default_allocator());
+      std::unique_ptr<PageWriter>, int64_t expected_rows,
+      MemoryAllocator* allocator = default_allocator());
 
   Type::type type() const {
     return descr_->physical_type();
@@ -72,6 +73,9 @@ class ColumnWriter {
 
   std::unique_ptr<PageWriter> pager_;
   std::shared_ptr<Page> current_page_;
+
+  // The number of rows that should be written in this column chunk.
+  int64_t expected_rows_;
 
   LevelEncoder level_encoder_;
 
@@ -110,7 +114,7 @@ class TypedColumnWriter : public ColumnWriter {
   typedef typename type_traits<TYPE>::value_type T;
 
   TypedColumnWriter(const ColumnDescriptor* schema,
-      std::unique_ptr<PageWriter> pager,
+      std::unique_ptr<PageWriter> pager, int64_t expected_rows,
       MemoryAllocator* allocator = default_allocator());
 
   // Write a batch of repetition levels, definition levels, and values to the
@@ -124,11 +128,6 @@ class TypedColumnWriter : public ColumnWriter {
   // Write values to a temporary buffer before they are encoded into pages
   void WriteValues(int64_t num_values, T* values);
 
-  // Advance to the next data page
-  // bool WriteNewPage() override;
-  // void CommitPages() override;
-  // void ClosePages() override;
-
   // Map of encoding type to the respective encoder object. For example, a
   // column chunk's data pages may include both dictionary-encoded and
   // plain-encoded data.
@@ -141,7 +140,7 @@ class TypedColumnWriter : public ColumnWriter {
 
 // TODO: This is just chosen at random, we should make better estimates.
 // See also: parquet-column/../column/impl/ColumnWriteStoreV2.java:sizeCheck
-const int64_t PAGE_ROW_COUNT = 1000;
+const int64_t PAGE_VALUE_COUNT = 1000;
 
 template <int TYPE>
 inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def_levels,
@@ -169,14 +168,33 @@ inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def
 
   // Not present for non-repeated fields
   if (descr_->max_repetition_level() > 0) {
+    // A row could include more than one value
+    // Count the occasions where we start a new row
+    for (int64_t i = 0; i < num_values; ++i) {
+      if (rep_levels[i] == 0) {
+        num_rows_++;
+      }
+    }
+
     WriteRepetitionLevels(num_values, rep_levels);
+  } else {
+    // Each value is exactly one row
+    num_rows_ += num_values;
+  }
+
+  if (num_rows_ > expected_rows_) {
+    throw ParquetException("More rows were written in the column chunk then expected");
   }
 
   WriteValues(values_to_write, values);
 
   num_buffered_values_ += num_values;
   num_buffered_encoded_values_ += values_to_write;
-  num_rows_ += num_values;
+
+  // TODO: Instead of rows as a boundary, do a size check
+  if (num_buffered_values_ >= PAGE_VALUE_COUNT) {
+    WriteNewPage();
+  }
 }
 
 template <int TYPE>

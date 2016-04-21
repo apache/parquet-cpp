@@ -25,8 +25,10 @@ namespace parquet {
 // ColumnWriter
 
 ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
-    std::unique_ptr<PageWriter> pager, MemoryAllocator* allocator):
-    descr_(descr), pager_(std::move(pager)), allocator_(allocator),
+    std::unique_ptr<PageWriter> pager, int64_t expected_rows,
+    MemoryAllocator* allocator):
+    descr_(descr), pager_(std::move(pager)), expected_rows_(expected_rows),
+    allocator_(allocator),
     num_buffered_values_(0), num_buffered_encoded_values_(0),
     // TODO: Get from WriterProperties
     num_buffered_values_next_size_check_(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK),
@@ -97,6 +99,8 @@ void ColumnWriter::WriteNewPage() {
 
   // Re-initialize the sinks as GetBuffer made them invalid.
   InitSinks();
+  num_buffered_values_ = 0;
+  num_buffered_encoded_values_ = 0;
 }
 
 void ColumnWriter::Close() {
@@ -108,6 +112,11 @@ void ColumnWriter::Close() {
     WriteNewPage();
   }
 
+  if (num_rows_ != expected_rows_) {
+    throw ParquetException("Less then the number of expected rows written in"
+        " the current column chunk");
+  }
+
   pager_->Close();
 }
 
@@ -116,8 +125,9 @@ void ColumnWriter::Close() {
 
 template <int TYPE>
 TypedColumnWriter<TYPE>::TypedColumnWriter(const ColumnDescriptor* schema,
-      std::unique_ptr<PageWriter> pager, MemoryAllocator* allocator) :
-      ColumnWriter(schema, std::move(pager), allocator) {
+      std::unique_ptr<PageWriter> pager, int64_t expected_rows,
+      MemoryAllocator* allocator) :
+      ColumnWriter(schema, std::move(pager), expected_rows, allocator) {
   // Get decoder type from WriterProperties
   current_encoder_ = std::unique_ptr<EncoderType>(
       new PlainEncoder<TYPE>(schema, allocator));
@@ -129,25 +139,33 @@ TypedColumnWriter<TYPE>::TypedColumnWriter(const ColumnDescriptor* schema,
 std::shared_ptr<ColumnWriter> ColumnWriter::Make(
     const ColumnDescriptor* descr,
     std::unique_ptr<PageWriter> pager,
+    int64_t expected_rows,
     MemoryAllocator* allocator) {
   switch (descr->physical_type()) {
     case Type::BOOLEAN:
-      return std::make_shared<BoolWriter>(descr, std::move(pager), allocator);
+      return std::make_shared<BoolWriter>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::INT32:
-      return std::make_shared<Int32Writer>(descr, std::move(pager), allocator);
+      return std::make_shared<Int32Writer>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::INT64:
-      return std::make_shared<Int64Writer>(descr, std::move(pager), allocator);
+      return std::make_shared<Int64Writer>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::INT96:
-      return std::make_shared<Int96Writer>(descr, std::move(pager), allocator);
+      return std::make_shared<Int96Writer>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::FLOAT:
-      return std::make_shared<FloatWriter>(descr, std::move(pager), allocator);
+      return std::make_shared<FloatWriter>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::DOUBLE:
-      return std::make_shared<DoubleWriter>(descr, std::move(pager), allocator);
+      return std::make_shared<DoubleWriter>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::BYTE_ARRAY:
-      return std::make_shared<ByteArrayWriter>(descr, std::move(pager), allocator);
+      return std::make_shared<ByteArrayWriter>(descr, std::move(pager), expected_rows,
+          allocator);
     case Type::FIXED_LEN_BYTE_ARRAY:
       return std::make_shared<FixedLenByteArrayWriter>(descr,
-          std::move(pager), allocator);
+          std::move(pager), expected_rows, allocator);
     default:
       ParquetException::NYI("type reader not implemented");
   }
