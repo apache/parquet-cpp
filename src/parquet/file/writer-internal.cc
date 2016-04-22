@@ -34,14 +34,26 @@ static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 // SerializedPageWriter
 
 SerializedPageWriter::SerializedPageWriter(OutputStream* sink,
-        Compression::type codec,
-        MemoryAllocator* allocator) : sink_(sink), allocator_(allocator) {
+        Compression::type codec, format::ColumnChunk* metadata,
+        MemoryAllocator* allocator) : sink_(sink), metadata_(metadata),
+        allocator_(allocator) {
   compressor_ = Codec::Create(codec);
+  // Currently we directly start with the data page
+  metadata_->meta_data.__set_data_page_offset(sink_->Tell());
+  metadata_->meta_data.__set_codec(ToThrift(codec));
 }
 
 void SerializedPageWriter::Close() {}
 
-void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
+void SerializedPageWriter::AddEncoding(Encoding::type encoding) {
+  auto it = std::find(metadata_->meta_data.encodings.begin(),
+      metadata_->meta_data.encodings.end(), ToThrift(encoding));
+  if (it != metadata_->meta_data.encodings.end()) {
+    metadata_->meta_data.encodings.push_back(ToThrift(encoding));
+  }
+}
+
+int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
     int32_t num_nulls, const std::shared_ptr<Buffer>& definition_levels,
     Encoding::type definition_level_encoding,
     const std::shared_ptr<Buffer>& repetition_levels,
@@ -87,10 +99,16 @@ void SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
   page_header.__set_data_page_header(data_page_header);
   // TODO: crc checksum
 
+  int64_t start_pos = sink_->Tell();
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
-  sink_->Write(repetition_levels->data(), repetition_levels->size());
-  sink_->Write(definition_levels->data(), definition_levels->size());
-  sink_->Write(values->data(), values->size());
+  int64_t header_size = sink_->Tell() - start_pos;
+  sink_->Write(compressed_data->data(), compressed_data->size());
+
+  metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
+  metadata_->meta_data.total_compressed_size += compressed_size + header_size;
+  metadata_->meta_data.num_values += num_values;
+
+  return sink_->Tell() - start_pos;
 }
 
 // ----------------------------------------------------------------------
@@ -115,12 +133,17 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
   current_column_index_++;
 
   if (current_column_writer_) {
-    current_column_writer_->Close();
+    total_bytes_written_ += current_column_writer_->Close();
   }
 
-  std::unique_ptr<PageWriter> pager(new SerializedPageWriter(sink_,
-        Compression::UNCOMPRESSED, allocator_));
   auto column_descr = schema_->Column(current_column_index_);
+  auto col_meta = &metadata_->columns[current_column_index_];
+  col_meta->__isset.meta_data = true;
+  col_meta->meta_data.__set_type(ToThrift(column_descr->physical_type()));
+  col_meta->meta_data.__set_path_in_schema(column_descr->path()->ToDotVector());
+  std::unique_ptr<PageWriter> pager(new SerializedPageWriter(sink_,
+        Compression::UNCOMPRESSED, col_meta,
+        allocator_));
   current_column_writer_ = ColumnWriter::Make(column_descr,
       std::move(pager), num_rows_, allocator_);
   return current_column_writer_.get();
@@ -132,9 +155,11 @@ void RowGroupSerializer::Close() {
   }
 
   if (current_column_writer_) {
-    current_column_writer_->Close();
+    total_bytes_written_ += current_column_writer_->Close();
     current_column_writer_.reset();
   }
+
+  metadata_->__set_total_byte_size(total_bytes_written_);
 }
 
 // ----------------------------------------------------------------------
@@ -172,8 +197,11 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   num_rows_ += num_rows;
   num_row_groups_++;
 
+  auto rgm_size = row_group_metadata_.size();
+  row_group_metadata_.resize(rgm_size + 1);
+  format::RowGroup* rg_metadata = &row_group_metadata_.data()[rgm_size];
   std::unique_ptr<RowGroupWriter::Contents> contents(
-      new RowGroupSerializer(num_rows, &schema_, sink_.get(), allocator_));
+      new RowGroupSerializer(num_rows, &schema_, sink_.get(), rg_metadata, allocator_));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_));
   return row_group_writer_.get();
 }
@@ -185,21 +213,20 @@ FileSerializer::~FileSerializer() {
 void FileSerializer::WriteMetaData() {
   // Write MetaData
   uint32_t metadata_len = sink_->Tell();
-  format::FileMetaData metadata;
 
   SchemaFlattener flattener(static_cast<GroupNode*>(schema_.schema().get()),
-      &metadata.schema);
+      &metadata_.schema);
   flattener.Flatten();
 
   // TODO: Currently we only write version 1 files
-  metadata.__set_version(1);
-  metadata.__set_num_rows(num_rows_);
-  // TODO: row_groups
+  metadata_.__set_version(1);
+  metadata_.__set_num_rows(num_rows_);
+  metadata_.__set_row_groups(row_group_metadata_);
   // TODO: Support key_value_metadata
   // TODO: Get from WriterProperties
-  metadata.__set_created_by("parquet-cpp");
+  metadata_.__set_created_by("parquet-cpp");
 
-  SerializeThriftMsg(&metadata, 1024, sink_.get());
+  SerializeThriftMsg(&metadata_, 1024, sink_.get());
   metadata_len = sink_->Tell() - metadata_len;
 
   // Write Footer

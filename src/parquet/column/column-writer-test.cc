@@ -69,7 +69,7 @@ class TestPrimitiveWriter : public ::testing::Test {
   std::unique_ptr<Int64Writer> BuildWriter(int64_t output_size = 100) {
     sink_.reset(new InMemoryOutputStream());
     std::unique_ptr<SerializedPageWriter> pager(
-        new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED));
+        new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, &metadata));
     return std::unique_ptr<Int64Writer>(new Int64Writer(schema.get(), std::move(pager),
           output_size));
   }
@@ -90,6 +90,7 @@ class TestPrimitiveWriter : public ::testing::Test {
 
  private:
   NodePtr node;
+  format::ColumnChunk metadata;
   std::shared_ptr<ColumnDescriptor> schema;
   std::unique_ptr<InMemoryOutputStream> sink_;
 };

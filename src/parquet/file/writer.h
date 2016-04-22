@@ -31,17 +31,6 @@ class ColumnWriter;
 class PageWriter;
 class OutputStream;
 
-/*
- * Basic Structure:
- * -> Write RowGroup
- *  -> Write Columns
- *    -> Write Batch
- *    -> Check if Batch has the correct size
- *  -> Check if all columns were writtern
- * -> Check number of RowGroups?
- * -> Write MetaData
- * -> Close File
- */
 class RowGroupWriter {
  public:
   // Forward declare the PIMPL

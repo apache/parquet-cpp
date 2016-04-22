@@ -216,7 +216,7 @@ class PageWriter {
 
   virtual void Close() = 0;
 
-  virtual void WriteDataPage(int32_t num_rows, int32_t num_values, int32_t num_nulls,
+  virtual int64_t WriteDataPage(int32_t num_rows, int32_t num_values, int32_t num_nulls,
       const std::shared_ptr<Buffer>& definition_levels,
       Encoding::type definition_level_encoding,
       const std::shared_ptr<Buffer>& repetition_levels,

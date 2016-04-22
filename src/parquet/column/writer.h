@@ -53,12 +53,15 @@ class ColumnWriter {
     return descr_;
   }
 
-  void Close();
+  /**
+   * Closes the ColumnWriter, commits any buffered values to pages.
+   *
+   * @return Total size of the column in bytes
+   */
+  int64_t Close();
 
  protected:
   void WriteNewPage();
-  // virtual void CommitPages() = 0;
-  // virtual void ClosePages() = 0;
 
   // Write multiple definition levels
   void WriteDefinitionLevels(int64_t num_levels, int16_t* levels);
@@ -98,6 +101,8 @@ class ColumnWriter {
 
   // Total number of rows written with this ColumnWriter
   int num_rows_;
+
+  int total_bytes_written_;
 
   std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
   std::unique_ptr<InMemoryOutputStream> repetition_levels_sink_;

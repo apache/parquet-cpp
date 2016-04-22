@@ -32,7 +32,7 @@ ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
     num_buffered_values_(0), num_buffered_encoded_values_(0),
     // TODO: Get from WriterProperties
     num_buffered_values_next_size_check_(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK),
-    num_rows_(0) {
+    num_rows_(0), total_bytes_written_(0) {
   // TODO: Initialize level encoders already here
   InitSinks();
 }
@@ -90,12 +90,13 @@ void ColumnWriter::WriteNewPage() {
   }
 
   // TODO: Encodings are hard-coded
-  pager_->WriteDataPage(num_buffered_values_, num_buffered_encoded_values_,
+  int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_, num_buffered_encoded_values_,
       // num_nulls = Difference of enocoded and actual values
       num_buffered_values_ - num_buffered_encoded_values_,
       definition_levels, Encoding::RLE,
       repetition_levels, Encoding::RLE,
       values, Encoding::PLAIN);
+  total_bytes_written_ += bytes_written;
 
   // Re-initialize the sinks as GetBuffer made them invalid.
   InitSinks();
@@ -103,10 +104,7 @@ void ColumnWriter::WriteNewPage() {
   num_buffered_encoded_values_ = 0;
 }
 
-void ColumnWriter::Close() {
-  // TODO: no-op if already closed
-  // TODO: Check if enough rows were written
-
+int64_t ColumnWriter::Close() {
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) {
     WriteNewPage();
@@ -118,6 +116,8 @@ void ColumnWriter::Close() {
   }
 
   pager_->Close();
+
+  return total_bytes_written_;
 }
 
 // ----------------------------------------------------------------------
