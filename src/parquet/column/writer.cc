@@ -30,10 +30,7 @@ ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
     descr_(descr), pager_(std::move(pager)), expected_rows_(expected_rows),
     allocator_(allocator),
     num_buffered_values_(0), num_buffered_encoded_values_(0),
-    // TODO: Get from WriterProperties
-    num_buffered_values_next_size_check_(DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK),
     num_rows_(0), total_bytes_written_(0) {
-  // TODO: Initialize level encoders already here
   InitSinks();
 }
 

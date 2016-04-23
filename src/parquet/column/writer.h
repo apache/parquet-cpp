@@ -18,23 +18,15 @@
 #ifndef PARQUET_COLUMN_WRITER_H
 #define PARQUET_COLUMN_WRITER_H
 
-#include "parquet/column/page.h"
 #include "parquet/column/levels.h"
+#include "parquet/column/page.h"
+#include "parquet/encodings/encoder.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
 #include "parquet/util/mem-allocator.h"
-#include "parquet/encodings/encoder.h"
 #include "parquet/util/output.h"
 
 namespace parquet {
-
-// Constants used for the default size checks for paging
-// TODO: Make configurable
-const int32_t DEFAULT_PAGE_SIZE = 1024 * 1024;
-const int32_t DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
-const bool DEFAULT_ESTIMATE_ROW_COUNT_FOR_PAGE_SIZE_CHECK = true;
-const int32_t DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK = 100;
-const int32_t DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK = 10000;
 
 class ColumnWriter {
  public:
@@ -75,7 +67,6 @@ class ColumnWriter {
   const ColumnDescriptor* descr_;
 
   std::unique_ptr<PageWriter> pager_;
-  std::shared_ptr<Page> current_page_;
 
   // The number of rows that should be written in this column chunk.
   int64_t expected_rows_;
@@ -95,9 +86,6 @@ class ColumnWriter {
   // The total number of stored values. For repeated or optional values, this
   // number may be lower than num_buffered_values_.
   int num_buffered_encoded_values_;
-
-  // The next count when we should do a size estimate.
-  int num_buffered_values_next_size_check_;
 
   // Total number of rows written with this ColumnWriter
   int num_rows_;
@@ -150,11 +138,6 @@ const int64_t PAGE_VALUE_COUNT = 1000;
 template <int TYPE>
 inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def_levels,
     int16_t* rep_levels, T* values) {
-  // Calculate how much rows we can write before we have to do the next size check.
-  // int64_t values_to_next_size_check = num_buffered_values_next_size_check_
-  // - num_buffered_values_;
-  // TODO: Chunking, size check
-
   int64_t values_to_write = 0;
 
   // If the field is required and non-repeated, there are no definition levels

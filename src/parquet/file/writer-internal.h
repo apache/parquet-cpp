@@ -28,14 +28,6 @@
 
 namespace parquet {
 
-struct SerializerState {
-  enum state {
-    STARTED,
-    ROWGROUP_OPEN,
-    ROWGROUP_END
-  };
-};
-
 // This subclass delimits pages appearing in a serialized stream, each preceded
 // by a serialized Thrift format::PageHeader indicating the type of each page
 // and the page metadata.
@@ -140,7 +132,6 @@ class FileSerializer : public ParquetFileWriter::Contents {
   format::FileMetaData metadata_;
   std::vector<format::RowGroup> row_group_metadata_;
   MemoryAllocator* allocator_;
-  SerializerState::state state_;
   int num_row_groups_;
   int num_rows_;
   std::unique_ptr<RowGroupWriter> row_group_writer_;

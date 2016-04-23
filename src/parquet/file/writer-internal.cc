@@ -76,7 +76,7 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   int64_t compressed_size = uncompressed_size;
   std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
   if (compressor_) {
-    // TODO
+    // TODO: Add support for compression
     // int64_t max_compressed_size = compressor_->MaxCompressedLen(
     // uncompressed_data.size(), uncompressed_data.data());
     // OwnedMutableBuffer compressed_data(compressor_->MaxCompressedLen(
@@ -247,7 +247,6 @@ FileSerializer::FileSerializer(
     std::shared_ptr<GroupNode>& schema,
     MemoryAllocator* allocator = default_allocator()) :
         sink_(sink), allocator_(allocator),
-        state_(SerializerState::STARTED),
         num_row_groups_(0), num_rows_(0) {
   schema_.Init(schema);
   StartFile();
