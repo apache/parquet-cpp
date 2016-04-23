@@ -66,10 +66,10 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
     std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
-  memcpy(uncompressed_ptr, definition_levels->data(), definition_levels->size());
-  uncompressed_ptr += definition_levels->size();
   memcpy(uncompressed_ptr, repetition_levels->data(), repetition_levels->size());
   uncompressed_ptr += repetition_levels->size();
+  memcpy(uncompressed_ptr, definition_levels->data(), definition_levels->size());
+  uncompressed_ptr += definition_levels->size();
   memcpy(uncompressed_ptr, values->data(), values->size());
 
   // Compress the data
