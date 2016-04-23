@@ -131,7 +131,7 @@ class TypedColumnWriter : public ColumnWriter {
   std::unique_ptr<EncoderType> current_encoder_;
 };
 
-// TODO: This is just chosen at random, we should make better estimates.
+// TODO(PARQUET-591): This is just chosen at random, we should make better estimates.
 // See also: parquet-column/../column/impl/ColumnWriteStoreV2.java:sizeCheck
 const int64_t PAGE_VALUE_COUNT = 1000;
 
@@ -179,7 +179,7 @@ inline void TypedColumnWriter<TYPE>::WriteBatch(int64_t num_values, int16_t* def
   num_buffered_values_ += num_values;
   num_buffered_encoded_values_ += values_to_write;
 
-  // TODO: Instead of rows as a boundary, do a size check
+  // TODO(PARQUET-591): Instead of rows as a boundary, do a size check
   if (num_buffered_values_ >= PAGE_VALUE_COUNT) {
     WriteNewPage();
   }

@@ -86,7 +86,7 @@ void ColumnWriter::WriteNewPage() {
         descr_->max_repetition_level());
   }
 
-  // TODO: Encodings are hard-coded
+  // TODO(PARQUET-590): Encodings are hard-coded
   int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_, num_buffered_encoded_values_,
       definition_levels, Encoding::RLE,
       repetition_levels, Encoding::RLE,
@@ -123,7 +123,7 @@ TypedColumnWriter<TYPE>::TypedColumnWriter(const ColumnDescriptor* schema,
       std::unique_ptr<PageWriter> pager, int64_t expected_rows,
       MemoryAllocator* allocator) :
       ColumnWriter(schema, std::move(pager), expected_rows, allocator) {
-  // Get decoder type from WriterProperties
+  // TODO(PARQUET-590) Get decoder type from WriterProperties
   current_encoder_ = std::unique_ptr<EncoderType>(
       new PlainEncoder<TYPE>(schema, allocator));
 }

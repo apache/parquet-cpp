@@ -76,7 +76,7 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   int64_t compressed_size = uncompressed_size;
   std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
   if (compressor_) {
-    // TODO: Add support for compression
+    // TODO(PARQUET-592): Add support for compression
     // int64_t max_compressed_size = compressor_->MaxCompressedLen(
     // uncompressed_data.size(), uncompressed_data.data());
     // OwnedMutableBuffer compressed_data(compressor_->MaxCompressedLen(
@@ -90,14 +90,14 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   data_page_header.__set_encoding(ToThrift(encoding));
   data_page_header.__set_definition_level_encoding(ToThrift(definition_level_encoding));
   data_page_header.__set_repetition_level_encoding(ToThrift(repetition_level_encoding));
-  // TODO: statistics
+  // TODO(PARQUET-593) statistics
 
   format::PageHeader page_header;
   page_header.__set_type(format::PageType::DATA_PAGE);
   page_header.__set_uncompressed_page_size(uncompressed_size);
   page_header.__set_compressed_page_size(compressed_size);
   page_header.__set_data_page_header(data_page_header);
-  // TODO: crc checksum
+  // TODO(PARQUET-594) crc checksum
 
   int64_t start_pos = sink_->Tell();
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
@@ -230,8 +230,8 @@ void FileSerializer::WriteMetaData() {
   metadata_.__set_version(1);
   metadata_.__set_num_rows(num_rows_);
   metadata_.__set_row_groups(row_group_metadata_);
-  // TODO: Support key_value_metadata
-  // TODO: Get from WriterProperties
+  // TODO(PARQUET-595) Support key_value_metadata
+  // TODO(PARQUET-590) Get from WriterProperties
   metadata_.__set_created_by("parquet-cpp");
 
   SerializeThriftMsg(&metadata_, 1024, sink_.get());
