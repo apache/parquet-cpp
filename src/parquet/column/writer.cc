@@ -87,10 +87,11 @@ void ColumnWriter::WriteNewPage() {
   }
 
   // TODO(PARQUET-590): Encodings are hard-coded
-  int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_, num_buffered_encoded_values_,
-      definition_levels, Encoding::RLE,
-      repetition_levels, Encoding::RLE,
-      values, Encoding::PLAIN);
+  int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_,
+          num_buffered_encoded_values_,
+          definition_levels, Encoding::RLE,
+          repetition_levels, Encoding::RLE,
+          values, Encoding::PLAIN);
   total_bytes_written_ += bytes_written;
 
   // Re-initialize the sinks as GetBuffer made them invalid.

@@ -91,7 +91,7 @@ TEST_F(TestSerialize, SmallFile) {
   std::vector<int16_t> def_levels_out(100);
   std::vector<int16_t> rep_levels_out(100);
   int64_t values_read;
-  col_reader->ReadBatch(values_out.size(), def_levels_out.data(), rep_levels_out.data(), 
+  col_reader->ReadBatch(values_out.size(), def_levels_out.data(), rep_levels_out.data(),
       values_out.data(), &values_read);
   ASSERT_EQ(100, values_read);
   ASSERT_EQ(values, values_out);
