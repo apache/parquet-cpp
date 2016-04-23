@@ -91,8 +91,6 @@ void ColumnWriter::WriteNewPage() {
 
   // TODO: Encodings are hard-coded
   int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_, num_buffered_encoded_values_,
-      // num_nulls = Difference of enocoded and actual values
-      num_buffered_values_ - num_buffered_encoded_values_,
       definition_levels, Encoding::RLE,
       repetition_levels, Encoding::RLE,
       values, Encoding::PLAIN);
