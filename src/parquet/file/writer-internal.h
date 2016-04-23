@@ -40,7 +40,7 @@ struct SerializerState {
 // by a serialized Thrift format::PageHeader indicating the type of each page
 // and the page metadata.
 //
-// TODO: Currently only writes DataPage style pages.
+// TODO: Currently only writes DataPage pages.
 class SerializedPageWriter : public PageWriter {
  public:
   SerializedPageWriter(OutputStream* sink,
@@ -49,6 +49,8 @@ class SerializedPageWriter : public PageWriter {
 
   virtual ~SerializedPageWriter() {}
 
+  // TODO Refactor that this just takes a DataPage instance.
+  // For this we need to be clear how to handle num_rows and num_values
   int64_t WriteDataPage(int32_t num_rows, int32_t num_values,
       const std::shared_ptr<Buffer>& definition_levels,
       Encoding::type definition_level_encoding,
@@ -68,8 +70,6 @@ class SerializedPageWriter : public PageWriter {
   OwnedMutableBuffer compression_buffer_;
 
   void AddEncoding(Encoding::type encoding);
-
-  // TODO: Statistics
 };
 
 // RowGroupWriter::Contents implementation for the Parquet file specification
@@ -95,6 +95,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
   // TODO: PARQUET-579
   // void WriteRowGroupStatitics() override;
+
   ColumnWriter* NextColumn() override;
   void Close() override;
 
@@ -115,22 +116,22 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
 class FileSerializer : public ParquetFileWriter::Contents {
  public:
-  // TODO: (??) This class does _not_ take ownership of the data source.
-  // You must manage its lifetime separately
   static std::unique_ptr<ParquetFileWriter::Contents> Open(
       std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator = default_allocator());
+
   void Close() override;
+
   RowGroupWriter* AppendRowGroup(int64_t num_rows) override;
-  // virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
-  // virtual int64_t num_rows() const;
+
   int num_columns() const override;
-  // virtual int num_row_groups() const;
+  int num_row_groups() const override;
+  int64_t num_rows() const override;
+
   virtual ~FileSerializer();
 
  private:
-  // TODO: (??) This class takes ownership of the provided data sink
   explicit FileSerializer(std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator);

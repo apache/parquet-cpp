@@ -190,6 +190,14 @@ int FileSerializer::num_columns() const {
   return schema_.num_columns();
 }
 
+int FileSerializer::num_row_groups() const {
+  return num_row_groups_;
+}
+
+int64_t FileSerializer::num_rows() const {
+  return num_rows_;
+}
+
 RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   if (row_group_writer_) {
     row_group_writer_->Close();

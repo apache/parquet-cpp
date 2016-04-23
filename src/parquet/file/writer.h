@@ -49,13 +49,22 @@ class RowGroupWriter {
 
   RowGroupWriter(std::unique_ptr<Contents> contents, MemoryAllocator* allocator);
 
-  // Construct a ColumnWriter for the indicated row group-relative
-  // column. Ownership is solely within the RowGroupWriter.
-  // The ColumnWriter is only valid until the next call to NextColumn or Close.
-  // TODO: Pass a std::weak_ref?
+  /**
+   * Construct a ColumnWriter for the indicated row group-relative column.
+   *
+   * Ownership is solely within the RowGroupWriter. The ColumnWriter is only valid
+   * until the next call to NextColumn or Close. As the contents are diretly written to
+   * the sink, once a new column is started, the contents of the previous one cannot be
+   * modified anymore.
+   */
   ColumnWriter* NextColumn();
   void Close();
+
   int num_columns() const;
+
+  /**
+   * Number of rows that shall be written as part of this RowGroup.
+   */
   int64_t num_rows() const;
 
   // TODO: PARQUET-579
@@ -83,9 +92,9 @@ class ParquetFileWriter {
 
     virtual RowGroupWriter* AppendRowGroup(int64_t num_rows) = 0;
 
-    // virtual int64_t num_rows() const = 0;
+    virtual int64_t num_rows() const = 0;
     virtual int num_columns() const = 0;
-    // virtual int num_row_groups() const = 0;
+    virtual int num_row_groups() const = 0;
 
     // Return const-poitner to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const {
@@ -97,10 +106,6 @@ class ParquetFileWriter {
   ParquetFileWriter();
   ~ParquetFileWriter();
 
-  // API Convenience to open a serialized Parquet file on disk
-  // static std::unique_ptr<ParquetFileWriter> OpenFile(const std::string& path,
-  //     bool memory_map = true, MemoryAllocator* allocator = default_allocator());
-
   static std::unique_ptr<ParquetFileWriter> Open(
       std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
@@ -109,17 +114,39 @@ class ParquetFileWriter {
   void Open(std::unique_ptr<Contents> contents);
   void Close();
 
-  // Construct a RowGroupWriter for the indicated number of rows. Ownership
-  // is solely within the ParquetFileWriter. The RowGroupWriter is only valid
-  // until the next call to AppendRowGroup or Close.
-  // TODO: Pass a std::weak_ref?
+  /**
+   * Construct a RowGroupWriter for the indicated number of rows.
+   *
+   * Ownership is solely within the ParquetFileWriter. The RowGroupWriter is only valid
+   * until the next call to AppendRowGroup or Close.
+   *
+   * @param num_rows The number of rows that are stored in the new RowGroup
+   */
   RowGroupWriter* AppendRowGroup(int64_t num_rows);
 
+  /**
+   * Number of columns.
+   *
+   * This number is fixed during the lifetime of the writer as it is determined via
+   * the schema.
+   */
   int num_columns() const;
-  // int64_t num_rows() const;
-  // int num_row_groups() const;
 
-  // // Returns the file schema descriptor
+  /**
+   * Number of rows in the yet started RowGroups.
+   *
+   * Changes on the addition of a new RowGroup.
+   */
+  int64_t num_rows() const;
+
+  /**
+   * Number of started RowGroups.
+   */
+  int num_row_groups() const;
+
+  /**
+   * Returns the file schema descriptor
+   */
   const SchemaDescriptor* descr() {
     return schema_;
   }

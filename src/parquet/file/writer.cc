@@ -24,6 +24,9 @@ using parquet::schema::GroupNode;
 
 namespace parquet {
 
+// ----------------------------------------------------------------------
+// RowGroupWriter public API
+
 RowGroupWriter::RowGroupWriter(std::unique_ptr<Contents> contents,
     MemoryAllocator* allocator):
   contents_(std::move(contents)), allocator_(allocator) {
