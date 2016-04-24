@@ -35,24 +35,24 @@ namespace test {
 class TestPrimitiveWriter : public ::testing::Test {
  public:
   void SetUpSchemaRequiredNonRepeated() {
-    node = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
-    schema = std::make_shared<ColumnDescriptor>(node, 0, 0);
+    node_ = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
+    schema_ = std::make_shared<ColumnDescriptor>(node_, 0, 0);
   }
 
   void SetUpSchemaOptionalNonRepeated() {
-    node = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
-    schema = std::make_shared<ColumnDescriptor>(node, 1, 0);
+    node_ = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
+    schema_ = std::make_shared<ColumnDescriptor>(node_, 1, 0);
   }
 
   void SetUpSchemaOptionalRepeated() {
-    node = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
-    schema = std::make_shared<ColumnDescriptor>(node, 1, 1);
+    node_ = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
+    schema_ = std::make_shared<ColumnDescriptor>(node_, 1, 1);
   }
 
   void SetUp() {
-    values_out.resize(100);
-    definition_levels_out.resize(100);
-    repetition_levels_out.resize(100);
+    values_out_.resize(100);
+    definition_levels_out_.resize(100);
+    repetition_levels_out_.resize(100);
 
     SetUpSchemaRequiredNonRepeated();
   }
@@ -63,35 +63,35 @@ class TestPrimitiveWriter : public ::testing::Test {
     std::unique_ptr<SerializedPageReader> page_reader(
         new SerializedPageReader(std::move(source), Compression::UNCOMPRESSED));
     return std::unique_ptr<Int64Reader>(
-        new Int64Reader(schema.get(), std::move(page_reader)));
+        new Int64Reader(schema_.get(), std::move(page_reader)));
   }
 
   std::unique_ptr<Int64Writer> BuildWriter(int64_t output_size = 100) {
     sink_.reset(new InMemoryOutputStream());
     std::unique_ptr<SerializedPageWriter> pager(
-        new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, &metadata));
-    return std::unique_ptr<Int64Writer>(new Int64Writer(schema.get(), std::move(pager),
+        new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, &metadata_));
+    return std::unique_ptr<Int64Writer>(new Int64Writer(schema_.get(), std::move(pager),
           output_size));
   }
 
   void ReadColumn() {
     auto reader = BuildReader();
-    reader->ReadBatch(values_out.size(), definition_levels_out.data(),
-        repetition_levels_out.data(), values_out.data(), &values_read);
+    reader->ReadBatch(values_out_.size(), definition_levels_out_.data(),
+        repetition_levels_out_.data(), values_out_.data(), &values_read_);
   }
 
  protected:
-  int64_t values_read;
+  int64_t values_read_;
 
   // Output buffers
-  std::vector<int64_t> values_out;
-  std::vector<int16_t> definition_levels_out;
-  std::vector<int16_t> repetition_levels_out;
+  std::vector<int64_t> values_out_;
+  std::vector<int16_t> definition_levels_out_;
+  std::vector<int16_t> repetition_levels_out_;
 
  private:
-  NodePtr node;
-  format::ColumnChunk metadata;
-  std::shared_ptr<ColumnDescriptor> schema;
+  NodePtr node_;
+  format::ColumnChunk metadata_;
+  std::shared_ptr<ColumnDescriptor> schema_;
   std::unique_ptr<InMemoryOutputStream> sink_;
 };
 
@@ -104,8 +104,8 @@ TEST_F(TestPrimitiveWriter, RequiredNonRepeated) {
   writer->Close();
 
   ReadColumn();
-  ASSERT_EQ(values_read, 100);
-  ASSERT_EQ(values_out, values);
+  ASSERT_EQ(values_read_, 100);
+  ASSERT_EQ(values_out_, values);
 }
 
 TEST_F(TestPrimitiveWriter, OptionalNonRepeated) {
@@ -116,16 +116,16 @@ TEST_F(TestPrimitiveWriter, OptionalNonRepeated) {
   std::vector<int64_t> values(100, 128);
   std::vector<int16_t> definition_levels(100, 1);
   definition_levels[1] = 0;
-  std::vector<int64_t> values_expected(99, 128);
 
   auto writer = BuildWriter();
   writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
   writer->Close();
 
   ReadColumn();
-  ASSERT_EQ(values_read, 99);
-  values_out.resize(99);
-  ASSERT_EQ(values_out, values_expected);
+  ASSERT_EQ(values_read_, 99);
+  values_out_.resize(99);
+  values.resize(99);
+  ASSERT_EQ(values_out_, values);
 }
 
 TEST_F(TestPrimitiveWriter, OptionalRepeated) {
@@ -136,7 +136,6 @@ TEST_F(TestPrimitiveWriter, OptionalRepeated) {
   std::vector<int16_t> definition_levels(100, 1);
   definition_levels[1] = 0;
   std::vector<int16_t> repetition_levels(100, 0);
-  std::vector<int64_t> values_expected(99, 128);
 
   auto writer = BuildWriter();
   writer->WriteBatch(values.size(), definition_levels.data(),
@@ -144,9 +143,10 @@ TEST_F(TestPrimitiveWriter, OptionalRepeated) {
   writer->Close();
 
   ReadColumn();
-  ASSERT_EQ(values_read, 99);
-  values_out.resize(99);
-  ASSERT_EQ(values_out, values_expected);
+  ASSERT_EQ(values_read_, 99);
+  values_out_.resize(99);
+  values.resize(99);
+  ASSERT_EQ(values_out_, values);
 }
 
 TEST_F(TestPrimitiveWriter, RequiredTooFewRows) {
@@ -174,7 +174,6 @@ TEST_F(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
   definition_levels[1] = 0;
   std::vector<int16_t> repetition_levels(100, 0);
   repetition_levels[3] = 1;
-  std::vector<int64_t> values_expected(99, 128);
 
   auto writer = BuildWriter();
   writer->WriteBatch(values.size(), definition_levels.data(),
@@ -184,7 +183,6 @@ TEST_F(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
 
 TEST_F(TestPrimitiveWriter, RequiredNonRepeatedLargeChunk) {
   std::vector<int64_t> values(10000, 128);
-  std::vector<int64_t> values_expected(100, 128);
 
   // Test case 1: required and non-repeated, so no definition or repetition levels
   std::unique_ptr<Int64Writer> writer = BuildWriter(10000);
@@ -193,8 +191,9 @@ TEST_F(TestPrimitiveWriter, RequiredNonRepeatedLargeChunk) {
 
   // Just read the first 100 to ensure we could read it back in
   ReadColumn();
-  ASSERT_EQ(values_read, 100);
-  ASSERT_EQ(values_out, values_expected);
+  ASSERT_EQ(values_read_, 100);
+  values.resize(100);
+  ASSERT_EQ(values_out_, values);
 }
 
 } // namespace test
