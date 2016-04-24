@@ -100,7 +100,7 @@ class ColumnWriter {
   void InitSinks();
 };
 
-// API to read values from a single column. This is the main client facing API.
+// API to write values to a single column. This is the main client facing API.
 template <int TYPE>
 class TypedColumnWriter : public ColumnWriter {
  public:

@@ -35,12 +35,9 @@ ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
 }
 
 void ColumnWriter::InitSinks() {
-  definition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(
-      new InMemoryOutputStream());
-  repetition_levels_sink_ = std::unique_ptr<InMemoryOutputStream>(
-      new InMemoryOutputStream());
-  values_sink_ = std::unique_ptr<InMemoryOutputStream>(
-      new InMemoryOutputStream());
+  definition_levels_sink_.reset(new InMemoryOutputStream());
+  repetition_levels_sink_.reset(new InMemoryOutputStream());
+  values_sink_.reset(new InMemoryOutputStream());
 }
 
 void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, int16_t* levels) {
@@ -57,8 +54,7 @@ std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
     const std::shared_ptr<Buffer>& buffer, int16_t max_level) {
   // TODO: This only works with due to some RLE specifics
   int64_t rle_size = 2 * num_buffered_values_ + sizeof(uint32_t);
-  std::shared_ptr<OwnedMutableBuffer> buffer_rle =
-    std::make_shared<OwnedMutableBuffer>(rle_size, allocator_);
+  auto buffer_rle = std::make_shared<OwnedMutableBuffer>(rle_size, allocator_);
   level_encoder_.Init(Encoding::RLE, max_level,
       num_buffered_values_, buffer_rle->mutable_data() + sizeof(uint32_t),
       buffer_rle->size() - sizeof(uint32_t));
@@ -66,7 +62,9 @@ std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
       reinterpret_cast<const int16_t*>(buffer->data()));
   DCHECK_EQ(encoded, num_buffered_values_);
   reinterpret_cast<uint32_t*>(buffer_rle->mutable_data())[0] = level_encoder_.len();
-  buffer_rle->Resize(level_encoder_.len() + sizeof(uint32_t));
+  int64_t encoded_size = level_encoder_.len() + sizeof(uint32_t);
+  DCHECK(rle_size >= encoded_size);
+  buffer_rle->Resize(encoded_size);
   return std::static_pointer_cast<Buffer>(buffer_rle);
 }
 
