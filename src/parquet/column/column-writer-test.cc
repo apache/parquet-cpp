@@ -34,17 +34,17 @@ namespace test {
 
 class TestPrimitiveWriter : public ::testing::Test {
  public:
-  void SetUpSchemaRequiredNonRepeated() {
+  void SetUpSchemaRequired() {
     node_ = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
     schema_ = std::make_shared<ColumnDescriptor>(node_, 0, 0);
   }
 
-  void SetUpSchemaOptionalNonRepeated() {
-    node_ = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
+  void SetUpSchemaOptional() {
+    node_ = PrimitiveNode::Make("int64", Repetition::OPTIONAL, Type::INT64);
     schema_ = std::make_shared<ColumnDescriptor>(node_, 1, 0);
   }
 
-  void SetUpSchemaOptionalRepeated() {
+  void SetUpSchemaRepeated() {
     node_ = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
     schema_ = std::make_shared<ColumnDescriptor>(node_, 1, 1);
   }
@@ -54,7 +54,7 @@ class TestPrimitiveWriter : public ::testing::Test {
     definition_levels_out_.resize(100);
     repetition_levels_out_.resize(100);
 
-    SetUpSchemaRequiredNonRepeated();
+    SetUpSchemaRequired();
   }
 
   std::unique_ptr<Int64Reader> BuildReader() {
@@ -104,14 +104,14 @@ TEST_F(TestPrimitiveWriter, RequiredNonRepeated) {
   writer->Close();
 
   ReadColumn();
-  ASSERT_EQ(values_read_, 100);
-  ASSERT_EQ(values_out_, values);
+  ASSERT_EQ(100, values_read_);
+  ASSERT_EQ(values, values_out_);
 }
 
 TEST_F(TestPrimitiveWriter, OptionalNonRepeated) {
   // Optional and non-repeated, with definition levels
   // but no repetition levels
-  SetUpSchemaOptionalNonRepeated();
+  SetUpSchemaOptional();
 
   std::vector<int64_t> values(100, 128);
   std::vector<int16_t> definition_levels(100, 1);
@@ -122,15 +122,15 @@ TEST_F(TestPrimitiveWriter, OptionalNonRepeated) {
   writer->Close();
 
   ReadColumn();
-  ASSERT_EQ(values_read_, 99);
+  ASSERT_EQ(99, values_read_);
   values_out_.resize(99);
   values.resize(99);
-  ASSERT_EQ(values_out_, values);
+  ASSERT_EQ(values, values_out_);
 }
 
 TEST_F(TestPrimitiveWriter, OptionalRepeated) {
   // Optional and repeated, so definition and repetition levels
-  SetUpSchemaOptionalRepeated();
+  SetUpSchemaRepeated();
 
   std::vector<int64_t> values(100, 128);
   std::vector<int16_t> definition_levels(100, 1);
@@ -143,10 +143,10 @@ TEST_F(TestPrimitiveWriter, OptionalRepeated) {
   writer->Close();
 
   ReadColumn();
-  ASSERT_EQ(values_read_, 99);
+  ASSERT_EQ(99, values_read_);
   values_out_.resize(99);
   values.resize(99);
-  ASSERT_EQ(values_out_, values);
+  ASSERT_EQ(values, values_out_);
 }
 
 TEST_F(TestPrimitiveWriter, RequiredTooFewRows) {
@@ -167,7 +167,7 @@ TEST_F(TestPrimitiveWriter, RequiredTooMany) {
 
 TEST_F(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
   // Optional and repeated, so definition and repetition levels
-  SetUpSchemaOptionalRepeated();
+  SetUpSchemaRepeated();
 
   std::vector<int64_t> values(100, 128);
   std::vector<int16_t> definition_levels(100, 1);
@@ -191,9 +191,9 @@ TEST_F(TestPrimitiveWriter, RequiredNonRepeatedLargeChunk) {
 
   // Just read the first 100 to ensure we could read it back in
   ReadColumn();
-  ASSERT_EQ(values_read_, 100);
+  ASSERT_EQ(100, values_read_);
   values.resize(100);
-  ASSERT_EQ(values_out_, values);
+  ASSERT_EQ(values, values_out_);
 }
 
 } // namespace test

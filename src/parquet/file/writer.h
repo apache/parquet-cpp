@@ -33,7 +33,6 @@ class OutputStream;
 
 class RowGroupWriter {
  public:
-  // Forward declare the PIMPL
   struct Contents {
     virtual int num_columns() const = 0;
     virtual int64_t num_rows() const = 0;
@@ -43,7 +42,7 @@ class RowGroupWriter {
     virtual ColumnWriter* NextColumn() = 0;
     virtual void Close() = 0;
 
-    // Return const-poitner to make it clear that this object is not to be copied
+    // Return const-pointer to make it clear that this object is not to be copied
     virtual const SchemaDescriptor* schema() const = 0;
   };
 
@@ -53,7 +52,7 @@ class RowGroupWriter {
    * Construct a ColumnWriter for the indicated row group-relative column.
    *
    * Ownership is solely within the RowGroupWriter. The ColumnWriter is only valid
-   * until the next call to NextColumn or Close. As the contents are diretly written to
+   * until the next call to NextColumn or Close. As the contents are directly written to
    * the sink, once a new column is started, the contents of the previous one cannot be
    * modified anymore.
    */
@@ -71,10 +70,9 @@ class RowGroupWriter {
   // virtual void WriteRowGroupStatitics();
 
  private:
-  // Owned by the parent ParquetFileReader
+  // Owned by the parent ParquetFileWriter
   const SchemaDescriptor* schema_;
 
-  // PIMPL idiom
   // This is declared in the .cc file so that we can hide compiled Thrift
   // headers from the public API and also more easily create test fixtures.
   std::unique_ptr<Contents> contents_;
@@ -84,7 +82,6 @@ class RowGroupWriter {
 
 class ParquetFileWriter {
  public:
-  // Forward declare the PIMPL
   struct Contents {
     virtual ~Contents() {}
     // Perform any cleanup associated with the file contents
@@ -156,7 +153,6 @@ class ParquetFileWriter {
   }
 
  private:
-  // PIMPL idiom
   // This is declared in the .cc file so that we can hide compiled Thrift
   // headers from the public API and also more easily create test fixtures.
   std::unique_ptr<Contents> contents_;

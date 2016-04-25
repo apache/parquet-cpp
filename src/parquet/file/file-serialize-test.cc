@@ -35,26 +35,26 @@ namespace test {
 
 class TestSerialize : public ::testing::Test {
  public:
-  void SetUpSchemaRequiredNonRepeated() {
+  void SetUpSchemaRequired() {
     auto pnode = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
     node = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
     schema.Init(node);
   }
 
-  void SetUpSchemaOptionalNonRepeated() {
-    auto pnode = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
+  void SetUpSchemaOptional() {
+    auto pnode = PrimitiveNode::Make("int64", Repetition::OPTIONAL, Type::INT64);
     node = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
     schema.Init(node);
   }
 
-  void SetUpSchemaOptionalRepeated() {
+  void SetUpSchemaRepeated() {
     auto pnode = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
     node = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
     schema.Init(node);
   }
 
   void SetUp() {
-    SetUpSchemaRequiredNonRepeated();
+    SetUpSchemaRequired();
   }
 
  protected:
