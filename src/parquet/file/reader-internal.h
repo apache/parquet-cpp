@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "parquet/column/page.h"
+#include "parquet/column/properties.h"
 #include "parquet/compression/codec.h"
 #include "parquet/file/reader.h"
 #include "parquet/thrift/parquet_types.h"
@@ -70,17 +71,17 @@ class SerializedRowGroup : public RowGroupReader::Contents {
  public:
   SerializedRowGroup(RandomAccessSource* source, const format::RowGroup* metadata,
       MemoryAllocator* allocator)
-      : source_(source), metadata_(metadata), allocator_(allocator) {}
+      : source_(source), metadata_(metadata), properties_(opts) {}
 
   virtual int num_columns() const;
   virtual int64_t num_rows() const;
-  virtual std::unique_ptr<PageReader> GetColumnPageReader(int i, int64_t chunk_size = 0);
+  virtual std::unique_ptr<PageReader> GetColumnPageReader(int i);
   virtual RowGroupStatistics GetColumnStats(int i);
 
  private:
   RandomAccessSource* source_;
   const format::RowGroup* metadata_;
-  MemoryAllocator* allocator_;
+  ReaderProperties properties_;
 };
 
 // An implementation of ParquetFileReader::Contents that deals with the Parquet
@@ -94,7 +95,7 @@ class SerializedFile : public ParquetFileReader::Contents {
   // lifetime separately
   static std::unique_ptr<ParquetFileReader::Contents> Open(
       std::unique_ptr<RandomAccessSource> source,
-      MemoryAllocator* allocator = default_allocator());
+      ReaderProperties opts);
   virtual void Close();
   virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
   virtual int64_t num_rows() const;
@@ -106,10 +107,14 @@ class SerializedFile : public ParquetFileReader::Contents {
   // This class takes ownership of the provided data source
   explicit SerializedFile(
       std::unique_ptr<RandomAccessSource> source, MemoryAllocator* allocator);
+=======
+  explicit SerializedFile(std::unique_ptr<RandomAccessSource> source,
+      ReaderProperties opts);
+>>>>>>> added Reader and Writer Properties
 
   std::unique_ptr<RandomAccessSource> source_;
   format::FileMetaData metadata_;
-  MemoryAllocator* allocator_;
+  ReaderProperties properties_;
 
   void ParseMetaData();
 };

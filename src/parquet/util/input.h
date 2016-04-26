@@ -157,6 +157,9 @@ class InputStream {
   // *num_bytes.
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes) = 0;
 
+  // Intialize the InputStream from a RandomAccessSource
+  virtual void Initialize(RandomAccessSource *source, int64_t start, int64_t end) = 0;
+
   // Advance the stream without reading
   virtual void Advance(int64_t num_bytes) = 0;
 
@@ -169,10 +172,12 @@ class InputStream {
 // Implementation of an InputStream when all the bytes are in memory.
 class InMemoryInputStream : public InputStream {
  public:
+  InMemoryInputStream();
   explicit InMemoryInputStream(const std::shared_ptr<Buffer>& buffer);
   virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
 
+  virtual void Initialize(RandomAccessSource *source, int64_t start, int64_t end);
   virtual void Advance(int64_t num_bytes);
 
  private:
@@ -182,13 +187,13 @@ class InMemoryInputStream : public InputStream {
 };
 
 // Implementation of an InputStream when only some of the bytes are in memory.
-class ChunkedInMemoryInputStream : public InputStream {
+class BufferedInputStream : public InputStream {
  public:
-  explicit ChunkedInMemoryInputStream(RandomAccessSource* source,
-      MemoryAllocator* pool, int64_t start, int64_t end, int64_t chunk_size);
+  BufferedInputStream(MemoryAllocator* pool,  int64_t buffer_size);
   virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
 
+  virtual void Initialize(RandomAccessSource *source, int64_t start, int64_t end);
   virtual void Advance(int64_t num_bytes);
 
  private:
@@ -197,7 +202,7 @@ class ChunkedInMemoryInputStream : public InputStream {
   int64_t stream_offset_;
   int64_t stream_end_;
   int64_t buffer_offset_;
-  int64_t chunk_size_;
+  int64_t buffer_size_;
 };
 
 } // namespace parquet

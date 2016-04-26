@@ -45,7 +45,9 @@ class TestAllTypesPlain : public ::testing::Test {
     ss << dir_string << "/"
        << "alltypes_plain.parquet";
 
-    reader_ = ParquetFileReader::OpenFile(ss.str());
+    ReaderProperties opts;
+
+    reader_ = ParquetFileReader::OpenFile(ss.str(), opts);
   }
 
   void TearDown() {}
@@ -172,8 +174,9 @@ class TestLocalFileSource : public ::testing::Test {
 
 TEST_F(TestLocalFileSource, FileClosedOnDestruction) {
   int file_desc = file->file_descriptor();
+  ReaderProperties opts;
   {
-    auto contents = SerializedFile::Open(std::move(file));
+    auto contents = SerializedFile::Open(std::move(file), opts);
     std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
     result->Open(std::move(contents));
   }

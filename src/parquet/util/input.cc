@@ -29,7 +29,6 @@ namespace parquet {
 
 // ----------------------------------------------------------------------
 // RandomAccessSource
-
 std::shared_ptr<Buffer> RandomAccessSource::ReadAt(int64_t pos, int64_t nbytes) {
   Seek(pos);
   return Read(nbytes);
@@ -208,6 +207,15 @@ InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer)
   len_ = buffer_->size();
 }
 
+void InMemoryInputStream::Initialize(RandomAccessSource *source, int64_t start,
+    int64_t num_bytes) {
+  buffer_ = source->ReadAt(start, num_bytes);
+  if (buffer_->size() < num_bytes) {
+    throw ParquetException("Unable to read column chunk data");
+  }
+  len_ = buffer_->size();
+}
+
 const uint8_t* InMemoryInputStream::Peek(int64_t num_to_peek, int64_t* num_bytes) {
   *num_bytes = std::min(static_cast<int64_t>(num_to_peek), len_ - offset_);
   return buffer_->data() + offset_;
@@ -224,30 +232,35 @@ void InMemoryInputStream::Advance(int64_t num_bytes) {
 }
 
 // ----------------------------------------------------------------------
-// ChunkedInMemoryInputStream
-ChunkedInMemoryInputStream::ChunkedInMemoryInputStream(RandomAccessSource* source,
-    MemoryAllocator* pool, int64_t start, int64_t end, int64_t chunk_size) :
-    source_(source), stream_offset_(start), stream_end_(end), buffer_offset_(0) {
-  buffer_ = std::make_shared<OwnedMutableBuffer>(chunk_size, pool);
-  chunk_size_ = buffer_->size();
-  buffer_offset_ = chunk_size_;
+// BufferedInputStream
+BufferedInputStream::BufferedInputStream(MemoryAllocator* pool, int64_t buffer_size) :
+    source_(NULL), stream_offset_(0), stream_end_(0) {
+  buffer_ = std::make_shared<OwnedMutableBuffer>(buffer_size, pool);
+  buffer_size_ = buffer_->size();
+  // Required to force a lazy read
+  buffer_offset_ = buffer_size_;
 }
 
-const uint8_t* ChunkedInMemoryInputStream::Peek(int64_t num_to_peek, int64_t* num_bytes) {
-  *num_bytes = std::min(static_cast<int64_t>(num_to_peek), stream_end_ - stream_offset_);
+void BufferedInputStream::Initialize(RandomAccessSource *source, int64_t start,
+    int64_t num_bytes) {
+  source_ = source;
+  stream_offset_ = start;
+  stream_end_ = start + num_bytes;
+}
+
+const uint8_t* BufferedInputStream::Peek(int64_t num_to_peek, int64_t* num_bytes) {
+  *num_bytes = std::min(num_to_peek, stream_end_ - stream_offset_);
   // increase the buffer size if needed
-  if (*num_bytes > chunk_size_) {
+  if (*num_bytes > buffer_size_) {
     buffer_->Resize(*num_bytes);
-    chunk_size_ = buffer_->size();
-    if (chunk_size_ < *num_bytes) {
-      throw ParquetException("Unable to read column data into buffer.");
-    }
+    buffer_size_ = buffer_->size();
+    DCHECK(buffer_size_ >= *num_bytes);
   }
   // Read more data when buffer has insufficient left or when resized
-  if (*num_bytes >  (chunk_size_ - buffer_offset_)) {
+  if (*num_bytes >  (buffer_size_ - buffer_offset_)) {
     source_->Seek(stream_offset_);
-    chunk_size_ = std::min(chunk_size_, stream_end_ - stream_offset_);
-    int64_t bytes_read = source_->Read(chunk_size_, buffer_->mutable_data());
+    buffer_size_ = std::min(buffer_size_, stream_end_ - stream_offset_);
+    int64_t bytes_read = source_->Read(buffer_size_, buffer_->mutable_data());
     if (bytes_read < *num_bytes) {
       throw ParquetException("Failed reading column data from source");
     }
@@ -256,14 +269,14 @@ const uint8_t* ChunkedInMemoryInputStream::Peek(int64_t num_to_peek, int64_t* nu
   return buffer_->data() + buffer_offset_;
 }
 
-const uint8_t* ChunkedInMemoryInputStream::Read(int64_t num_to_read, int64_t* num_bytes) {
+const uint8_t* BufferedInputStream::Read(int64_t num_to_read, int64_t* num_bytes) {
   const uint8_t* result = Peek(num_to_read, num_bytes);
   stream_offset_ += *num_bytes;
   buffer_offset_ += *num_bytes;
   return result;
 }
 
-void ChunkedInMemoryInputStream::Advance(int64_t num_bytes) {
+void BufferedInputStream::Advance(int64_t num_bytes) {
   stream_offset_ += num_bytes;
   buffer_offset_ += num_bytes;
 }

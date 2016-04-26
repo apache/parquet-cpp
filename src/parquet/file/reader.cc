@@ -52,11 +52,11 @@ int64_t RowGroupReader::num_rows() const {
   return contents_->num_rows();
 }
 
-std::shared_ptr<ColumnReader> RowGroupReader::Column(int i, int64_t chunk_size) {
+std::shared_ptr<ColumnReader> RowGroupReader::Column(int i) {
   // TODO: boundschecking
   const ColumnDescriptor* descr = schema_->Column(i);
 
-  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i, chunk_size);
+  std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i);
   return ColumnReader::Make(descr, std::move(page_reader), allocator_);
 }
 
@@ -73,8 +73,8 @@ ParquetFileReader::~ParquetFileReader() {
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
-    std::unique_ptr<RandomAccessSource> source, MemoryAllocator* allocator) {
-  auto contents = SerializedFile::Open(std::move(source), allocator);
+    std::unique_ptr<RandomAccessSource> source, ReaderProperties opts) {
+  auto contents = SerializedFile::Open(std::move(source), opts);
 
   std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
   result->Open(std::move(contents));
@@ -83,16 +83,16 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
-    const std::string& path, bool memory_map, MemoryAllocator* allocator) {
+    const std::string& path, ReaderProperties opts, bool memory_map) {
   std::unique_ptr<LocalFileSource> file;
   if (memory_map) {
-    file.reset(new MemoryMapSource(allocator));
+    file.reset(new MemoryMapSource(opts.get_allocator()));
   } else {
-    file.reset(new LocalFileSource(allocator));
+    file.reset(new LocalFileSource(opts.get_allocator()));
   }
   file->Open(path);
 
-  return Open(std::move(file), allocator);
+  return Open(std::move(file), opts);
 }
 
 void ParquetFileReader::Open(std::unique_ptr<ParquetFileReader::Contents> contents) {
@@ -150,6 +150,7 @@ void ParquetFileReader::DebugPrint(
     }
   }
 
+  ReaderProperties opts;
   for (auto i : selected_columns) {
     const ColumnDescriptor* descr = schema_->Column(i);
     stream << "Column " << i << ": " << descr->name() << " ("
@@ -165,10 +166,15 @@ void ParquetFileReader::DebugPrint(
     for (auto i : selected_columns) {
       RowGroupStatistics stats = group_reader->GetColumnStats(i);
 
+      const ColumnDescriptor* descr = schema_->Column(i);
       stream << "Column " << i << ": " << group_reader->num_rows() << " rows, "
              << stats.num_values << " values, " << stats.null_count << " null values, "
-             << stats.distinct_count << " distinct values, " << *stats.max << " max, "
-             << *stats.min << " min, " << std::endl;
+             << stats.distinct_count << " distinct values, " 
+             << opts.type_printer(descr->physical_type(), stats.max->c_str(),
+                 descr->type_length()) << " max, "
+             << opts.type_printer(descr->physical_type(), stats.min->c_str(),
+                 descr->type_length()) << " min, "
+             << std::endl;
     }
 
     if (!print_values) { continue; }

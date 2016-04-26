@@ -233,8 +233,9 @@ class TestParquetFileReader : public ::testing::Test {
     std::unique_ptr<BufferReader> reader(new BufferReader(buffer));
     reader_.reset(new ParquetFileReader());
 
+    ReaderProperties opts;
     ASSERT_THROW(
-        reader_->Open(SerializedFile::Open(std::move(reader))), ParquetException);
+        reader_->Open(SerializedFile::Open(std::move(reader), opts)), ParquetException);
   }
 
  protected:

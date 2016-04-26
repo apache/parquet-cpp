@@ -24,7 +24,7 @@
 using namespace parquet;
 
 int main(int argc, char** argv) {
-  if (argc > 3) {
+  if (argc > 5 || argc < 2) {
     std::cerr << "Usage: parquet_reader [--only-stats] [--no-memory-map] [--columns=...] <file>"
               << std::endl;
     return -1;
@@ -55,9 +55,10 @@ int main(int argc, char** argv) {
     }
   }
 
+  ReaderProperties opts;
   try {
     std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename,
-        memory_map);
+        opts, memory_map);
     reader->DebugPrint(std::cout, columns, print_values);
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "
