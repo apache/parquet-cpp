@@ -138,8 +138,8 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
     total_bytes_written_ += current_column_writer_->Close();
   }
 
-  auto column_descr = schema_->Column(current_column_index_);
-  auto col_meta = &metadata_->columns[current_column_index_];
+  const ColumnDescriptor* column_descr = schema_->Column(current_column_index_);
+  format::ColumnChunk* col_meta = &metadata_->columns[current_column_index_];
   col_meta->__isset.meta_data = true;
   col_meta->meta_data.__set_type(ToThrift(column_descr->physical_type()));
   col_meta->meta_data.__set_path_in_schema(column_descr->path()->ToDotVector());

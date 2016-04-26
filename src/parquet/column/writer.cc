@@ -167,6 +167,17 @@ std::shared_ptr<ColumnWriter> ColumnWriter::Make(
   return std::shared_ptr<ColumnWriter>(nullptr);
 }
 
+// ----------------------------------------------------------------------
+// Instantiate templated classes
+
+template class TypedColumnWriter<Type::BOOLEAN>;
+template class TypedColumnWriter<Type::INT32>;
+template class TypedColumnWriter<Type::INT64>;
+template class TypedColumnWriter<Type::INT96>;
+template class TypedColumnWriter<Type::FLOAT>;
+template class TypedColumnWriter<Type::DOUBLE>;
+template class TypedColumnWriter<Type::BYTE_ARRAY>;
+template class TypedColumnWriter<Type::FIXED_LEN_BYTE_ARRAY>;
 
 
 } // namespace parquet
