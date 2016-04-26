@@ -37,20 +37,20 @@ class TestSerialize : public ::testing::Test {
  public:
   void SetUpSchemaRequired() {
     auto pnode = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
-    node = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
-    schema.Init(node);
+    node_ = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
+    schema_.Init(node_);
   }
 
   void SetUpSchemaOptional() {
     auto pnode = PrimitiveNode::Make("int64", Repetition::OPTIONAL, Type::INT64);
-    node = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
-    schema.Init(node);
+    node_ = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
+    schema_.Init(node_);
   }
 
   void SetUpSchemaRepeated() {
     auto pnode = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
-    node = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
-    schema.Init(node);
+    node_ = GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
+    schema_.Init(node_);
   }
 
   void SetUp() {
@@ -58,14 +58,14 @@ class TestSerialize : public ::testing::Test {
   }
 
  protected:
-  NodePtr node;
-  SchemaDescriptor schema;
+  NodePtr node_;
+  SchemaDescriptor schema_;
 };
 
 
 TEST_F(TestSerialize, SmallFile) {
   std::shared_ptr<InMemoryOutputStream> sink(new InMemoryOutputStream());
-  auto gnode = std::static_pointer_cast<GroupNode>(node);
+  auto gnode = std::static_pointer_cast<GroupNode>(node_);
   auto file_writer = ParquetFileWriter::Open(sink, gnode);
   auto row_group_writer = file_writer->AppendRowGroup(100);
   auto column_writer = static_cast<Int64Writer*>(row_group_writer->NextColumn());

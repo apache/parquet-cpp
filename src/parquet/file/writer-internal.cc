@@ -63,6 +63,8 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
     + values->size();
 
   // Concatenate data into a single buffer
+  // TODO: In the uncompressed case, directly write this to the sink
+  // TODO: Reuse the (un)compressed_data buffer instead of recreating it each time.
   std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
     std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
