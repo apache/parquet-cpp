@@ -35,7 +35,7 @@ class ReaderProperties {
  public:
   ReaderProperties(bool use_buffered_stream = false, int64_t buffer_size = 0,
       MemoryAllocator* allocator = default_allocator()) {
-    use_buffered_stream_ = use_buffered_stream;
+    enable_buffered_stream_ = use_buffered_stream;
     buffer_size_ = buffer_size;
     allocator_ = allocator;
   }
@@ -85,13 +85,13 @@ class ReaderProperties {
     return result.str();
   }
 
-  MemoryAllocator* get_allocator() {
+  MemoryAllocator* allocator() {
     return allocator_;
   }
 
   std::unique_ptr<InputStream> GetInputStream() {
     std::unique_ptr<InputStream> stream;
-    if (use_buffered_stream_) {
+    if (enable_buffered_stream_) {
       stream.reset(new BufferedInputStream(allocator_, buffer_size_));
     } else {
       stream.reset(new InMemoryInputStream());
@@ -99,19 +99,21 @@ class ReaderProperties {
     return stream;
   }
 
-  bool use_buffered_stream() {
-    return use_buffered_stream_;
+  bool is_buffered_stream_enabled() {
+    return enable_buffered_stream_;
   }
 
-  int64_t get_buffer_size() {
+  int64_t buffer_size() {
     return buffer_size_;
   }
 
  private:
   MemoryAllocator* allocator_;
-  bool use_buffered_stream_;
+  bool enable_buffered_stream_;
   int64_t buffer_size_;
 };
+
+ReaderProperties default_reader_properties();
 
 class WriterProperties {
  public:
@@ -121,32 +123,34 @@ class WriterProperties {
       MemoryAllocator* allocator = default_allocator()) {
     pagesize_ = pagesize;
     dictionary_pagesize_ = dictionary_pagesize;
-    enable_dictionary_ = enable_dictionary;
+    is_dictionary_enabled_ = enable_dictionary;
     allocator_ = allocator;
   }
 
-  int get_dictionary_pagesize_threshold() {
+  int dictionary_pagesize() {
     return dictionary_pagesize_;
   }
 
-  int get_pagesize_threshold() {
+  int data_pagesize() {
     return pagesize_;
   }
 
-  bool is_enable_dictionary() {
-    return enable_dictionary_;
+  bool is_dictionary_enabled() {
+    return is_dictionary_enabled_;
   }
 
-  MemoryAllocator* get_allocator() {
+  MemoryAllocator* allocator() {
     return allocator_;
   }
 
  private:
   int pagesize_;
   int dictionary_pagesize_;
-  bool enable_dictionary_;
+  bool is_dictionary_enabled_;
   MemoryAllocator* allocator_;
 };
+
+WriterProperties default_writer_properties();
 
 } // namespace parquet
 

@@ -95,7 +95,7 @@ class SerializedFile : public ParquetFileReader::Contents {
   // lifetime separately
   static std::unique_ptr<ParquetFileReader::Contents> Open(
       std::unique_ptr<RandomAccessSource> source,
-      ReaderProperties opts);
+      ReaderProperties opts = default_reader_properties());
   virtual void Close();
   virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
   virtual int64_t num_rows() const;

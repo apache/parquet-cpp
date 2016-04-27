@@ -55,10 +55,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  ReaderProperties opts;
   try {
     std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename,
-        opts, memory_map);
+        memory_map);
     reader->DebugPrint(std::cout, columns, print_values);
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "

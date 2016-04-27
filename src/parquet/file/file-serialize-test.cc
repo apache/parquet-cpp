@@ -77,8 +77,7 @@ TEST_F(TestSerialize, SmallFile) {
 
   auto buffer = sink->GetBuffer();
   std::unique_ptr<RandomAccessSource> source(new BufferReader(buffer));
-  ReaderProperties opts;
-  auto file_reader = ParquetFileReader::Open(std::move(source), opts);
+  auto file_reader = ParquetFileReader::Open(std::move(source));
   ASSERT_EQ(1, file_reader->num_columns());
   ASSERT_EQ(1, file_reader->num_row_groups());
   ASSERT_EQ(100, file_reader->num_rows());

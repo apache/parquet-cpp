@@ -218,7 +218,7 @@ std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
       new SerializedRowGroup(source_.get(), &metadata_.row_groups[i], properties_));
 
   return std::make_shared<RowGroupReader>(&schema_, std::move(contents),
-      properties_.get_allocator());
+      properties_.allocator());
 }
 
 int64_t SerializedFile::num_rows() const {
@@ -267,7 +267,7 @@ void SerializedFile::ParseMetaData() {
   }
   source_->Seek(metadata_start);
 
-  OwnedMutableBuffer metadata_buffer(metadata_len, properties_.get_allocator());
+  OwnedMutableBuffer metadata_buffer(metadata_len, properties_.allocator());
   bytes_read = source_->Read(metadata_len, &metadata_buffer[0]);
   if (bytes_read != metadata_len) {
     throw ParquetException("Invalid parquet file. Could not read metadata bytes.");

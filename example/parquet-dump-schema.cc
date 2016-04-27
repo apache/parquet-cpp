@@ -25,9 +25,8 @@ using namespace parquet;
 int main(int argc, char** argv) {
   std::string filename = argv[1];
 
-  ReaderProperties opts;
   try {
-    std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename, opts);
+    std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename);
     PrintSchema(reader->descr()->schema().get(), std::cout);
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "

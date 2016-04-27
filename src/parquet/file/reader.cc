@@ -83,12 +83,12 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
-    const std::string& path, ReaderProperties opts, bool memory_map) {
+    const std::string& path, bool memory_map, ReaderProperties opts) {
   std::unique_ptr<LocalFileSource> file;
   if (memory_map) {
-    file.reset(new MemoryMapSource(opts.get_allocator()));
+    file.reset(new MemoryMapSource(opts.allocator()));
   } else {
-    file.reset(new LocalFileSource(opts.get_allocator()));
+    file.reset(new LocalFileSource(opts.allocator()));
   }
   file->Open(path);
 
