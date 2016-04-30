@@ -16,3 +16,4 @@ if [ "$(uname)" != "Darwin" ]; then
 fi
 
 export GTEST_HOME=$THIRDPARTY_DIR/$GTEST_BASEDIR
+export GBENCHMARK_HOME=$THIRDPARTY_DIR/installed
