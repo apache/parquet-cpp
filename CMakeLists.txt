@@ -210,7 +210,7 @@ set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
 find_package(ZLIB REQUIRED)
 include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
 add_library(zlibstatic STATIC IMPORTED)
-set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_LIBRARIES})
+set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
 
 ## GTest
 find_package(GTest REQUIRED)
