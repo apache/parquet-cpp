@@ -6,6 +6,7 @@ addons:
     - ubuntu-toolchain-r-test
     - kalakris-cmake
     - llvm-toolchain-precise-3.7
+    - boost-latest
     packages:
     - clang-format-3.7
     - clang-tidy-3.7
@@ -14,9 +15,7 @@ addons:
     - gcov
     - cmake
     - valgrind
-    - libboost-dev                 #needed for thrift cpp compilation
-    - libboost-program-options-dev #needed for thrift cpp compilation
-    - libboost-test-dev            #needed for thrift cpp compilation
+    - libboost1.53-all-dev         #needed for thrift cpp compilation
     - libssl-dev                   #needed for thrift cpp compilation
     - libtool                      #needed for thrift cpp compilation
     - bison                        #needed for thrift cpp compilation
