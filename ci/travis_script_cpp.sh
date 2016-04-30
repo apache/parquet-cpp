@@ -2,7 +2,7 @@
 
 set -e
 
-: ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/cpp-build}
+: ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/parquet-build}
 
 pushd $CPP_BUILD_DIR
 
