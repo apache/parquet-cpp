@@ -15,7 +15,7 @@ addons:
     - gcov
     - cmake
     - valgrind
-    - libboost1.53-all-dev         #needed for thrift cpp compilation
+    - libboost1.55-all-dev         #needed for thrift cpp compilation
     - libssl-dev                   #needed for thrift cpp compilation
     - libtool                      #needed for thrift cpp compilation
     - bison                        #needed for thrift cpp compilation
