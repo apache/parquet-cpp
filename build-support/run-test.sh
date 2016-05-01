@@ -65,8 +65,8 @@ rm -f $LOGFILE $LOGFILE.gz
 pipe_cmd=cat
 
 # Allow for collecting core dumps.
-ARROW_TEST_ULIMIT_CORE=${ARROW_TEST_ULIMIT_CORE:-0}
-ulimit -c $ARROW_TEST_ULIMIT_CORE
+PARQUET_TEST_ULIMIT_CORE=${PARQUET_TEST_ULIMIT_CORE:-0}
+ulimit -c $PARQUET_TEST_ULIMIT_CORE
 
 
 function setup_sanitizers() {
