@@ -1,19 +1,21 @@
 sudo: required
-dist: trusty
+dist: precise
 addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
     - kalakris-cmake
+    - llvm-toolchain-precise-3.7
+    - boost-latest
     packages:
+    - clang-format-3.7
+    - clang-tidy-3.7
     - gcc-4.9
     - g++-4.9
     - gcov
     - cmake
     - valgrind
-    - libboost-dev                 #needed for thrift cpp compilation
-    - libboost-program-options-dev #needed for thrift cpp compilation
-    - libboost-test-dev            #needed for thrift cpp compilation
+    - libboost1.55-all-dev         #needed for thrift cpp compilation
     - libssl-dev                   #needed for thrift cpp compilation
     - libtool                      #needed for thrift cpp compilation
     - bison                        #needed for thrift cpp compilation
@@ -28,24 +30,11 @@ matrix:
     - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
     - cmake -DCMAKE_CXX_FLAGS="-Werror" -DPARQUET_TEST_MEMCHECK=ON -DPARQUET_GENERATE_COVERAGE=1 $TRAVIS_BUILD_DIR
     - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
-    script:
-    - make lint
-    - make -j4 || exit 1
-    - ctest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
-    - sudo pip install cpp_coveralls
-    - export PARQUET_ROOT=$TRAVIS_BUILD_DIR
-    - $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
   - compiler: clang
     os: linux
-    script:
-    - make -j4 || exit 1
-    - ctest
   - os: osx
     compiler: clang
     addons:
-    script:
-    - make -j4 || exit 1
-    - ctest
 
 language: cpp
 before_install:
@@ -56,3 +45,6 @@ before_script:
 - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
 - cmake -DCMAKE_CXX_FLAGS="-Werror" $TRAVIS_BUILD_DIR
 - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
+
+script:
+- $TRAVIS_BUILD_DIR/ci/travis_script_cpp.sh
