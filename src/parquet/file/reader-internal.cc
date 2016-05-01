@@ -165,8 +165,7 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   int64_t bytes_to_read = col.meta_data.total_compressed_size;
   std::unique_ptr<InputStream> stream;
 
-  stream = properties_.GetInputStream();
-  stream->Initialize(source_, col_start, bytes_to_read);
+  stream = properties_.GetStream(source_, col_start, bytes_to_read);
 
   return std::unique_ptr<PageReader>(new SerializedPageReader(
       std::move(stream), FromThrift(col.meta_data.codec), properties_.get_allocator()));
@@ -192,9 +191,9 @@ static constexpr uint32_t FOOTER_SIZE = 8;
 static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 std::unique_ptr<ParquetFileReader::Contents> SerializedFile::Open(
-    std::unique_ptr<RandomAccessSource> source, ReaderProperties opts) {
+    std::unique_ptr<RandomAccessSource> source, ReaderProperties props) {
   std::unique_ptr<ParquetFileReader::Contents> result(
-      new SerializedFile(std::move(source), opts));
+      new SerializedFile(std::move(source), props));
 
   // Access private methods here, but otherwise unavailable
   SerializedFile* file = static_cast<SerializedFile*>(result.get());
@@ -239,8 +238,8 @@ SerializedFile::SerializedFile(std::unique_ptr<RandomAccessSource> source,
 =======
 SerializedFile::SerializedFile(
     std::unique_ptr<RandomAccessSource> source,
-    ReaderProperties opts) :
-        source_(std::move(source)), properties_(opts) {}
+    ReaderProperties props) :
+        source_(std::move(source)), properties_(props) {}
 
 >>>>>>> added Reader and Writer Properties
 

@@ -71,7 +71,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
  public:
   SerializedRowGroup(RandomAccessSource* source, const format::RowGroup* metadata,
       MemoryAllocator* allocator)
-      : source_(source), metadata_(metadata), properties_(opts) {}
+      : source_(source), metadata_(metadata), properties_(props) {}
 
   virtual int num_columns() const;
   virtual int64_t num_rows() const;
@@ -95,7 +95,7 @@ class SerializedFile : public ParquetFileReader::Contents {
   // lifetime separately
   static std::unique_ptr<ParquetFileReader::Contents> Open(
       std::unique_ptr<RandomAccessSource> source,
-      ReaderProperties opts = default_reader_properties());
+      ReaderProperties props = default_reader_properties());
   virtual void Close();
   virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
   virtual int64_t num_rows() const;
@@ -105,12 +105,8 @@ class SerializedFile : public ParquetFileReader::Contents {
 
  private:
   // This class takes ownership of the provided data source
-  explicit SerializedFile(
-      std::unique_ptr<RandomAccessSource> source, MemoryAllocator* allocator);
-=======
   explicit SerializedFile(std::unique_ptr<RandomAccessSource> source,
-      ReaderProperties opts);
->>>>>>> added Reader and Writer Properties
+      ReaderProperties props);
 
   std::unique_ptr<RandomAccessSource> source_;
   format::FileMetaData metadata_;

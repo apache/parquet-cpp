@@ -73,8 +73,8 @@ ParquetFileReader::~ParquetFileReader() {
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
-    std::unique_ptr<RandomAccessSource> source, ReaderProperties opts) {
-  auto contents = SerializedFile::Open(std::move(source), opts);
+    std::unique_ptr<RandomAccessSource> source, ReaderProperties props) {
+  auto contents = SerializedFile::Open(std::move(source), props);
 
   std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
   result->Open(std::move(contents));
@@ -83,16 +83,16 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
-    const std::string& path, bool memory_map, ReaderProperties opts) {
+    const std::string& path, bool memory_map, ReaderProperties props) {
   std::unique_ptr<LocalFileSource> file;
   if (memory_map) {
-    file.reset(new MemoryMapSource(opts.allocator()));
+    file.reset(new MemoryMapSource(props.allocator()));
   } else {
-    file.reset(new LocalFileSource(opts.allocator()));
+    file.reset(new LocalFileSource(props.allocator()));
   }
   file->Open(path);
 
-  return Open(std::move(file), opts);
+  return Open(std::move(file), props);
 }
 
 void ParquetFileReader::Open(std::unique_ptr<ParquetFileReader::Contents> contents) {
@@ -150,7 +150,6 @@ void ParquetFileReader::DebugPrint(
     }
   }
 
-  ReaderProperties opts;
   for (auto i : selected_columns) {
     const ColumnDescriptor* descr = schema_->Column(i);
     stream << "Column " << i << ": " << descr->name() << " ("
@@ -170,9 +169,9 @@ void ParquetFileReader::DebugPrint(
       stream << "Column " << i << ": " << group_reader->num_rows() << " rows, "
              << stats.num_values << " values, " << stats.null_count << " null values, "
              << stats.distinct_count << " distinct values, " 
-             << opts.type_printer(descr->physical_type(), stats.max->c_str(),
+             << type_printer(descr->physical_type(), stats.max->c_str(),
                  descr->type_length()) << " max, "
-             << opts.type_printer(descr->physical_type(), stats.min->c_str(),
+             << type_printer(descr->physical_type(), stats.min->c_str(),
                  descr->type_length()) << " min, "
              << std::endl;
     }

@@ -27,80 +27,47 @@
 
 namespace parquet {
 
-static int DEFAULT_PAGE_SIZE = 1024 * 1024;
-static int DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
-static bool DEFAULT_IS_DICTIONARY_ENABLED = true;
+static int64_t DEFAULT_BUFFER_SIZE = 0;
+static bool DEFAULT_USE_BUFFERED_STREAM = false;
 
 class ReaderProperties {
  public:
-  ReaderProperties(bool use_buffered_stream = false, int64_t buffer_size = 0,
-      MemoryAllocator* allocator = default_allocator()) {
-    enable_buffered_stream_ = use_buffered_stream;
-    buffer_size_ = buffer_size;
-    allocator_ = allocator;
-  }
-
-  static inline std::string type_printer(Type::type parquet_type, const char* val,
-      int length) {
-    std::stringstream result;
-    switch (parquet_type) {
-      case Type::BOOLEAN:
-        result << reinterpret_cast<const bool*>(val)[0];
-        break;
-      case Type::INT32:
-        result << reinterpret_cast<const int32_t*>(val)[0];
-        break;
-      case Type::INT64:
-        result << reinterpret_cast<const int64_t*>(val)[0];
-        break;
-      case Type::DOUBLE:
-        result << reinterpret_cast<const double*>(val)[0];
-        break;
-      case Type::FLOAT:
-        result << reinterpret_cast<const float*>(val)[0];
-        break;
-      case Type::INT96: {
-        for (int i = 0; i < 3; i++) {
-          result << reinterpret_cast<const int32_t*>(val)[i] << " ";
-        }
-        break;
-      }
-      case Type::BYTE_ARRAY: {
-        const ByteArray* a = reinterpret_cast<const ByteArray*>(val);
-        for (int i = 0; i < static_cast<int>(a->len); i++) {
-          result << a[0].ptr[i]  << " ";
-        }
-        break;
-      }
-      case Type::FIXED_LEN_BYTE_ARRAY: {
-        const FLBA* a = reinterpret_cast<const FLBA*>(val);
-        for (int i = 0; i < length; i++) {
-          result << a[0].ptr[i]  << " ";
-        }
-        break;
-      }
-      default:
-        break;
-    }
-    return result.str();
+  explicit ReaderProperties(MemoryAllocator* allocator = default_allocator())
+      : allocator_(allocator) {
+    buffered_stream_enabled_ = DEFAULT_USE_BUFFERED_STREAM;
+    buffer_size_ = DEFAULT_BUFFER_SIZE;
   }
 
   MemoryAllocator* allocator() {
     return allocator_;
   }
 
-  std::unique_ptr<InputStream> GetInputStream() {
+  std::unique_ptr<InputStream> GetStream(RandomAccessSource *source, int64_t start,
+    int64_t num_bytes) {
     std::unique_ptr<InputStream> stream;
-    if (enable_buffered_stream_) {
-      stream.reset(new BufferedInputStream(allocator_, buffer_size_));
+    if (buffered_stream_enabled_) {
+      stream.reset(new BufferedInputStream(allocator_, buffer_size_, source, start,
+           num_bytes));
     } else {
-      stream.reset(new InMemoryInputStream());
+      stream.reset(new InMemoryInputStream(source, start, num_bytes));
     }
     return stream;
   }
 
   bool is_buffered_stream_enabled() {
-    return enable_buffered_stream_;
+    return buffered_stream_enabled_;
+  }
+
+  void enable_buffered_stream() {
+    buffered_stream_enabled_ = true;
+  }
+
+  void disable_buffered_stream() {
+    buffered_stream_enabled_ = false;
+  }
+
+  void set_buffer_size(int64_t buf_size) {
+    buffer_size_ = buf_size;
   }
 
   int64_t buffer_size() {
@@ -109,34 +76,51 @@ class ReaderProperties {
 
  private:
   MemoryAllocator* allocator_;
-  bool enable_buffered_stream_;
   int64_t buffer_size_;
+  bool buffered_stream_enabled_;
 };
 
 ReaderProperties default_reader_properties();
 
+static int64_t DEFAULT_PAGE_SIZE = 1024 * 1024;
+static int64_t DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+static bool DEFAULT_IS_DICTIONARY_ENABLED = true;
+
 class WriterProperties {
  public:
-  WriterProperties(int pagesize = DEFAULT_PAGE_SIZE,
-      int dictionary_pagesize = DEFAULT_DICTIONARY_PAGE_SIZE,
-      bool enable_dictionary = DEFAULT_IS_DICTIONARY_ENABLED,
-      MemoryAllocator* allocator = default_allocator()) {
-    pagesize_ = pagesize;
-    dictionary_pagesize_ = dictionary_pagesize;
-    is_dictionary_enabled_ = enable_dictionary;
-    allocator_ = allocator;
+  explicit WriterProperties(MemoryAllocator* allocator = default_allocator())
+      : allocator_(allocator) {
+    pagesize_ = DEFAULT_PAGE_SIZE;
+    dictionary_pagesize_ = DEFAULT_DICTIONARY_PAGE_SIZE;
+    dictionary_enabled_ = DEFAULT_IS_DICTIONARY_ENABLED;
   }
 
-  int dictionary_pagesize() {
+  int64_t dictionary_pagesize() {
     return dictionary_pagesize_;
   }
 
-  int data_pagesize() {
+  void set_dictionary_pagesize(int64_t dictionary_psize) {
+    dictionary_pagesize_ = dictionary_psize;
+  }
+
+  int64_t data_pagesize() {
     return pagesize_;
   }
 
+  void set_data_pagesize(int64_t pg_size) {
+    pagesize_ = pg_size;
+  }
+
+  void enable_dictionary() {
+    dictionary_enabled_ = true;
+  }
+
+  void disable_dictionary() {
+    dictionary_enabled_ = false;
+  }
+
   bool is_dictionary_enabled() {
-    return is_dictionary_enabled_;
+    return dictionary_enabled_;
   }
 
   MemoryAllocator* allocator() {
@@ -144,9 +128,9 @@ class WriterProperties {
   }
 
  private:
-  int pagesize_;
-  int dictionary_pagesize_;
-  bool is_dictionary_enabled_;
+  int64_t pagesize_;
+  int64_t dictionary_pagesize_;
+  bool dictionary_enabled_;
   MemoryAllocator* allocator_;
 };
 

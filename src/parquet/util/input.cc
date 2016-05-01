@@ -207,12 +207,17 @@ InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer)
   len_ = buffer_->size();
 }
 
-void InMemoryInputStream::Initialize(RandomAccessSource *source, int64_t start,
-    int64_t num_bytes) {
+InMemoryInputStream::InMemoryInputStream(RandomAccessSource *source, int64_t start,
+    int64_t num_bytes) : offset_(0) {
   buffer_ = source->ReadAt(start, num_bytes);
   if (buffer_->size() < num_bytes) {
     throw ParquetException("Unable to read column chunk data");
   }
+  len_ = buffer_->size();
+}
+
+InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer) :
+    buffer_(buffer), offset_(0) {
   len_ = buffer_->size();
 }
 
@@ -233,19 +238,13 @@ void InMemoryInputStream::Advance(int64_t num_bytes) {
 
 // ----------------------------------------------------------------------
 // BufferedInputStream
-BufferedInputStream::BufferedInputStream(MemoryAllocator* pool, int64_t buffer_size) :
-    source_(NULL), stream_offset_(0), stream_end_(0) {
+BufferedInputStream::BufferedInputStream(MemoryAllocator* pool, int64_t buffer_size,
+    RandomAccessSource *source, int64_t start, int64_t num_bytes) :
+    source_(source), stream_offset_(start), stream_end_(start + num_bytes) {
   buffer_ = std::make_shared<OwnedMutableBuffer>(buffer_size, pool);
   buffer_size_ = buffer_->size();
   // Required to force a lazy read
   buffer_offset_ = buffer_size_;
-}
-
-void BufferedInputStream::Initialize(RandomAccessSource *source, int64_t start,
-    int64_t num_bytes) {
-  source_ = source;
-  stream_offset_ = start;
-  stream_end_ = start + num_bytes;
 }
 
 const uint8_t* BufferedInputStream::Peek(int64_t num_to_peek, int64_t* num_bytes) {

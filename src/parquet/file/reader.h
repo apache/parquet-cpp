@@ -98,11 +98,11 @@ class ParquetFileReader {
 
   // API Convenience to open a serialized Parquet file on disk
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
-      bool memory_map = true, ReaderProperties opts = default_reader_properties());
+      bool memory_map = true, ReaderProperties props = default_reader_properties());
 
   static std::unique_ptr<ParquetFileReader> Open(
       std::unique_ptr<RandomAccessSource> source,
-      ReaderProperties opts = default_reader_properties());
+      ReaderProperties props = default_reader_properties());
 
   void Open(std::unique_ptr<Contents> contents);
   void Close();
