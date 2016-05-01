@@ -168,7 +168,7 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   stream = properties_.GetStream(source_, col_start, bytes_to_read);
 
   return std::unique_ptr<PageReader>(new SerializedPageReader(
-      std::move(stream), FromThrift(col.meta_data.codec), properties_.get_allocator()));
+      std::move(stream), FromThrift(col.meta_data.codec), properties_.allocator()));
 }
 
 RowGroupStatistics SerializedRowGroup::GetColumnStats(int i) {
@@ -233,15 +233,8 @@ int SerializedFile::num_row_groups() const {
 }
 
 SerializedFile::SerializedFile(std::unique_ptr<RandomAccessSource> source,
-    MemoryAllocator* allocator = default_allocator())
-    : source_(std::move(source)), allocator_(allocator) {}
-=======
-SerializedFile::SerializedFile(
-    std::unique_ptr<RandomAccessSource> source,
-    ReaderProperties props) :
-        source_(std::move(source)), properties_(props) {}
-
->>>>>>> added Reader and Writer Properties
+    ReaderProperties props = default_reader_properties())
+    : source_(std::move(source)), properties_(props) {}
 
 void SerializedFile::ParseMetaData() {
   int64_t filesize = source_->Size();

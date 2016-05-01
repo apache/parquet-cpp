@@ -29,6 +29,7 @@ namespace parquet {
 
 // ----------------------------------------------------------------------
 // RandomAccessSource
+
 std::shared_ptr<Buffer> RandomAccessSource::ReadAt(int64_t pos, int64_t nbytes) {
   Seek(pos);
   return Read(nbytes);
@@ -202,6 +203,7 @@ std::shared_ptr<Buffer> BufferReader::Read(int64_t nbytes) {
 
 // ----------------------------------------------------------------------
 // InMemoryInputStream
+
 InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer)
     : buffer_(buffer), offset_(0) {
   len_ = buffer_->size();
@@ -213,11 +215,6 @@ InMemoryInputStream::InMemoryInputStream(RandomAccessSource *source, int64_t sta
   if (buffer_->size() < num_bytes) {
     throw ParquetException("Unable to read column chunk data");
   }
-  len_ = buffer_->size();
-}
-
-InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer) :
-    buffer_(buffer), offset_(0) {
   len_ = buffer_->size();
 }
 

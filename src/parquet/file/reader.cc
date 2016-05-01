@@ -168,7 +168,7 @@ void ParquetFileReader::DebugPrint(
       const ColumnDescriptor* descr = schema_->Column(i);
       stream << "Column " << i << ": " << group_reader->num_rows() << " rows, "
              << stats.num_values << " values, " << stats.null_count << " null values, "
-             << stats.distinct_count << " distinct values, " 
+             << stats.distinct_count << " distinct values, "
              << type_printer(descr->physical_type(), stats.max->c_str(),
                  descr->type_length()) << " max, "
              << type_printer(descr->physical_type(), stats.min->c_str(),

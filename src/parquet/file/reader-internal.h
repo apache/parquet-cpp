@@ -70,7 +70,7 @@ class SerializedPageReader : public PageReader {
 class SerializedRowGroup : public RowGroupReader::Contents {
  public:
   SerializedRowGroup(RandomAccessSource* source, const format::RowGroup* metadata,
-      MemoryAllocator* allocator)
+      ReaderProperties props)
       : source_(source), metadata_(metadata), properties_(props) {}
 
   virtual int num_columns() const;
