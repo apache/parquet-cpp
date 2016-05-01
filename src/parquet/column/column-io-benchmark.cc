@@ -98,7 +98,7 @@ static void BM_ReadInt64Column(::benchmark::State& state) {
   while (state.KeepRunning()) {
     std::unique_ptr<Int64Reader> reader = BuildReader(src, schema.get());
     int64_t values_read = 0;
-    for (int64_t i = 0; i < values.size(); i += values_read) {
+    for (size_t i = 0; i < values.size(); i += values_read) {
       reader->ReadBatch(values_out.size(), definition_levels_out.data(),
           repetition_levels_out.data(), values_out.data(), &values_read);
     }
