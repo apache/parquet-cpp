@@ -441,6 +441,8 @@ endif()
 # Library config
 
 set(LIBPARQUET_SRCS
+  src/parquet/types.cc
+
   src/parquet/column/reader.cc
   src/parquet/column/writer.cc
   src/parquet/column/scanner.cc
