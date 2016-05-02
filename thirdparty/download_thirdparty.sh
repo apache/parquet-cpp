@@ -29,6 +29,11 @@ if [ ! -d ${GTEST_BASEDIR} ]; then
   download_extract_and_cleanup $GTEST_URL
 fi
 
+if [ ! -d ${GBENCHMARK_BASEDIR} ]; then
+  echo "Fetching gtest"
+  download_extract_and_cleanup $GBENCHMARK_URL
+fi
+
 if [ ! -d ${THRIFT_BASEDIR} ]; then
   echo "Fetching thrift"
   download_extract_and_cleanup $THRIFT_URL

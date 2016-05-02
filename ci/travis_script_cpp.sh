@@ -14,13 +14,13 @@ fi
 
 if [ $TRAVIS_OS_NAME == "linux" ]; then
   make -j4 || exit 1
-  ctest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
+  ctest -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
   sudo pip install cpp_coveralls
   export PARQUET_ROOT=$TRAVIS_BUILD_DIR
   $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
 else
   make -j4 || exit 1
-  ctest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
+  ctest -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
 fi
 
 popd

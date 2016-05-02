@@ -17,6 +17,7 @@ else
     case $arg in
       "lz4")        F_LZ4=1 ;;
       "zlib")       F_ZLIB=1 ;;
+      "gbenchmark") F_GBENCHMARK=1 ;;
       "gtest")      F_GTEST=1 ;;
       "snappy")     F_SNAPPY=1 ;;
       "thrift")     F_THRIFT=1 ;;
@@ -55,17 +56,34 @@ if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
   make -j$PARALLEL install
 fi
 
+STANDARD_DARWIN_FLAGS="-std=c++11 -stdlib=libc++"
+
 # build googletest
+GOOGLETEST_ERROR="failed for googletest!"
 if [ -n "$F_ALL" -o -n "$F_GTEST" ]; then
   cd $TP_DIR/$GTEST_BASEDIR
 
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    cmake -DCMAKE_CXX_FLAGS="-fPIC -std=c++11 -stdlib=libc++ -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes"
+    CXXFLAGS=-fPIC cmake -DCMAKE_CXX_FLAGS="$STANDARD_DARWIN_FLAGS -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes" || { echo "cmake $GOOGLETEST_ERROR" ; exit  1; }
   else
-    CXXFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX .
+    CXXFLAGS=-fPIC cmake . || { echo "cmake $GOOGLETEST_ERROR"; exit  1; }
   fi
 
-  make
+  make VERBOSE=1 || { echo "Make $GOOGLETEST_ERROR" ; exit  1; }
+fi
+
+# build google benchmark
+GBENCHMARK_ERROR="failed for google benchmark"
+if [ -n "$F_ALL" -o -n "$F_GBENCHMARK" ]; then
+  cd $TP_DIR/$GBENCHMARK_BASEDIR
+
+  CMAKE_CXX_FLAGS="--std=c++11"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    CMAKE_CXX_FLAGS=$STANDARD_DARWIN_FLAGS
+  fi
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_CXX_FLAGS="-fPIC $CMAKE_CXX_FLAGS" . || { echo "cmake $GBENCHMARK_ERROR" ; exit 1; }
+
+  make VERBOSE=1 install || { echo "make $GBENCHMARK_ERROR" ; exit 1; }
 fi
 
 # build lz4

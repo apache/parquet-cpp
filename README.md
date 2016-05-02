@@ -24,6 +24,7 @@
 - zlib
 - thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 - googletest 1.7.0 (cannot be installed with package managers)
+- Google Benchmark (only required if building benchmarks)
 
 You can install these dependencies using a package manager or using the
 `thirdparty/` scripts in this repository. On Homebrew, you can run:
@@ -87,7 +88,7 @@ This library uses Google's `googletest` unit test framework. After building
 with `make`, you can run the test suite by running
 
 ```
-ctest
+make unittest
 ```
 
 The test suite relies on an environment variable `PARQUET_TEST_DATA` pointing
@@ -107,6 +108,19 @@ you can use valgrind with ctest to look for memory leaks:
 valgrind --tool=memcheck --leak-check=yes ctest
 ```
 
+## Building/Running benchmarks
+
+Follow the directions for simple build except run cmake
+with the `--PARQUET_BUILD_BENCHMARKS` parameter set correctly:
+
+    cmake -DPARQUET_BUILD_BENCHMARKS=ON ..
+
+and instead of make unittest run either `make; ctest` to run both unit tests
+and benchmarks or `make runbenchmark` to run only the benchmark tests.
+
+Benchmark logs will be placed in the build directory under `build/benchmark-logs`.
+
+
 ## Out-of-source builds
 
 parquet-cpp supports out of source builds. For example:
@@ -116,7 +130,7 @@ mkdir test-build
 cd test-build
 cmake ..
 make
-ctest
+ctest -L unittest
 ```
 
 By using out-of-source builds you can preserve your current build state in case
@@ -172,7 +186,7 @@ mkdir coverage-build
 cd coverage-build
 cmake -DPARQUET_GENERATE_COVERAGE=1
 make -j$PARALLEL
-ctest
+ctest -L unittest
 ```
 
 The `gcov` artifacts are not located in a place that works well with either
