@@ -95,10 +95,8 @@ TEST(TypePrinter, PhysicalTypes) {
   Int96 Int96_max = {{2048, 4096, 8192}};
   smin = std::string(reinterpret_cast<char*>(&Int96_min), sizeof(Int96));
   smax = std::string(reinterpret_cast<char*>(&Int96_max), sizeof(Int96));
-  ASSERT_STREQ("1024 2048 4096 ",
-      type_printer(Type::INT96, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("2048 4096 8192 ",
-      type_printer(Type::INT96, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("1024 2048 4096 ", type_printer(Type::INT96, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("2048 4096 8192 ", type_printer(Type::INT96, smax.c_str(), 0).c_str());
 
   ByteArray BA_min;
   ByteArray BA_max;
@@ -108,10 +106,9 @@ TEST(TypePrinter, PhysicalTypes) {
   BA_max.len = 8;
   smin = std::string(reinterpret_cast<char*>(&BA_min), sizeof(ByteArray));
   smax = std::string(reinterpret_cast<char*>(&BA_max), sizeof(ByteArray));
-  ASSERT_STREQ("a b c d e f ",
-      type_printer(Type::BYTE_ARRAY, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("i j k l m n o p ",
-      type_printer(Type::BYTE_ARRAY, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("a b c d e f ", type_printer(Type::BYTE_ARRAY, smin.c_str(), 0).c_str());
+  ASSERT_STREQ(
+      "i j k l m n o p ", type_printer(Type::BYTE_ARRAY, smax.c_str(), 0).c_str());
 
   FLBA FLBA_min;
   FLBA FLBA_max;
@@ -126,4 +123,4 @@ TEST(TypePrinter, PhysicalTypes) {
       type_printer(Type::FIXED_LEN_BYTE_ARRAY, smax.c_str(), len).c_str());
 }
 
-} // namespace parquet
+}  // namespace parquet

@@ -38,41 +38,29 @@ class ReaderProperties {
     buffer_size_ = DEFAULT_BUFFER_SIZE;
   }
 
-  MemoryAllocator* allocator() {
-    return allocator_;
-  }
+  MemoryAllocator* allocator() { return allocator_; }
 
-  std::unique_ptr<InputStream> GetStream(RandomAccessSource *source, int64_t start,
-    int64_t num_bytes) {
+  std::unique_ptr<InputStream> GetStream(
+      RandomAccessSource* source, int64_t start, int64_t num_bytes) {
     std::unique_ptr<InputStream> stream;
     if (buffered_stream_enabled_) {
-      stream.reset(new BufferedInputStream(allocator_, buffer_size_, source, start,
-           num_bytes));
+      stream.reset(
+          new BufferedInputStream(allocator_, buffer_size_, source, start, num_bytes));
     } else {
       stream.reset(new InMemoryInputStream(source, start, num_bytes));
     }
     return stream;
   }
 
-  bool is_buffered_stream_enabled() {
-    return buffered_stream_enabled_;
-  }
+  bool is_buffered_stream_enabled() { return buffered_stream_enabled_; }
 
-  void enable_buffered_stream() {
-    buffered_stream_enabled_ = true;
-  }
+  void enable_buffered_stream() { buffered_stream_enabled_ = true; }
 
-  void disable_buffered_stream() {
-    buffered_stream_enabled_ = false;
-  }
+  void disable_buffered_stream() { buffered_stream_enabled_ = false; }
 
-  void set_buffer_size(int64_t buf_size) {
-    buffer_size_ = buf_size;
-  }
+  void set_buffer_size(int64_t buf_size) { buffer_size_ = buf_size; }
 
-  int64_t buffer_size() {
-    return buffer_size_;
-  }
+  int64_t buffer_size() { return buffer_size_; }
 
  private:
   MemoryAllocator* allocator_;
@@ -95,37 +83,23 @@ class WriterProperties {
     dictionary_enabled_ = DEFAULT_IS_DICTIONARY_ENABLED;
   }
 
-  int64_t dictionary_pagesize() {
-    return dictionary_pagesize_;
-  }
+  int64_t dictionary_pagesize() { return dictionary_pagesize_; }
 
   void set_dictionary_pagesize(int64_t dictionary_psize) {
     dictionary_pagesize_ = dictionary_psize;
   }
 
-  int64_t data_pagesize() {
-    return pagesize_;
-  }
+  int64_t data_pagesize() { return pagesize_; }
 
-  void set_data_pagesize(int64_t pg_size) {
-    pagesize_ = pg_size;
-  }
+  void set_data_pagesize(int64_t pg_size) { pagesize_ = pg_size; }
 
-  void enable_dictionary() {
-    dictionary_enabled_ = true;
-  }
+  void enable_dictionary() { dictionary_enabled_ = true; }
 
-  void disable_dictionary() {
-    dictionary_enabled_ = false;
-  }
+  void disable_dictionary() { dictionary_enabled_ = false; }
 
-  bool is_dictionary_enabled() {
-    return dictionary_enabled_;
-  }
+  bool is_dictionary_enabled() { return dictionary_enabled_; }
 
-  MemoryAllocator* allocator() {
-    return allocator_;
-  }
+  MemoryAllocator* allocator() { return allocator_; }
 
  private:
   int64_t pagesize_;
@@ -136,6 +110,6 @@ class WriterProperties {
 
 WriterProperties default_writer_properties();
 
-} // namespace parquet
+}  // namespace parquet
 
-#endif // PARQUET_COLUMN_PROPERTIES_H
+#endif  // PARQUET_COLUMN_PROPERTIES_H

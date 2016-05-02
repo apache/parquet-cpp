@@ -169,7 +169,7 @@ class InputStream {
 // Implementation of an InputStream when all the bytes are in memory.
 class InMemoryInputStream : public InputStream {
  public:
-  InMemoryInputStream(RandomAccessSource *source, int64_t start, int64_t end);
+  InMemoryInputStream(RandomAccessSource* source, int64_t start, int64_t end);
   explicit InMemoryInputStream(const std::shared_ptr<Buffer>& buffer);
   virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
@@ -185,8 +185,8 @@ class InMemoryInputStream : public InputStream {
 // Implementation of an InputStream when only some of the bytes are in memory.
 class BufferedInputStream : public InputStream {
  public:
-  BufferedInputStream(MemoryAllocator* pool,  int64_t buffer_size,
-      RandomAccessSource *source, int64_t start, int64_t end);
+  BufferedInputStream(MemoryAllocator* pool, int64_t buffer_size,
+      RandomAccessSource* source, int64_t start, int64_t end);
   virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
 
@@ -201,6 +201,6 @@ class BufferedInputStream : public InputStream {
   int64_t buffer_size_;
 };
 
-} // namespace parquet
+}  // namespace parquet
 
 #endif  // PARQUET_UTIL_INPUT_H

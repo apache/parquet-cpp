@@ -216,8 +216,8 @@ std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
   std::unique_ptr<SerializedRowGroup> contents(
       new SerializedRowGroup(source_.get(), &metadata_.row_groups[i], properties_));
 
-  return std::make_shared<RowGroupReader>(&schema_, std::move(contents),
-      properties_.allocator());
+  return std::make_shared<RowGroupReader>(
+      &schema_, std::move(contents), properties_.allocator());
 }
 
 int64_t SerializedFile::num_rows() const {

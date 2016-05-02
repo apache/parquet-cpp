@@ -48,7 +48,7 @@ TEST(TestBufferedInputStream, Basics) {
   std::unique_ptr<BufferReader> source(new BufferReader(buf));
   std::unique_ptr<MemoryAllocator> allocator(new TrackingAllocator());
   std::unique_ptr<BufferedInputStream> stream(new BufferedInputStream(
-       allocator.get(), chunk_size, source.get(), stream_offset, stream_size));
+      allocator.get(), chunk_size, source.get(), stream_offset, stream_size));
 
   const uint8_t* output;
   int64_t bytes_read;

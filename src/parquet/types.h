@@ -266,8 +266,8 @@ inline std::string format_fwf(int width) {
   return ss.str();
 }
 
-static inline std::string type_printer(Type::type parquet_type, const char* val,
-    int length) {
+static inline std::string type_printer(
+    Type::type parquet_type, const char* val, int length) {
   std::stringstream result;
   switch (parquet_type) {
     case Type::BOOLEAN:
@@ -285,29 +285,26 @@ static inline std::string type_printer(Type::type parquet_type, const char* val,
     case Type::FLOAT:
       result << reinterpret_cast<const float*>(val)[0];
       break;
-    case Type::INT96:
-      {
-        for (int i = 0; i < 3; i++) {
-          result << reinterpret_cast<const int32_t*>(val)[i] << " ";
-        }
-        break;
+    case Type::INT96: {
+      for (int i = 0; i < 3; i++) {
+        result << reinterpret_cast<const int32_t*>(val)[i] << " ";
       }
-    case Type::BYTE_ARRAY:
-      {
-        const ByteArray* a = reinterpret_cast<const ByteArray*>(val);
-        for (int i = 0; i < static_cast<int>(a->len); i++) {
-          result << a[0].ptr[i]  << " ";
-        }
-        break;
+      break;
+    }
+    case Type::BYTE_ARRAY: {
+      const ByteArray* a = reinterpret_cast<const ByteArray*>(val);
+      for (int i = 0; i < static_cast<int>(a->len); i++) {
+        result << a[0].ptr[i] << " ";
       }
-    case Type::FIXED_LEN_BYTE_ARRAY:
-      {
-        const FLBA* a = reinterpret_cast<const FLBA*>(val);
-        for (int i = 0; i < length; i++) {
-          result << a[0].ptr[i]  << " ";
-        }
-        break;
+      break;
+    }
+    case Type::FIXED_LEN_BYTE_ARRAY: {
+      const FLBA* a = reinterpret_cast<const FLBA*>(val);
+      for (int i = 0; i < length; i++) {
+        result << a[0].ptr[i] << " ";
       }
+      break;
+    }
     default:
       break;
   }

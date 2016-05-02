@@ -105,8 +105,8 @@ class SerializedFile : public ParquetFileReader::Contents {
 
  private:
   // This class takes ownership of the provided data source
-  explicit SerializedFile(std::unique_ptr<RandomAccessSource> source,
-      ReaderProperties props);
+  explicit SerializedFile(
+      std::unique_ptr<RandomAccessSource> source, ReaderProperties props);
 
   std::unique_ptr<RandomAccessSource> source_;
   format::FileMetaData metadata_;

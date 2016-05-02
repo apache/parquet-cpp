@@ -41,5 +41,5 @@ TEST(TestWriterProperties, Basics) {
   ASSERT_EQ(DEFAULT_IS_DICTIONARY_ENABLED, props.is_dictionary_enabled());
 }
 
-} // namespace test
-} // namespace parquet
+}  // namespace test
+}  // namespace parquet
