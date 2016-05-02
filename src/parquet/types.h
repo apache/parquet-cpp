@@ -266,7 +266,7 @@ inline std::string format_fwf(int width) {
   return ss.str();
 }
 
-static inline std::string type_printer(
+static inline std::string FormatValue(
     Type::type parquet_type, const char* val, int length) {
   std::stringstream result;
   switch (parquet_type) {

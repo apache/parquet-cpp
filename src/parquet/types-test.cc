@@ -67,36 +67,36 @@ TEST(TypePrinter, PhysicalTypes) {
   int32_t int_max = 2048;
   smin = std::string(reinterpret_cast<char*>(&int_min), sizeof(int32_t));
   smax = std::string(reinterpret_cast<char*>(&int_max), sizeof(int32_t));
-  ASSERT_STREQ("1024", type_printer(Type::INT32, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("2048", type_printer(Type::INT32, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("1024", FormatValue(Type::INT32, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("2048", FormatValue(Type::INT32, smax.c_str(), 0).c_str());
 
   int64_t int64_min = 10240000000000;
   int64_t int64_max = 20480000000000;
   smin = std::string(reinterpret_cast<char*>(&int64_min), sizeof(int64_t));
   smax = std::string(reinterpret_cast<char*>(&int64_max), sizeof(int64_t));
-  ASSERT_STREQ("10240000000000", type_printer(Type::INT64, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("20480000000000", type_printer(Type::INT64, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("10240000000000", FormatValue(Type::INT64, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("20480000000000", FormatValue(Type::INT64, smax.c_str(), 0).c_str());
 
   float float_min = 1.024;
   float float_max = 2.048;
   smin = std::string(reinterpret_cast<char*>(&float_min), sizeof(float));
   smax = std::string(reinterpret_cast<char*>(&float_max), sizeof(float));
-  ASSERT_STREQ("1.024", type_printer(Type::FLOAT, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("2.048", type_printer(Type::FLOAT, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("1.024", FormatValue(Type::FLOAT, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("2.048", FormatValue(Type::FLOAT, smax.c_str(), 0).c_str());
 
   double double_min = 1.0245;
   double double_max = 2.0489;
   smin = std::string(reinterpret_cast<char*>(&double_min), sizeof(double));
   smax = std::string(reinterpret_cast<char*>(&double_max), sizeof(double));
-  ASSERT_STREQ("1.0245", type_printer(Type::DOUBLE, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("2.0489", type_printer(Type::DOUBLE, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("1.0245", FormatValue(Type::DOUBLE, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("2.0489", FormatValue(Type::DOUBLE, smax.c_str(), 0).c_str());
 
   Int96 Int96_min = {{1024, 2048, 4096}};
   Int96 Int96_max = {{2048, 4096, 8192}};
   smin = std::string(reinterpret_cast<char*>(&Int96_min), sizeof(Int96));
   smax = std::string(reinterpret_cast<char*>(&Int96_max), sizeof(Int96));
-  ASSERT_STREQ("1024 2048 4096 ", type_printer(Type::INT96, smin.c_str(), 0).c_str());
-  ASSERT_STREQ("2048 4096 8192 ", type_printer(Type::INT96, smax.c_str(), 0).c_str());
+  ASSERT_STREQ("1024 2048 4096 ", FormatValue(Type::INT96, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("2048 4096 8192 ", FormatValue(Type::INT96, smax.c_str(), 0).c_str());
 
   ByteArray BA_min;
   ByteArray BA_max;
@@ -106,9 +106,9 @@ TEST(TypePrinter, PhysicalTypes) {
   BA_max.len = 8;
   smin = std::string(reinterpret_cast<char*>(&BA_min), sizeof(ByteArray));
   smax = std::string(reinterpret_cast<char*>(&BA_max), sizeof(ByteArray));
-  ASSERT_STREQ("a b c d e f ", type_printer(Type::BYTE_ARRAY, smin.c_str(), 0).c_str());
+  ASSERT_STREQ("a b c d e f ", FormatValue(Type::BYTE_ARRAY, smin.c_str(), 0).c_str());
   ASSERT_STREQ(
-      "i j k l m n o p ", type_printer(Type::BYTE_ARRAY, smax.c_str(), 0).c_str());
+      "i j k l m n o p ", FormatValue(Type::BYTE_ARRAY, smax.c_str(), 0).c_str());
 
   FLBA FLBA_min;
   FLBA FLBA_max;
@@ -118,9 +118,9 @@ TEST(TypePrinter, PhysicalTypes) {
   smin = std::string(reinterpret_cast<char*>(&FLBA_min), sizeof(FLBA));
   smax = std::string(reinterpret_cast<char*>(&FLBA_max), sizeof(FLBA));
   ASSERT_STREQ("a b c d e f g h ",
-      type_printer(Type::FIXED_LEN_BYTE_ARRAY, smin.c_str(), len).c_str());
+      FormatValue(Type::FIXED_LEN_BYTE_ARRAY, smin.c_str(), len).c_str());
   ASSERT_STREQ("i j k l m n o p ",
-      type_printer(Type::FIXED_LEN_BYTE_ARRAY, smax.c_str(), len).c_str());
+      FormatValue(Type::FIXED_LEN_BYTE_ARRAY, smax.c_str(), len).c_str());
 }
 
 }  // namespace parquet
