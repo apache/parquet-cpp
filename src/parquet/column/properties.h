@@ -52,7 +52,7 @@ class ReaderProperties {
     return stream;
   }
 
-  const bool is_buffered_stream_enabled() { return buffered_stream_enabled_; }
+  bool is_buffered_stream_enabled() const { return buffered_stream_enabled_; }
 
   void enable_buffered_stream() { buffered_stream_enabled_ = true; }
 
@@ -60,7 +60,7 @@ class ReaderProperties {
 
   void set_buffer_size(int64_t buf_size) { buffer_size_ = buf_size; }
 
-  const int64_t buffer_size() { return buffer_size_; }
+  int64_t buffer_size() const { return buffer_size_; }
 
  private:
   MemoryAllocator* allocator_;
@@ -83,13 +83,13 @@ class WriterProperties {
     dictionary_enabled_ = DEFAULT_IS_DICTIONARY_ENABLED;
   }
 
-  const int64_t dictionary_pagesize() { return dictionary_pagesize_; }
+  int64_t dictionary_pagesize() const { return dictionary_pagesize_; }
 
   void set_dictionary_pagesize(int64_t dictionary_psize) {
     dictionary_pagesize_ = dictionary_psize;
   }
 
-  const int64_t data_pagesize() { return pagesize_; }
+  int64_t data_pagesize() const { return pagesize_; }
 
   void set_data_pagesize(int64_t pg_size) { pagesize_ = pg_size; }
 
@@ -97,7 +97,7 @@ class WriterProperties {
 
   void disable_dictionary() { dictionary_enabled_ = false; }
 
-  const bool is_dictionary_enabled() { return dictionary_enabled_; }
+  bool is_dictionary_enabled() const { return dictionary_enabled_; }
 
   MemoryAllocator* allocator() { return allocator_; }
 
