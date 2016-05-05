@@ -24,7 +24,7 @@
 using namespace parquet;
 
 int main(int argc, char** argv) {
-  if (argc > 3) {
+  if (argc > 5 || argc < 2) {
     std::cerr << "Usage: parquet_reader [--only-stats] [--no-memory-map] [--columns=...] <file>"
               << std::endl;
     return -1;
