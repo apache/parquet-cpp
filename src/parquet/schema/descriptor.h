@@ -111,9 +111,8 @@ class SchemaDescriptor {
   schema::NodePtr schema_;
   const schema::GroupNode* group_;
 
-  void BuildTree(
-      const schema::NodePtr& node, int16_t max_def_level, int16_t max_rep_level,
-      const schema::NodePtr& base);
+  void BuildTree(const schema::NodePtr& node, int16_t max_def_level,
+      int16_t max_rep_level, const schema::NodePtr& base);
 
   // Result of leaf node / tree analysis
   std::vector<ColumnDescriptor> leaves_;

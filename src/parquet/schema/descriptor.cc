@@ -46,9 +46,8 @@ void SchemaDescriptor::Init(const NodePtr& schema) {
   }
 }
 
-void SchemaDescriptor::BuildTree(
-    const NodePtr& node, int16_t max_def_level, int16_t max_rep_level,
-    const NodePtr& base) {
+void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
+    int16_t max_rep_level, const NodePtr& base) {
   if (node->is_optional()) {
     ++max_def_level;
   } else if (node->is_repeated()) {
@@ -84,14 +83,14 @@ ColumnDescriptor::ColumnDescriptor(const schema::NodePtr& node,
 
 const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
   if (i < 0 || i >= static_cast<int>(leaves_.size())) {
-    throw ParquetException("Invalid column id " + i);
+    throw ParquetException("Invalid column id " + std::to_string(i));
   }
   return &leaves_[i];
 }
 
 const schema::NodePtr& SchemaDescriptor::base(int i) const {
   if (i < 0 || i >= static_cast<int>(leaves_.size())) {
-    throw ParquetException("Invalid column id " + i);
+    throw ParquetException("Invalid column id " + std::to_string(i));
   }
   return leaf_to_base_.find(i)->second;
 }

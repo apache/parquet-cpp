@@ -75,7 +75,8 @@ TEST_F(TestSchemaDescriptor, BuildTree) {
   NodeVector fields;
   NodePtr schema;
 
-  fields.push_back(Int32("a", Repetition::REQUIRED));
+  NodePtr inta = Int32("a", Repetition::REQUIRED);
+  fields.push_back(inta);
   fields.push_back(Int64("b", Repetition::OPTIONAL));
   fields.push_back(ByteArray("c", Repetition::REPEATED));
 
@@ -121,6 +122,17 @@ TEST_F(TestSchemaDescriptor, BuildTree) {
   ASSERT_EQ(descr_.Column(3)->path()->ToDotString(), "bag.records.item1");
   ASSERT_EQ(descr_.Column(4)->path()->ToDotString(), "bag.records.item2");
   ASSERT_EQ(descr_.Column(5)->path()->ToDotString(), "bag.records.item3");
+  ASSERT_THROW(descr_.Column(-1), ParquetException);
+  ASSERT_THROW(descr_.Column(6), ParquetException);
+
+  ASSERT_EQ(inta.get(), descr_.base(0).get());
+  ASSERT_EQ(bag.get(), descr_.base(3).get());
+  ASSERT_EQ(bag.get(), descr_.base(4).get());
+  ASSERT_EQ(bag.get(), descr_.base(5).get());
+  ASSERT_THROW(descr_.base(-1), ParquetException);
+  ASSERT_THROW(descr_.base(6), ParquetException);
+
+  ASSERT_EQ(schema.get(), descr_.group());
 
   // Init clears the leaves
   descr_.Init(schema);
