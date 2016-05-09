@@ -18,6 +18,7 @@
 #include "parquet/schema/descriptor.h"
 
 #include "parquet/exception.h"
+#include "parquet/util/logging.h"
 
 namespace parquet {
 
@@ -82,16 +83,12 @@ ColumnDescriptor::ColumnDescriptor(const schema::NodePtr& node,
 }
 
 const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
-  if (i < 0 || i >= static_cast<int>(leaves_.size())) {
-    throw ParquetException("Invalid column id " + std::to_string(i));
-  }
+  DCHECK(i >= 0 && i < static_cast<int>(leaves_.size()));
   return &leaves_[i];
 }
 
-const schema::NodePtr& SchemaDescriptor::base(int i) const {
-  if (i < 0 || i >= static_cast<int>(leaves_.size())) {
-    throw ParquetException("Invalid column id " + std::to_string(i));
-  }
+const schema::NodePtr& SchemaDescriptor::GetColumnRoot(int i) const {
+  DCHECK(i >= 0 && i < static_cast<int>(leaves_.size()));
   return leaf_to_base_.find(i)->second;
 }
 
