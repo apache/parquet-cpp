@@ -450,17 +450,11 @@ int main(int argc, char** argv) {
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 64);
 
   SnappyCodec snappy_codec;
-  Lz4Codec lz4_codec;
 
   TestPlainIntCompressed(&snappy_codec, values, 100, 1);
   TestPlainIntCompressed(&snappy_codec, values, 100, 16);
   TestPlainIntCompressed(&snappy_codec, values, 100, 32);
   TestPlainIntCompressed(&snappy_codec, values, 100, 64);
-
-  TestPlainIntCompressed(&lz4_codec, values, 100, 1);
-  TestPlainIntCompressed(&lz4_codec, values, 100, 16);
-  TestPlainIntCompressed(&lz4_codec, values, 100, 32);
-  TestPlainIntCompressed(&lz4_codec, values, 100, 64);
 
   return 0;
 }
