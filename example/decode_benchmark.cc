@@ -372,7 +372,7 @@ void TestDeltaLengthByteArray() {
       encoder.plain_encoded_len(), len);
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
-    ByteArray v;
+    ByteArray v = {0, NULL};
     decoder.Decode(&v, 1);
     string r = string((char*)v.ptr, v.len);
     if (r != values[i]) {

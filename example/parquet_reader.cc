@@ -25,7 +25,7 @@ using namespace parquet;
 
 int main(int argc, char** argv) {
   if (argc > 5 || argc < 2) {
-    std::cerr << "Usage: parquet_reader [--only-stats] [--no-memory-map] [--columns=...] <file>"
+    std::cerr << "Usage: parquet_reader [--only-metadata] [--no-memory-map] [--columns=...] <file>"
               << std::endl;
     return -1;
   }
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 
   char *param, *value;
   for (int i = 1; i < argc; i++) {
-    if ((param = std::strstr(argv[i], "--only-stats"))) {
+    if ((param = std::strstr(argv[i], "--only-metadata"))) {
       print_values = false;
     } else if ((param = std::strstr(argv[i], "--no-memory-map"))) {
       memory_map = false;
