@@ -9,7 +9,7 @@ source $TP_DIR/versions.sh
 
 download_extract_and_cleanup() {
 	filename=$TP_DIR/$(basename "$1")
-	curl -#LC - "$1" -o $filename
+	curl -L -k "$1" -o $filename
 	tar xzf $filename -C $TP_DIR
 	rm $filename
 }
