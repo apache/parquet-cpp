@@ -262,12 +262,6 @@ include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
 add_library(snappystatic STATIC IMPORTED)
 set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
 
-## LZ4
-find_package(Lz4 REQUIRED)
-include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
-add_library(lz4static STATIC IMPORTED)
-set_target_properties(lz4static PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
-
 ## ZLIB
 find_package(ZLIB REQUIRED)
 include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})

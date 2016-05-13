@@ -15,7 +15,6 @@ else
   # Allow passing specific libs to build on the command line
   for arg in "$*"; do
     case $arg in
-      "lz4")        F_LZ4=1 ;;
       "zlib")       F_ZLIB=1 ;;
       "gbenchmark") F_GBENCHMARK=1 ;;
       "gtest")      F_GTEST=1 ;;
@@ -84,13 +83,6 @@ if [ -n "$F_ALL" -o -n "$F_GBENCHMARK" ]; then
   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_CXX_FLAGS="-fPIC $CMAKE_CXX_FLAGS" . || { echo "cmake $GBENCHMARK_ERROR" ; exit 1; }
 
   make VERBOSE=1 install || { echo "make $GBENCHMARK_ERROR" ; exit 1; }
-fi
-
-# build lz4
-if [ -n "$F_ALL" -o -n "$F_LZ4" ]; then
-  cd $TP_DIR/$LZ4_BASEDIR/cmake_unofficial
-  CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $LZ4_DIR
-  make -j$PARALLEL install
 fi
 
 # build zlib

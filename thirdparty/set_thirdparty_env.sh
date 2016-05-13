@@ -8,7 +8,6 @@ if [ -z "$THIRDPARTY_DIR" ]; then
 fi
 
 export SNAPPY_HOME=$THIRDPARTY_DIR/installed
-export LZ4_HOME=$THIRDPARTY_DIR/installed
 export ZLIB_HOME=$THIRDPARTY_DIR/installed
 # build script doesn't support building thrift on OSX
 if [ "$(uname)" != "Darwin" ]; then
