@@ -25,7 +25,12 @@ cd conda-build
 pwd
 
 # Build googletest for running unit tests
+
+# Work around conda certificate failure
+export PARQUET_INSECURE_CURL=1
+
 ./thirdparty/download_thirdparty.sh
+
 ./thirdparty/build_thirdparty.sh gtest
 
 source thirdparty/versions.sh

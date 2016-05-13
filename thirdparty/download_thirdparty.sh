@@ -7,11 +7,17 @@ TP_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 
 source $TP_DIR/versions.sh
 
+: ${PARQUET_INSECURE_CURL=0}
+
 download_extract_and_cleanup() {
-	filename=$TP_DIR/$(basename "$1")
-	curl -L -k "$1" -o $filename
-	tar xzf $filename -C $TP_DIR
-	rm $filename
+    filename=$TP_DIR/$(basename "$1")
+    if [ "$PARQUET_INSECURE_CURL" == "1" ]; then
+        curl -L -k "$1" -o $filename
+    else
+        curl -#LC - "$1" -o $filename
+    fi
+    tar xzf $filename -C $TP_DIR
+    rm $filename
 }
 
 if [ ! -d ${SNAPPY_BASEDIR} ]; then
