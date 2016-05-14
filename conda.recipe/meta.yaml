@@ -1,0 +1,30 @@
+package:
+  name: parquet-cpp
+  version: "0.1"
+
+build:
+  number: {{environ.get('TRAVIS_BUILD_NUMBER', 0)}}    # [unix]
+  skip: true  # [win]
+
+requirements:
+  build:
+    - boost
+    - cmake
+    - zlib
+    - snappy
+    - thrift-cpp
+    - curl
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libparquet.so
+    - test -f $PREFIX/include/parquet/api/reader.h
+
+about:
+  home: http://github.com/apache/parquet-cpp
+  license: Apache 2.0
+  summary: 'C++ libraries for the Apache Parquet file format'
+
+extra:
+  recipe-maintainers:
+    - wesm
