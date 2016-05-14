@@ -14,6 +14,7 @@ export ZLIB_HOME=$PREFIX
 
 cd ..
 
+rm -rf conda-build
 mkdir conda-build
 
 cp -r thirdparty conda-build/
