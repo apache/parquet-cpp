@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "parquet/util/macros.h"
 #include "parquet/util/mem-allocator.h"
