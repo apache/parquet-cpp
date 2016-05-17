@@ -21,7 +21,7 @@ requirements:
 
 test:
   commands:
-    - test -f $PREFIX/lib/libparquet.so
+    - test -f $PREFIX/lib/libparquet.so               # [linux]
     - test -f $PREFIX/include/parquet/api/reader.h
 
 about:
