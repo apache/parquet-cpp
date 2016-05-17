@@ -17,6 +17,7 @@ addons:
     - flex
     - pkg-config
 matrix:
+  fast_finish: true
   include:
   - compiler: gcc
     os: linux
@@ -33,20 +34,21 @@ matrix:
     before_install:
     - mkdir $TRAVIS_BUILD_DIR/parquet-build
     - pushd $TRAVIS_BUILD_DIR/parquet-build
-  - compiler: gcc
-    os: linux
-    before_script:
-    - export CC="gcc-4.9"
-    - export CXX="g++-4.9"
-    script:
-    - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
-  - os: osx
-    compiler: clang
-    addons:
-    before_script:
-    before_install:
-    script:
-    - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
+  - allow_failures:
+    - compiler: gcc
+      os: linux
+      before_script:
+      - export CC="gcc-4.9"
+      - export CXX="g++-4.9"
+      script:
+      - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
+    - os: osx
+      compiler: clang
+      addons:
+      before_script:
+      before_install:
+      script:
+      - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
 
 language: cpp
 before_install:
@@ -72,4 +74,4 @@ script:
 
 env:
   global:
-  - secure: UwV+KbTekNy3nBBRHxUsKlcEWMBjoyY/2A1Z7lTVpRbp3bNJzFxQcT3jI1lvmuHKGjKxtF0FNAOSNyg+0DRONxwnFxS8nPFJh8D01wL6jff8NcWM9B9Gqfa9CmQmCzcc0l17G55lHYBddvVwn7A1oL9zQY2EGLAAaueZOy1DsRE=
+  - secure: "sGGfe2N9i2dItR0FryQYZDdzdi9gl6QFXxGWxxXWfPz+mideJWaMLSA17dsWkbrag5GlAcs+8BRGWWagAXicPlOqD1tKKJqZxA4PEPDECny26Sh/pebZvmvnAV5136sXkKXMQkcTfoo3v22zYdVthVa+8EQTXKxGzhbL61AosSk="
