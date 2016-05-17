@@ -3,8 +3,7 @@ package:
   version: "0.1"
 
 build:
-  # number: {{environ.get('TRAVIS_BUILD_NUMBER', 0)}}    # [unix]
-  number: 0    # [unix]
+  number: {{environ.get('TRAVIS_BUILD_NUMBER', 0)}}    # [unix]
   script_env:
     - CC [linux]
     - CXX [linux]
