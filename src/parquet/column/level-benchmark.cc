@@ -28,8 +28,7 @@ static void BM_RleEncoding(::benchmark::State& state) {
   // TODO: More than just all 0s
   std::vector<int16_t> levels(state.range_x(), 0);
   int16_t max_level = 1;
-  // TODO: This formula looks more correct that the one used in WriteNewPage
-  int64_t rle_size = 2 * sizeof(int16_t) * levels.size();
+  int64_t rle_size = LevelEncoder::MaxBufferSize(Encoding::RLE, max_level, levels.size());
   auto buffer_rle = std::make_shared<OwnedMutableBuffer>(rle_size);
 
   while (state.KeepRunning()) {
@@ -48,8 +47,7 @@ static void BM_RleDecoding(::benchmark::State& state) {
   // TODO: More than just all 0s
   std::vector<int16_t> levels(state.range_x(), 0);
   int16_t max_level = 1;
-  // TODO: This formula looks more correct that the one used in WriteNewPage
-  int64_t rle_size = 2 * sizeof(int16_t) * levels.size();
+  int64_t rle_size = LevelEncoder::MaxBufferSize(Encoding::RLE, max_level, levels.size());
   auto buffer_rle = std::make_shared<OwnedMutableBuffer>(rle_size);
   level_encoder.Init(Encoding::RLE, max_level, levels.size(), buffer_rle->mutable_data(),
       buffer_rle->size());
