@@ -91,12 +91,14 @@ void LocalFileOutputStream::Close() {
 }
 
 int64_t LocalFileOutputStream::Tell() {
+  DCHECK(is_open_);
   int64_t position = ftell(file_);
   if (position < 0) { throw ParquetException("ftell failed, did the file disappear?"); }
   return position;
 }
 
 void LocalFileOutputStream::Write(const uint8_t* data, int64_t length) {
+  DCHECK(is_open_);
   int64_t bytes_written = fwrite(data, sizeof(uint8_t), length, file_);
   if (bytes_written != length) {
     int error_code = ferror(file_);
