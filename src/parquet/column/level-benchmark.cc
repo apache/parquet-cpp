@@ -25,7 +25,6 @@ namespace parquet {
 namespace benchmark {
 
 static void BM_RleEncoding(::benchmark::State& state) {
-  // TODO: More than just all 0s
   std::vector<int16_t> levels(state.range_x(), 0);
   int64_t n = 0;
   std::generate(levels.begin(), levels.end(),
@@ -48,7 +47,6 @@ BENCHMARK(BM_RleEncoding)->RangePair(1024, 65536, 1, 16);
 
 static void BM_RleDecoding(::benchmark::State& state) {
   LevelEncoder level_encoder;
-  // TODO: More than just all 0s
   std::vector<int16_t> levels(state.range_x(), 0);
   int64_t n = 0;
   std::generate(levels.begin(), levels.end(),
