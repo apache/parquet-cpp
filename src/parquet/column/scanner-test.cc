@@ -31,6 +31,7 @@
 #include "parquet/schema/descriptor.h"
 #include "parquet/schema/types.h"
 #include "parquet/util/test-common.h"
+#include "parquet/column/test-specialization.h"
 
 using std::string;
 using std::vector;

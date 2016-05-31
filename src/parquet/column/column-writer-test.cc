@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "parquet/column/test-util.h"
+#include "parquet/column/test-specialization.h"
 
 #include "parquet/file/reader-internal.h"
 #include "parquet/file/writer-internal.h"
