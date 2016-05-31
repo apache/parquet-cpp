@@ -17,6 +17,8 @@
 
 #include <gtest/gtest.h>
 
+#include "parquet/column/test-util.h"
+
 #include "parquet/file/reader-internal.h"
 #include "parquet/file/writer-internal.h"
 #include "parquet/column/reader.h"
@@ -32,59 +34,93 @@ using schema::PrimitiveNode;
 
 namespace test {
 
+template <typename TestType>
 class TestPrimitiveWriter : public ::testing::Test {
  public:
+  typedef typename TestType::c_type T;
+
   void SetUpSchemaRequired() {
-    node_ = PrimitiveNode::Make("int64", Repetition::REQUIRED, Type::INT64);
+    node_ = PrimitiveNode::Make("column", Repetition::REQUIRED, TestType::type_num,
+        LogicalType::NONE, FLBA_LENGTH);
     schema_ = std::make_shared<ColumnDescriptor>(node_, 0, 0);
   }
 
   void SetUpSchemaOptional() {
-    node_ = PrimitiveNode::Make("int64", Repetition::OPTIONAL, Type::INT64);
+    node_ = PrimitiveNode::Make("column", Repetition::OPTIONAL, TestType::type_num,
+        LogicalType::NONE, FLBA_LENGTH);
     schema_ = std::make_shared<ColumnDescriptor>(node_, 1, 0);
   }
 
   void SetUpSchemaRepeated() {
-    node_ = PrimitiveNode::Make("int64", Repetition::REPEATED, Type::INT64);
+    node_ = PrimitiveNode::Make("column", Repetition::REPEATED, TestType::type_num,
+        LogicalType::NONE, FLBA_LENGTH);
     schema_ = std::make_shared<ColumnDescriptor>(node_, 1, 1);
   }
 
+  void GenerateData(int64_t num_values);
+
+  void SetupValuesOut();
+
   void SetUp() {
-    values_out_.resize(100);
+    SetupValuesOut();
     definition_levels_out_.resize(100);
     repetition_levels_out_.resize(100);
 
     SetUpSchemaRequired();
   }
 
-  std::unique_ptr<Int64Reader> BuildReader() {
+  void TearDown() {
+    if (bool_buffer_) {
+      delete[] bool_buffer_;
+      bool_buffer_ = nullptr;
+    }
+    if (bool_buffer_out_) {
+      delete[] bool_buffer_out_;
+      bool_buffer_out_ = nullptr;
+    }
+  }
+
+  void BuildReader() {
     auto buffer = sink_->GetBuffer();
     std::unique_ptr<InMemoryInputStream> source(new InMemoryInputStream(buffer));
     std::unique_ptr<SerializedPageReader> page_reader(
         new SerializedPageReader(std::move(source), Compression::UNCOMPRESSED));
-    return std::unique_ptr<Int64Reader>(
-        new Int64Reader(schema_.get(), std::move(page_reader)));
+    reader_.reset(new TypedColumnReader<TestType>(schema_.get(), std::move(page_reader)));
   }
 
-  std::unique_ptr<Int64Writer> BuildWriter(int64_t output_size = 100) {
+  std::unique_ptr<TypedColumnWriter<TestType>> BuildWriter(int64_t output_size = 100) {
     sink_.reset(new InMemoryOutputStream());
     std::unique_ptr<SerializedPageWriter> pager(
         new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, &metadata_));
-    return std::unique_ptr<Int64Writer>(
-        new Int64Writer(schema_.get(), std::move(pager), output_size));
+    return std::unique_ptr<TypedColumnWriter<TestType>>(
+        new TypedColumnWriter<TestType>(schema_.get(), std::move(pager), output_size));
   }
 
+  void SyncValuesOut();
   void ReadColumn() {
-    auto reader = BuildReader();
-    reader->ReadBatch(values_out_.size(), definition_levels_out_.data(),
-        repetition_levels_out_.data(), values_out_.data(), &values_read_);
+    BuildReader();
+    reader_->ReadBatch(values_out_.size(), definition_levels_out_.data(),
+        repetition_levels_out_.data(), values_out_ptr_, &values_read_);
+    SyncValuesOut();
   }
 
  protected:
   int64_t values_read_;
+  // Keep the reader alive as for ByteArray the lifetime of the ByteArray
+  // content is bound to the reader.
+  std::unique_ptr<TypedColumnReader<TestType>> reader_;
+
+  // Input buffers
+  std::vector<T> values_;
+  std::vector<uint8_t> buffer_;
+  // Pointer to the values, needed as we cannot use vector<bool>::data()
+  T* values_ptr_;
+  bool* bool_buffer_ = nullptr;
 
   // Output buffers
-  std::vector<int64_t> values_out_;
+  std::vector<T> values_out_;
+  bool* bool_buffer_out_ = nullptr;
+  T* values_out_ptr_;
   std::vector<int16_t> definition_levels_out_;
   std::vector<int16_t> repetition_levels_out_;
 
@@ -95,105 +131,152 @@ class TestPrimitiveWriter : public ::testing::Test {
   std::unique_ptr<InMemoryOutputStream> sink_;
 };
 
-TEST_F(TestPrimitiveWriter, RequiredNonRepeated) {
-  std::vector<int64_t> values(100, 128);
-
-  // Test case 1: required and non-repeated, so no definition or repetition levels
-  std::unique_ptr<Int64Writer> writer = BuildWriter();
-  writer->WriteBatch(values.size(), nullptr, nullptr, values.data());
-  writer->Close();
-
-  ReadColumn();
-  ASSERT_EQ(100, values_read_);
-  ASSERT_EQ(values, values_out_);
+template <typename TestType>
+void TestPrimitiveWriter<TestType>::SetupValuesOut() {
+  values_out_.resize(100);
+  values_out_ptr_ = values_out_.data();
 }
 
-TEST_F(TestPrimitiveWriter, OptionalNonRepeated) {
+template <>
+void TestPrimitiveWriter<BooleanType>::SetupValuesOut() {
+  values_out_.resize(100);
+  bool_buffer_out_ = new bool[100];
+  // Write once to all values so we can copy it without getting Valgrind errors
+  // about uninitialised values.
+  std::fill(bool_buffer_out_, bool_buffer_out_ + 100, true);
+  values_out_ptr_ = bool_buffer_out_;
+}
+
+template <typename TestType>
+void TestPrimitiveWriter<TestType>::SyncValuesOut() {}
+
+template <>
+void TestPrimitiveWriter<BooleanType>::SyncValuesOut() {
+  std::copy(bool_buffer_out_, bool_buffer_out_ + values_out_.size(), values_out_.begin());
+}
+
+template <typename TestType>
+void TestPrimitiveWriter<TestType>::GenerateData(int64_t num_values) {
+  values_.resize(num_values);
+  InitValues<T>(num_values, values_, buffer_);
+  values_ptr_ = values_.data();
+}
+
+template <>
+void TestPrimitiveWriter<BooleanType>::GenerateData(int64_t num_values) {
+  values_.resize(num_values);
+  InitValues<T>(num_values, values_, buffer_);
+  bool_buffer_ = new bool[num_values];
+  std::copy(values_.begin(), values_.end(), bool_buffer_);
+  values_ptr_ = bool_buffer_;
+}
+
+typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
+    BooleanType, ByteArrayType, FLBAType> TestTypes;
+
+TYPED_TEST_CASE(TestPrimitiveWriter, TestTypes);
+
+TYPED_TEST(TestPrimitiveWriter, RequiredNonRepeated) {
+  this->GenerateData(100);
+
+  // Test case 1: required and non-repeated, so no definition or repetition levels
+  std::unique_ptr<TypedColumnWriter<TypeParam>> writer = this->BuildWriter();
+  writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_);
+  writer->Close();
+
+  this->ReadColumn();
+  ASSERT_EQ(100, this->values_read_);
+  ASSERT_EQ(this->values_, this->values_out_);
+}
+
+TYPED_TEST(TestPrimitiveWriter, OptionalNonRepeated) {
   // Optional and non-repeated, with definition levels
   // but no repetition levels
-  SetUpSchemaOptional();
+  this->SetUpSchemaOptional();
 
-  std::vector<int64_t> values(100, 128);
+  this->GenerateData(100);
   std::vector<int16_t> definition_levels(100, 1);
   definition_levels[1] = 0;
 
-  auto writer = BuildWriter();
-  writer->WriteBatch(values.size(), definition_levels.data(), nullptr, values.data());
+  auto writer = this->BuildWriter();
+  writer->WriteBatch(
+      this->values_.size(), definition_levels.data(), nullptr, this->values_ptr_);
   writer->Close();
 
-  ReadColumn();
-  ASSERT_EQ(99, values_read_);
-  values_out_.resize(99);
-  values.resize(99);
-  ASSERT_EQ(values, values_out_);
+  this->ReadColumn();
+  ASSERT_EQ(99, this->values_read_);
+  this->values_out_.resize(99);
+  this->values_.resize(99);
+  ASSERT_EQ(this->values_, this->values_out_);
 }
 
-TEST_F(TestPrimitiveWriter, OptionalRepeated) {
+TYPED_TEST(TestPrimitiveWriter, OptionalRepeated) {
   // Optional and repeated, so definition and repetition levels
-  SetUpSchemaRepeated();
+  this->SetUpSchemaRepeated();
 
-  std::vector<int64_t> values(100, 128);
+  this->GenerateData(100);
   std::vector<int16_t> definition_levels(100, 1);
   definition_levels[1] = 0;
   std::vector<int16_t> repetition_levels(100, 0);
 
-  auto writer = BuildWriter();
-  writer->WriteBatch(
-      values.size(), definition_levels.data(), repetition_levels.data(), values.data());
+  auto writer = this->BuildWriter();
+  writer->WriteBatch(this->values_.size(), definition_levels.data(),
+      repetition_levels.data(), this->values_ptr_);
   writer->Close();
 
-  ReadColumn();
-  ASSERT_EQ(99, values_read_);
-  values_out_.resize(99);
-  values.resize(99);
-  ASSERT_EQ(values, values_out_);
+  this->ReadColumn();
+  ASSERT_EQ(99, this->values_read_);
+  this->values_out_.resize(99);
+  this->values_.resize(99);
+  ASSERT_EQ(this->values_, this->values_out_);
 }
 
-TEST_F(TestPrimitiveWriter, RequiredTooFewRows) {
-  std::vector<int64_t> values(99, 128);
+TYPED_TEST(TestPrimitiveWriter, RequiredTooFewRows) {
+  this->GenerateData(99);
 
-  auto writer = BuildWriter();
-  writer->WriteBatch(values.size(), nullptr, nullptr, values.data());
+  auto writer = this->BuildWriter();
+  writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_);
   ASSERT_THROW(writer->Close(), ParquetException);
 }
 
-TEST_F(TestPrimitiveWriter, RequiredTooMany) {
-  std::vector<int64_t> values(200, 128);
+TYPED_TEST(TestPrimitiveWriter, RequiredTooMany) {
+  this->GenerateData(200);
 
-  auto writer = BuildWriter();
-  ASSERT_THROW(writer->WriteBatch(values.size(), nullptr, nullptr, values.data()),
+  auto writer = this->BuildWriter();
+  ASSERT_THROW(
+      writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_),
       ParquetException);
 }
 
-TEST_F(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
+TYPED_TEST(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
   // Optional and repeated, so definition and repetition levels
-  SetUpSchemaRepeated();
+  this->SetUpSchemaRepeated();
 
-  std::vector<int64_t> values(100, 128);
+  this->GenerateData(100);
   std::vector<int16_t> definition_levels(100, 1);
   definition_levels[1] = 0;
   std::vector<int16_t> repetition_levels(100, 0);
   repetition_levels[3] = 1;
 
-  auto writer = BuildWriter();
-  writer->WriteBatch(
-      values.size(), definition_levels.data(), repetition_levels.data(), values.data());
+  auto writer = this->BuildWriter();
+  writer->WriteBatch(this->values_.size(), definition_levels.data(),
+      repetition_levels.data(), this->values_ptr_);
   ASSERT_THROW(writer->Close(), ParquetException);
 }
 
-TEST_F(TestPrimitiveWriter, RequiredNonRepeatedLargeChunk) {
-  std::vector<int64_t> values(10000, 128);
+TYPED_TEST(TestPrimitiveWriter, RequiredNonRepeatedLargeChunk) {
+  this->GenerateData(10000);
 
   // Test case 1: required and non-repeated, so no definition or repetition levels
-  std::unique_ptr<Int64Writer> writer = BuildWriter(10000);
-  writer->WriteBatch(values.size(), nullptr, nullptr, values.data());
+  auto writer = this->BuildWriter(10000);
+  writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_);
   writer->Close();
 
   // Just read the first 100 to ensure we could read it back in
-  ReadColumn();
-  ASSERT_EQ(100, values_read_);
-  values.resize(100);
-  ASSERT_EQ(values, values_out_);
+  this->ReadColumn();
+  ASSERT_EQ(100, this->values_read_);
+  this->values_.resize(100);
+  ASSERT_EQ(this->values_, this->values_out_);
 }
 
 }  // namespace test

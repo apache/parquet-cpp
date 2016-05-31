@@ -42,12 +42,46 @@ using std::shared_ptr;
 
 namespace parquet {
 
+static int FLBA_LENGTH = 12;
+
+bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
+  return 0 == memcmp(a.ptr, b.ptr, FLBA_LENGTH);
+}
+
 namespace test {
 
 template <typename T>
 static void InitValues(int num_values, vector<T>& values, vector<uint8_t>& buffer) {
   random_numbers(num_values, 0, std::numeric_limits<T>::min(),
       std::numeric_limits<T>::max(), values.data());
+}
+
+template <>
+void InitValues<bool>(int num_values, vector<bool>& values, vector<uint8_t>& buffer) {
+  values = flip_coins(num_values, 0);
+}
+
+template <>
+void InitValues<ByteArray>(
+    int num_values, vector<ByteArray>& values, vector<uint8_t>& buffer) {
+  int max_byte_array_len = 12;
+  int num_bytes = max_byte_array_len + sizeof(uint32_t);
+  size_t nbytes = num_values * num_bytes;
+  buffer.resize(nbytes);
+  random_byte_array(num_values, 0, buffer.data(), values.data(), max_byte_array_len);
+}
+
+template <>
+void InitValues<FLBA>(int num_values, vector<FLBA>& values, vector<uint8_t>& buffer) {
+  size_t nbytes = num_values * FLBA_LENGTH;
+  buffer.resize(nbytes);
+  random_fixed_byte_array(num_values, 0, buffer.data(), FLBA_LENGTH, values.data());
+}
+
+template <>
+void InitValues<Int96>(int num_values, vector<Int96>& values, vector<uint8_t>& buffer) {
+  random_Int96_numbers(num_values, 0, std::numeric_limits<int32_t>::min(),
+      std::numeric_limits<int32_t>::max(), values.data());
 }
 
 template <typename T>
