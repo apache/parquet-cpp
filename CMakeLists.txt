@@ -474,8 +474,9 @@ add_library(parquet_objlib OBJECT
   ${LIBPARQUET_SRCS}
 )
 
+set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
+
 if (PARQUET_BUILD_SHARED)
-    set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
     add_library(parquet_shared SHARED $<TARGET_OBJECTS:parquet_objlib>)
     if(APPLE)
         set_target_properties(parquet_shared PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
