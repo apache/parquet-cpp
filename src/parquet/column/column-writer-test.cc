@@ -35,6 +35,11 @@ using schema::PrimitiveNode;
 
 namespace test {
 
+// The default size used in most tests.
+const int SMALL_SIZE = 100;
+// Larger size to test some corner cases, only used in some specific cases.
+const int LARGE_SIZE = 10000;
+
 template <typename TestType>
 class TestPrimitiveWriter : public ::testing::Test {
  public:
@@ -64,21 +69,10 @@ class TestPrimitiveWriter : public ::testing::Test {
 
   void SetUp() {
     SetupValuesOut();
-    definition_levels_out_.resize(100);
-    repetition_levels_out_.resize(100);
+    definition_levels_out_.resize(SMALL_SIZE);
+    repetition_levels_out_.resize(SMALL_SIZE);
 
     SetUpSchemaRequired();
-  }
-
-  void TearDown() {
-    if (bool_buffer_) {
-      delete[] bool_buffer_;
-      bool_buffer_ = nullptr;
-    }
-    if (bool_buffer_out_) {
-      delete[] bool_buffer_out_;
-      bool_buffer_out_ = nullptr;
-    }
   }
 
   void BuildReader() {
@@ -89,7 +83,8 @@ class TestPrimitiveWriter : public ::testing::Test {
     reader_.reset(new TypedColumnReader<TestType>(schema_.get(), std::move(page_reader)));
   }
 
-  std::unique_ptr<TypedColumnWriter<TestType>> BuildWriter(int64_t output_size = 100) {
+  std::unique_ptr<TypedColumnWriter<TestType>> BuildWriter(
+      int64_t output_size = SMALL_SIZE) {
     sink_.reset(new InMemoryOutputStream());
     std::unique_ptr<SerializedPageWriter> pager(
         new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, &metadata_));
@@ -116,11 +111,11 @@ class TestPrimitiveWriter : public ::testing::Test {
   std::vector<uint8_t> buffer_;
   // Pointer to the values, needed as we cannot use vector<bool>::data()
   T* values_ptr_;
-  bool* bool_buffer_ = nullptr;
+  std::vector<uint8_t> bool_buffer_;
 
   // Output buffers
   std::vector<T> values_out_;
-  bool* bool_buffer_out_ = nullptr;
+  std::vector<uint8_t> bool_buffer_out_;
   T* values_out_ptr_;
   std::vector<int16_t> definition_levels_out_;
   std::vector<int16_t> repetition_levels_out_;
@@ -134,18 +129,18 @@ class TestPrimitiveWriter : public ::testing::Test {
 
 template <typename TestType>
 void TestPrimitiveWriter<TestType>::SetupValuesOut() {
-  values_out_.resize(100);
+  values_out_.resize(SMALL_SIZE);
   values_out_ptr_ = values_out_.data();
 }
 
 template <>
 void TestPrimitiveWriter<BooleanType>::SetupValuesOut() {
-  values_out_.resize(100);
-  bool_buffer_out_ = new bool[100];
+  values_out_.resize(SMALL_SIZE);
+  bool_buffer_out_.resize(SMALL_SIZE);
   // Write once to all values so we can copy it without getting Valgrind errors
   // about uninitialised values.
-  std::fill(bool_buffer_out_, bool_buffer_out_ + 100, true);
-  values_out_ptr_ = bool_buffer_out_;
+  std::fill(bool_buffer_out_.begin(), bool_buffer_out_.end(), true);
+  values_out_ptr_ = reinterpret_cast<bool*>(bool_buffer_out_.data());
 }
 
 template <typename TestType>
@@ -153,7 +148,7 @@ void TestPrimitiveWriter<TestType>::SyncValuesOut() {}
 
 template <>
 void TestPrimitiveWriter<BooleanType>::SyncValuesOut() {
-  std::copy(bool_buffer_out_, bool_buffer_out_ + values_out_.size(), values_out_.begin());
+  std::copy(bool_buffer_out_.begin(), bool_buffer_out_.end(), values_out_.begin());
 }
 
 template <typename TestType>
@@ -167,9 +162,9 @@ template <>
 void TestPrimitiveWriter<BooleanType>::GenerateData(int64_t num_values) {
   values_.resize(num_values);
   InitValues<T>(num_values, values_, buffer_);
-  bool_buffer_ = new bool[num_values];
-  std::copy(values_.begin(), values_.end(), bool_buffer_);
-  values_ptr_ = bool_buffer_;
+  bool_buffer_.resize(num_values);
+  std::copy(values_.begin(), values_.end(), bool_buffer_.begin());
+  values_ptr_ = reinterpret_cast<bool*>(bool_buffer_.data());
 }
 
 typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
@@ -177,8 +172,8 @@ typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
 
 TYPED_TEST_CASE(TestPrimitiveWriter, TestTypes);
 
-TYPED_TEST(TestPrimitiveWriter, RequiredNonRepeated) {
-  this->GenerateData(100);
+TYPED_TEST(TestPrimitiveWriter, Required) {
+  this->GenerateData(SMALL_SIZE);
 
   // Test case 1: required and non-repeated, so no definition or repetition levels
   std::unique_ptr<TypedColumnWriter<TypeParam>> writer = this->BuildWriter();
@@ -186,17 +181,17 @@ TYPED_TEST(TestPrimitiveWriter, RequiredNonRepeated) {
   writer->Close();
 
   this->ReadColumn();
-  ASSERT_EQ(100, this->values_read_);
+  ASSERT_EQ(SMALL_SIZE, this->values_read_);
   ASSERT_EQ(this->values_, this->values_out_);
 }
 
-TYPED_TEST(TestPrimitiveWriter, OptionalNonRepeated) {
+TYPED_TEST(TestPrimitiveWriter, Optional) {
   // Optional and non-repeated, with definition levels
   // but no repetition levels
   this->SetUpSchemaOptional();
 
-  this->GenerateData(100);
-  std::vector<int16_t> definition_levels(100, 1);
+  this->GenerateData(SMALL_SIZE);
+  std::vector<int16_t> definition_levels(SMALL_SIZE, 1);
   definition_levels[1] = 0;
 
   auto writer = this->BuildWriter();
@@ -211,14 +206,14 @@ TYPED_TEST(TestPrimitiveWriter, OptionalNonRepeated) {
   ASSERT_EQ(this->values_, this->values_out_);
 }
 
-TYPED_TEST(TestPrimitiveWriter, OptionalRepeated) {
+TYPED_TEST(TestPrimitiveWriter, Repeated) {
   // Optional and repeated, so definition and repetition levels
   this->SetUpSchemaRepeated();
 
-  this->GenerateData(100);
-  std::vector<int16_t> definition_levels(100, 1);
+  this->GenerateData(SMALL_SIZE);
+  std::vector<int16_t> definition_levels(SMALL_SIZE, 1);
   definition_levels[1] = 0;
-  std::vector<int16_t> repetition_levels(100, 0);
+  std::vector<int16_t> repetition_levels(SMALL_SIZE, 0);
 
   auto writer = this->BuildWriter();
   writer->WriteBatch(this->values_.size(), definition_levels.data(),
@@ -226,14 +221,14 @@ TYPED_TEST(TestPrimitiveWriter, OptionalRepeated) {
   writer->Close();
 
   this->ReadColumn();
-  ASSERT_EQ(99, this->values_read_);
-  this->values_out_.resize(99);
-  this->values_.resize(99);
+  ASSERT_EQ(SMALL_SIZE - 1, this->values_read_);
+  this->values_out_.resize(SMALL_SIZE - 1);
+  this->values_.resize(SMALL_SIZE - 1);
   ASSERT_EQ(this->values_, this->values_out_);
 }
 
 TYPED_TEST(TestPrimitiveWriter, RequiredTooFewRows) {
-  this->GenerateData(99);
+  this->GenerateData(SMALL_SIZE - 1);
 
   auto writer = this->BuildWriter();
   writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_);
@@ -241,7 +236,7 @@ TYPED_TEST(TestPrimitiveWriter, RequiredTooFewRows) {
 }
 
 TYPED_TEST(TestPrimitiveWriter, RequiredTooMany) {
-  this->GenerateData(200);
+  this->GenerateData(2 * SMALL_SIZE);
 
   auto writer = this->BuildWriter();
   ASSERT_THROW(
@@ -249,14 +244,14 @@ TYPED_TEST(TestPrimitiveWriter, RequiredTooMany) {
       ParquetException);
 }
 
-TYPED_TEST(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
+TYPED_TEST(TestPrimitiveWriter, RepeatedTooFewRows) {
   // Optional and repeated, so definition and repetition levels
   this->SetUpSchemaRepeated();
 
-  this->GenerateData(100);
-  std::vector<int16_t> definition_levels(100, 1);
+  this->GenerateData(SMALL_SIZE);
+  std::vector<int16_t> definition_levels(SMALL_SIZE, 1);
   definition_levels[1] = 0;
-  std::vector<int16_t> repetition_levels(100, 0);
+  std::vector<int16_t> repetition_levels(SMALL_SIZE, 0);
   repetition_levels[3] = 1;
 
   auto writer = this->BuildWriter();
@@ -265,18 +260,18 @@ TYPED_TEST(TestPrimitiveWriter, OptionalRepeatedTooFewRows) {
   ASSERT_THROW(writer->Close(), ParquetException);
 }
 
-TYPED_TEST(TestPrimitiveWriter, RequiredNonRepeatedLargeChunk) {
-  this->GenerateData(10000);
+TYPED_TEST(TestPrimitiveWriter, RequiredLargeChunk) {
+  this->GenerateData(LARGE_SIZE);
 
   // Test case 1: required and non-repeated, so no definition or repetition levels
-  auto writer = this->BuildWriter(10000);
+  auto writer = this->BuildWriter(LARGE_SIZE);
   writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_);
   writer->Close();
 
-  // Just read the first 100 to ensure we could read it back in
+  // Just read the first SMALL_SIZE rows to ensure we could read it back in
   this->ReadColumn();
-  ASSERT_EQ(100, this->values_read_);
-  this->values_.resize(100);
+  ASSERT_EQ(SMALL_SIZE, this->values_read_);
+  this->values_.resize(SMALL_SIZE);
   ASSERT_EQ(this->values_, this->values_out_);
 }
 
