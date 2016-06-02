@@ -393,28 +393,28 @@ endif()
 #############################################################
 # Test linking
 
-if (PARQUET_BUILD_SHARED)
-    set(PARQUET_MIN_TEST_LIBS
-      parquet_test_main
-      parquet_shared)
-else()
+if (PARQUET_BUILD_STATIC)
     set(PARQUET_MIN_TEST_LIBS
       parquet_test_main
       parquet_static)
+else()
+    set(PARQUET_MIN_TEST_LIBS
+      parquet_test_main
+      parquet_shared)
 endif()
 set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 
 #############################################################
 # Benchmark linking
 
-if (PARQUET_BUILD_SHARED)
-    set(PARQUET_BENCHMARK_LINK_LIBS
-      parquet_benchmark_main
-      parquet_shared)
-else()
+if (PARQUET_BUILD_STATIC)
     set(PARQUET_BENCHMARK_LINK_LIBS
       parquet_benchmark_main
       parquet_static)
+else()
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_shared)
 endif()
 
 #############################################################
@@ -433,10 +433,7 @@ if ("${PARQUET_GENERATE_COVERAGE}")
   # For coverage to work properly, we need to use static linkage. Otherwise,
   # __gcov_flush() doesn't properly flush coverage from every module.
   # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc
-  if(PARQUET_BUILD_STATIC)
-    message("Using static linking for coverage build")
-  endif()
-  if(PARQUET_BUILD_SHARED)
+  if(NOT PARQUET_BUILD_STATIC)
     message(SEND_ERROR "Cannot use coverage with dynamic linking")
   endif()
 endif()
