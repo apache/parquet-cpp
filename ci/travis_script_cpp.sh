@@ -7,10 +7,12 @@ set -e
 pushd $CPP_BUILD_DIR
 
 make lint
-if [ $TRAVIS_OS_NAME == "linux" ]; then
-  make check-format
-  make check-clang-tidy
-fi
+
+# PARQUET-626: disabled check for now
+# if [ $TRAVIS_OS_NAME == "linux" ]; then
+#   make check-format
+#   make check-clang-tidy
+# fi
 
 if [ $TRAVIS_OS_NAME == "linux" ]; then
   make -j4 || exit 1

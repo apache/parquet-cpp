@@ -54,16 +54,23 @@ matrix:
     - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
 
 language: cpp
+
+# PARQUET-626: revisit llvm toolchain when/if llvm.org apt repo resurfaces
+
+# before_install:
+# - wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
+# - sudo apt-get install -y software-properties-common
+# - sudo add-apt-repository -y ppa:george-edison55/cmake-3.x
+# - sudo apt-add-repository -y "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.7
+#   main"
+# - sudo apt-add-repository -y "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8
+#   main"
+# - sudo apt-get update
+# - sudo apt-get install -y clang-tidy-3.7 clang-format-3.7 cmake
+# - mkdir $TRAVIS_BUILD_DIR/parquet-build
+# - pushd $TRAVIS_BUILD_DIR/parquet-build
+
 before_install:
-- wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
-- sudo apt-get install -y software-properties-common
-- sudo add-apt-repository -y ppa:george-edison55/cmake-3.x
-- sudo apt-add-repository -y "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.7
-  main"
-- sudo apt-add-repository -y "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8
-  main"
-- sudo apt-get update
-- sudo apt-get install -y clang-tidy-3.7 clang-format-3.7 cmake
 - mkdir $TRAVIS_BUILD_DIR/parquet-build
 - pushd $TRAVIS_BUILD_DIR/parquet-build
 
