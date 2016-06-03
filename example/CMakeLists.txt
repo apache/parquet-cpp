@@ -16,9 +16,18 @@
 # under the License.
 
 SET(LINK_LIBS
-  parquet
   snappystatic
   thriftstatic)
+
+if (PARQUET_BUILD_STATIC)
+    SET(LINK_LIBS
+        ${LINK_LIBS}
+        parquet_static)
+else ()
+    SET(LINK_LIBS
+        ${LINK_LIBS}
+        parquet_shared)
+endif()
 
 if (PARQUET_BUILD_EXECUTABLES)
   add_executable(decode_benchmark decode_benchmark.cc)

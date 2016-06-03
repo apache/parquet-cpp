@@ -50,16 +50,12 @@ if(APPLE)
   set(CMAKE_MACOSX_RPATH 1)
 endif()
 
-if (NOT PARQUET_LINK)
-  set(PARQUET_LINK "a")
-elseif(NOT ("auto" MATCHES "^${PARQUET_LINK}" OR
-            "dynamic" MATCHES "^${PARQUET_LINK}" OR
-            "static" MATCHES "^${PARQUET_LINK}"))
-  message(FATAL_ERROR "Unknown value for PARQUET_LINK, must be auto|dynamic|static")
-else()
-  # Remove all but the first letter.
-  string(SUBSTRING "${PARQUET_LINK}" 0 1 PARQUET_LINK)
-endif()
+option(PARQUET_BUILD_SHARED
+    "Build the shared version of libparquet"
+    ON)
+option(PARQUET_BUILD_STATIC
+    "Build the static version of libparquet"
+    OFF)
 
 # if no build build type is specified, default to debug builds
 if (NOT CMAKE_BUILD_TYPE)
@@ -397,15 +393,29 @@ endif()
 #############################################################
 # Test linking
 
-set(PARQUET_MIN_TEST_LIBS
-  parquet_test_main
-  parquet)
+if (PARQUET_BUILD_STATIC)
+    set(PARQUET_MIN_TEST_LIBS
+      parquet_test_main
+      parquet_static)
+else()
+    set(PARQUET_MIN_TEST_LIBS
+      parquet_test_main
+      parquet_shared)
+endif()
 set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 
 #############################################################
 # Benchmark linking
 
-set(PARQUET_BENCHMARK_LINK_LIBS parquet parquet_benchmark_main)
+if (PARQUET_BUILD_STATIC)
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_static)
+else()
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_shared)
+endif()
 
 #############################################################
 # Code coverage
@@ -423,10 +433,7 @@ if ("${PARQUET_GENERATE_COVERAGE}")
   # For coverage to work properly, we need to use static linkage. Otherwise,
   # __gcov_flush() doesn't properly flush coverage from every module.
   # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc
-  if("${PARQUET_LINK}" STREQUAL "a")
-    message("Using static linking for coverage build")
-    set(PARQUET_LINK "s")
-  elseif("${PARQUET_LINK}" STREQUAL "d")
+  if(NOT PARQUET_BUILD_STATIC)
     message(SEND_ERROR "Cannot use coverage with dynamic linking")
   endif()
 endif()
@@ -459,23 +466,32 @@ set(LIBPARQUET_LINK_LIBS
   thriftstatic
 )
 
-if ("${PARQUET_LINK}" STREQUAL "d" OR "${PARQUET_LINK}" STREQUAL "a")
-  set(LIBPARQUET_LINKAGE "SHARED")
-else()
-  set(LIBPARQUET_LINKAGE "STATIC")
-endif()
-
-add_library(parquet
+add_library(parquet_objlib OBJECT
   ${LIBPARQUET_LINKAGE}
   ${LIBPARQUET_SRCS}
 )
-set_target_properties(parquet
-  PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
-target_link_libraries(parquet ${LIBPARQUET_LINK_LIBS})
 
-if(APPLE)
-    set_target_properties(parquet PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+if (PARQUET_BUILD_SHARED)
+    add_library(parquet_shared SHARED $<TARGET_OBJECTS:parquet_objlib>)
+    if(APPLE)
+        set_target_properties(parquet_shared PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    endif()
+    set_target_properties(parquet_shared
+      PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
+      OUTPUT_NAME "parquet")
+    target_link_libraries(parquet_shared ${LIBPARQUET_LINK_LIBS})
+endif()
+
+if (PARQUET_BUILD_STATIC)
+    add_library(parquet_static STATIC $<TARGET_OBJECTS:parquet_objlib>)
+    set_target_properties(parquet_static
+      PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
+      OUTPUT_NAME "parquet")
+    target_link_libraries(parquet_static ${LIBPARQUET_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)
@@ -497,6 +513,13 @@ add_custom_target(clean-all
 
 # installation
 
-install(TARGETS parquet
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib)
+if (PARQUET_BUILD_STATIC)
+    install(TARGETS parquet_static
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
+endif()
+if (PARQUET_BUILD_SHARED)
+    install(TARGETS parquet_shared
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
+endif()
