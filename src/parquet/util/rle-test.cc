@@ -239,7 +239,8 @@ bool CheckRoundTrip(const vector<int>& values, int bit_width) {
   {
     RleDecoder decoder(buffer, len, bit_width);
     vector<int> values_read(values.size());
-    if (values.size() != decoder.GetBatch(values_read.data(), values.size())) {
+    if (static_cast<int>(values.size()) !=
+        decoder.GetBatch(values_read.data(), values.size())) {
       return false;
     }
     if (values != values_read) { return false; }
