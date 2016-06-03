@@ -504,6 +504,10 @@ add_subdirectory(src/parquet/schema)
 add_subdirectory(src/parquet/thrift)
 add_subdirectory(src/parquet/util)
 
+# Ensure that thrift compilation is done befor using its generated headers
+# in parquet code.
+add_dependencies(parquet_objlib parquet_thrift)
+
 add_subdirectory(example)
 
 add_custom_target(clean-all
