@@ -282,14 +282,16 @@ inline int RleDecoder::GetBatch(T* values, int batch_size) {
     }
 
     if (LIKELY(repeat_count_ > 0)) {
-      int repeat_batch = std::min(batch_size - values_read, static_cast<int>(repeat_count_));
+      int repeat_batch =
+          std::min(batch_size - values_read, static_cast<int>(repeat_count_));
       std::fill(
           values + values_read, values + values_read + repeat_batch, current_value_);
       repeat_count_ -= repeat_batch;
       values_read += repeat_batch;
     } else {
       DCHECK_GT(literal_count_, 0);
-      int literal_batch = std::min(batch_size - values_read, static_cast<int>(literal_count_));
+      int literal_batch =
+          std::min(batch_size - values_read, static_cast<int>(literal_count_));
       for (int i = 0; i < literal_batch; i++) {
         bool result = bit_reader_.GetValue(bit_width_, values + values_read + i);
         DCHECK(result);
