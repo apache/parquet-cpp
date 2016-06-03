@@ -112,7 +112,7 @@ class RleDecoder {
 
   /// Gets a batch of values.  Returns the number of decoded elements.
   template <typename T>
-  uint32_t GetBatch(T* values, uint32_t batch_size);
+  int GetBatch(T* values, int batch_size);
 
  protected:
   BitReader bit_reader_;
@@ -272,9 +272,9 @@ inline bool RleDecoder::Get(T* val) {
 }
 
 template <typename T>
-inline uint32_t RleDecoder::GetBatch(T* values, uint32_t batch_size) {
+inline int RleDecoder::GetBatch(T* values, int batch_size) {
   DCHECK_GE(bit_width_, 0);
-  uint32_t values_read = 0;
+  int values_read = 0;
 
   while (values_read < batch_size) {
     if (UNLIKELY(literal_count_ == 0 && repeat_count_ == 0)) {
@@ -282,15 +282,15 @@ inline uint32_t RleDecoder::GetBatch(T* values, uint32_t batch_size) {
     }
 
     if (LIKELY(repeat_count_ > 0)) {
-      uint32_t repeat_batch = std::min(batch_size - values_read, repeat_count_);
+      int repeat_batch = std::min(batch_size - values_read, static_cast<int>(repeat_count_));
       std::fill(
           values + values_read, values + values_read + repeat_batch, current_value_);
       repeat_count_ -= repeat_batch;
       values_read += repeat_batch;
     } else {
       DCHECK_GT(literal_count_, 0);
-      uint32_t literal_batch = std::min(batch_size - values_read, literal_count_);
-      for (uint32_t i = 0; i < literal_batch; i++) {
+      int literal_batch = std::min(batch_size - values_read, static_cast<int>(literal_count_));
+      for (int i = 0; i < literal_batch; i++) {
         bool result = bit_reader_.GetValue(bit_width_, values + values_read + i);
         DCHECK(result);
       }
