@@ -461,13 +461,15 @@ set(LIBPARQUET_SRCS
 
 set(LIBPARQUET_LINK_LIBS
   parquet_compression
-  parquet_thrift
   parquet_util
+)
+
+set(LIBPARQUET_PRIVATE_LINK_LIBS
+  parquet_thrift
   thriftstatic
 )
 
 add_library(parquet_objlib OBJECT
-  ${LIBPARQUET_LINKAGE}
   ${LIBPARQUET_SRCS}
 )
 
@@ -482,7 +484,8 @@ if (PARQUET_BUILD_SHARED)
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_shared ${LIBPARQUET_LINK_LIBS})
+    target_link_libraries(parquet_shared PUBLIC ${LIBPARQUET_LINK_LIBS})
+    target_link_libraries(parquet_shared PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 if (PARQUET_BUILD_STATIC)
@@ -491,7 +494,8 @@ if (PARQUET_BUILD_STATIC)
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_static ${LIBPARQUET_LINK_LIBS})
+    target_link_libraries(parquet_static PUBLIC ${LIBPARQUET_LINK_LIBS})
+    target_link_libraries(parquet_static PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)
