@@ -484,8 +484,8 @@ if (PARQUET_BUILD_SHARED)
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_shared PUBLIC ${LIBPARQUET_LINK_LIBS})
-    target_link_libraries(parquet_shared PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+    target_link_libraries(parquet_shared LINK_PUBLIC ${LIBPARQUET_LINK_LIBS})
+    target_link_libraries(parquet_shared LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 if (PARQUET_BUILD_STATIC)
@@ -494,8 +494,8 @@ if (PARQUET_BUILD_STATIC)
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_static PUBLIC ${LIBPARQUET_LINK_LIBS})
-    target_link_libraries(parquet_static PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+    target_link_libraries(parquet_static LINK_PUBLIC ${LIBPARQUET_LINK_LIBS})
+    target_link_libraries(parquet_static LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)
