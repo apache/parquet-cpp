@@ -448,6 +448,10 @@ set(LIBPARQUET_SRCS
   src/parquet/column/writer.cc
   src/parquet/column/scanner.cc
 
+  src/parquet/compression/codec.cc
+  src/parquet/compression/snappy-codec.cc
+  src/parquet/compression/gzip-codec.cc
+
   src/parquet/file/reader.cc
   src/parquet/file/reader-internal.cc
   src/parquet/file/writer.cc
@@ -457,16 +461,23 @@ set(LIBPARQUET_SRCS
   src/parquet/schema/descriptor.cc
   src/parquet/schema/printer.cc
   src/parquet/schema/types.cc
+
+  src/parquet/util/buffer.cc
+  src/parquet/util/cpu-info.cc
+  src/parquet/util/input.cc
+  src/parquet/util/mem-allocator.cc
+  src/parquet/util/mem-pool.cc
+  src/parquet/util/output.cc
 )
 
 set(LIBPARQUET_LINK_LIBS
-  parquet_compression
-  parquet_util
 )
 
 set(LIBPARQUET_PRIVATE_LINK_LIBS
   parquet_thrift
+  snappystatic
   thriftstatic
+  zlibstatic
 )
 
 add_library(parquet_objlib OBJECT
