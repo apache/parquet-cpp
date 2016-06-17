@@ -168,7 +168,7 @@ void RowGroupSerializer::Close() {
 
 std::unique_ptr<ParquetFileWriter::Contents> FileSerializer::Open(
     std::shared_ptr<OutputStream> sink, std::shared_ptr<GroupNode>& schema,
-    MemoryAllocator* allocator, std::shared_ptr<WriterProperties> properties) {
+    MemoryAllocator* allocator, const std::shared_ptr<WriterProperties>& properties) {
   std::unique_ptr<ParquetFileWriter::Contents> result(
       new FileSerializer(sink, schema, allocator, properties));
 
@@ -200,7 +200,7 @@ int64_t FileSerializer::num_rows() const {
   return num_rows_;
 }
 
-std::shared_ptr<WriterProperties> FileSerializer::properties() const {
+const std::shared_ptr<WriterProperties>& FileSerializer::properties() const {
   return properties_;
 }
 
@@ -248,7 +248,7 @@ void FileSerializer::WriteMetaData() {
 
 FileSerializer::FileSerializer(std::shared_ptr<OutputStream> sink,
     std::shared_ptr<GroupNode>& schema, MemoryAllocator* allocator,
-    std::shared_ptr<WriterProperties> properties)
+    const std::shared_ptr<WriterProperties>& properties)
     : sink_(sink),
       allocator_(allocator),
       num_row_groups_(0),

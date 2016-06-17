@@ -94,7 +94,7 @@ class ParquetFileWriter {
     virtual int num_columns() const = 0;
     virtual int num_row_groups() const = 0;
 
-    virtual std::shared_ptr<WriterProperties> properties() const = 0;
+    virtual const std::shared_ptr<WriterProperties>& properties() const = 0;
 
     // Return const-poitner to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const { return &schema_; }
@@ -107,7 +107,7 @@ class ParquetFileWriter {
   static std::unique_ptr<ParquetFileWriter> Open(std::shared_ptr<OutputStream> sink,
       std::shared_ptr<schema::GroupNode>& schema,
       MemoryAllocator* allocator = default_allocator(),
-      std::shared_ptr<WriterProperties> properties = default_writer_properties());
+      const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 
   void Open(std::unique_ptr<Contents> contents);
   void Close();
@@ -145,7 +145,7 @@ class ParquetFileWriter {
   /**
    * Configuartion passed to the writer, e.g. the used Parquet format version.
    */
-  std::shared_ptr<WriterProperties> properties() const;
+  const std::shared_ptr<WriterProperties>& properties() const;
 
   /**
    * Returns the file schema descriptor
