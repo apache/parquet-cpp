@@ -56,7 +56,7 @@ ParquetFileWriter::~ParquetFileWriter() {
 std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
     std::shared_ptr<OutputStream> sink, std::shared_ptr<GroupNode>& schema,
     MemoryAllocator* allocator, const std::shared_ptr<WriterProperties>& properties) {
-  auto contents = FileSerializer::Open(sink, schema, allocator);
+  auto contents = FileSerializer::Open(sink, schema, allocator, properties);
 
   std::unique_ptr<ParquetFileWriter> result(new ParquetFileWriter());
   result->Open(std::move(contents));

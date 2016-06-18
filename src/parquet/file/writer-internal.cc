@@ -77,13 +77,14 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   int64_t compressed_size = uncompressed_size;
   std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
   if (compressor_) {
-    // TODO(PARQUET-592): Add support for compression
-    // int64_t max_compressed_size = compressor_->MaxCompressedLen(
-    // uncompressed_data.size(), uncompressed_data.data());
-    // OwnedMutableBuffer compressed_data(compressor_->MaxCompressedLen(
-    // uncompressed_data.size(), uncompressed_data.data()));
+    uncompressed_ptr = uncompressed_data->mutable_data();
+    int64_t max_compressed_size = compressor_->MaxCompressedLen(
+        uncompressed_size, uncompressed_ptr);
+    compressed_data = std::make_shared<OwnedMutableBuffer>(max_compressed_size);
+    compressed_size = compressor_->Compress(uncompressed_size, uncompressed_ptr,
+        max_compressed_size, compressed_data->mutable_data());
   }
-  // Compressed data is not needed anymore, so immediately get rid of it.
+  // Uncompressed data is not needed anymore, so immediately get rid of it.
   uncompressed_data.reset();
 
   format::DataPageHeader data_page_header;
@@ -103,7 +104,7 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   int64_t start_pos = sink_->Tell();
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   int64_t header_size = sink_->Tell() - start_pos;
-  sink_->Write(compressed_data->data(), compressed_data->size());
+  sink_->Write(compressed_data->data(), compressed_size);
 
   metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
   metadata_->meta_data.total_compressed_size += compressed_size + header_size;
@@ -141,7 +142,7 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
   col_meta->meta_data.__set_type(ToThrift(column_descr->physical_type()));
   col_meta->meta_data.__set_path_in_schema(column_descr->path()->ToDotVector());
   std::unique_ptr<PageWriter> pager(
-      new SerializedPageWriter(sink_, Compression::UNCOMPRESSED, col_meta, allocator_));
+      new SerializedPageWriter(sink_, properties_->compression(), col_meta, allocator_));
   current_column_writer_ =
       ColumnWriter::Make(column_descr, std::move(pager), num_rows_, allocator_);
   return current_column_writer_.get();
@@ -213,7 +214,8 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   row_group_metadata_.resize(rgm_size + 1);
   format::RowGroup* rg_metadata = &row_group_metadata_.data()[rgm_size];
   std::unique_ptr<RowGroupWriter::Contents> contents(
-      new RowGroupSerializer(num_rows, &schema_, sink_.get(), rg_metadata, allocator_));
+      new RowGroupSerializer(num_rows, &schema_, sink_.get(),
+                             rg_metadata, allocator_, properties()));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_));
   return row_group_writer_.get();
 }

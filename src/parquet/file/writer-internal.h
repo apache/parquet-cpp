@@ -67,12 +67,14 @@ class SerializedPageWriter : public PageWriter {
 class RowGroupSerializer : public RowGroupWriter::Contents {
  public:
   RowGroupSerializer(int64_t num_rows, const SchemaDescriptor* schema, OutputStream* sink,
-      format::RowGroup* metadata, MemoryAllocator* allocator)
+      format::RowGroup* metadata, MemoryAllocator* allocator,
+      const std::shared_ptr<WriterProperties>& properties)
       : num_rows_(num_rows),
         schema_(schema),
         sink_(sink),
         metadata_(metadata),
         allocator_(allocator),
+        properties_(properties),
         total_bytes_written_(0),
         closed_(false),
         current_column_index_(-1) {
@@ -96,6 +98,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   OutputStream* sink_;
   format::RowGroup* metadata_;
   MemoryAllocator* allocator_;
+  std::shared_ptr<WriterProperties> properties_;
   int64_t total_bytes_written_;
   bool closed_;
 
