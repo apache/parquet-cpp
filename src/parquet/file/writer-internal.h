@@ -68,13 +68,13 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
  public:
   RowGroupSerializer(int64_t num_rows, const SchemaDescriptor* schema, OutputStream* sink,
       format::RowGroup* metadata, MemoryAllocator* allocator,
-      const WriterProperties* props)
+      const WriterProperties* properties)
       : num_rows_(num_rows),
         schema_(schema),
         sink_(sink),
         metadata_(metadata),
         allocator_(allocator),
-        properties_(props),
+        properties_(properties),
         total_bytes_written_(0),
         closed_(false),
         current_column_index_(-1) {
