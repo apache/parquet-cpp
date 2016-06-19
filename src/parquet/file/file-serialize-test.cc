@@ -67,7 +67,9 @@ void FileSerializeTest(Compression::type codec_type, NodePtr group_node) {
   std::shared_ptr<InMemoryOutputStream> sink(new InMemoryOutputStream());
   auto gnode = std::static_pointer_cast<GroupNode>(group_node);
   std::shared_ptr<WriterProperties> writer_properties =
-    std::make_shared<WriterProperties::Builder>()->compression(codec_type)->build();
+      std::make_shared<WriterProperties::Builder>()
+      ->set_compression(schema::ColumnPath::FromDotString("schema.int64"), codec_type)
+      ->build();
   auto file_writer = ParquetFileWriter::Open(sink, gnode, default_allocator(),
       writer_properties);
   auto row_group_writer = file_writer->AppendRowGroup(100);

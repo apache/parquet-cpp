@@ -20,10 +20,12 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include "parquet/util/input.h"
 #include "parquet/util/mem-allocator.h"
 #include "parquet/types.h"
+#include "parquet/schema/types.h"
 
 namespace parquet {
 
@@ -79,6 +81,10 @@ static int64_t DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 static bool DEFAULT_IS_DICTIONARY_ENABLED = true;
 static constexpr ParquetVersion::type DEFAULT_WRITER_VERSION =
     ParquetVersion::PARQUET_1_0;
+static constexpr Compression::type DEFAULT_COMPRESSION_TYPE =
+    Compression::UNCOMPRESSED;
+
+typedef std::unordered_map<std::string, Compression::type> ColumnCodecs;
 
 class WriterProperties {
  public:
@@ -89,8 +95,7 @@ class WriterProperties {
           dictionary_enabled_(DEFAULT_IS_DICTIONARY_ENABLED),
           dictionary_pagesize_(DEFAULT_DICTIONARY_PAGE_SIZE),
           pagesize_(DEFAULT_PAGE_SIZE),
-          version_(DEFAULT_WRITER_VERSION),
-          codec_(Compression::UNCOMPRESSED) {}
+          version_(DEFAULT_WRITER_VERSION) {}
     virtual ~Builder() {}
 
     Builder* allocator(MemoryAllocator* allocator) {
@@ -123,15 +128,16 @@ class WriterProperties {
       return this;
     }
 
-    Builder* compression(Compression::type codec) {
-      codec_ = codec;
+    Builder* set_compression(const std::shared_ptr<schema::ColumnPath>& path,
+                             Compression::type codec) {
+      codecs_[path->ToDotString()] = codec;
       return this;
     }
 
     std::shared_ptr<WriterProperties> build() {
       return std::shared_ptr<WriterProperties>(new WriterProperties(
           allocator_, dictionary_enabled_, dictionary_pagesize_,
-          pagesize_, version_, codec_));
+          pagesize_, version_, codecs_));
     }
 
    private:
@@ -140,7 +146,7 @@ class WriterProperties {
     int64_t dictionary_pagesize_;
     int64_t pagesize_;
     ParquetVersion::type version_;
-    Compression::type codec_;  // TODO: per-column compression settings
+    ColumnCodecs codecs_;
   };
 
   MemoryAllocator* allocator() { return allocator_; }
@@ -153,18 +159,23 @@ class WriterProperties {
 
   ParquetVersion::type version() const { return parquet_version_; }
 
-  Compression::type compression() const { return codec_; }
+  Compression::type compression(const std::shared_ptr<schema::ColumnPath>& path) const {
+    auto it = codecs_.find(path->ToDotString());
+    if (it != codecs_.end())
+      return it->second;
+    return DEFAULT_COMPRESSION_TYPE;
+  }
 
  private:
   explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled,
       int64_t dictionary_pagesize, int64_t pagesize, ParquetVersion::type version,
-      Compression::type codec)
+      ColumnCodecs codecs)
       : allocator_(allocator),
         dictionary_enabled_(dictionary_enabled),
         dictionary_pagesize_(dictionary_pagesize),
         pagesize_(pagesize),
         parquet_version_(version),
-        codec_(codec) {
+        codecs_(codecs) {
     pagesize_ = DEFAULT_PAGE_SIZE;
     dictionary_enabled_ = DEFAULT_IS_DICTIONARY_ENABLED;
   }
@@ -174,7 +185,7 @@ class WriterProperties {
   int64_t dictionary_pagesize_;
   int64_t pagesize_;
   ParquetVersion::type parquet_version_;
-  Compression::type codec_;
+  ColumnCodecs codecs_;
 };
 
 std::shared_ptr<WriterProperties> default_writer_properties();
