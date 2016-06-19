@@ -147,7 +147,7 @@ class WriterProperties {
     std::shared_ptr<WriterProperties> build() {
       return std::shared_ptr<WriterProperties>(new WriterProperties(
           allocator_, dictionary_enabled_, dictionary_pagesize_,
-          pagesize_, version_, default_codec_, std::move(codecs_)));
+          pagesize_, version_, default_codec_, codecs_));
     }
 
    private:
