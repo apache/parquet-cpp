@@ -67,13 +67,12 @@ class SerializedPageWriter : public PageWriter {
 class RowGroupSerializer : public RowGroupWriter::Contents {
  public:
   RowGroupSerializer(int64_t num_rows, const SchemaDescriptor* schema, OutputStream* sink,
-      format::RowGroup* metadata, MemoryAllocator* allocator,
-      const WriterProperties* properties)
+      format::RowGroup* metadata, const WriterProperties* properties)
       : num_rows_(num_rows),
         schema_(schema),
         sink_(sink),
         metadata_(metadata),
-        allocator_(allocator),
+        allocator_(properties->allocator()),
         properties_(properties),
         total_bytes_written_(0),
         closed_(false),
@@ -113,7 +112,6 @@ class FileSerializer : public ParquetFileWriter::Contents {
  public:
   static std::unique_ptr<ParquetFileWriter::Contents> Open(
       std::shared_ptr<OutputStream> sink, std::shared_ptr<schema::GroupNode>& schema,
-      MemoryAllocator* allocator = default_allocator(),
       const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 
   void Close() override;
@@ -130,7 +128,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
 
  private:
   explicit FileSerializer(std::shared_ptr<OutputStream> sink,
-      std::shared_ptr<schema::GroupNode>& schema, MemoryAllocator* allocator,
+      std::shared_ptr<schema::GroupNode>& schema,
       const std::shared_ptr<WriterProperties>& properties);
 
   std::shared_ptr<OutputStream> sink_;

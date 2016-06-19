@@ -160,7 +160,7 @@ class WriterProperties {
     ColumnCodecs codecs_;
   };
 
-  MemoryAllocator* allocator() { return allocator_; }
+  MemoryAllocator* allocator() const { return allocator_; }
 
   bool dictionary_enabled() const { return dictionary_enabled_; }
 

@@ -68,8 +68,7 @@ class TestSerialize : public ::testing::Test {
     std::shared_ptr<WriterProperties> writer_properties =
         std::make_shared<WriterProperties::Builder>()
         ->compression("schema.int64", codec_type)->build();
-    auto file_writer = ParquetFileWriter::Open(sink, gnode, default_allocator(),
-        writer_properties);
+    auto file_writer = ParquetFileWriter::Open(sink, gnode, writer_properties);
     auto row_group_writer = file_writer->AppendRowGroup(100);
     auto column_writer = static_cast<Int64Writer*>(row_group_writer->NextColumn());
     std::vector<int64_t> values(100, 128);
