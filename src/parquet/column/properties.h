@@ -95,7 +95,8 @@ class WriterProperties {
           dictionary_enabled_(DEFAULT_IS_DICTIONARY_ENABLED),
           dictionary_pagesize_(DEFAULT_DICTIONARY_PAGE_SIZE),
           pagesize_(DEFAULT_PAGE_SIZE),
-          version_(DEFAULT_WRITER_VERSION) {}
+          version_(DEFAULT_WRITER_VERSION),
+          default_codec_(DEFAULT_COMPRESSION_TYPE) {}
     virtual ~Builder() {}
 
     Builder* allocator(MemoryAllocator* allocator) {
@@ -128,16 +129,25 @@ class WriterProperties {
       return this;
     }
 
-    Builder* set_compression(const std::shared_ptr<schema::ColumnPath>& path,
-                             Compression::type codec) {
-      codecs_[path->ToDotString()] = codec;
+    Builder* compression(Compression::type codec) {
+      default_codec_ = codec;
       return this;
+    }
+
+    Builder* compression(const std::string& path, Compression::type codec) {
+      codecs_[path] = codec;
+      return this;
+    }
+
+    Builder* compression(const std::shared_ptr<schema::ColumnPath>& path,
+                         Compression::type codec) {
+      return this->compression(path->ToDotString(), codec);
     }
 
     std::shared_ptr<WriterProperties> build() {
       return std::shared_ptr<WriterProperties>(new WriterProperties(
           allocator_, dictionary_enabled_, dictionary_pagesize_,
-          pagesize_, version_, codecs_));
+          pagesize_, version_, default_codec_, std::move(codecs_)));
     }
 
    private:
@@ -146,6 +156,7 @@ class WriterProperties {
     int64_t dictionary_pagesize_;
     int64_t pagesize_;
     ParquetVersion::type version_;
+    Compression::type default_codec_;
     ColumnCodecs codecs_;
   };
 
@@ -163,18 +174,19 @@ class WriterProperties {
     auto it = codecs_.find(path->ToDotString());
     if (it != codecs_.end())
       return it->second;
-    return DEFAULT_COMPRESSION_TYPE;
+    return default_codec_;
   }
 
  private:
   explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled,
       int64_t dictionary_pagesize, int64_t pagesize, ParquetVersion::type version,
-      ColumnCodecs codecs)
+      Compression::type default_codec, const ColumnCodecs& codecs)
       : allocator_(allocator),
         dictionary_enabled_(dictionary_enabled),
         dictionary_pagesize_(dictionary_pagesize),
         pagesize_(pagesize),
         parquet_version_(version),
+        default_codec_(default_codec),
         codecs_(codecs) {
     pagesize_ = DEFAULT_PAGE_SIZE;
     dictionary_enabled_ = DEFAULT_IS_DICTIONARY_ENABLED;
@@ -185,6 +197,7 @@ class WriterProperties {
   int64_t dictionary_pagesize_;
   int64_t pagesize_;
   ParquetVersion::type parquet_version_;
+  Compression::type default_codec_;
   ColumnCodecs codecs_;
 };
 
