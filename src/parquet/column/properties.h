@@ -151,9 +151,9 @@ class WriterProperties {
 
   int64_t data_pagesize() const { return pagesize_; }
 
-  ParquetVersion::type version() { return parquet_version_; }
+  ParquetVersion::type version() const { return parquet_version_; }
 
-  Compression::type compression() { return codec_; }
+  Compression::type compression() const { return codec_; }
 
  private:
   explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled,

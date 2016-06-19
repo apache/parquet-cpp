@@ -80,7 +80,8 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
     uncompressed_ptr = uncompressed_data->mutable_data();
     int64_t max_compressed_size = compressor_->MaxCompressedLen(
         uncompressed_size, uncompressed_ptr);
-    compressed_data = std::make_shared<OwnedMutableBuffer>(max_compressed_size);
+    compressed_data = std::make_shared<OwnedMutableBuffer>(max_compressed_size,
+        allocator_);
     compressed_size = compressor_->Compress(uncompressed_size, uncompressed_ptr,
         max_compressed_size, compressed_data->mutable_data());
   }
@@ -215,7 +216,7 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   format::RowGroup* rg_metadata = &row_group_metadata_.data()[rgm_size];
   std::unique_ptr<RowGroupWriter::Contents> contents(
       new RowGroupSerializer(num_rows, &schema_, sink_.get(),
-                             rg_metadata, allocator_, properties()));
+                             rg_metadata, allocator_, properties().get()));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents), allocator_));
   return row_group_writer_.get();
 }

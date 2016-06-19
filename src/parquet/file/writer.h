@@ -143,7 +143,7 @@ class ParquetFileWriter {
   int num_row_groups() const;
 
   /**
-   * Configuartion passed to the writer, e.g. the used Parquet format version.
+   * Configuration passed to the writer, e.g. the used Parquet format version.
    */
   const std::shared_ptr<WriterProperties>& properties() const;
 
