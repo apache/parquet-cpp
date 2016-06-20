@@ -84,7 +84,7 @@ static constexpr ParquetVersion::type DEFAULT_WRITER_VERSION =
 static constexpr Compression::type DEFAULT_COMPRESSION_TYPE =
     Compression::UNCOMPRESSED;
 
-typedef std::unordered_map<std::string, Compression::type> ColumnCodecs;
+using ColumnCodecs = std::unordered_map<std::string, Compression::type>;
 
 class WriterProperties {
  public:

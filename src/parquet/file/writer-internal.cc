@@ -77,7 +77,7 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   int64_t compressed_size = uncompressed_size;
   std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
   if (compressor_) {
-    uncompressed_ptr = uncompressed_data->mutable_data();
+    const uint8_t* uncompressed_ptr = uncompressed_data->data();
     int64_t max_compressed_size = compressor_->MaxCompressedLen(
         uncompressed_size, uncompressed_ptr);
     compressed_data = std::make_shared<OwnedMutableBuffer>(max_compressed_size,
