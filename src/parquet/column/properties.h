@@ -170,10 +170,14 @@ class WriterProperties {
     MemoryAllocator* allocator_;
     bool dictionary_enabled_;
     int64_t dictionary_pagesize_;
+    // Encoding used for each column if not a specialized one is defined as
+    // part of encodings_
     Encoding::type default_encoding_;
     std::unordered_map<std::string, Encoding::type> encodings_;
     int64_t pagesize_;
     ParquetVersion::type version_;
+    // Default compression codec. This will be used for all columns that do
+    // not have a specific codec set as part of codecs_
     Compression::type default_codec_;
     ColumnCodecs codecs_;
   };
