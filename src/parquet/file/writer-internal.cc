@@ -144,8 +144,8 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
   col_meta->meta_data.__set_path_in_schema(column_descr->path()->ToDotVector());
   std::unique_ptr<PageWriter> pager(new SerializedPageWriter(
       sink_, properties_->compression(column_descr->path()), col_meta, allocator_));
-  current_column_writer_ = ColumnWriter::Make(
-      column_descr, std::move(pager), num_rows_, properties_);
+  current_column_writer_ =
+      ColumnWriter::Make(column_descr, std::move(pager), num_rows_, properties_);
   return current_column_writer_.get();
 }
 
