@@ -11,6 +11,13 @@ set -x
 #
 source activate "${CONDA_DEFAULT_ENV}"
 
+# Force the use of gcc 4.9 on Linux (was reset by conda-forge toolchain)
+if [ `uname` == Linux ]; then
+    export CC="gcc-4.9"
+    export CXX="g++-4.9"
+fi
+
+
 cd $RECIPE_DIR
 
 # Build dependencies
