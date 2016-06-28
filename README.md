@@ -173,6 +173,22 @@ In general, many of the APIs at the layers are interface based for extensibility
 minimize the cost of virtual calls, the APIs should be batch-centric. For example,
 encoding should operate on batches of values rather than a single value.
 
+## Using clang with a custom gcc toolchain
+
+Suppose you are building libraries with a thirdparty gcc toolchain (not a
+built-in system one) on Linux. To use clang for development while linking to
+the proper toolchain, you can do (for out of source builds):
+
+```shell
+export CMAKE_CLANG_OPTIONS=--gcc-toolchain=$TOOLCHAIN/gcc-4.9.2
+
+export CC=$TOOLCHAIN/llvm-3.7.0/bin/clang
+export CXX=$TOOLCHAIN/llvm-3.7.0/bin/clang++
+
+cmake -DCMAKE_CLANG_OPTIONS=$CMAKE_CLANG_OPTIONS \
+	  -DCMAKE_CXX_FLAGS="-Werror" ..
+```
+
 ## Code Coverage
 
 To build with `gcov` code coverage and upload results to http://coveralls.io or
@@ -216,7 +232,6 @@ And the coveralls upload script:
 ```
 coveralls -t $PARQUET_CPP_COVERAGE_TOKEN --gcov-options '\-l' -r $PARQUET_ROOT --exclude $PARQUET_ROOT/thirdparty --exclude $PARQUET_ROOT/build --exclude $NATIVE_TOOLCHAIN --exclude $PARQUET_ROOT/src/parquet/thrift
 ```
-
 
 Note that `gcov` throws off artifacts from the STL, so I excluded my toolchain
 root stored in `$NATIVE_TOOLCHAIN` to avoid a cluttered coverage report.
