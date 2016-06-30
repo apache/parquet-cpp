@@ -1,0 +1,33 @@
+{
+  # Symbols marked as 'local' are not exported by the DSO and thus may not
+  # be used by client applications.
+  local:
+    # zlib
+    adler32*;
+    crc32*;
+    get_crc_table;
+    inflate*;
+    zError;
+    zlib*;
+
+	# these symbols seem to not universally be found in all libz.a
+	deflate*;
+	zc*;
+	_tr_*;
+
+    # devtoolset
+    __cxa_throw_bad_array*;
+
+    extern "C++" {
+      # snappy
+	  snappy::*;
+
+	  # thrift
+	  apache::thrift::*;
+
+      # devtoolset - the Red Hat devtoolset statically links c++11 symbols
+      # into binaries so that the result may be executed on a system with an
+      # older libstdc++ which doesn't include the necessary c++11 symbols.
+      std::*;
+    };
+};
