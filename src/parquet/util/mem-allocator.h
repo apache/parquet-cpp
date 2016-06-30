@@ -33,7 +33,7 @@ class PARQUET_EXPORT MemoryAllocator {
   virtual void Free(uint8_t* p, int64_t size) = 0;
 };
 
-MemoryAllocator* default_allocator();
+PARQUET_EXPORT MemoryAllocator* default_allocator();
 
 class PARQUET_EXPORT TrackingAllocator : public MemoryAllocator {
  public:
