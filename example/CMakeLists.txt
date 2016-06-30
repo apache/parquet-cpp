@@ -28,9 +28,9 @@ if (PARQUET_BUILD_EXECUTABLES)
 
   add_executable(parquet-dump-schema parquet-dump-schema.cc)
   target_link_libraries(parquet-dump-schema ${LINK_LIBS}
-	parquet_shared)
+	parquet_static)
 
   add_executable(parquet_reader parquet_reader.cc)
   target_link_libraries(parquet_reader ${LINK_LIBS}
-	parquet_shared)
+	parquet_static)
 endif()

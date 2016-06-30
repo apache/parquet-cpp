@@ -320,6 +320,7 @@ string (TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_DEBUG}")
+
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "FASTDEBUG")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_FASTDEBUG}")
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RELEASE")
@@ -451,7 +452,7 @@ if ("${PARQUET_GENERATE_COVERAGE}")
   # __gcov_flush() doesn't properly flush coverage from every module.
   # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc
   if(NOT PARQUET_BUILD_STATIC)
-    message(SEND_ERROR "Cannot use coverage with dynamic linking")
+    message(SEND_ERROR "Coverage requires the static lib to be built")
   endif()
 endif()
 
