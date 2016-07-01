@@ -55,7 +55,7 @@ option(PARQUET_BUILD_SHARED
     ON)
 option(PARQUET_BUILD_STATIC
     "Build the static version of libparquet"
-    OFF)
+    ON)
 
 # if no build build type is specified, default to debug builds
 if (NOT CMAKE_BUILD_TYPE)
@@ -68,20 +68,20 @@ string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
 # Top level cmake file, set options
 if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_USE_SSE
-	"Build with SSE4 optimizations"
-	OFF)
+    "Build with SSE4 optimizations"
+    OFF)
   option(PARQUET_BUILD_BENCHMARKS
-	"Build the libparquet benchmark suite"
+    "Build the libparquet benchmark suite"
     OFF)
   option(PARQUET_BUILD_TESTS
-	"Build the libparquet test suite"
-	ON)
+    "Build the libparquet test suite"
+    ON)
   option(PARQUET_TEST_MEMCHECK
-	"Run the test suite using valgrind --tool=memcheck"
-	OFF)
+    "Run the test suite using valgrind --tool=memcheck"
+    OFF)
   option(PARQUET_BUILD_EXECUTABLES
-	"Build the libparquet executable CLI tools"
-	ON)
+    "Build the libparquet executable CLI tools"
+    ON)
 endif()
 
 # If build in-source, create the latest symlink. If build out-of-source, which is
@@ -171,7 +171,7 @@ endfunction()
 #
 # Arguments after the test name will be passed to set_tests_properties().
 function(ADD_PARQUET_TEST REL_TEST_NAME)
-  if(NOT PARQUET_BUILD_TESTS)
+  if(NOT PARQUET_BUILD_TESTS OR NOT PARQUET_BUILD_STATIC)
     return()
   endif()
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
@@ -182,15 +182,15 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
     add_executable(${TEST_NAME} "${REL_TEST_NAME}.cc")
     add_dependencies(unittest ${TEST_NAME})
 
-	if(APPLE)
-	  # On OS X / Thrift >= 0.9.2, tr1/tuple.h is not in libc++
-	  SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
-		-DGTEST_USE_OWN_TR1_TUPLE=1)
-	else()
-	  # Linux, for Thrift >= 0.9.2
-	  SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
-		-DGTEST_USE_OWN_TR1_TUPLE=0)
-	endif()
+    if(APPLE)
+      # On OS X / Thrift >= 0.9.2, tr1/tuple.h is not in libc++
+      SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+        -DGTEST_USE_OWN_TR1_TUPLE=1)
+    else()
+      # Linux, for Thrift >= 0.9.2
+      SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+        -DGTEST_USE_OWN_TR1_TUPLE=0)
+    endif()
 
     target_link_libraries(${TEST_NAME} ${PARQUET_TEST_LINK_LIBS})
   else()
@@ -199,13 +199,13 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
   endif()
 
   if (PARQUET_TEST_MEMCHECK)
-	SET_PROPERTY(TARGET ${TEST_NAME}
-	  APPEND_STRING PROPERTY
-	  COMPILE_FLAGS " -DPARQUET_VALGRIND")
-	add_test(${TEST_NAME}
-	  valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
+    SET_PROPERTY(TARGET ${TEST_NAME}
+      APPEND_STRING PROPERTY
+      COMPILE_FLAGS " -DPARQUET_VALGRIND")
+    add_test(${TEST_NAME}
+      valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
   else()
-	add_test(${TEST_NAME}
+    add_test(${TEST_NAME}
         ${BUILD_SUPPORT_DIR}/run-test.sh ${CMAKE_BINARY_DIR} test ${TEST_PATH})
   endif()
   set_tests_properties(${TEST_NAME} PROPERTIES LABELS "unittest")
@@ -320,6 +320,7 @@ string (TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_DEBUG}")
+
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "FASTDEBUG")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_FASTDEBUG}")
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RELEASE")
@@ -354,6 +355,15 @@ if ("${COMPILER_FAMILY}" STREQUAL "clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Qunused-arguments")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CLANG_OPTIONS}")
 endif()
+
+############################################################
+# Visibility
+############################################################
+# For generate_export_header() and add_compiler_export_flags().
+include(GenerateExportHeader)
+
+# Sets -fvisibility=hidden for gcc
+add_compiler_export_flags()
 
 ############################################################
 # Includes
@@ -406,15 +416,10 @@ endif()
 #############################################################
 # Test linking
 
-if (PARQUET_BUILD_STATIC)
-    set(PARQUET_MIN_TEST_LIBS
-      parquet_test_main
-      parquet_static)
-else()
-    set(PARQUET_MIN_TEST_LIBS
-      parquet_test_main
-      parquet_shared)
-endif()
+set(PARQUET_MIN_TEST_LIBS
+  parquet_test_main
+  parquet_static)
+
 set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
 
 #############################################################
@@ -447,7 +452,7 @@ if ("${PARQUET_GENERATE_COVERAGE}")
   # __gcov_flush() doesn't properly flush coverage from every module.
   # See http://stackoverflow.com/questions/28164543/using-gcov-flush-within-a-library-doesnt-force-the-other-modules-to-yield-gc
   if(NOT PARQUET_BUILD_STATIC)
-    message(SEND_ERROR "Cannot use coverage with dynamic linking")
+    message(SEND_ERROR "Coverage requires the static lib to be built")
   endif()
 endif()
 
@@ -500,6 +505,13 @@ add_library(parquet_objlib OBJECT
 
 set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
+if(NOT APPLE)
+  # Localize thirdparty symbols using a linker version script. This hides them
+  # from the client application. The OS X linker does not support the
+  # version-script option.
+  set(SHARED_LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/parquet/symbols.map")
+endif()
+
 if (PARQUET_BUILD_SHARED)
     add_library(parquet_shared SHARED $<TARGET_OBJECTS:parquet_objlib>)
     if(APPLE)
@@ -508,9 +520,11 @@ if (PARQUET_BUILD_SHARED)
     set_target_properties(parquet_shared
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
+      LINK_FLAGS "${SHARED_LINK_FLAGS}"
       OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_shared LINK_PUBLIC ${LIBPARQUET_LINK_LIBS})
-    target_link_libraries(parquet_shared LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+    target_link_libraries(parquet_shared
+      LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
+      LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 if (PARQUET_BUILD_STATIC)
@@ -519,8 +533,9 @@ if (PARQUET_BUILD_STATIC)
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_static LINK_PUBLIC ${LIBPARQUET_LINK_LIBS})
-    target_link_libraries(parquet_static LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+    target_link_libraries(parquet_static
+	  LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
+	  LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)

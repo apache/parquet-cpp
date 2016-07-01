@@ -19,23 +19,18 @@ SET(LINK_LIBS
   snappystatic
   thriftstatic)
 
-if (PARQUET_BUILD_STATIC)
-    SET(LINK_LIBS
-        ${LINK_LIBS}
-        parquet_static)
-else ()
-    SET(LINK_LIBS
-        ${LINK_LIBS}
-        parquet_shared)
-endif()
-
 if (PARQUET_BUILD_EXECUTABLES)
   add_executable(decode_benchmark decode_benchmark.cc)
-  target_link_libraries(decode_benchmark ${LINK_LIBS})
+
+  # This uses private APIs
+  target_link_libraries(decode_benchmark ${LINK_LIBS}
+	parquet_static)
 
   add_executable(parquet-dump-schema parquet-dump-schema.cc)
-  target_link_libraries(parquet-dump-schema ${LINK_LIBS})
+  target_link_libraries(parquet-dump-schema ${LINK_LIBS}
+	parquet_static)
 
   add_executable(parquet_reader parquet_reader.cc)
-  target_link_libraries(parquet_reader ${LINK_LIBS})
+  target_link_libraries(parquet_reader ${LINK_LIBS}
+	parquet_static)
 endif()
