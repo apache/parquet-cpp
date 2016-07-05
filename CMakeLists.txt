@@ -331,7 +331,7 @@ endif ()
 
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wno-strict-aliasing")
 
 if (PARQUET_USE_SSE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")

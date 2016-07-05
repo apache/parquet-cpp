@@ -44,24 +44,31 @@ namespace parquet {
 #define PARQUET_DFATAL PARQUET_WARNING
 
 #define DCHECK(condition) \
+  ((void)(condition));             \
   while (false)           \
   parquet::internal::NullLog()
 #define DCHECK_EQ(val1, val2) \
+  ((void)(val1));             \
   while (false)               \
   parquet::internal::NullLog()
 #define DCHECK_NE(val1, val2) \
+  ((void)(val1));             \
   while (false)               \
   parquet::internal::NullLog()
 #define DCHECK_LE(val1, val2) \
+  ((void)(val1));             \
   while (false)               \
   parquet::internal::NullLog()
 #define DCHECK_LT(val1, val2) \
+  ((void)(val1));             \
   while (false)               \
   parquet::internal::NullLog()
 #define DCHECK_GE(val1, val2) \
+  ((void)(val1));             \
   while (false)               \
   parquet::internal::NullLog()
 #define DCHECK_GT(val1, val2) \
+  ((void)(val1));             \
   while (false)               \
   parquet::internal::NullLog()
 
