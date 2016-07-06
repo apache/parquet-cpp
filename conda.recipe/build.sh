@@ -52,13 +52,11 @@ export PARQUET_INSECURE_CURL=1
 source thirdparty/versions.sh
 export GTEST_HOME=`pwd`/thirdparty/$GTEST_BASEDIR
 
-# PARQUET-638, PARQUET-489: This should be restored after symbol visibility is
-# hidden by default
-# if [ `uname` == Linux ]; then
-#     SHARED_LINKER_FLAGS='-static-libstdc++'
-# elif [ `uname` == Darwin ]; then
-#     SHARED_LINKER_FLAGS=''
-# fi
+if [ `uname` == Linux ]; then
+    SHARED_LINKER_FLAGS='-static-libstdc++'
+elif [ `uname` == Darwin ]; then
+    SHARED_LINKER_FLAGS=''
+fi
 
 cmake \
     -DCMAKE_BUILD_TYPE=release \
