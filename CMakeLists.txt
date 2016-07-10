@@ -505,7 +505,9 @@ add_library(parquet_objlib OBJECT
 
 set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-if(NOT APPLE)
+if(APPLE)
+  set(SHARED_LINK_FLAGS "-undefined dynamic_lookup")
+elseif()
   # Localize thirdparty symbols using a linker version script. This hides them
   # from the client application. The OS X linker does not support the
   # version-script option.
@@ -514,9 +516,6 @@ endif()
 
 if (PARQUET_BUILD_SHARED)
     add_library(parquet_shared SHARED $<TARGET_OBJECTS:parquet_objlib>)
-    if(APPLE)
-        set_target_properties(parquet_shared PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-    endif()
     set_target_properties(parquet_shared
       PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
