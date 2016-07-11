@@ -171,9 +171,32 @@ endfunction()
 #
 # Arguments after the test name will be passed to set_tests_properties().
 function(ADD_PARQUET_TEST REL_TEST_NAME)
-  if(NOT PARQUET_BUILD_TESTS OR NOT PARQUET_BUILD_STATIC)
+  set(options)
+  set(one_value_args LINKAGE)
+  set(multi_value_args)
+  cmake_parse_arguments(ARG "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
+
+  if(NOT PARQUET_BUILD_TESTS)
     return()
   endif()
+
+  # TODO(wesm): not very rigorous error checking
+  if (ARG_LINKAGE AND "${ARG_LINKAGE}" STREQUAL "shared")
+    if(NOT PARQUET_BUILD_SHARED)
+      # Skip this test if we are not building the shared library
+      return()
+    else()
+      set(TEST_LINK_LIBS ${PARQUET_TEST_SHARED_LINK_LIBS})
+    endif()
+  else()
+    if(NOT PARQUET_BUILD_STATIC)
+      # Skip this test if we are not building the static library
+      return()
+    else()
+      set(TEST_LINK_LIBS ${PARQUET_TEST_LINK_LIBS})
+    endif()
+  endif()
+
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
 
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${REL_TEST_NAME}.cc)
@@ -192,7 +215,7 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
         -DGTEST_USE_OWN_TR1_TUPLE=0)
     endif()
 
-    target_link_libraries(${TEST_NAME} ${PARQUET_TEST_LINK_LIBS})
+    target_link_libraries(${TEST_NAME} ${TEST_LINK_LIBS})
   else()
     # No executable, just invoke the test (probably a script) directly.
     set(TEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/${REL_TEST_NAME})
@@ -417,10 +440,13 @@ endif()
 # Test linking
 
 set(PARQUET_MIN_TEST_LIBS
-  parquet_test_main
+  parquet_test_main)
+
+set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
   parquet_static)
 
-set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS})
+set(PARQUET_TEST_SHARED_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
+  parquet_shared)
 
 #############################################################
 # Benchmark linking
@@ -460,6 +486,7 @@ endif()
 # Library config
 
 set(LIBPARQUET_SRCS
+  src/parquet/exception.cc
   src/parquet/types.cc
 
   src/parquet/column/levels.cc
@@ -533,8 +560,8 @@ if (PARQUET_BUILD_STATIC)
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
     target_link_libraries(parquet_static
-	  LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
-	  LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+      LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
+      LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)
