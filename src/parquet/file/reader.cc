@@ -30,6 +30,7 @@
 #include "parquet/exception.h"
 #include "parquet/file/reader-internal.h"
 #include "parquet/util/input.h"
+#include "parquet/util/logging.h"
 #include "parquet/types.h"
 
 using std::string;
@@ -53,35 +54,12 @@ int64_t RowGroupReader::num_rows() const {
 }
 
 std::shared_ptr<ColumnReader> RowGroupReader::Column(int i) {
-  // TODO: boundschecking
+  DCHECK(i < num_columns()) << "The RowGroup only has " << num_columns()
+                            << "columns, requested column: " << i;
   const ColumnDescriptor* descr = schema_->Column(i);
 
   std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i);
   return ColumnReader::Make(descr, std::move(page_reader), allocator_);
-}
-
-RowGroupStatistics RowGroupReader::GetColumnStats(int i) const {
-  return contents_->GetColumnStats(i);
-}
-
-bool RowGroupReader::IsColumnStatsSet(int i) const {
-  return contents_->IsColumnStatsSet(i);
-}
-
-Compression::type RowGroupReader::GetColumnCompression(int i) const {
-  return contents_->GetColumnCompression(i);
-}
-
-std::vector<Encoding::type> RowGroupReader::GetColumnEncodings(int i) const {
-  return contents_->GetColumnEncodings(i);
-}
-
-int64_t RowGroupReader::GetColumnUnCompressedSize(int i) const {
-  return contents_->GetColumnUnCompressedSize(i);
-}
-
-int64_t RowGroupReader::GetColumnCompressedSize(int i) const {
-  return contents_->GetColumnCompressedSize(i);
 }
 
 // ----------------------------------------------------------------------
@@ -117,7 +95,7 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
 
 void ParquetFileReader::Open(std::unique_ptr<ParquetFileReader::Contents> contents) {
   contents_ = std::move(contents);
-  schema_ = contents_->schema();
+  schema_ = contents_->GetFileMetaData()->schema();
 }
 
 void ParquetFileReader::Close() {
@@ -136,14 +114,13 @@ int ParquetFileReader::num_columns() const {
   return schema_->num_columns();
 }
 
-std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
-  if (i >= num_row_groups()) {
-    std::stringstream ss;
-    ss << "The file only has " << num_row_groups()
-       << "row groups, requested reader for: " << i;
-    throw ParquetException(ss.str());
-  }
+const FileMetaData* ParquetFileReader::GetFileMetaData() {
+  return contents_->GetFileMetaData();
+}
 
+std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
+  DCHECK(i < num_row_groups()) << "The file only has " << num_row_groups()
+                               << "row groups, requested reader for: " << i;
   return contents_->GetRowGroup(i);
 }
 
@@ -155,8 +132,14 @@ std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
 
 void ParquetFileReader::DebugPrint(
     std::ostream& stream, std::list<int> selected_columns, bool print_values) {
+  const FileMetaData* file_metadata = GetFileMetaData();
+
   stream << "File statistics:\n";
-  stream << "Total rows: " << num_rows() << "\n";
+  stream << "Version: " << file_metadata->version() << "\n";
+  stream << "Created By: " << file_metadata->created_by() << "\n";
+  stream << "Total rows: " << file_metadata->num_rows() << "\n";
+  stream << "Number of RowGroups: " << file_metadata->num_row_groups() << "\n";
+  stream << "Number of Real Columns: " << schema_->group()->field_count() << "\n";
 
   if (selected_columns.size() == 0) {
     for (int i = 0; i < num_columns(); i++) {
@@ -170,27 +153,34 @@ void ParquetFileReader::DebugPrint(
     }
   }
 
+  stream << "Number of Columns: " << num_columns() << "\n";
+  stream << "Number of Selected Columns: " << selected_columns.size() << "\n";
   for (auto i : selected_columns) {
     const ColumnDescriptor* descr = schema_->Column(i);
     stream << "Column " << i << ": " << descr->name() << " ("
            << type_to_string(descr->physical_type()) << ")" << std::endl;
   }
 
-  for (int r = 0; r < num_row_groups(); ++r) {
+  for (int r = 0; r < file_metadata->num_row_groups(); ++r) {
     stream << "--- Row Group " << r << " ---\n";
 
     auto group_reader = RowGroup(r);
+    std::unique_ptr<RowGroupMetaData> group_metadata =
+        file_metadata->GetRowGroupMetaData(r);
+
+    stream << "--- Total Bytes " << group_metadata->total_byte_size() << " ---\n";
+    stream << "  rows: " << group_metadata->num_rows() << "---\n";
 
     // Print column metadata
     for (auto i : selected_columns) {
-      RowGroupStatistics stats = group_reader->GetColumnStats(i);
+      ColumnStatistics stats = group_metadata->GetColumnMetaData(i)->GetStats();
 
       const ColumnDescriptor* descr = schema_->Column(i);
       stream << "Column " << i << std::endl
-             << "  rows: " << group_reader->num_rows() << ", values: " << stats.num_values
+             << ", values: " << group_metadata->GetColumnMetaData(i)->num_values()
              << ", null values: " << stats.null_count
              << ", distinct values: " << stats.distinct_count << std::endl;
-      if (group_reader->IsColumnStatsSet(i)) {
+      if (group_metadata->GetColumnMetaData(i)->IsStatsSet()) {
         stream << "  max: " << FormatStatValue(descr->physical_type(), stats.max->c_str())
                << ", min: "
                << FormatStatValue(descr->physical_type(), stats.min->c_str());
@@ -199,15 +189,17 @@ void ParquetFileReader::DebugPrint(
       }
       stream << std::endl
              << "  compression: "
-             << compression_to_string(group_reader->GetColumnCompression(i))
+             << compression_to_string(
+                    group_metadata->GetColumnMetaData(i)->GetCompression())
              << ", encodings: ";
-      for (auto encoding : group_reader->GetColumnEncodings(i)) {
+      for (auto encoding : group_metadata->GetColumnMetaData(i)->GetEncodings()) {
         stream << encoding_to_string(encoding) << " ";
       }
       stream << std::endl
-             << "  uncompressed size: " << group_reader->GetColumnUnCompressedSize(i)
-             << ", compressed size: " << group_reader->GetColumnCompressedSize(i)
-             << std::endl;
+             << "  uncompressed size: "
+             << group_metadata->GetColumnMetaData(i)->GetUnCompressedSize()
+             << ", compressed size: "
+             << group_metadata->GetColumnMetaData(i)->GetCompressedSize() << std::endl;
     }
 
     if (!print_values) { continue; }

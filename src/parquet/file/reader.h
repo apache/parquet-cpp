@@ -27,6 +27,7 @@
 
 #include "parquet/column/page.h"
 #include "parquet/column/properties.h"
+#include "parquet/file/metadata.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/util/visibility.h"
 
@@ -35,14 +36,6 @@ namespace parquet {
 class ColumnReader;
 class RandomAccessSource;
 
-struct RowGroupStatistics {
-  int64_t num_values;
-  int64_t null_count;
-  int64_t distinct_count;
-  const std::string* min;
-  const std::string* max;
-};
-
 class PARQUET_EXPORT RowGroupReader {
  public:
   // Forward declare the PIMPL
@@ -50,12 +43,6 @@ class PARQUET_EXPORT RowGroupReader {
     virtual int num_columns() const = 0;
     virtual int64_t num_rows() const = 0;
     virtual std::unique_ptr<PageReader> GetColumnPageReader(int i) = 0;
-    virtual RowGroupStatistics GetColumnStats(int i) const = 0;
-    virtual bool IsColumnStatsSet(int i) const = 0;
-    virtual Compression::type GetColumnCompression(int i) const = 0;
-    virtual std::vector<Encoding::type> GetColumnEncodings(int i) const = 0;
-    virtual int64_t GetColumnCompressedSize(int i) const = 0;
-    virtual int64_t GetColumnUnCompressedSize(int i) const = 0;
   };
 
   RowGroupReader(const SchemaDescriptor* schema, std::unique_ptr<Contents> contents,
@@ -66,13 +53,6 @@ class PARQUET_EXPORT RowGroupReader {
   std::shared_ptr<ColumnReader> Column(int i);
   int num_columns() const;
   int64_t num_rows() const;
-
-  RowGroupStatistics GetColumnStats(int i) const;
-  bool IsColumnStatsSet(int i) const;
-  Compression::type GetColumnCompression(int i) const;
-  std::vector<Encoding::type> GetColumnEncodings(int i) const;
-  int64_t GetColumnCompressedSize(int i) const;
-  int64_t GetColumnUnCompressedSize(int i) const;
 
  private:
   // Owned by the parent ParquetFileReader
@@ -99,10 +79,7 @@ class PARQUET_EXPORT ParquetFileReader {
     virtual int64_t num_rows() const = 0;
     virtual int num_columns() const = 0;
     virtual int num_row_groups() const = 0;
-
-    // Return const-poitner to make it clear that this object is not to be copied
-    const SchemaDescriptor* schema() const { return &schema_; }
-    SchemaDescriptor schema_;
+    virtual const FileMetaData* GetFileMetaData() = 0;
   };
 
   ParquetFileReader();
@@ -125,6 +102,9 @@ class PARQUET_EXPORT ParquetFileReader {
   int num_columns() const;
   int64_t num_rows() const;
   int num_row_groups() const;
+
+  // Returns the file metadata
+  const FileMetaData* GetFileMetaData();
 
   // Returns the file schema descriptor
   const SchemaDescriptor* descr() { return schema_; }
