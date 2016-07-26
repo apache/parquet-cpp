@@ -64,21 +64,13 @@ class DictionaryDecoder : public Decoder<Type> {
 
   virtual int Decode(T* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
-    for (int i = 0; i < max_values; ++i) {
-      buffer[i] = dictionary_[index()];
-    }
+    idx_decoder_.GetBatchWithDict(buffer, max_values, dictionary_);
+    num_values_ -= max_values;
     return max_values;
   }
 
  private:
   using Decoder<Type>::num_values_;
-
-  int index() {
-    int idx = 0;
-    if (!idx_decoder_.Get(&idx)) ParquetException::EofException();
-    --num_values_;
-    return idx;
-  }
 
   // Only one is set.
   Vector<T> dictionary_;

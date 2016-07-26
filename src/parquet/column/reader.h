@@ -115,6 +115,10 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // may be less than the number of repetition and definition levels. With
   // nested data this is almost certainly true.
   //
+  // Set def_levels or rep_levels to nullptr if you want to skip reading them.
+  // This is only safe if you know through some other source that there are no
+  // undefined values.
+  //
   // To fully exhaust a row group, you must read batches until the number of
   // values read reaches the number of stored values according to the metadata.
   //
