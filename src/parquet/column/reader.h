@@ -175,7 +175,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
   int64_t values_to_read = 0;
 
   // If the field is required and non-repeated, there are no definition levels
-  if (descr_->max_definition_level() > 0) {
+  if (descr_->max_definition_level() > 0 && def_levels) {
     num_def_levels = ReadDefinitionLevels(batch_size, def_levels);
     // TODO(wesm): this tallying of values-to-decode can be performed with better
     // cache-efficiency if fused with the level decoding.
@@ -188,7 +188,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
   }
 
   // Not present for non-repeated fields
-  if (descr_->max_repetition_level() > 0) {
+  if (descr_->max_repetition_level() > 0 && rep_levels) {
     num_rep_levels = ReadRepetitionLevels(batch_size, rep_levels);
     if (num_def_levels != num_rep_levels) {
       throw ParquetException("Number of decoded rep / def levels did not match");
