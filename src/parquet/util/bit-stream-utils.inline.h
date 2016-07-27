@@ -86,34 +86,61 @@ inline bool BitWriter::PutVlqInt(uint32_t v) {
 }
 
 template <typename T>
+inline void GetValue_(int num_bits, T* v, const uint8_t* buffer, int& bit_offset, int& byte_offset, uint64_t& buffered_values, int max_bytes) {
+  *v = BitUtil::TrailingBits(buffered_values, bit_offset + num_bits) >> bit_offset;
+
+  bit_offset += num_bits;
+  if (bit_offset >= 64) {
+    byte_offset += 8;
+    bit_offset -= 64;
+
+    int bytes_remaining = max_bytes - byte_offset;
+    if (LIKELY(bytes_remaining >= 8)) {
+      memcpy(&buffered_values, buffer + byte_offset, 8);
+    } else {
+      memcpy(&buffered_values, buffer + byte_offset, bytes_remaining);
+    }
+
+    // Read bits of v that crossed into new buffered_values_
+    *v |= BitUtil::TrailingBits(buffered_values, bit_offset)
+          << (num_bits - bit_offset);
+    DCHECK_LE(bit_offset, 64);
+  }
+}
+
+template <typename T>
 inline bool BitReader::GetValue(int num_bits, T* v) {
+  return GetBatch(num_bits, v, 1) == 1;
+}
+
+template <typename T>
+inline int BitReader::GetBatch(int num_bits, T* v, int batch_size) {
   DCHECK(buffer_ != NULL);
   // TODO: revisit this limit if necessary
   DCHECK_LE(num_bits, 32);
   DCHECK_LE(num_bits, static_cast<int>(sizeof(T) * 8));
 
-  if (UNLIKELY(byte_offset_ * 8 + bit_offset_ + num_bits > max_bytes_ * 8)) return false;
+  int bit_offset = bit_offset_;
+  int byte_offset = byte_offset_;
+  uint64_t buffered_values = buffered_values_;
+  int max_bytes = max_bytes_;
+  const uint8_t* buffer = buffer_;
 
-  *v = BitUtil::TrailingBits(buffered_values_, bit_offset_ + num_bits) >> bit_offset_;
-
-  bit_offset_ += num_bits;
-  if (bit_offset_ >= 64) {
-    byte_offset_ += 8;
-    bit_offset_ -= 64;
-
-    int bytes_remaining = max_bytes_ - byte_offset_;
-    if (LIKELY(bytes_remaining >= 8)) {
-      memcpy(&buffered_values_, buffer_ + byte_offset_, 8);
-    } else {
-      memcpy(&buffered_values_, buffer_ + byte_offset_, bytes_remaining);
-    }
-
-    // Read bits of v that crossed into new buffered_values_
-    *v |= BitUtil::TrailingBits(buffered_values_, bit_offset_)
-          << (num_bits - bit_offset_);
+  long needed_bits = num_bits * batch_size;
+  long remaining_bits = max_bytes * 8 - (byte_offset * 8 + bit_offset);
+  if (remaining_bits < needed_bits) {
+      batch_size = (remaining_bits / num_bits);
   }
-  DCHECK_LE(bit_offset_, 64);
-  return true;
+
+  for (int i = 0; i < batch_size; ++i) {
+    GetValue_(num_bits, &v[i], buffer, bit_offset, byte_offset, buffered_values, max_bytes);
+  }
+
+  bit_offset_ = bit_offset;
+  byte_offset_ = byte_offset;
+  buffered_values_ = buffered_values;
+
+  return batch_size;
 }
 
 template <typename T>

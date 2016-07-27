@@ -277,10 +277,8 @@ inline int RleDecoder::GetBatch(T* values, int batch_size) {
     } else if (literal_count_ > 0) {
       int literal_batch =
           std::min(batch_size - values_read, static_cast<int>(literal_count_));
-      for (int i = 0; i < literal_batch; i++) {
-        bool result = bit_reader_.GetValue(bit_width_, values + values_read + i);
-        DCHECK(result);
-      }
+      int actual_read = bit_reader_.GetBatch(bit_width_, values+values_read, literal_batch);
+      DCHECK_EQ(actual_read, literal_batch);
       literal_count_ -= literal_batch;
       values_read += literal_batch;
     } else {
@@ -311,11 +309,13 @@ inline int RleDecoder::GetBatchWithDict(T* values, int batch_size, Vector<T>& di
     } else if (literal_count_ > 0) {
       int literal_batch =
           std::min(batch_size - values_read, static_cast<int>(literal_count_));
-      for (int i = 0; i < literal_batch; i++) {
-        int idx;
-        bool result = bit_reader_.GetValue(bit_width_, &idx);
-        values[values_read + i] = dictionary[idx];
-        DCHECK(result);
+
+      static std::vector<int> indices(1024);
+      literal_batch = std::min(literal_batch, 1024);
+      int actual_read = bit_reader_.GetBatch(bit_width_, &indices[0], literal_batch);
+      DCHECK_EQ(actual_read, literal_batch);
+      for (int i = 0; i < literal_batch; ++i) {
+        values[values_read + i] = dictionary[indices[i]];
       }
       literal_count_ -= literal_batch;
       values_read += literal_batch;
