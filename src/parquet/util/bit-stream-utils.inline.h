@@ -20,7 +20,10 @@
 #ifndef PARQUET_UTIL_BIT_STREAM_UTILS_INLINE_H
 #define PARQUET_UTIL_BIT_STREAM_UTILS_INLINE_H
 
+#include <algorithm>
+
 #include "parquet/util/bit-stream-utils.h"
+#include "parquet/util/bpacking.h"
 
 namespace parquet {
 
@@ -86,7 +89,9 @@ inline bool BitWriter::PutVlqInt(uint32_t v) {
 }
 
 template <typename T>
-inline void GetValue_(int num_bits, T* v, const uint8_t* buffer, int& bit_offset, int& byte_offset, uint64_t& buffered_values, int max_bytes) {
+inline void GetValue_(
+  int num_bits, T* v, const uint8_t* buffer, int& bit_offset,
+  int& byte_offset, uint64_t& buffered_values, int max_bytes) {
   *v = BitUtil::TrailingBits(buffered_values, bit_offset + num_bits) >> bit_offset;
 
   bit_offset += num_bits;
@@ -126,14 +131,57 @@ inline int BitReader::GetBatch(int num_bits, T* v, int batch_size) {
   int max_bytes = max_bytes_;
   const uint8_t* buffer = buffer_;
 
-  long needed_bits = num_bits * batch_size;
-  long remaining_bits = max_bytes * 8 - (byte_offset * 8 + bit_offset);
+  uint64_t needed_bits = num_bits * batch_size;
+  uint64_t remaining_bits = (max_bytes - byte_offset) * 8 - bit_offset;
   if (remaining_bits < needed_bits) {
-      batch_size = (remaining_bits / num_bits);
+    batch_size = remaining_bits / num_bits;
   }
 
-  for (int i = 0; i < batch_size; ++i) {
-    GetValue_(num_bits, &v[i], buffer, bit_offset, byte_offset, buffered_values, max_bytes);
+  int i = 0;
+  if (UNLIKELY(bit_offset != 0)) {
+    for (; i < batch_size && bit_offset != 0 ; ++i) {
+      GetValue_(
+        num_bits, &v[i], buffer, bit_offset, byte_offset, buffered_values,
+        max_bytes);
+    }
+  }
+
+  if (sizeof(T) == 4) {
+    int num_unpacked = unpack32(
+      reinterpret_cast<const uint32_t*>(buffer+byte_offset),
+      reinterpret_cast<uint32_t*>(v+i),
+      batch_size-i, num_bits);
+    i += num_unpacked;
+    byte_offset += num_unpacked * num_bits / 8;
+  } else {
+    const int buffer_size = 1024;
+    static uint32_t unpack_buffer[buffer_size];
+    while (i < batch_size) {
+      int unpack_size = std::min(buffer_size, batch_size - i);
+      int num_unpacked = unpack32(
+        reinterpret_cast<const uint32_t*>(buffer+byte_offset),
+        unpack_buffer, unpack_size, num_bits);
+      if (num_unpacked == 0) {
+        break;
+      }
+      for (int k = 0; k < num_unpacked; ++k) {
+        v[i+k] = unpack_buffer[k];
+      }
+      i += num_unpacked;
+      byte_offset += num_unpacked * num_bits / 8;
+    }
+  }
+
+  int bytes_remaining = max_bytes - byte_offset;
+  if (bytes_remaining >= 8) {
+    memcpy(&buffered_values, buffer + byte_offset, 8);
+  } else {
+    memcpy(&buffered_values, buffer + byte_offset, bytes_remaining);
+  }
+
+  for (; i < batch_size; ++i) {
+    GetValue_(
+      num_bits, &v[i], buffer, bit_offset, byte_offset, buffered_values, max_bytes);
   }
 
   bit_offset_ = bit_offset;

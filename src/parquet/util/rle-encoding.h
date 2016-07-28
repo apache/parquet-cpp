@@ -277,7 +277,8 @@ inline int RleDecoder::GetBatch(T* values, int batch_size) {
     } else if (literal_count_ > 0) {
       int literal_batch =
           std::min(batch_size - values_read, static_cast<int>(literal_count_));
-      int actual_read = bit_reader_.GetBatch(bit_width_, values+values_read, literal_batch);
+      int actual_read = bit_reader_.GetBatch(
+        bit_width_, values+values_read, literal_batch);
       DCHECK_EQ(actual_read, literal_batch);
       literal_count_ -= literal_batch;
       values_read += literal_batch;
@@ -290,28 +291,28 @@ inline int RleDecoder::GetBatch(T* values, int batch_size) {
 }
 
 template <typename T>
-inline int RleDecoder::GetBatchWithDict(T* values, int batch_size, Vector<T>& dictionary) {
+inline int RleDecoder::GetBatchWithDict(
+  T* values, int batch_size, Vector<T>& dictionary) {
   DCHECK_GE(bit_width_, 0);
   int values_read = 0;
 
   while (values_read < batch_size) {
-    if (UNLIKELY(literal_count_ == 0 && repeat_count_ == 0)) {
-      if (!NextCounts<T>()) return values_read;
-    }
-
-    if (LIKELY(repeat_count_ > 0)) {
+    if (repeat_count_ > 0) {
       int repeat_batch =
           std::min(batch_size - values_read, static_cast<int>(repeat_count_));
       std::fill(
-          values + values_read, values + values_read + repeat_batch, dictionary[current_value_]);
+        values + values_read,
+        values + values_read + repeat_batch,
+        dictionary[current_value_]);
       repeat_count_ -= repeat_batch;
       values_read += repeat_batch;
     } else if (literal_count_ > 0) {
       int literal_batch =
           std::min(batch_size - values_read, static_cast<int>(literal_count_));
 
-      static std::vector<int> indices(1024);
-      literal_batch = std::min(literal_batch, 1024);
+      const int buffer_size = 1024;
+      static int indices[buffer_size];
+      literal_batch = std::min(literal_batch, buffer_size);
       int actual_read = bit_reader_.GetBatch(bit_width_, &indices[0], literal_batch);
       DCHECK_EQ(actual_read, literal_batch);
       for (int i = 0; i < literal_batch; ++i) {
