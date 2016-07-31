@@ -18,6 +18,7 @@
 #include "parquet/column/writer.h"
 
 #include "parquet/column/properties.h"
+#include "parquet/encodings/dictionary-encoding.h"
 #include "parquet/encodings/plain-encoding.h"
 
 namespace parquet {
@@ -32,11 +33,14 @@ std::shared_ptr<WriterProperties> default_writer_properties() {
 }
 
 ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
-    std::unique_ptr<PageWriter> pager, int64_t expected_rows, MemoryAllocator* allocator)
+    std::unique_ptr<PageWriter> pager, int64_t expected_rows, bool has_dictionary,
+    MemoryAllocator* allocator)
     : descr_(descr),
       pager_(std::move(pager)),
       expected_rows_(expected_rows),
+      has_dictionary_(has_dictionary),
       allocator_(allocator),
+      pool_(allocator),
       num_buffered_values_(0),
       num_buffered_encoded_values_(0),
       num_rows_(0),
@@ -47,7 +51,6 @@ ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
 void ColumnWriter::InitSinks() {
   definition_levels_sink_.reset(new InMemoryOutputStream());
   repetition_levels_sink_.reset(new InMemoryOutputStream());
-  values_sink_.reset(new InMemoryOutputStream());
 }
 
 void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, const int16_t* levels) {
@@ -84,7 +87,7 @@ void ColumnWriter::WriteNewPage() {
   // TODO: Currently we only support writing DataPages
   std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->GetBuffer();
   std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->GetBuffer();
-  std::shared_ptr<Buffer> values = values_sink_->GetBuffer();
+  std::shared_ptr<Buffer> values = GetValuesBuffer();
 
   if (descr_->max_definition_level() > 0) {
     definition_levels =
@@ -97,9 +100,11 @@ void ColumnWriter::WriteNewPage() {
   }
 
   // TODO(PARQUET-590): Encodings are hard-coded
+  Encoding::type encoding = Encoding::PLAIN;
+  if (has_dictionary_) { encoding = Encoding::PLAIN_DICTIONARY; }
   int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_,
       num_buffered_encoded_values_, definition_levels, Encoding::RLE, repetition_levels,
-      Encoding::RLE, values, Encoding::PLAIN);
+      Encoding::RLE, values, encoding);
   total_bytes_written_ += bytes_written;
 
   // Re-initialize the sinks as GetBuffer made them invalid.
@@ -109,6 +114,7 @@ void ColumnWriter::WriteNewPage() {
 }
 
 int64_t ColumnWriter::Close() {
+  if (has_dictionary_) { WriteDictionaryPage(); }
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) { WriteNewPage(); }
 
@@ -130,15 +136,40 @@ template <typename Type>
 TypedColumnWriter<Type>::TypedColumnWriter(const ColumnDescriptor* schema,
     std::unique_ptr<PageWriter> pager, int64_t expected_rows, Encoding::type encoding,
     MemoryAllocator* allocator)
-    : ColumnWriter(schema, std::move(pager), expected_rows, allocator) {
+    : ColumnWriter(schema, std::move(pager), expected_rows,
+          (encoding == Encoding::PLAIN_DICTIONARY ||
+                       encoding == Encoding::RLE_DICTIONARY),
+          allocator) {
   switch (encoding) {
     case Encoding::PLAIN:
       current_encoder_ =
           std::unique_ptr<EncoderType>(new PlainEncoder<Type>(schema, allocator));
       break;
+    case Encoding::PLAIN_DICTIONARY:
+      current_encoder_ =
+          std::unique_ptr<EncoderType>(new DictEncoder<Type>(schema, &pool_, allocator));
+      break;
+    case Encoding::RLE_DICTIONARY:
+      current_encoder_ =
+          std::unique_ptr<EncoderType>(new DictEncoder<Type>(schema, &pool_, allocator));
+      break;
     default:
       ParquetException::NYI("Selected encoding is not supported");
   }
+}
+
+template <typename Type>
+void TypedColumnWriter<Type>::WriteDictionaryPage() {
+  auto dict_encoder = static_cast<DictEncoder<Type>*>(current_encoder_.get());
+  auto buffer = std::make_shared<OwnedMutableBuffer>(dict_encoder->dict_encoded_size());
+  dict_encoder->WriteDict(buffer->mutable_data());
+  // TODO Get rid of this deep call
+  dict_encoder->mem_pool()->FreeAll();
+
+  // TODO: Encodings are hard-coded
+  int64_t bytes_written = pager_->WriteDictionaryPage(
+      dict_encoder->num_entries(), buffer, Encoding::PLAIN_DICTIONARY);
+  total_bytes_written_ += bytes_written;
 }
 
 // ----------------------------------------------------------------------

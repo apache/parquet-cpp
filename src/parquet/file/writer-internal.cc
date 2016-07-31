@@ -114,6 +114,48 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
   return sink_->Tell() - start_pos;
 }
 
+int64_t SerializedPageWriter::WriteDictionaryPage(
+    int32_t num_values, const std::shared_ptr<Buffer>& values, Encoding::type encoding) {
+  int64_t uncompressed_size = values->size();
+
+  // Compress the data
+  int64_t compressed_size = uncompressed_size;
+  std::shared_ptr<Buffer> compressed_data = values;
+  if (compressor_) {
+    const uint8_t* uncompressed_ptr = values->data();
+    int64_t max_compressed_size =
+        compressor_->MaxCompressedLen(uncompressed_size, uncompressed_ptr);
+    auto mutable_compressed_data =
+        std::make_shared<OwnedMutableBuffer>(max_compressed_size, allocator_);
+    compressed_size = compressor_->Compress(uncompressed_size, uncompressed_ptr,
+        max_compressed_size, mutable_compressed_data->mutable_data());
+    compressed_data = mutable_compressed_data;
+  }
+
+  format::DictionaryPageHeader dict_page_header;
+  dict_page_header.__set_num_values(num_values);
+  dict_page_header.__set_encoding(ToThrift(encoding));
+  // TODO: is_sorted
+
+  format::PageHeader page_header;
+  page_header.__set_type(format::PageType::DICTIONARY_PAGE);
+  page_header.__set_uncompressed_page_size(uncompressed_size);
+  page_header.__set_compressed_page_size(compressed_size);
+  page_header.__set_dictionary_page_header(dict_page_header);
+  // TODO(PARQUET-594) crc checksum
+
+  int64_t start_pos = sink_->Tell();
+  SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
+  int64_t header_size = sink_->Tell() - start_pos;
+  sink_->Write(compressed_data->data(), compressed_size);
+
+  metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
+  metadata_->meta_data.total_compressed_size += compressed_size + header_size;
+  // metadata_->meta_data.num_values += num_values;
+
+  return sink_->Tell() - start_pos;
+}
+
 // ----------------------------------------------------------------------
 // RowGroupSerializer
 

@@ -25,6 +25,7 @@
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
 #include "parquet/util/mem-allocator.h"
+#include "parquet/util/mem-pool.h"
 #include "parquet/util/output.h"
 #include "parquet/util/visibility.h"
 
@@ -33,7 +34,8 @@ namespace parquet {
 class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
-      int64_t expected_rows, MemoryAllocator* allocator = default_allocator());
+      int64_t expected_rows, bool has_dictionary = false,
+      MemoryAllocator* allocator = default_allocator());
 
   static std::shared_ptr<ColumnWriter> Make(const ColumnDescriptor*,
       std::unique_ptr<PageWriter>, int64_t expected_rows,
@@ -51,6 +53,8 @@ class PARQUET_EXPORT ColumnWriter {
   int64_t Close();
 
  protected:
+  virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
+  virtual void WriteDictionaryPage() = 0;
   void WriteNewPage();
 
   // Write multiple definition levels
@@ -68,10 +72,12 @@ class PARQUET_EXPORT ColumnWriter {
 
   // The number of rows that should be written in this column chunk.
   int64_t expected_rows_;
+  bool has_dictionary_;
 
   LevelEncoder level_encoder_;
 
   MemoryAllocator* allocator_;
+  MemPool pool_;
 
   // The total number of values stored in the data page. This is the maximum of
   // the number of encoded definition levels or encoded values. For
@@ -92,7 +98,6 @@ class PARQUET_EXPORT ColumnWriter {
 
   std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
   std::unique_ptr<InMemoryOutputStream> repetition_levels_sink_;
-  std::unique_ptr<InMemoryOutputStream> values_sink_;
 
  private:
   void InitSinks();
@@ -113,6 +118,12 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   void WriteBatch(int64_t num_values, const int16_t* def_levels,
       const int16_t* rep_levels, const T* values);
 
+ protected:
+  std::shared_ptr<Buffer> GetValuesBuffer() override {
+    return current_encoder_->FlushValues();
+  }
+  void WriteDictionaryPage() override;
+
  private:
   typedef Encoder<DType> EncoderType;
 
@@ -123,8 +134,6 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   // column chunk's data pages may include both dictionary-encoded and
   // plain-encoded data.
   std::unordered_map<int, std::shared_ptr<EncoderType>> encoders_;
-
-  void ConfigureDictionary(const DictionaryPage* page);
 
   std::unique_ptr<EncoderType> current_encoder_;
 };
@@ -174,12 +183,12 @@ inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
   num_buffered_encoded_values_ += values_to_write;
 
   // TODO(PARQUET-591): Instead of rows as a boundary, do a size check
-  if (num_buffered_values_ >= PAGE_VALUE_COUNT) { WriteNewPage(); }
+  if ((num_buffered_values_ >= PAGE_VALUE_COUNT) && !has_dictionary_) { WriteNewPage(); }
 }
 
 template <typename DType>
 void TypedColumnWriter<DType>::WriteValues(int64_t num_values, const T* values) {
-  current_encoder_->Encode(values, num_values, values_sink_.get());
+  current_encoder_->Put(values, num_values);
 }
 
 typedef TypedColumnWriter<BooleanType> BoolWriter;

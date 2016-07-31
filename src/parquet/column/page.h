@@ -177,6 +177,9 @@ class PageWriter {
       const std::shared_ptr<Buffer>& repetition_levels,
       Encoding::type repetition_level_encoding, const std::shared_ptr<Buffer>& values,
       Encoding::type encoding) = 0;
+
+  virtual int64_t WriteDictionaryPage(int32_t num_values,
+      const std::shared_ptr<Buffer>& values, Encoding::type encoding) = 0;
 };
 
 }  // namespace parquet

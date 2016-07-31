@@ -163,9 +163,15 @@ class PlainEncoder : public Encoder<DType> {
 
   explicit PlainEncoder(
       const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
-      : Encoder<DType>(descr, Encoding::PLAIN, allocator) {}
+      : Encoder<DType>(descr, Encoding::PLAIN, allocator),
+        values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {}
 
-  void Encode(const T* src, int num_values, OutputStream* dst) override;
+  std::shared_ptr<Buffer> FlushValues() override;
+  void Put(const T* src, int num_values) override;
+  void Encode(const T* src, int num_values, OutputStream* dst);
+
+ protected:
+  std::shared_ptr<InMemoryOutputStream> values_sink_;
 };
 
 template <>
@@ -173,9 +179,25 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
  public:
   explicit PlainEncoder(
       const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
-      : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator) {}
+      : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator),
+        values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {}
 
-  virtual void Encode(const bool* src, int num_values, OutputStream* dst) {
+  std::shared_ptr<Buffer> FlushValues() override {
+    std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
+    values_sink_.reset(
+        new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, this->allocator_));
+    return buffer;
+  }
+
+  void Put(const bool* src, int num_values) override {
+    Encode(src, num_values, values_sink_.get());
+  }
+
+  void Put(const std::vector<bool>& src, int num_values) {
+    Encode(src, num_values, values_sink_.get());
+  }
+
+  void Encode(const bool* src, int num_values, OutputStream* dst) {
     int bytes_required = BitUtil::Ceil(num_values, 8);
     OwnedMutableBuffer tmp_buffer(bytes_required, allocator_);
 
@@ -207,7 +229,23 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
     // Write the result to the output stream
     dst->Write(bit_writer.buffer(), bit_writer.bytes_written());
   }
+
+ protected:
+  std::shared_ptr<InMemoryOutputStream> values_sink_;
 };
+
+template <typename DType>
+inline std::shared_ptr<Buffer> PlainEncoder<DType>::FlushValues() {
+  std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
+  values_sink_.reset(
+      new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, this->allocator_));
+  return buffer;
+}
+
+template <typename DType>
+inline void PlainEncoder<DType>::Put(const T* buffer, int num_values) {
+  Encode(buffer, num_values, values_sink_.get());
+}
 
 template <typename DType>
 inline void PlainEncoder<DType>::Encode(

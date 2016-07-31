@@ -49,6 +49,10 @@ class SerializedPageWriter : public PageWriter {
       Encoding::type repetition_level_encoding, const std::shared_ptr<Buffer>& values,
       Encoding::type encoding) override;
 
+  // TODO Refactor that this just takes a DictionaryPage instance.
+  int64_t WriteDictionaryPage(int32_t num_values, const std::shared_ptr<Buffer>& values,
+      Encoding::type encoding) override;
+
   void Close() override;
 
  private:

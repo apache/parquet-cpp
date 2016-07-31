@@ -186,15 +186,24 @@ typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
 
 TYPED_TEST_CASE(TestPrimitiveWriter, TestTypes);
 
+// Dictionary encoding for booleans is not supported.
+typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
+    ByteArrayType, FLBAType> TestDictionaryTypes;
+
+template <typename T>
+class TestPrimitiveDictionaryWriter : public TestPrimitiveWriter<T> {};
+
+TYPED_TEST_CASE(TestPrimitiveDictionaryWriter, TestDictionaryTypes);
+
 TYPED_TEST(TestPrimitiveWriter, RequiredPlain) {
   this->TestRequiredWithEncoding(Encoding::PLAIN);
 }
 
-/*
-TYPED_TEST(TestPrimitiveWriter, RequiredDictionary) {
+TYPED_TEST(TestPrimitiveDictionaryWriter, RequiredDictionary) {
   this->TestRequiredWithEncoding(Encoding::PLAIN_DICTIONARY);
 }
 
+/*
 TYPED_TEST(TestPrimitiveWriter, RequiredRLE) {
   this->TestRequiredWithEncoding(Encoding::RLE);
 }
