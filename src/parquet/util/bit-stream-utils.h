@@ -126,7 +126,7 @@ class BitReader {
   template <typename T>
   int GetBatch(int num_bits, T* v, int batch_size);
 
-/// Reads a 'num_bytes'-sized value from the buffer and stores it in 'v'. T
+  /// Reads a 'num_bytes'-sized value from the buffer and stores it in 'v'. T
   /// needs to be a little-endian native type and big enough to store
   /// 'num_bytes'. The value is assumed to be byte-aligned so the stream will
   /// be advanced to the start of the next byte before 'v' is read. Returns

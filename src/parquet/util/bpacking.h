@@ -1,5 +1,6 @@
 // This file was modified from its original version for inclusion in parquet-cpp.
-// Original source: https://github.com/lemire/FrameOfReference/blob/6ccaf9e97160f9a3b299e23a8ef739e711ef0c71/src/bpacking.cpp
+// Original source:
+// https://github.com/lemire/FrameOfReference/blob/6ccaf9e97160f9a3b299e23a8ef739e711ef0c71/src/bpacking.cpp
 // The original copyright notice follows.
 
 /**
@@ -14,7 +15,7 @@
 
 namespace parquet {
 
-inline const uint32_t * unpack1_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack1_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) & 1;
   out++;
   *out = ((*in) >> 1) & 1;
@@ -84,7 +85,7 @@ inline const uint32_t * unpack1_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack2_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack2_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 2);
   out++;
   *out = ((*in) >> 2) % (1U << 2);
@@ -155,7 +156,7 @@ inline const uint32_t * unpack2_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack3_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack3_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 3);
   out++;
   *out = ((*in) >> 3) % (1U << 3);
@@ -229,7 +230,7 @@ inline const uint32_t * unpack3_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack4_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack4_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 4);
   out++;
   *out = ((*in) >> 4) % (1U << 4);
@@ -302,7 +303,7 @@ inline const uint32_t * unpack4_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack5_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack5_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 5);
   out++;
   *out = ((*in) >> 5) % (1U << 5);
@@ -380,7 +381,7 @@ inline const uint32_t * unpack5_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack6_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack6_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 6);
   out++;
   *out = ((*in) >> 6) % (1U << 6);
@@ -459,7 +460,7 @@ inline const uint32_t * unpack6_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack7_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack7_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 7);
   out++;
   *out = ((*in) >> 7) % (1U << 7);
@@ -541,7 +542,7 @@ inline const uint32_t * unpack7_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack8_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack8_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 8);
   out++;
   *out = ((*in) >> 8) % (1U << 8);
@@ -618,7 +619,7 @@ inline const uint32_t * unpack8_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack9_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack9_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 9);
   out++;
   *out = ((*in) >> 9) % (1U << 9);
@@ -704,7 +705,7 @@ inline const uint32_t * unpack9_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack10_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack10_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 10);
   out++;
   *out = ((*in) >> 10) % (1U << 10);
@@ -791,7 +792,7 @@ inline const uint32_t * unpack10_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack11_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack11_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 11);
   out++;
   *out = ((*in) >> 11) % (1U << 11);
@@ -881,7 +882,7 @@ inline const uint32_t * unpack11_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack12_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack12_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 12);
   out++;
   *out = ((*in) >> 12) % (1U << 12);
@@ -970,7 +971,7 @@ inline const uint32_t * unpack12_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack13_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack13_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 13);
   out++;
   *out = ((*in) >> 13) % (1U << 13);
@@ -1064,7 +1065,7 @@ inline const uint32_t * unpack13_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack14_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack14_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 14);
   out++;
   *out = ((*in) >> 14) % (1U << 14);
@@ -1159,7 +1160,7 @@ inline const uint32_t * unpack14_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack15_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack15_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 15);
   out++;
   *out = ((*in) >> 15) % (1U << 15);
@@ -1257,7 +1258,7 @@ inline const uint32_t * unpack15_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack16_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack16_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 16);
   out++;
   *out = ((*in) >> 16);
@@ -1342,7 +1343,7 @@ inline const uint32_t * unpack16_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack17_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack17_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 17);
   out++;
   *out = ((*in) >> 17);
@@ -1444,7 +1445,7 @@ inline const uint32_t * unpack17_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack18_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack18_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 18);
   out++;
   *out = ((*in) >> 18);
@@ -1547,7 +1548,7 @@ inline const uint32_t * unpack18_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack19_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack19_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 19);
   out++;
   *out = ((*in) >> 19);
@@ -1653,7 +1654,7 @@ inline const uint32_t * unpack19_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack20_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack20_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 20);
   out++;
   *out = ((*in) >> 20);
@@ -1758,7 +1759,7 @@ inline const uint32_t * unpack20_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack21_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack21_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 21);
   out++;
   *out = ((*in) >> 21);
@@ -1868,7 +1869,7 @@ inline const uint32_t * unpack21_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack22_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack22_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 22);
   out++;
   *out = ((*in) >> 22);
@@ -1979,7 +1980,7 @@ inline const uint32_t * unpack22_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack23_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack23_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 23);
   out++;
   *out = ((*in) >> 23);
@@ -2093,7 +2094,7 @@ inline const uint32_t * unpack23_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack24_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack24_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 24);
   out++;
   *out = ((*in) >> 24);
@@ -2202,7 +2203,7 @@ inline const uint32_t * unpack24_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack25_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack25_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 25);
   out++;
   *out = ((*in) >> 25);
@@ -2320,7 +2321,7 @@ inline const uint32_t * unpack25_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack26_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack26_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 26);
   out++;
   *out = ((*in) >> 26);
@@ -2439,7 +2440,7 @@ inline const uint32_t * unpack26_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack27_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack27_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 27);
   out++;
   *out = ((*in) >> 27);
@@ -2561,7 +2562,7 @@ inline const uint32_t * unpack27_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack28_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack28_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 28);
   out++;
   *out = ((*in) >> 28);
@@ -2682,7 +2683,7 @@ inline const uint32_t * unpack28_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack29_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack29_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 29);
   out++;
   *out = ((*in) >> 29);
@@ -2808,7 +2809,7 @@ inline const uint32_t * unpack29_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack30_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack30_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 30);
   out++;
   *out = ((*in) >> 30);
@@ -2935,7 +2936,7 @@ inline const uint32_t * unpack30_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack31_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack31_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0) % (1U << 31);
   out++;
   *out = ((*in) >> 31);
@@ -3065,7 +3066,7 @@ inline const uint32_t * unpack31_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * unpack32_32(const uint32_t * in, uint32_t * out) {
+inline const uint32_t* unpack32_32(const uint32_t* in, uint32_t* out) {
   *out = ((*in) >> 0);
   ++in;
   out++;
@@ -3166,57 +3167,157 @@ inline const uint32_t * unpack32_32(const uint32_t * in, uint32_t * out) {
   return in;
 }
 
-inline const uint32_t * nullunpacker32(const uint32_t * in , uint32_t * out) {
+inline const uint32_t* nullunpacker32(const uint32_t* in, uint32_t* out) {
   for (int k = 0; k < 32; ++k) {
     out[k] = 0;
   }
   return in;
 }
 
-inline int unpack32(const uint32_t * in , uint32_t * out, int batch_size, int num_bits) {
+inline int unpack32(const uint32_t* in, uint32_t* out, int batch_size, int num_bits) {
   batch_size = batch_size / 32 * 32;
   int num_loops = batch_size / 32;
 
   switch (num_bits) {
-  case  0: for (int i = 0; i < num_loops; ++i) in = nullunpacker32(in, out + i*32); break;
-  case  1: for (int i = 0; i < num_loops; ++i) in = unpack1_32(in, out + i*32); break;
-  case  2: for (int i = 0; i < num_loops; ++i) in = unpack2_32(in, out + i*32); break;
-  case  3: for (int i = 0; i < num_loops; ++i) in = unpack3_32(in, out + i*32); break;
-  case  4: for (int i = 0; i < num_loops; ++i) in = unpack4_32(in, out + i*32); break;
-  case  5: for (int i = 0; i < num_loops; ++i) in = unpack5_32(in, out + i*32); break;
-  case  6: for (int i = 0; i < num_loops; ++i) in = unpack6_32(in, out + i*32); break;
-  case  7: for (int i = 0; i < num_loops; ++i) in = unpack7_32(in, out + i*32); break;
-  case  8: for (int i = 0; i < num_loops; ++i) in = unpack8_32(in, out + i*32); break;
-  case  9: for (int i = 0; i < num_loops; ++i) in = unpack9_32(in, out + i*32); break;
-  case 10: for (int i = 0; i < num_loops; ++i) in = unpack10_32(in, out + i*32); break;
-  case 11: for (int i = 0; i < num_loops; ++i) in = unpack11_32(in, out + i*32); break;
-  case 12: for (int i = 0; i < num_loops; ++i) in = unpack12_32(in, out + i*32); break;
-  case 13: for (int i = 0; i < num_loops; ++i) in = unpack13_32(in, out + i*32); break;
-  case 14: for (int i = 0; i < num_loops; ++i) in = unpack14_32(in, out + i*32); break;
-  case 15: for (int i = 0; i < num_loops; ++i) in = unpack15_32(in, out + i*32); break;
-  case 16: for (int i = 0; i < num_loops; ++i) in = unpack16_32(in, out + i*32); break;
-  case 17: for (int i = 0; i < num_loops; ++i) in = unpack17_32(in, out + i*32); break;
-  case 18: for (int i = 0; i < num_loops; ++i) in = unpack18_32(in, out + i*32); break;
-  case 19: for (int i = 0; i < num_loops; ++i) in = unpack19_32(in, out + i*32); break;
-  case 20: for (int i = 0; i < num_loops; ++i) in = unpack20_32(in, out + i*32); break;
-  case 21: for (int i = 0; i < num_loops; ++i) in = unpack21_32(in, out + i*32); break;
-  case 22: for (int i = 0; i < num_loops; ++i) in = unpack22_32(in, out + i*32); break;
-  case 23: for (int i = 0; i < num_loops; ++i) in = unpack23_32(in, out + i*32); break;
-  case 24: for (int i = 0; i < num_loops; ++i) in = unpack24_32(in, out + i*32); break;
-  case 25: for (int i = 0; i < num_loops; ++i) in = unpack25_32(in, out + i*32); break;
-  case 26: for (int i = 0; i < num_loops; ++i) in = unpack26_32(in, out + i*32); break;
-  case 27: for (int i = 0; i < num_loops; ++i) in = unpack27_32(in, out + i*32); break;
-  case 28: for (int i = 0; i < num_loops; ++i) in = unpack28_32(in, out + i*32); break;
-  case 29: for (int i = 0; i < num_loops; ++i) in = unpack29_32(in, out + i*32); break;
-  case 30: for (int i = 0; i < num_loops; ++i) in = unpack30_32(in, out + i*32); break;
-  case 31: for (int i = 0; i < num_loops; ++i) in = unpack31_32(in, out + i*32); break;
-  case 32: for (int i = 0; i < num_loops; ++i) in = unpack32_32(in, out + i*32); break;
-  default: throw std::runtime_error("Unsupported num_bits");
+    case 0:
+      for (int i = 0; i < num_loops; ++i)
+        in = nullunpacker32(in, out + i * 32);
+      break;
+    case 1:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack1_32(in, out + i * 32);
+      break;
+    case 2:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack2_32(in, out + i * 32);
+      break;
+    case 3:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack3_32(in, out + i * 32);
+      break;
+    case 4:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack4_32(in, out + i * 32);
+      break;
+    case 5:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack5_32(in, out + i * 32);
+      break;
+    case 6:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack6_32(in, out + i * 32);
+      break;
+    case 7:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack7_32(in, out + i * 32);
+      break;
+    case 8:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack8_32(in, out + i * 32);
+      break;
+    case 9:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack9_32(in, out + i * 32);
+      break;
+    case 10:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack10_32(in, out + i * 32);
+      break;
+    case 11:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack11_32(in, out + i * 32);
+      break;
+    case 12:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack12_32(in, out + i * 32);
+      break;
+    case 13:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack13_32(in, out + i * 32);
+      break;
+    case 14:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack14_32(in, out + i * 32);
+      break;
+    case 15:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack15_32(in, out + i * 32);
+      break;
+    case 16:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack16_32(in, out + i * 32);
+      break;
+    case 17:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack17_32(in, out + i * 32);
+      break;
+    case 18:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack18_32(in, out + i * 32);
+      break;
+    case 19:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack19_32(in, out + i * 32);
+      break;
+    case 20:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack20_32(in, out + i * 32);
+      break;
+    case 21:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack21_32(in, out + i * 32);
+      break;
+    case 22:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack22_32(in, out + i * 32);
+      break;
+    case 23:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack23_32(in, out + i * 32);
+      break;
+    case 24:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack24_32(in, out + i * 32);
+      break;
+    case 25:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack25_32(in, out + i * 32);
+      break;
+    case 26:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack26_32(in, out + i * 32);
+      break;
+    case 27:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack27_32(in, out + i * 32);
+      break;
+    case 28:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack28_32(in, out + i * 32);
+      break;
+    case 29:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack29_32(in, out + i * 32);
+      break;
+    case 30:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack30_32(in, out + i * 32);
+      break;
+    case 31:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack31_32(in, out + i * 32);
+      break;
+    case 32:
+      for (int i = 0; i < num_loops; ++i)
+        in = unpack32_32(in, out + i * 32);
+      break;
+    default:
+      throw std::runtime_error("Unsupported num_bits");
   }
 
   return batch_size;
 }
 
-}; // namespace parquet
+};  // namespace parquet
 
-#endif // PARQUET_UTIL_BPACKING_H
+#endif  // PARQUET_UTIL_BPACKING_H
