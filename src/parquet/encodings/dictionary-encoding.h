@@ -172,7 +172,11 @@ class DictEncoderBase {
   /// Returns a conservative estimate of the number of bytes needed to encode the buffered
   /// indices. Used to size the buffer passed to WriteIndices().
   int EstimatedDataEncodedSize() {
-    return 1 + RleEncoder::MaxBufferSize(bit_width(), buffered_indices_.size());
+    // Note: because of the way RleEncoder::CheckBufferFull() is called, we have to reserve
+    // an extra "RleEncoder::MinBufferSize" bytes. These extra bytes won't be used
+    // but not reserving them would cause the encoder to fail.
+    return 1 + RleEncoder::MaxBufferSize(bit_width(), buffered_indices_.size())
+      + RleEncoder::MinBufferSize(bit_width());
   }
 
   /// The minimum bit width required to encode the currently buffered indices.
