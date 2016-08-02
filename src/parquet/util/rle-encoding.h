@@ -117,7 +117,7 @@ class RleDecoder {
 
   /// Like GetBatch but the values are then decoded using the provided dictionary
   template <typename T>
-  int GetBatchWithDict(T* values, int batch_size, Vector<T>& dictionary);
+  int GetBatchWithDict(const Vector<T>& dictionary, T* values, int batch_size);
 
  protected:
   BitReader bit_reader_;
@@ -292,7 +292,7 @@ inline int RleDecoder::GetBatch(T* values, int batch_size) {
 
 template <typename T>
 inline int RleDecoder::GetBatchWithDict(
-  T* values, int batch_size, Vector<T>& dictionary) {
+  const Vector<T>& dictionary, T* values, int batch_size) {
   DCHECK_GE(bit_width_, 0);
   int values_read = 0;
 

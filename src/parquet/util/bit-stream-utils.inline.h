@@ -90,26 +90,26 @@ inline bool BitWriter::PutVlqInt(uint32_t v) {
 
 template <typename T>
 inline void GetValue_(
-  int num_bits, T* v, const uint8_t* buffer, int& bit_offset,
-  int& byte_offset, uint64_t& buffered_values, int max_bytes) {
-  *v = BitUtil::TrailingBits(buffered_values, bit_offset + num_bits) >> bit_offset;
+  int num_bits, T* v, int max_bytes, const uint8_t* buffer,
+  int* bit_offset, int* byte_offset, uint64_t* buffered_values) {
+  *v = BitUtil::TrailingBits(*buffered_values, *bit_offset + num_bits) >> *bit_offset;
 
-  bit_offset += num_bits;
-  if (bit_offset >= 64) {
-    byte_offset += 8;
-    bit_offset -= 64;
+  *bit_offset += num_bits;
+  if (*bit_offset >= 64) {
+    *byte_offset += 8;
+    *bit_offset -= 64;
 
-    int bytes_remaining = max_bytes - byte_offset;
+    int bytes_remaining = max_bytes - *byte_offset;
     if (LIKELY(bytes_remaining >= 8)) {
-      memcpy(&buffered_values, buffer + byte_offset, 8);
+      memcpy(buffered_values, buffer + *byte_offset, 8);
     } else {
-      memcpy(&buffered_values, buffer + byte_offset, bytes_remaining);
+      memcpy(buffered_values, buffer + *byte_offset, bytes_remaining);
     }
 
     // Read bits of v that crossed into new buffered_values_
-    *v |= BitUtil::TrailingBits(buffered_values, bit_offset)
-          << (num_bits - bit_offset);
-    DCHECK_LE(bit_offset, 64);
+    *v |= BitUtil::TrailingBits(*buffered_values, *bit_offset)
+          << (num_bits - *bit_offset);
+    DCHECK_LE(*bit_offset, 64);
   }
 }
 
@@ -141,8 +141,8 @@ inline int BitReader::GetBatch(int num_bits, T* v, int batch_size) {
   if (UNLIKELY(bit_offset != 0)) {
     for (; i < batch_size && bit_offset != 0 ; ++i) {
       GetValue_(
-        num_bits, &v[i], buffer, bit_offset, byte_offset, buffered_values,
-        max_bytes);
+        num_bits, &v[i], max_bytes, buffer,
+        &bit_offset, &byte_offset, &buffered_values);
     }
   }
 
@@ -181,7 +181,8 @@ inline int BitReader::GetBatch(int num_bits, T* v, int batch_size) {
 
   for (; i < batch_size; ++i) {
     GetValue_(
-      num_bits, &v[i], buffer, bit_offset, byte_offset, buffered_values, max_bytes);
+      num_bits, &v[i], max_bytes, buffer,
+      &bit_offset, &byte_offset, &buffered_values);
   }
 
   bit_offset_ = bit_offset;
