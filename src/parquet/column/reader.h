@@ -190,7 +190,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
   // Not present for non-repeated fields
   if (descr_->max_repetition_level() > 0 && rep_levels) {
     num_rep_levels = ReadRepetitionLevels(batch_size, rep_levels);
-    if (num_def_levels != num_rep_levels) {
+    if (def_levels && num_def_levels != num_rep_levels) {
       throw ParquetException("Number of decoded rep / def levels did not match");
     }
   }
