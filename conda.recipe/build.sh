@@ -50,7 +50,7 @@ source thirdparty/versions.sh
 export GTEST_HOME=`pwd`/thirdparty/$GTEST_BASEDIR
 
 cmake \
-    -DCMAKE_BUILD_TYPE=release \
+    -DCMAKE_BUILD_TYPE=debug \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
     -DPARQUET_BUILD_BENCHMARKS=off \
     ..
