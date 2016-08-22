@@ -17,10 +17,8 @@
 
 #include <iostream>
 
-#include <parquet/api/reader.h>
-#include <parquet/api/schema.h>
-
-using namespace parquet;
+#include "parquet/api/reader.h"
+#include "parquet/api/schema.h"
 
 int main(int argc, char** argv) {
   std::string filename = argv[1];
@@ -29,9 +27,7 @@ int main(int argc, char** argv) {
     std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename);
     PrintSchema(reader->metadata()->schema_descriptor()->schema().get(), std::cout);
   } catch (const std::exception& e) {
-    std::cerr << "Parquet error: "
-              << e.what()
-              << std::endl;
+    std::cerr << "Parquet error: " << e.what() << std::endl;
     return -1;
   }
 

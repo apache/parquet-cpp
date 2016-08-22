@@ -278,6 +278,8 @@ std::string logical_type_to_string(LogicalType::type t);
 std::string type_to_string(Type::type t);
 
 std::string FormatStatValue(Type::type parquet_type, const char* val);
+
+size_t get_value_byte_size(Type::type t);
 }  // namespace parquet
 
 #endif  // PARQUET_TYPES_H

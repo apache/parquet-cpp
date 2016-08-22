@@ -19,13 +19,12 @@
 #include <memory>
 #include <list>
 
-#include <parquet/api/reader.h>
-
-using namespace parquet;
+#include "parquet/api/reader.h"
 
 int main(int argc, char** argv) {
   if (argc > 5 || argc < 2) {
-    std::cerr << "Usage: parquet_reader [--only-metadata] [--no-memory-map] [--columns=...] <file>"
+    std::cerr << "Usage: parquet_reader [--only-metadata] [--no-memory-map] "
+                 "[--columns=...] <file>"
               << std::endl;
     return -1;
   }
@@ -45,10 +44,10 @@ int main(int argc, char** argv) {
     } else if ((param = std::strstr(argv[i], "--no-memory-map"))) {
       memory_map = false;
     } else if ((param = std::strstr(argv[i], COLUMNS_PREFIX.c_str()))) {
-      value = std::strtok(param+COLUMNS_PREFIX.length(), "," );
+      value = std::strtok(param + COLUMNS_PREFIX.length(), ",");
       while (value) {
         columns.push_back(std::atoi(value));
-        value = std::strtok(nullptr, "," );
+        value = std::strtok(nullptr, ",");
       }
     } else {
       filename = argv[i];
@@ -56,13 +55,11 @@ int main(int argc, char** argv) {
   }
 
   try {
-    std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename,
-        memory_map);
+    std::unique_ptr<parquet::ParquetFileReader> reader =
+        parquet::ParquetFileReader::OpenFile(filename, memory_map);
     reader->DebugPrint(std::cout, columns, print_values);
   } catch (const std::exception& e) {
-    std::cerr << "Parquet error: "
-              << e.what()
-              << std::endl;
+    std::cerr << "Parquet error: " << e.what() << std::endl;
     return -1;
   }
 
