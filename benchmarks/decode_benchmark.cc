@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <random>
 
 #include "parquet/compression/codec.h"
 #include "parquet/encodings/plain-encoding.h"
@@ -336,15 +337,19 @@ void TestBinaryPacking() {
 
   // Test rand ints between 0 and 10K
   values.clear();
+  int seed = 0;
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d(0, 10000);
   for (int i = 0; i < 500000; ++i) {
-    values.push_back(rand() % (10000));
+    values.push_back(d(gen));
   }
   TestBinaryPackedEncoding("Rand [0, 10000)", values);
 
   // Test rand ints between 0 and 100
   values.clear();
+  std::uniform_int_distribution<int> d1(0, 100);
   for (int i = 0; i < 500000; ++i) {
-    values.push_back(rand() % 100);
+    values.push_back(d1(gen));
   }
   TestBinaryPackedEncoding("Rand [0, 100)", values);
 }
@@ -434,8 +439,11 @@ int main(int argc, char** argv) {
 
   // Test rand ints between 0 and 10K
   std::vector<int64_t> values;
+  int seed = 0;
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> d(0, 10000);
   for (int i = 0; i < 1000000; ++i) {
-    values.push_back(rand() % 10000);
+    values.push_back(d(gen));
   }
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 1);
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 16);

@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include <ctime>
 #include <iostream>
 #include <memory>
 #include <list>
@@ -22,7 +23,7 @@
 #include "parquet/api/reader.h"
 
 int main(int argc, char** argv) {
-  if (argc > 3 || argc < 1) {
+  if (argc > 4 || argc < 1) {
     std::cerr << "Usage: parquet-scan [--batch-size=] [--columns=...] <file>"
               << std::endl;
     return -1;
@@ -54,25 +55,33 @@ int main(int argc, char** argv) {
     }
   }
 
+  std::vector<int16_t> rep_levels(batch_size);
+  std::vector<int16_t> def_levels(batch_size);
   try {
+    double total_time;
+    std::clock_t start_time = std::clock();
     std::unique_ptr<parquet::ParquetFileReader> reader =
         parquet::ParquetFileReader::OpenFile(filename);
+    // columns are not specified explicitly. Add all columns
     if (num_columns == 0) {
       num_columns = reader->num_columns();
       columns.resize(num_columns);
-      std::iota(columns.begin(), columns.end(), 0);
+      for (int i = 0; i < num_columns; i++) {
+        columns[i] = i;
+      }
     }
-    int64_t total_rows[num_columns] = {0};
+
+    int64_t total_rows[num_columns];
+
     for (int r = 0; r < reader->num_row_groups(); ++r) {
       auto group_reader = reader->RowGroup(r);
       int col = 0;
       for (auto i : columns) {
+        total_rows[col] = 0;
         std::shared_ptr<parquet::ColumnReader> col_reader = group_reader->Column(i);
         size_t value_byte_size =
             get_value_byte_size(col_reader->descr()->physical_type());
         std::vector<uint8_t> values(batch_size * value_byte_size);
-        std::vector<int16_t> rep_levels(batch_size);
-        std::vector<int16_t> def_levels(batch_size);
 
         int64_t values_read = 0;
         while (col_reader->HasNext()) {
@@ -82,12 +91,15 @@ int main(int argc, char** argv) {
         col++;
       }
     }
+
+    total_time = (std::clock() - start_time) / static_cast<double>(CLOCKS_PER_SEC);
     for (int ct = 1; ct < num_columns; ++ct) {
       if (total_rows[0] != total_rows[ct]) {
         std::cerr << "Parquet error: Total rows among columns do not match" << std::endl;
       }
     }
-    std::cout << "Total Rows: " << total_rows[0] << std::endl;
+    std::cout << total_rows[0] << " rows scanned in " << total_time << " seconds."
+              << std::endl;
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: " << e.what() << std::endl;
     return -1;
