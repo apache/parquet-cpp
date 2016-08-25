@@ -83,29 +83,21 @@ std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
   return std::static_pointer_cast<Buffer>(buffer_rle);
 }
 
-void ColumnWriter::WriteNewPage() {
-  // TODO: Currently we only support writing DataPages
-  std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->GetBuffer();
-  std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->GetBuffer();
-  std::shared_ptr<Buffer> values = GetValuesBuffer();
+void ColumnWriter::AddDataPage() {
+  DataPageBuffers buffers = {num_buffered_values_, num_buffered_encoded_values_,
+      definition_levels_sink_->GetBuffer(), repetition_levels_sink_->GetBuffer(),
+      GetValuesBuffer()};
 
   if (descr_->max_definition_level() > 0) {
-    definition_levels =
-        RleEncodeLevels(definition_levels, descr_->max_definition_level());
+    buffers.definition_levels =
+        RleEncodeLevels(buffers.definition_levels, descr_->max_definition_level());
   }
 
   if (descr_->max_repetition_level() > 0) {
-    repetition_levels =
-        RleEncodeLevels(repetition_levels, descr_->max_repetition_level());
+    buffers.repetition_levels =
+        RleEncodeLevels(buffers.repetition_levels, descr_->max_repetition_level());
   }
-
-  // TODO(PARQUET-590): Encodings are hard-coded
-  Encoding::type encoding = Encoding::PLAIN;
-  if (has_dictionary_) { encoding = Encoding::PLAIN_DICTIONARY; }
-  int64_t bytes_written = pager_->WriteDataPage(num_buffered_values_,
-      num_buffered_encoded_values_, definition_levels, Encoding::RLE, repetition_levels,
-      Encoding::RLE, values, encoding);
-  total_bytes_written_ += bytes_written;
+  data_page_buffers_.push_back(std::move(buffers));
 
   // Re-initialize the sinks as GetBuffer made them invalid.
   InitSinks();
@@ -113,10 +105,24 @@ void ColumnWriter::WriteNewPage() {
   num_buffered_encoded_values_ = 0;
 }
 
+void ColumnWriter::WriteNewPage(const DataPageBuffers& buffers) {
+  // TODO(PARQUET-590): Encodings are hard-coded
+  Encoding::type encoding = Encoding::PLAIN;
+  if (has_dictionary_) { encoding = Encoding::PLAIN_DICTIONARY; }
+  int64_t bytes_written = pager_->WriteDataPage(buffers.num_buffered_values,
+      buffers.num_buffered_encoded_values, buffers.definition_levels, Encoding::RLE,
+      buffers.repetition_levels, Encoding::RLE, buffers.values, encoding);
+  total_bytes_written_ += bytes_written;
+}
+
 int64_t ColumnWriter::Close() {
   if (has_dictionary_) { WriteDictionaryPage(); }
   // Write all outstanding data to a new page
-  if (num_buffered_values_ > 0) { WriteNewPage(); }
+  if (num_buffered_values_ > 0) { AddDataPage(); }
+
+  for (int i = 0; i < data_page_buffers_.size(); i++) {
+    WriteNewPage(data_page_buffers_[i]);
+  }
 
   if (num_rows_ != expected_rows_) {
     throw ParquetException(

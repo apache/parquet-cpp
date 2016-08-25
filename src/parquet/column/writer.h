@@ -18,6 +18,8 @@
 #ifndef PARQUET_COLUMN_WRITER_H
 #define PARQUET_COLUMN_WRITER_H
 
+#include <vector>
+
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 #include "parquet/column/properties.h"
@@ -30,6 +32,14 @@
 #include "parquet/util/visibility.h"
 
 namespace parquet {
+
+struct DataPageBuffers {
+  int64_t num_buffered_values;
+  int64_t num_buffered_encoded_values;
+  std::shared_ptr<Buffer> definition_levels;
+  std::shared_ptr<Buffer> repetition_levels;
+  std::shared_ptr<Buffer> values;
+};
 
 class PARQUET_EXPORT ColumnWriter {
  public:
@@ -55,7 +65,9 @@ class PARQUET_EXPORT ColumnWriter {
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
   virtual void WriteDictionaryPage() = 0;
-  void WriteNewPage();
+
+  void AddDataPage();
+  void WriteNewPage(const DataPageBuffers& buffers);
 
   // Write multiple definition levels
   void WriteDefinitionLevels(int64_t num_levels, const int16_t* levels);
@@ -101,6 +113,8 @@ class PARQUET_EXPORT ColumnWriter {
 
  private:
   void InitSinks();
+
+  std::vector<DataPageBuffers> data_page_buffers_;
 };
 
 // API to write values to a single column. This is the main client facing API.
@@ -183,7 +197,7 @@ inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
   num_buffered_encoded_values_ += values_to_write;
 
   // TODO(PARQUET-591): Instead of rows as a boundary, do a size check
-  if ((num_buffered_values_ >= PAGE_VALUE_COUNT) && !has_dictionary_) { WriteNewPage(); }
+  if ((num_buffered_values_ >= PAGE_VALUE_COUNT)) { AddDataPage(); }
 }
 
 template <typename DType>
