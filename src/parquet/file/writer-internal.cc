@@ -109,7 +109,7 @@ int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values
 
   metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
   metadata_->meta_data.total_compressed_size += compressed_size + header_size;
-  metadata_->meta_data.num_values += num_values;
+  metadata_->meta_data.num_values += num_rows;
 
   return sink_->Tell() - start_pos;
 }
