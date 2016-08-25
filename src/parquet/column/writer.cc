@@ -146,9 +146,6 @@ TypedColumnWriter<Type>::TypedColumnWriter(const ColumnDescriptor* schema,
           std::unique_ptr<EncoderType>(new PlainEncoder<Type>(schema, allocator));
       break;
     case Encoding::PLAIN_DICTIONARY:
-      current_encoder_ =
-          std::unique_ptr<EncoderType>(new DictEncoder<Type>(schema, &pool_, allocator));
-      break;
     case Encoding::RLE_DICTIONARY:
       current_encoder_ =
           std::unique_ptr<EncoderType>(new DictEncoder<Type>(schema, &pool_, allocator));
