@@ -120,7 +120,7 @@ int64_t ColumnWriter::Close() {
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) { AddDataPage(); }
 
-  for (int i = 0; i < data_page_buffers_.size(); i++) {
+  for (size_t i = 0; i < data_page_buffers_.size(); i++) {
     WriteNewPage(data_page_buffers_[i]);
   }
 
