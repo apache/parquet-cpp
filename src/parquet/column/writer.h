@@ -33,14 +33,6 @@
 
 namespace parquet {
 
-struct DataPageBuffers {
-  int64_t num_buffered_values;
-  int64_t num_buffered_encoded_values;
-  std::shared_ptr<Buffer> definition_levels;
-  std::shared_ptr<Buffer> repetition_levels;
-  std::shared_ptr<Buffer> values;
-};
-
 class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
@@ -67,7 +59,7 @@ class PARQUET_EXPORT ColumnWriter {
   virtual void WriteDictionaryPage() = 0;
 
   void AddDataPage();
-  void WriteNewPage(const DataPage& page);
+  void WriteDataPage(const DataPage& page);
 
   // Write multiple definition levels
   void WriteDefinitionLevels(int64_t num_levels, const int16_t* levels);
@@ -114,7 +106,6 @@ class PARQUET_EXPORT ColumnWriter {
  private:
   void InitSinks();
 
-  std::vector<DataPageBuffers> data_page_buffers_;
   std::vector<DataPage> data_pages_;
 };
 

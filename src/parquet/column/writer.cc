@@ -84,42 +84,41 @@ std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
 }
 
 void ColumnWriter::AddDataPage() {
-  DataPageBuffers buffers = {num_buffered_values_, num_buffered_encoded_values_,
-      definition_levels_sink_->GetBuffer(), repetition_levels_sink_->GetBuffer(),
-      GetValuesBuffer()};
+  std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->GetBuffer();
+  std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->GetBuffer();
+  std::shared_ptr<Buffer> values = GetValuesBuffer();
 
   if (descr_->max_definition_level() > 0) {
-    buffers.definition_levels =
-        RleEncodeLevels(buffers.definition_levels, descr_->max_definition_level());
+    definition_levels =
+        RleEncodeLevels(definition_levels, descr_->max_definition_level());
   }
 
   if (descr_->max_repetition_level() > 0) {
-    buffers.repetition_levels =
-        RleEncodeLevels(buffers.repetition_levels, descr_->max_repetition_level());
+    repetition_levels =
+        RleEncodeLevels(repetition_levels, descr_->max_repetition_level());
   }
 
-  int64_t uncompressed_size = buffers.definition_levels->size() +
-                              buffers.repetition_levels->size() + buffers.values->size();
+  int64_t uncompressed_size = definition_levels->size() +
+                              repetition_levels->size() + values->size();
 
   // Concatenate data into a single buffer
   // TODO: Reuse the (un)compressed_data buffer instead of recreating it each time.
   std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
       std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
-  memcpy(uncompressed_ptr, buffers.repetition_levels->data(),
-      buffers.repetition_levels->size());
-  uncompressed_ptr += buffers.repetition_levels->size();
-  memcpy(uncompressed_ptr, buffers.definition_levels->data(),
-      buffers.definition_levels->size());
-  uncompressed_ptr += buffers.definition_levels->size();
-  memcpy(uncompressed_ptr, buffers.values->data(), buffers.values->size());
+  memcpy(uncompressed_ptr, repetition_levels->data(),
+      repetition_levels->size());
+  uncompressed_ptr += repetition_levels->size();
+  memcpy(uncompressed_ptr, definition_levels->data(),
+      definition_levels->size());
+  uncompressed_ptr += definition_levels->size();
+  memcpy(uncompressed_ptr, values->data(), values->size());
   Encoding::type encoding = Encoding::PLAIN;
   if (has_dictionary_) { encoding = Encoding::PLAIN_DICTIONARY; }
   DataPage page(
       uncompressed_data, num_buffered_values_, encoding, Encoding::RLE, Encoding::RLE);
 
   data_pages_.push_back(std::move(page));
-  data_page_buffers_.push_back(std::move(buffers));
 
   // Re-initialize the sinks as GetBuffer made them invalid.
   InitSinks();
@@ -127,7 +126,7 @@ void ColumnWriter::AddDataPage() {
   num_buffered_encoded_values_ = 0;
 }
 
-void ColumnWriter::WriteNewPage(const DataPage& page) {
+void ColumnWriter::WriteDataPage(const DataPage& page) {
   int64_t bytes_written = pager_->WriteDataPage(page);
   total_bytes_written_ += bytes_written;
 }
@@ -138,7 +137,7 @@ int64_t ColumnWriter::Close() {
   if (num_buffered_values_ > 0) { AddDataPage(); }
 
   for (size_t i = 0; i < data_pages_.size(); i++) {
-    WriteNewPage(data_pages_[i]);
+    WriteDataPage(data_pages_[i]);
   }
 
   if (num_rows_ != expected_rows_) {
