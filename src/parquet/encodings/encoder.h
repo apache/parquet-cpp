@@ -41,6 +41,7 @@ class Encoder {
 
   virtual ~Encoder() {}
 
+  virtual int64_t EstimatedDataEncodedSize() = 0;
   virtual std::shared_ptr<Buffer> FlushValues() = 0;
   virtual void Put(const T* src, int num_values) = 0;
 

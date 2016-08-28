@@ -36,8 +36,8 @@ namespace parquet {
 class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
-      int64_t expected_rows, bool has_dictionary = false,
-      MemoryAllocator* allocator = default_allocator());
+      int64_t expected_rows, bool has_dictionary, Encoding::type encoding,
+      const WriterProperties* properties);
 
   static std::shared_ptr<ColumnWriter> Make(const ColumnDescriptor*,
       std::unique_ptr<PageWriter>, int64_t expected_rows,
@@ -77,6 +77,8 @@ class PARQUET_EXPORT ColumnWriter {
   // The number of rows that should be written in this column chunk.
   int64_t expected_rows_;
   bool has_dictionary_;
+  Encoding::type encoding_;
+  const WriterProperties* properties_;
 
   LevelEncoder level_encoder_;
 
@@ -116,8 +118,7 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   typedef typename DType::c_type T;
 
   TypedColumnWriter(const ColumnDescriptor* schema, std::unique_ptr<PageWriter> pager,
-      int64_t expected_rows, Encoding::type encoding,
-      MemoryAllocator* allocator = default_allocator());
+      int64_t expected_rows, Encoding::type encoding, const WriterProperties* properties);
 
   // Write a batch of repetition levels, definition levels, and values to the
   // column.
@@ -143,10 +144,6 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
 
   std::unique_ptr<EncoderType> current_encoder_;
 };
-
-// TODO(PARQUET-591): This is just chosen at random, we should make better estimates.
-// See also: parquet-column/../column/impl/ColumnWriteStoreV2.java:sizeCheck
-const int64_t PAGE_VALUE_COUNT = 1000;
 
 template <typename DType>
 inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
@@ -188,8 +185,9 @@ inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
   num_buffered_values_ += num_values;
   num_buffered_encoded_values_ += values_to_write;
 
-  // TODO(PARQUET-591): Instead of rows as a boundary, do a size check
-  if ((num_buffered_values_ >= PAGE_VALUE_COUNT)) { AddDataPage(); }
+  if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
+    AddDataPage();
+  }
 }
 
 template <typename DType>

@@ -182,7 +182,7 @@ class DictEncoder : public Encoder<DType> {
 
   /// Returns a conservative estimate of the number of bytes needed to encode the buffered
   /// indices. Used to size the buffer passed to WriteIndices().
-  int EstimatedDataEncodedSize() {
+  int64_t EstimatedDataEncodedSize() override {
     // Note: because of the way RleEncoder::CheckBufferFull() is called, we have to
     // reserve
     // an extra "RleEncoder::MinBufferSize" bytes. These extra bytes won't be used

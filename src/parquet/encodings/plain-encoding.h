@@ -166,9 +166,10 @@ class PlainEncoder : public Encoder<DType> {
       : Encoder<DType>(descr, Encoding::PLAIN, allocator),
         values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {}
 
+  int64_t EstimatedDataEncodedSize() override { return values_sink_->Tell(); }
+
   std::shared_ptr<Buffer> FlushValues() override;
   void Put(const T* src, int num_values) override;
-  void Encode(const T* src, int num_values, OutputStream* dst);
 
  protected:
   std::shared_ptr<InMemoryOutputStream> values_sink_;
@@ -181,6 +182,8 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
       const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
       : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator),
         values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {}
+
+  int64_t EstimatedDataEncodedSize() override { return values_sink_->Tell(); }
 
   std::shared_ptr<Buffer> FlushValues() override {
     std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
@@ -244,31 +247,24 @@ inline std::shared_ptr<Buffer> PlainEncoder<DType>::FlushValues() {
 
 template <typename DType>
 inline void PlainEncoder<DType>::Put(const T* buffer, int num_values) {
-  Encode(buffer, num_values, values_sink_.get());
-}
-
-template <typename DType>
-inline void PlainEncoder<DType>::Encode(
-    const T* buffer, int num_values, OutputStream* dst) {
-  dst->Write(reinterpret_cast<const uint8_t*>(buffer), num_values * sizeof(T));
+  values_sink_->Write(reinterpret_cast<const uint8_t*>(buffer), num_values * sizeof(T));
 }
 
 template <>
-inline void PlainEncoder<ByteArrayType>::Encode(
-    const ByteArray* src, int num_values, OutputStream* dst) {
+inline void PlainEncoder<ByteArrayType>::Put(const ByteArray* src, int num_values) {
   for (int i = 0; i < num_values; ++i) {
     // Write the result to the output stream
-    dst->Write(reinterpret_cast<const uint8_t*>(&src[i].len), sizeof(uint32_t));
-    dst->Write(reinterpret_cast<const uint8_t*>(src[i].ptr), src[i].len);
+    values_sink_->Write(reinterpret_cast<const uint8_t*>(&src[i].len), sizeof(uint32_t));
+    values_sink_->Write(reinterpret_cast<const uint8_t*>(src[i].ptr), src[i].len);
   }
 }
 
 template <>
-inline void PlainEncoder<FLBAType>::Encode(
-    const FixedLenByteArray* src, int num_values, OutputStream* dst) {
+inline void PlainEncoder<FLBAType>::Put(const FixedLenByteArray* src, int num_values) {
   for (int i = 0; i < num_values; ++i) {
     // Write the result to the output stream
-    dst->Write(reinterpret_cast<const uint8_t*>(src[i].ptr), descr_->type_length());
+    values_sink_->Write(
+        reinterpret_cast<const uint8_t*>(src[i].ptr), descr_->type_length());
   }
 }
 }  // namespace parquet

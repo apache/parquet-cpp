@@ -132,7 +132,9 @@ class DataPageBuilder {
   void AppendValues(const ColumnDescriptor* d, const vector<T>& values,
       Encoding::type encoding = Encoding::PLAIN) {
     PlainEncoder<Type> encoder(d);
-    encoder.Encode(&values[0], values.size(), sink_);
+    encoder.Put(&values[0], values.size());
+    std::shared_ptr<Buffer> values_sink = encoder.FlushValues();
+    sink_->Write(values_sink->data(), values_sink->size());
 
     num_values_ = std::max(static_cast<int32_t>(values.size()), num_values_);
     encoding_ = encoding;
