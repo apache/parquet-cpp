@@ -37,7 +37,7 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type
     format::ColumnChunk* metadata, MemoryAllocator* allocator)
     : sink_(sink),
       metadata_(metadata),
-      allocator_(allocator),
+      // allocator_(allocator),
       compression_buffer_(std::make_shared<OwnedMutableBuffer>(0, allocator)) {
   compressor_ = Codec::Create(codec);
   // Currently we directly start with the data page

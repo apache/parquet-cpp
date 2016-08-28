@@ -48,7 +48,7 @@ class SerializedPageWriter : public PageWriter {
  private:
   OutputStream* sink_;
   format::ColumnChunk* metadata_;
-  MemoryAllocator* allocator_;
+  // MemoryAllocator* allocator_;
 
   // Compression codec to use.
   std::unique_ptr<Codec> compressor_;
