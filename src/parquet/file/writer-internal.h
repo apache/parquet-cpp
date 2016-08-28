@@ -32,7 +32,6 @@ namespace parquet {
 // by a serialized Thrift format::PageHeader indicating the type of each page
 // and the page metadata.
 //
-// TODO: Currently only writes DataPage pages.
 class SerializedPageWriter : public PageWriter {
  public:
   SerializedPageWriter(OutputStream* sink, Compression::type codec,
@@ -42,18 +41,7 @@ class SerializedPageWriter : public PageWriter {
 
   int64_t WriteDataPage(const DataPage& page) override;
 
-  // TODO Refactor that this just takes a DataPage instance.
-  // For this we need to be clear how to handle num_rows and num_values
-  int64_t WriteDataPage(int32_t num_rows, int32_t num_values,
-      const std::shared_ptr<Buffer>& definition_levels,
-      Encoding::type definition_level_encoding,
-      const std::shared_ptr<Buffer>& repetition_levels,
-      Encoding::type repetition_level_encoding, const std::shared_ptr<Buffer>& values,
-      Encoding::type encoding) override;
-
-  // TODO Refactor that this just takes a DictionaryPage instance.
-  int64_t WriteDictionaryPage(int32_t num_values, const std::shared_ptr<Buffer>& values,
-      Encoding::type encoding) override;
+  int64_t WriteDictionaryPage(const DictionaryPage& page) override;
 
   void Close() override;
 

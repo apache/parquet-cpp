@@ -97,90 +97,27 @@ int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
   return sink_->Tell() - start_pos;
 }
 
-int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
-    const std::shared_ptr<Buffer>& definition_levels,
-    Encoding::type definition_level_encoding,
-    const std::shared_ptr<Buffer>& repetition_levels,
-    Encoding::type repetition_level_encoding, const std::shared_ptr<Buffer>& values,
-    Encoding::type encoding) {
-  int64_t uncompressed_size =
-      definition_levels->size() + repetition_levels->size() + values->size();
-
-  // Concatenate data into a single buffer
-  // TODO: In the uncompressed case, directly write this to the sink
-  // TODO: Reuse the (un)compressed_data buffer instead of recreating it each time.
-  std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
-      std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
-  uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
-  memcpy(uncompressed_ptr, repetition_levels->data(), repetition_levels->size());
-  uncompressed_ptr += repetition_levels->size();
-  memcpy(uncompressed_ptr, definition_levels->data(), definition_levels->size());
-  uncompressed_ptr += definition_levels->size();
-  memcpy(uncompressed_ptr, values->data(), values->size());
+int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
+  int64_t uncompressed_size = page.size();
 
   // Compress the data
+  std::shared_ptr<OwnedMutableBuffer> compressed_data;
   int64_t compressed_size = uncompressed_size;
-  std::shared_ptr<OwnedMutableBuffer> compressed_data = uncompressed_data;
+  const uint8_t* compressed_ptr = page.data();
   if (compressor_) {
-    const uint8_t* uncompressed_ptr = uncompressed_data->data();
     int64_t max_compressed_size =
-        compressor_->MaxCompressedLen(uncompressed_size, uncompressed_ptr);
+        compressor_->MaxCompressedLen(uncompressed_size, page.data());
     compressed_data =
         std::make_shared<OwnedMutableBuffer>(max_compressed_size, allocator_);
-    compressed_size = compressor_->Compress(uncompressed_size, uncompressed_ptr,
+    compressed_size = compressor_->Compress(uncompressed_size, page.data(),
         max_compressed_size, compressed_data->mutable_data());
-  }
-  // Uncompressed data is not needed anymore, so immediately get rid of it.
-  uncompressed_data.reset();
-
-  format::DataPageHeader data_page_header;
-  data_page_header.__set_num_values(num_rows);
-  data_page_header.__set_encoding(ToThrift(encoding));
-  data_page_header.__set_definition_level_encoding(ToThrift(definition_level_encoding));
-  data_page_header.__set_repetition_level_encoding(ToThrift(repetition_level_encoding));
-  // TODO(PARQUET-593) statistics
-
-  format::PageHeader page_header;
-  page_header.__set_type(format::PageType::DATA_PAGE);
-  page_header.__set_uncompressed_page_size(uncompressed_size);
-  page_header.__set_compressed_page_size(compressed_size);
-  page_header.__set_data_page_header(data_page_header);
-  // TODO(PARQUET-594) crc checksum
-
-  int64_t start_pos = sink_->Tell();
-  SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
-  int64_t header_size = sink_->Tell() - start_pos;
-  sink_->Write(compressed_data->data(), compressed_size);
-
-  metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
-  metadata_->meta_data.total_compressed_size += compressed_size + header_size;
-  metadata_->meta_data.num_values += num_values;
-
-  return sink_->Tell() - start_pos;
-}
-
-int64_t SerializedPageWriter::WriteDictionaryPage(
-    int32_t num_values, const std::shared_ptr<Buffer>& values, Encoding::type encoding) {
-  int64_t uncompressed_size = values->size();
-
-  // Compress the data
-  int64_t compressed_size = uncompressed_size;
-  std::shared_ptr<Buffer> compressed_data = values;
-  if (compressor_) {
-    const uint8_t* uncompressed_ptr = values->data();
-    int64_t max_compressed_size =
-        compressor_->MaxCompressedLen(uncompressed_size, uncompressed_ptr);
-    auto mutable_compressed_data =
-        std::make_shared<OwnedMutableBuffer>(max_compressed_size, allocator_);
-    compressed_size = compressor_->Compress(uncompressed_size, uncompressed_ptr,
-        max_compressed_size, mutable_compressed_data->mutable_data());
-    compressed_data = mutable_compressed_data;
+    compressed_ptr = compressed_data->data();
   }
 
   format::DictionaryPageHeader dict_page_header;
-  dict_page_header.__set_num_values(num_values);
-  dict_page_header.__set_encoding(ToThrift(encoding));
-  // TODO: is_sorted
+  dict_page_header.__set_num_values(page.num_values());
+  dict_page_header.__set_encoding(ToThrift(page.encoding()));
+  dict_page_header.__set_is_sorted(page.is_sorted());
 
   format::PageHeader page_header;
   page_header.__set_type(format::PageType::DICTIONARY_PAGE);
@@ -192,11 +129,10 @@ int64_t SerializedPageWriter::WriteDictionaryPage(
   int64_t start_pos = sink_->Tell();
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   int64_t header_size = sink_->Tell() - start_pos;
-  sink_->Write(compressed_data->data(), compressed_size);
+  sink_->Write(compressed_ptr, compressed_size);
 
   metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
   metadata_->meta_data.total_compressed_size += compressed_size + header_size;
-  // metadata_->meta_data.num_values += num_values;
 
   return sink_->Tell() - start_pos;
 }

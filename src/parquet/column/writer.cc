@@ -98,19 +98,17 @@ void ColumnWriter::AddDataPage() {
         RleEncodeLevels(repetition_levels, descr_->max_repetition_level());
   }
 
-  int64_t uncompressed_size = definition_levels->size() +
-                              repetition_levels->size() + values->size();
+  int64_t uncompressed_size =
+      definition_levels->size() + repetition_levels->size() + values->size();
 
   // Concatenate data into a single buffer
   // TODO: Reuse the (un)compressed_data buffer instead of recreating it each time.
   std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
       std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
-  memcpy(uncompressed_ptr, repetition_levels->data(),
-      repetition_levels->size());
+  memcpy(uncompressed_ptr, repetition_levels->data(), repetition_levels->size());
   uncompressed_ptr += repetition_levels->size();
-  memcpy(uncompressed_ptr, definition_levels->data(),
-      definition_levels->size());
+  memcpy(uncompressed_ptr, definition_levels->data(), definition_levels->size());
   uncompressed_ptr += definition_levels->size();
   memcpy(uncompressed_ptr, values->data(), values->size());
   Encoding::type encoding = Encoding::PLAIN;
@@ -186,9 +184,8 @@ void TypedColumnWriter<Type>::WriteDictionaryPage() {
   dict_encoder->mem_pool()->FreeAll();
 
   // TODO: Encodings are hard-coded
-  int64_t bytes_written = pager_->WriteDictionaryPage(
-      dict_encoder->num_entries(), buffer, Encoding::PLAIN_DICTIONARY);
-  total_bytes_written_ += bytes_written;
+  DictionaryPage page(buffer, dict_encoder->num_entries(), Encoding::PLAIN_DICTIONARY);
+  total_bytes_written_ += pager_->WriteDictionaryPage(page);
 }
 
 // ----------------------------------------------------------------------
