@@ -40,6 +40,8 @@ class SerializedPageWriter : public PageWriter {
 
   virtual ~SerializedPageWriter() {}
 
+  int64_t WriteDataPage(const DataPage& page) override;
+
   // TODO Refactor that this just takes a DataPage instance.
   // For this we need to be clear how to handle num_rows and num_values
   int64_t WriteDataPage(int32_t num_rows, int32_t num_values,

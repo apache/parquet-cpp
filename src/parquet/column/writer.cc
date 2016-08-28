@@ -97,6 +97,28 @@ void ColumnWriter::AddDataPage() {
     buffers.repetition_levels =
         RleEncodeLevels(buffers.repetition_levels, descr_->max_repetition_level());
   }
+
+  int64_t uncompressed_size = buffers.definition_levels->size() +
+                              buffers.repetition_levels->size() + buffers.values->size();
+
+  // Concatenate data into a single buffer
+  // TODO: Reuse the (un)compressed_data buffer instead of recreating it each time.
+  std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
+      std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
+  uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
+  memcpy(uncompressed_ptr, buffers.repetition_levels->data(),
+      buffers.repetition_levels->size());
+  uncompressed_ptr += buffers.repetition_levels->size();
+  memcpy(uncompressed_ptr, buffers.definition_levels->data(),
+      buffers.definition_levels->size());
+  uncompressed_ptr += buffers.definition_levels->size();
+  memcpy(uncompressed_ptr, buffers.values->data(), buffers.values->size());
+  Encoding::type encoding = Encoding::PLAIN;
+  if (has_dictionary_) { encoding = Encoding::PLAIN_DICTIONARY; }
+  DataPage page(
+      uncompressed_data, num_buffered_values_, encoding, Encoding::RLE, Encoding::RLE);
+
+  data_pages_.push_back(std::move(page));
   data_page_buffers_.push_back(std::move(buffers));
 
   // Re-initialize the sinks as GetBuffer made them invalid.
@@ -105,13 +127,8 @@ void ColumnWriter::AddDataPage() {
   num_buffered_encoded_values_ = 0;
 }
 
-void ColumnWriter::WriteNewPage(const DataPageBuffers& buffers) {
-  // TODO(PARQUET-590): Encodings are hard-coded
-  Encoding::type encoding = Encoding::PLAIN;
-  if (has_dictionary_) { encoding = Encoding::PLAIN_DICTIONARY; }
-  int64_t bytes_written = pager_->WriteDataPage(buffers.num_buffered_values,
-      buffers.num_buffered_encoded_values, buffers.definition_levels, Encoding::RLE,
-      buffers.repetition_levels, Encoding::RLE, buffers.values, encoding);
+void ColumnWriter::WriteNewPage(const DataPage& page) {
+  int64_t bytes_written = pager_->WriteDataPage(page);
   total_bytes_written_ += bytes_written;
 }
 
@@ -120,8 +137,8 @@ int64_t ColumnWriter::Close() {
   // Write all outstanding data to a new page
   if (num_buffered_values_ > 0) { AddDataPage(); }
 
-  for (size_t i = 0; i < data_page_buffers_.size(); i++) {
-    WriteNewPage(data_page_buffers_[i]);
+  for (size_t i = 0; i < data_pages_.size(); i++) {
+    WriteNewPage(data_pages_[i]);
   }
 
   if (num_rows_ != expected_rows_) {

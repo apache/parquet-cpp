@@ -52,6 +52,51 @@ void SerializedPageWriter::AddEncoding(Encoding::type encoding) {
   }
 }
 
+int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
+  int64_t uncompressed_size = page.size();
+
+  // Compress the data
+  std::shared_ptr<OwnedMutableBuffer> compressed_data;
+  int64_t compressed_size = uncompressed_size;
+  const uint8_t* compressed_ptr = page.data();
+  if (compressor_) {
+    int64_t max_compressed_size =
+        compressor_->MaxCompressedLen(uncompressed_size, page.data());
+    compressed_data =
+        std::make_shared<OwnedMutableBuffer>(max_compressed_size, allocator_);
+    compressed_size = compressor_->Compress(uncompressed_size, page.data(),
+        max_compressed_size, compressed_data->mutable_data());
+    compressed_ptr = compressed_data->data();
+  }
+
+  format::DataPageHeader data_page_header;
+  data_page_header.__set_num_values(page.num_values());
+  data_page_header.__set_encoding(ToThrift(page.encoding()));
+  data_page_header.__set_definition_level_encoding(
+      ToThrift(page.definition_level_encoding()));
+  data_page_header.__set_repetition_level_encoding(
+      ToThrift(page.repetition_level_encoding()));
+  // TODO(PARQUET-593) statistics
+
+  format::PageHeader page_header;
+  page_header.__set_type(format::PageType::DATA_PAGE);
+  page_header.__set_uncompressed_page_size(uncompressed_size);
+  page_header.__set_compressed_page_size(compressed_size);
+  page_header.__set_data_page_header(data_page_header);
+  // TODO(PARQUET-594) crc checksum
+
+  int64_t start_pos = sink_->Tell();
+  SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
+  int64_t header_size = sink_->Tell() - start_pos;
+  sink_->Write(compressed_ptr, compressed_size);
+
+  metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
+  metadata_->meta_data.total_compressed_size += compressed_size + header_size;
+  metadata_->meta_data.num_values += page.num_values();
+
+  return sink_->Tell() - start_pos;
+}
+
 int64_t SerializedPageWriter::WriteDataPage(int32_t num_rows, int32_t num_values,
     const std::shared_ptr<Buffer>& definition_levels,
     Encoding::type definition_level_encoding,

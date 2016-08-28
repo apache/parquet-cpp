@@ -67,7 +67,7 @@ class PARQUET_EXPORT ColumnWriter {
   virtual void WriteDictionaryPage() = 0;
 
   void AddDataPage();
-  void WriteNewPage(const DataPageBuffers& buffers);
+  void WriteNewPage(const DataPage& page);
 
   // Write multiple definition levels
   void WriteDefinitionLevels(int64_t num_levels, const int16_t* levels);
@@ -115,6 +115,7 @@ class PARQUET_EXPORT ColumnWriter {
   void InitSinks();
 
   std::vector<DataPageBuffers> data_page_buffers_;
+  std::vector<DataPage> data_pages_;
 };
 
 // API to write values to a single column. This is the main client facing API.
