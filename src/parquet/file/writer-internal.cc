@@ -35,7 +35,10 @@ static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type codec,
     format::ColumnChunk* metadata, MemoryAllocator* allocator)
-    : sink_(sink), metadata_(metadata), allocator_(allocator) {
+    : sink_(sink),
+      metadata_(metadata),
+      allocator_(allocator),
+      compression_buffer_(std::make_shared<OwnedMutableBuffer>(0, allocator)) {
   compressor_ = Codec::Create(codec);
   // Currently we directly start with the data page
   metadata_->meta_data.__set_data_page_offset(sink_->Tell());
@@ -52,22 +55,24 @@ void SerializedPageWriter::AddEncoding(Encoding::type encoding) {
   }
 }
 
-int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
-  int64_t uncompressed_size = page.size();
+std::shared_ptr<Buffer> SerializedPageWriter::Compress(
+    const std::shared_ptr<Buffer>& buffer) {
+  // Fast path, no compressor available.
+  if (!compressor_) return buffer;
 
   // Compress the data
-  std::shared_ptr<OwnedMutableBuffer> compressed_data;
-  int64_t compressed_size = uncompressed_size;
-  const uint8_t* compressed_ptr = page.data();
-  if (compressor_) {
-    int64_t max_compressed_size =
-        compressor_->MaxCompressedLen(uncompressed_size, page.data());
-    compressed_data =
-        std::make_shared<OwnedMutableBuffer>(max_compressed_size, allocator_);
-    compressed_size = compressor_->Compress(uncompressed_size, page.data(),
-        max_compressed_size, compressed_data->mutable_data());
-    compressed_ptr = compressed_data->data();
-  }
+  int64_t max_compressed_size =
+      compressor_->MaxCompressedLen(buffer->size(), buffer->data());
+  compression_buffer_->Resize(max_compressed_size);
+  int64_t compressed_size = compressor_->Compress(buffer->size(), buffer->data(),
+      max_compressed_size, compression_buffer_->mutable_data());
+  compression_buffer_->Resize(compressed_size);
+  return compression_buffer_;
+}
+
+int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
+  int64_t uncompressed_size = page.size();
+  std::shared_ptr<Buffer> compressed_data = Compress(page.buffer());
 
   format::DataPageHeader data_page_header;
   data_page_header.__set_num_values(page.num_values());
@@ -81,17 +86,17 @@ int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
   format::PageHeader page_header;
   page_header.__set_type(format::PageType::DATA_PAGE);
   page_header.__set_uncompressed_page_size(uncompressed_size);
-  page_header.__set_compressed_page_size(compressed_size);
+  page_header.__set_compressed_page_size(compressed_data->size());
   page_header.__set_data_page_header(data_page_header);
   // TODO(PARQUET-594) crc checksum
 
   int64_t start_pos = sink_->Tell();
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   int64_t header_size = sink_->Tell() - start_pos;
-  sink_->Write(compressed_ptr, compressed_size);
+  sink_->Write(compressed_data->data(), compressed_data->size());
 
   metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
-  metadata_->meta_data.total_compressed_size += compressed_size + header_size;
+  metadata_->meta_data.total_compressed_size += compressed_data->size() + header_size;
   metadata_->meta_data.num_values += page.num_values();
 
   return sink_->Tell() - start_pos;
@@ -99,20 +104,7 @@ int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
 
 int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   int64_t uncompressed_size = page.size();
-
-  // Compress the data
-  std::shared_ptr<OwnedMutableBuffer> compressed_data;
-  int64_t compressed_size = uncompressed_size;
-  const uint8_t* compressed_ptr = page.data();
-  if (compressor_) {
-    int64_t max_compressed_size =
-        compressor_->MaxCompressedLen(uncompressed_size, page.data());
-    compressed_data =
-        std::make_shared<OwnedMutableBuffer>(max_compressed_size, allocator_);
-    compressed_size = compressor_->Compress(uncompressed_size, page.data(),
-        max_compressed_size, compressed_data->mutable_data());
-    compressed_ptr = compressed_data->data();
-  }
+  std::shared_ptr<Buffer> compressed_data = Compress(page.buffer());
 
   format::DictionaryPageHeader dict_page_header;
   dict_page_header.__set_num_values(page.num_values());
@@ -122,17 +114,17 @@ int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   format::PageHeader page_header;
   page_header.__set_type(format::PageType::DICTIONARY_PAGE);
   page_header.__set_uncompressed_page_size(uncompressed_size);
-  page_header.__set_compressed_page_size(compressed_size);
+  page_header.__set_compressed_page_size(compressed_data->size());
   page_header.__set_dictionary_page_header(dict_page_header);
   // TODO(PARQUET-594) crc checksum
 
   int64_t start_pos = sink_->Tell();
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   int64_t header_size = sink_->Tell() - start_pos;
-  sink_->Write(compressed_ptr, compressed_size);
+  sink_->Write(compressed_data->data(), compressed_data->size());
 
   metadata_->meta_data.total_uncompressed_size += uncompressed_size + header_size;
-  metadata_->meta_data.total_compressed_size += compressed_size + header_size;
+  metadata_->meta_data.total_compressed_size += compressed_data->size() + header_size;
 
   return sink_->Tell() - start_pos;
 }

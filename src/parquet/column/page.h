@@ -45,6 +45,8 @@ class Page {
 
   PageType::type type() const { return type_; }
 
+  std::shared_ptr<Buffer> buffer() const { return buffer_; }
+
   // @returns: a pointer to the page's data
   const uint8_t* data() const { return buffer_->data(); }
 
