@@ -102,7 +102,6 @@ void ColumnWriter::AddDataPage() {
       definition_levels->size() + repetition_levels->size() + values->size();
 
   // Concatenate data into a single buffer
-  // TODO: Reuse the (un)compressed_data buffer instead of recreating it each time.
   std::shared_ptr<OwnedMutableBuffer> uncompressed_data =
       std::make_shared<OwnedMutableBuffer>(uncompressed_size, allocator_);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
