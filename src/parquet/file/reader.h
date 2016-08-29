@@ -79,7 +79,7 @@ class PARQUET_EXPORT ParquetFileReader {
     virtual int64_t num_rows() const = 0;
     virtual int num_columns() const = 0;
     virtual int num_row_groups() const = 0;
-    virtual const FileMetaData* GetFileMetaData() = 0;
+    virtual const FileMetaData* metadata() = 0;
   };
 
   ParquetFileReader();
@@ -104,7 +104,7 @@ class PARQUET_EXPORT ParquetFileReader {
   int num_row_groups() const;
 
   // Returns the file metadata
-  const FileMetaData* GetFileMetaData();
+  const FileMetaData* metadata();
 
   // Returns the file schema descriptor
   const SchemaDescriptor* descr() { return schema_; }

@@ -98,7 +98,7 @@ class SerializedFile : public ParquetFileReader::Contents {
       ReaderProperties props = default_reader_properties());
   virtual void Close();
   virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
-  virtual const FileMetaData* GetFileMetaData();
+  virtual const FileMetaData* metadata();
   virtual int64_t num_rows() const;
   virtual int num_columns() const;
   virtual int num_row_groups() const;

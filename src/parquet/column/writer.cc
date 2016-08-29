@@ -194,7 +194,7 @@ void TypedColumnWriter<Type>::WriteDictionaryPage() {
 std::shared_ptr<ColumnWriter> ColumnWriter::Make(const ColumnDescriptor* descr,
     std::unique_ptr<PageWriter> pager, int64_t expected_rows,
     const WriterProperties* properties) {
-  Encoding::type encoding = properties->value_encoding(descr->path());
+  Encoding::type encoding = properties->encoding(descr->path());
   switch (descr->physical_type()) {
     case Type::BOOLEAN:
       return std::make_shared<BoolWriter>(

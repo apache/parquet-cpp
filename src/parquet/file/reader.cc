@@ -95,7 +95,7 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
 
 void ParquetFileReader::Open(std::unique_ptr<ParquetFileReader::Contents> contents) {
   contents_ = std::move(contents);
-  schema_ = contents_->GetFileMetaData()->schema();
+  schema_ = contents_->metadata()->schema();
 }
 
 void ParquetFileReader::Close() {
@@ -114,8 +114,8 @@ int ParquetFileReader::num_columns() const {
   return schema_->num_columns();
 }
 
-const FileMetaData* ParquetFileReader::GetFileMetaData() {
-  return contents_->GetFileMetaData();
+const FileMetaData* ParquetFileReader::metadata() {
+  return contents_->metadata();
 }
 
 std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
@@ -132,7 +132,7 @@ std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
 
 void ParquetFileReader::DebugPrint(
     std::ostream& stream, std::list<int> selected_columns, bool print_values) {
-  const FileMetaData* file_metadata = GetFileMetaData();
+  const FileMetaData* file_metadata = metadata();
 
   stream << "File statistics:\n";
   stream << "Version: " << file_metadata->version() << "\n";
@@ -173,14 +173,14 @@ void ParquetFileReader::DebugPrint(
 
     // Print column metadata
     for (auto i : selected_columns) {
-      ColumnStatistics stats = group_metadata->GetColumnMetaData(i)->GetStats();
+      ColumnStatistics stats = group_metadata->GetColumnMetaData(i)->Stats();
 
       const ColumnDescriptor* descr = schema_->Column(i);
       stream << "Column " << i << std::endl
              << ", values: " << group_metadata->GetColumnMetaData(i)->num_values()
              << ", null values: " << stats.null_count
              << ", distinct values: " << stats.distinct_count << std::endl;
-      if (group_metadata->GetColumnMetaData(i)->IsStatsSet()) {
+      if (group_metadata->GetColumnMetaData(i)->is_stats_set()) {
         stream << "  max: " << FormatStatValue(descr->physical_type(), stats.max->c_str())
                << ", min: "
                << FormatStatValue(descr->physical_type(), stats.min->c_str());
@@ -189,17 +189,17 @@ void ParquetFileReader::DebugPrint(
       }
       stream << std::endl
              << "  compression: "
-             << compression_to_string(
-                    group_metadata->GetColumnMetaData(i)->GetCompression())
+             << compression_to_string(group_metadata->GetColumnMetaData(i)->compression())
              << ", encodings: ";
-      for (auto encoding : group_metadata->GetColumnMetaData(i)->GetEncodings()) {
+      for (auto encoding : group_metadata->GetColumnMetaData(i)->Encodings()) {
         stream << encoding_to_string(encoding) << " ";
       }
       stream << std::endl
              << "  uncompressed size: "
-             << group_metadata->GetColumnMetaData(i)->GetUnCompressedSize()
+             << group_metadata->GetColumnMetaData(i)->total_uncompressed_size()
              << ", compressed size: "
-             << group_metadata->GetColumnMetaData(i)->GetCompressedSize() << std::endl;
+             << group_metadata->GetColumnMetaData(i)->total_compressed_size()
+             << std::endl;
     }
 
     if (!print_values) { continue; }

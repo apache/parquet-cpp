@@ -219,7 +219,7 @@ int SerializedFile::num_row_groups() const {
   return metadata_->row_groups.size();
 }
 
-const FileMetaData* SerializedFile::GetFileMetaData() {
+const FileMetaData* SerializedFile::metadata() {
   return file_meta_data_.get();
 }
 

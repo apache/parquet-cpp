@@ -52,13 +52,13 @@ class PARQUET_EXPORT ColumnMetaData {
   // column metadata
   Type::type type() const;
   int64_t num_values() const;
-  const std::shared_ptr<schema::ColumnPath> path_in_schema() const;
-  bool IsStatsSet() const;
-  ColumnStatistics GetStats() const;
-  Compression::type GetCompression() const;
-  std::vector<Encoding::type> GetEncodings() const;
-  int64_t GetCompressedSize() const;
-  int64_t GetUnCompressedSize() const;
+  std::shared_ptr<schema::ColumnPath> path_in_schema() const;
+  bool is_stats_set() const;
+  ColumnStatistics Stats() const;
+  Compression::type compression() const;
+  std::vector<Encoding::type> Encodings() const;
+  int64_t total_compressed_size() const;
+  int64_t total_uncompressed_size() const;
 
  private:
   // PIMPL Idiom
@@ -118,23 +118,23 @@ class PARQUET_EXPORT ColumnMetaDataBuilder {
  public:
   // API convenience to get a MetaData reader
   static std::unique_ptr<ColumnMetaDataBuilder> GetColumnMetaDataBuilder(
-      std::shared_ptr<WriterProperties> props, const ColumnDescriptor* column,
+      const std::shared_ptr<WriterProperties>& props, const ColumnDescriptor* column,
       uint8_t* contents);
 
-  explicit ColumnMetaDataBuilder(std::shared_ptr<WriterProperties> props,
+  explicit ColumnMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
       const ColumnDescriptor* column, uint8_t* contents);
   ~ColumnMetaDataBuilder();
 
   // column chunk
+  // Used when a dataset is spread across multiple files
   void set_file_path(const std::string& path);
   // column metadata
-  void SetEncodingsWithDictionaryFallback();
   void SetStatistics(const ColumnStatistics& stats);
 
   // commit the metadata
   void Finish(int64_t num_values, int64_t dictonary_page_offset,
       int64_t index_page_offset, int64_t data_page_offset, int64_t compressed_size,
-      int64_t uncompressed_size);
+      int64_t uncompressed_size, bool dictionary_fallback);
 
  private:
   // PIMPL Idiom
@@ -146,10 +146,10 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
  public:
   // API convenience to get a MetaData reader
   static std::unique_ptr<RowGroupMetaDataBuilder> GetRowGroupMetaDataBuilder(
-      std::shared_ptr<WriterProperties> props, const SchemaDescriptor* schema_,
+      const std::shared_ptr<WriterProperties>& props, const SchemaDescriptor* schema_,
       uint8_t* contents);
 
-  explicit RowGroupMetaDataBuilder(std::shared_ptr<WriterProperties> props,
+  explicit RowGroupMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
       const SchemaDescriptor* schema_, uint8_t* contents);
   ~RowGroupMetaDataBuilder();
 
@@ -168,10 +168,10 @@ class PARQUET_EXPORT FileMetaDataBuilder {
  public:
   // API convenience to get a MetaData reader
   static std::unique_ptr<FileMetaDataBuilder> GetFileMetaDataBuilder(
-      const SchemaDescriptor* schema, std::shared_ptr<WriterProperties> props);
+      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
 
   explicit FileMetaDataBuilder(
-      const SchemaDescriptor* schema, std::shared_ptr<WriterProperties> props);
+      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
   ~FileMetaDataBuilder();
 
   RowGroupMetaDataBuilder* AppendRowGroupMetaData();

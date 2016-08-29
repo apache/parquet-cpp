@@ -64,8 +64,8 @@ TEST(Metadata, TestBuildAccess) {
   // column metadata
   col1_builder->SetStatistics(stats_int);
   col2_builder->SetStatistics(stats_float);
-  col1_builder->Finish(nrows / 2, 0, 0, 4, 512, 512);
-  col2_builder->Finish(nrows / 2, 0, 0, 4, 512, 512);
+  col1_builder->Finish(nrows / 2, 0, 0, 4, 512, 600, false);
+  col2_builder->Finish(nrows / 2, 0, 0, 4, 512, 600, false);
   rg1_builder->Finish(nrows / 2);
 
   // rowgroup2 metadata
@@ -74,8 +74,8 @@ TEST(Metadata, TestBuildAccess) {
   // column metadata
   col1_builder->SetStatistics(stats_int);
   col2_builder->SetStatistics(stats_float);
-  col1_builder->Finish(nrows / 2, 0, 0, 6, 512, 512);
-  col2_builder->Finish(nrows / 2, 0, 0, 516, 512, 512);
+  col1_builder->Finish(nrows / 2, 0, 0, 6, 512, 600, false);
+  col2_builder->Finish(nrows / 2, 0, 0, 516, 512, 600, false);
   rg2_builder->Finish(nrows / 2);
 
   // Read the metadata
@@ -96,24 +96,26 @@ TEST(Metadata, TestBuildAccess) {
 
   auto rg1_column1 = rg1_accessor->GetColumnMetaData(0);
   auto rg1_column2 = rg1_accessor->GetColumnMetaData(1);
-  ASSERT_EQ(true, rg1_column1->IsStatsSet());
-  ASSERT_EQ(true, rg1_column2->IsStatsSet());
-  ASSERT_EQ("100.100", *rg1_column2->GetStats().min);
-  ASSERT_EQ("200.200", *rg1_column2->GetStats().max);
-  ASSERT_EQ("100", *rg1_column1->GetStats().min);
-  ASSERT_EQ("200", *rg1_column1->GetStats().max);
-  ASSERT_EQ(0, rg1_column1->GetStats().null_count);
-  ASSERT_EQ(0, rg1_column2->GetStats().null_count);
-  ASSERT_EQ(nrows, rg1_column1->GetStats().distinct_count);
-  ASSERT_EQ(nrows, rg1_column2->GetStats().distinct_count);
-  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg1_column1->GetCompression());
-  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg1_column2->GetCompression());
-  ASSERT_EQ(2, rg1_column1->GetEncodings().size());
-  ASSERT_EQ(2, rg1_column2->GetEncodings().size());
-  ASSERT_EQ(512, rg1_column1->GetCompressedSize());
-  ASSERT_EQ(512, rg1_column2->GetCompressedSize());
-  ASSERT_EQ(512, rg1_column1->GetUnCompressedSize());
-  ASSERT_EQ(512, rg1_column2->GetUnCompressedSize());
+  ASSERT_EQ(true, rg1_column1->is_stats_set());
+  ASSERT_EQ(true, rg1_column2->is_stats_set());
+  ASSERT_EQ("100.100", *rg1_column2->Stats().min);
+  ASSERT_EQ("200.200", *rg1_column2->Stats().max);
+  ASSERT_EQ("100", *rg1_column1->Stats().min);
+  ASSERT_EQ("200", *rg1_column1->Stats().max);
+  ASSERT_EQ(0, rg1_column1->Stats().null_count);
+  ASSERT_EQ(0, rg1_column2->Stats().null_count);
+  ASSERT_EQ(nrows, rg1_column1->Stats().distinct_count);
+  ASSERT_EQ(nrows, rg1_column2->Stats().distinct_count);
+  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg1_column1->compression());
+  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg1_column2->compression());
+  ASSERT_EQ(nrows / 2, rg1_column1->num_values());
+  ASSERT_EQ(nrows / 2, rg1_column2->num_values());
+  ASSERT_EQ(2, rg1_column1->Encodings().size());
+  ASSERT_EQ(2, rg1_column2->Encodings().size());
+  ASSERT_EQ(512, rg1_column1->total_compressed_size());
+  ASSERT_EQ(512, rg1_column2->total_compressed_size());
+  ASSERT_EQ(600, rg1_column1->total_uncompressed_size());
+  ASSERT_EQ(600, rg1_column2->total_uncompressed_size());
 
   auto rg2_accessor = f_accessor->GetRowGroupMetaData(1);
   ASSERT_EQ(2, rg2_accessor->num_columns());
@@ -122,24 +124,26 @@ TEST(Metadata, TestBuildAccess) {
 
   auto rg2_column1 = rg2_accessor->GetColumnMetaData(0);
   auto rg2_column2 = rg2_accessor->GetColumnMetaData(1);
-  ASSERT_EQ(true, rg2_column1->IsStatsSet());
-  ASSERT_EQ(true, rg2_column2->IsStatsSet());
-  ASSERT_EQ("100.100", *rg2_column2->GetStats().min);
-  ASSERT_EQ("200.200", *rg2_column2->GetStats().max);
-  ASSERT_EQ("100", *rg2_column1->GetStats().min);
-  ASSERT_EQ("200", *rg2_column1->GetStats().max);
-  ASSERT_EQ(0, rg2_column1->GetStats().null_count);
-  ASSERT_EQ(0, rg2_column2->GetStats().null_count);
-  ASSERT_EQ(nrows, rg2_column1->GetStats().distinct_count);
-  ASSERT_EQ(nrows, rg2_column2->GetStats().distinct_count);
-  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg2_column1->GetCompression());
-  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg2_column2->GetCompression());
-  ASSERT_EQ(2, rg2_column1->GetEncodings().size());
-  ASSERT_EQ(2, rg2_column2->GetEncodings().size());
-  ASSERT_EQ(512, rg2_column1->GetCompressedSize());
-  ASSERT_EQ(512, rg2_column2->GetCompressedSize());
-  ASSERT_EQ(512, rg2_column1->GetUnCompressedSize());
-  ASSERT_EQ(512, rg2_column2->GetUnCompressedSize());
+  ASSERT_EQ(true, rg2_column1->is_stats_set());
+  ASSERT_EQ(true, rg2_column2->is_stats_set());
+  ASSERT_EQ("100.100", *rg2_column2->Stats().min);
+  ASSERT_EQ("200.200", *rg2_column2->Stats().max);
+  ASSERT_EQ("100", *rg2_column1->Stats().min);
+  ASSERT_EQ("200", *rg2_column1->Stats().max);
+  ASSERT_EQ(0, rg2_column1->Stats().null_count);
+  ASSERT_EQ(0, rg2_column2->Stats().null_count);
+  ASSERT_EQ(nrows, rg2_column1->Stats().distinct_count);
+  ASSERT_EQ(nrows, rg2_column2->Stats().distinct_count);
+  ASSERT_EQ(nrows / 2, rg2_column1->num_values());
+  ASSERT_EQ(nrows / 2, rg2_column2->num_values());
+  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg2_column1->compression());
+  ASSERT_EQ(DEFAULT_COMPRESSION_TYPE, rg2_column2->compression());
+  ASSERT_EQ(2, rg2_column1->Encodings().size());
+  ASSERT_EQ(2, rg2_column2->Encodings().size());
+  ASSERT_EQ(512, rg2_column1->total_compressed_size());
+  ASSERT_EQ(512, rg2_column2->total_compressed_size());
+  ASSERT_EQ(600, rg2_column1->total_uncompressed_size());
+  ASSERT_EQ(600, rg2_column2->total_uncompressed_size());
 }
 }  // namespace metadata
 }  // namespace parquet
