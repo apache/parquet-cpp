@@ -151,7 +151,7 @@ class PARQUET_EXPORT WriterProperties {
       return this;
     }
 
-    Builder* set_level_encoding(
+    Builder* level_encoding(
         Encoding::type rep_level_encoding, Encoding::type def_level_encoding) {
       default_rep_level_encoding_ = rep_level_encoding;
       default_def_level_encoding_ = def_level_encoding;
@@ -167,7 +167,7 @@ class PARQUET_EXPORT WriterProperties {
       return this;
     }
 
-    Builder* dictionary_fallback_encodings(Encoding::type rep_level_encoding,
+    Builder* dictionary_fallback_encoding(Encoding::type rep_level_encoding,
         Encoding::type def_level_encoding, Encoding::type fallback_encoding) {
       default_rep_level_encoding_ = rep_level_encoding;
       default_def_level_encoding_ = def_level_encoding;
