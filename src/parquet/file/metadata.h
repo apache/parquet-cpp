@@ -128,7 +128,7 @@ class PARQUET_EXPORT ColumnMetaDataBuilder {
   // column chunk
   void set_file_path(const std::string& path);
   // column metadata
-  void set_encodings(const std::set<Encoding::type>& val);
+  void SetEncodingsWithDictionaryFallback();
   void SetStatistics(const ColumnStatistics& stats);
 
   // commit the metadata

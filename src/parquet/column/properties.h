@@ -34,11 +34,12 @@ struct ParquetVersion {
   enum type { PARQUET_1_0, PARQUET_2_0 };
 };
 
-struct ColumnEncodings {
+struct ColumnEncodingSet {
   Encoding::type def_level_encoding;
   Encoding::type rep_level_encoding;
   Encoding::type dictionary_encoding;
   Encoding::type value_encoding;
+  Encoding::type dictionary_fallback_encoding;
 };
 
 static int64_t DEFAULT_BUFFER_SIZE = 0;
@@ -85,17 +86,20 @@ class PARQUET_EXPORT ReaderProperties {
 ReaderProperties PARQUET_EXPORT default_reader_properties();
 
 static int64_t DEFAULT_PAGE_SIZE = 1024 * 1024;
+static bool DEFAULT_IS_DICTIONARY_ENABLED = true;
 static int64_t DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 static int64_t DEFAULT_DICTIONARY_SIZE_THRESHOLD = DEFAULT_PAGE_SIZE;
-static Encoding::type DEFAULT_VALUE_ENCODING = Encoding::PLAIN_DICTIONARY;
-static Encoding::type DEFAULT_DICTIONARY_ENCODING = Encoding::PLAIN_DICTIONARY;
-static Encoding::type DEFAULT_LEVEL_ENCODING = Encoding::RLE;
+static constexpr Encoding::type DEFAULT_DICTIONARY_FALLBACK_ENCODING = Encoding::PLAIN;
+static constexpr Encoding::type DEFAULT_VALUE_ENCODING = Encoding::PLAIN_DICTIONARY;
+static constexpr Encoding::type DEFAULT_DICTIONARY_ENCODING = Encoding::PLAIN_DICTIONARY;
+static constexpr Encoding::type DEFAULT_LEVEL_ENCODING = Encoding::RLE;
 static constexpr ParquetVersion::type DEFAULT_WRITER_VERSION =
     ParquetVersion::PARQUET_1_0;
 static std::string DEFAULT_CREATED_BY = "Apache parquet-cpp";
 static constexpr Compression::type DEFAULT_COMPRESSION_TYPE = Compression::UNCOMPRESSED;
 
 using ColumnCodecs = std::unordered_map<std::string, Compression::type>;
+using ColumnEncodings = std::unordered_map<std::string, ColumnEncodingSet>;
 
 class PARQUET_EXPORT WriterProperties {
  public:
@@ -103,12 +107,14 @@ class PARQUET_EXPORT WriterProperties {
    public:
     Builder()
         : allocator_(default_allocator()),
+          dictionary_enabled_(DEFAULT_IS_DICTIONARY_ENABLED),
           dictionary_pagesize_(DEFAULT_DICTIONARY_PAGE_SIZE),
           dictionary_size_threshold_(DEFAULT_DICTIONARY_SIZE_THRESHOLD),
           default_rep_level_encoding_(DEFAULT_LEVEL_ENCODING),
           default_def_level_encoding_(DEFAULT_LEVEL_ENCODING),
           default_dictionary_encoding_(DEFAULT_DICTIONARY_ENCODING),
           default_value_encoding_(DEFAULT_VALUE_ENCODING),
+          default_dictionary_fallback_encoding_(DEFAULT_DICTIONARY_FALLBACK_ENCODING),
           pagesize_(DEFAULT_PAGE_SIZE),
           version_(DEFAULT_WRITER_VERSION),
           created_by_(DEFAULT_CREATED_BY),
@@ -117,6 +123,11 @@ class PARQUET_EXPORT WriterProperties {
 
     Builder* allocator(MemoryAllocator* allocator) {
       allocator_ = allocator;
+      return this;
+    }
+
+    Builder* disable_dictionary() {
+      dictionary_enabled_ = false;
       return this;
     }
 
@@ -135,37 +146,37 @@ class PARQUET_EXPORT WriterProperties {
       return this;
     }
 
-    Builder* encodings(const std::shared_ptr<schema::ColumnPath>& path,
-        Encoding::type rep_level_encoding, Encoding::type def_level_encoding) {
-      return encodings(path->ToDotString(), rep_level_encoding, def_level_encoding);
-    }
-
-    Builder* encodings(const std::string& column_path, Encoding::type rep_level_encoding,
-        Encoding::type def_level_encoding) {
-      ColumnEncodings encodings;
-      encodings.rep_level_encoding = rep_level_encoding;
-      encodings.def_level_encoding = def_level_encoding;
-      encodings.dictionary_encoding = default_dictionary_encoding_;
-      encodings.value_encoding = default_value_encoding_;
-      encodings_[column_path] = encodings;
+    Builder* encodings(ColumnEncodings& encodings) {
+      encodings_ = encodings;
       return this;
     }
 
-    Builder* encodings(const std::shared_ptr<schema::ColumnPath>& path,
-        Encoding::type rep_level_encoding, Encoding::type def_level_encoding,
-        Encoding::type value_encoding) {
-      return encodings(
-          path->ToDotString(), rep_level_encoding, def_level_encoding, value_encoding);
+    Builder* set_level_encoding(
+        Encoding::type rep_level_encoding, Encoding::type def_level_encoding) {
+      default_rep_level_encoding_ = rep_level_encoding;
+      default_def_level_encoding_ = def_level_encoding;
+      return this;
     }
 
-    Builder* encodings(const std::string& column_path, Encoding::type rep_level_encoding,
+    Builder* disable_dictionary_encoding(Encoding::type rep_level_encoding,
         Encoding::type def_level_encoding, Encoding::type value_encoding) {
-      ColumnEncodings encodings;
-      encodings.rep_level_encoding = rep_level_encoding;
-      encodings.def_level_encoding = def_level_encoding;
-      encodings.dictionary_encoding = default_dictionary_encoding_;
-      encodings.value_encoding = value_encoding;
-      encodings_[column_path] = encodings;
+      dictionary_enabled_ = false;
+      default_rep_level_encoding_ = rep_level_encoding;
+      default_def_level_encoding_ = def_level_encoding;
+      default_value_encoding_ = value_encoding;
+      return this;
+    }
+
+    Builder* dictionary_fallback_encodings(Encoding::type rep_level_encoding,
+        Encoding::type def_level_encoding, Encoding::type fallback_encoding) {
+      default_rep_level_encoding_ = rep_level_encoding;
+      default_def_level_encoding_ = def_level_encoding;
+      default_dictionary_fallback_encoding_ = fallback_encoding;
+      return this;
+    }
+
+    Builder* dictionary_fallback_encoding(Encoding::type encoding_type) {
+      default_dictionary_fallback_encoding_ = encoding_type;
       return this;
     }
 
@@ -214,15 +225,17 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     std::shared_ptr<WriterProperties> build() {
-      return std::shared_ptr<WriterProperties>(new WriterProperties(allocator_,
-          dictionary_pagesize_, dictionary_size_threshold_, default_rep_level_encoding_,
-          default_def_level_encoding_, default_dictionary_encoding_,
-          default_value_encoding_, encodings_, pagesize_, version_, created_by_,
-          default_codec_, codecs_));
+      return std::shared_ptr<WriterProperties>(
+          new WriterProperties(allocator_, dictionary_enabled_, dictionary_pagesize_,
+              dictionary_size_threshold_, default_rep_level_encoding_,
+              default_def_level_encoding_, default_dictionary_encoding_,
+              default_value_encoding_, default_dictionary_fallback_encoding_, encodings_,
+              pagesize_, version_, created_by_, default_codec_, codecs_));
     }
 
    private:
     MemoryAllocator* allocator_;
+    bool dictionary_enabled_;
     int64_t dictionary_pagesize_;
     int64_t dictionary_size_threshold_;
     // Encoding used for each column if not a specialized one is defined as
@@ -231,7 +244,8 @@ class PARQUET_EXPORT WriterProperties {
     Encoding::type default_def_level_encoding_;
     Encoding::type default_dictionary_encoding_;
     Encoding::type default_value_encoding_;
-    std::unordered_map<std::string, ColumnEncodings> encodings_;
+    Encoding::type default_dictionary_fallback_encoding_;
+    ColumnEncodings encodings_;
     int64_t pagesize_;
     ParquetVersion::type version_;
     std::string created_by_;
@@ -243,6 +257,8 @@ class PARQUET_EXPORT WriterProperties {
 
   inline MemoryAllocator* allocator() const { return allocator_; }
 
+  bool dictionary_enabled() const { return dictionary_enabled_; }
+
   inline bool dictionary_size_threshold() const { return dictionary_size_threshold_; }
 
   inline int64_t dictionary_pagesize() const { return dictionary_pagesize_; }
@@ -253,7 +269,7 @@ class PARQUET_EXPORT WriterProperties {
 
   inline std::string created_by() const { return parquet_created_by_; }
 
-  inline const ColumnEncodings& encodings(
+  inline const ColumnEncodingSet& encodings(
       const std::shared_ptr<schema::ColumnPath>& path) const {
     auto it = encodings_.find(path->ToDotString());
     if (it != encodings_.end()) { return it->second; }
@@ -288,6 +304,13 @@ class PARQUET_EXPORT WriterProperties {
     return default_value_encoding_;
   }
 
+  inline Encoding::type dictionary_fallback_encoding(
+      const std::shared_ptr<schema::ColumnPath>& path) const {
+    auto it = encodings_.find(path->ToDotString());
+    if (it != encodings_.end()) { return it->second.dictionary_fallback_encoding; }
+    return default_dictionary_fallback_encoding_;
+  }
+
   inline Compression::type compression(
       const std::shared_ptr<schema::ColumnPath>& path) const {
     auto it = codecs_.find(path->ToDotString());
@@ -296,19 +319,21 @@ class PARQUET_EXPORT WriterProperties {
   }
 
  private:
-  explicit WriterProperties(MemoryAllocator* allocator, int64_t dictionary_pagesize,
-      int64_t dictionary_size_threshold, Encoding::type rep_level_encoding,
-      Encoding::type def_level_encoding, Encoding::type dictionary_encoding,
-      Encoding::type value_encoding,
-      const std::unordered_map<std::string, ColumnEncodings>& encodings, int64_t pagesize,
-      ParquetVersion::type version, const std::string& created_by,
+  explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled,
+      int64_t dictionary_pagesize, int64_t dictionary_size_threshold,
+      Encoding::type rep_level_encoding, Encoding::type def_level_encoding,
+      Encoding::type dictionary_encoding, Encoding::type value_encoding,
+      Encoding::type dictionary_fallback_encoding, const ColumnEncodings& encodings,
+      int64_t pagesize, ParquetVersion::type version, const std::string& created_by,
       Compression::type default_codec, const ColumnCodecs& codecs)
       : allocator_(allocator),
+        dictionary_enabled_(dictionary_enabled),
         dictionary_pagesize_(dictionary_pagesize),
         default_rep_level_encoding_(rep_level_encoding),
         default_def_level_encoding_(def_level_encoding),
         default_dictionary_encoding_(dictionary_encoding),
         default_value_encoding_(value_encoding),
+        default_dictionary_fallback_encoding_(dictionary_fallback_encoding),
         encodings_(encodings),
         pagesize_(pagesize),
         parquet_version_(version),
@@ -324,20 +349,24 @@ class PARQUET_EXPORT WriterProperties {
     default_encodings_.rep_level_encoding = default_rep_level_encoding_;
     default_encodings_.dictionary_encoding = default_dictionary_encoding_;
     default_encodings_.value_encoding = default_value_encoding_;
+    default_encodings_.dictionary_fallback_encoding =
+        default_dictionary_fallback_encoding_;
   }
   MemoryAllocator* allocator_;
+  bool dictionary_enabled_;
   int64_t dictionary_pagesize_;
   int64_t dictionary_size_threshold_;
   Encoding::type default_rep_level_encoding_;
   Encoding::type default_def_level_encoding_;
   Encoding::type default_dictionary_encoding_;
   Encoding::type default_value_encoding_;
-  std::unordered_map<std::string, ColumnEncodings> encodings_;
+  Encoding::type default_dictionary_fallback_encoding_;
+  ColumnEncodings encodings_;
   int64_t pagesize_;
   ParquetVersion::type parquet_version_;
   std::string parquet_created_by_;
   Compression::type default_codec_;
-  ColumnEncodings default_encodings_;
+  ColumnEncodingSet default_encodings_;
   ColumnCodecs codecs_;
 };
 

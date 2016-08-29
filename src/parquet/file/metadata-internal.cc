@@ -265,7 +265,7 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
  public:
   explicit ColumnMetaDataBuilderImpl(std::shared_ptr<WriterProperties> props,
       const ColumnDescriptor* column, uint8_t* contents)
-      : properties_(props) {
+      : properties_(props), column_(column) {
     column_chunk_ = reinterpret_cast<format::ColumnChunk*>(contents);
     column_chunk_->meta_data.__set_type(ToThrift(column->physical_type()));
     column_chunk_->meta_data.__set_path_in_schema(column->path()->ToDotVector());
@@ -273,10 +273,12 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
         ToThrift(properties_->compression(column->path())));
     std::vector<format::Encoding::type> thrift_encodings;
     std::set<Encoding::type> encodings_set;
-    ColumnEncodings encodings = properties_->encodings(column->path());
+    ColumnEncodingSet encodings = properties_->encodings(column->path());
     encodings_set.insert(encodings.def_level_encoding);
     encodings_set.insert(encodings.rep_level_encoding);
-    encodings_set.insert(encodings.dictionary_encoding);
+    if (properties_->dictionary_enabled()) {
+      encodings_set.insert(encodings.dictionary_encoding);
+    }
     encodings_set.insert(encodings.value_encoding);
     for (auto encoding : encodings_set) {
       thrift_encodings.push_back(ToThrift(encoding));
@@ -289,10 +291,19 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
   void set_file_path(const std::string& val) { column_chunk_->__set_file_path(val); }
 
   // column metadata
-  // Needed to override the original values when dictionary encoding is converted
-  void set_encodings(const std::set<Encoding::type>& encodings) {
+  // Needed to override the original values when fallback encoding is used
+  void SetEncodingsWithDictionaryFallback() {
     std::vector<format::Encoding::type> thrift_encodings;
-    for (auto encoding : encodings) {
+    std::set<Encoding::type> encodings_set;
+    ColumnEncodingSet encodings = properties_->encodings(column_->path());
+    encodings_set.insert(encodings.def_level_encoding);
+    encodings_set.insert(encodings.rep_level_encoding);
+    if (properties_->dictionary_enabled()) {
+      encodings_set.insert(encodings.dictionary_encoding);
+    }
+    encodings_set.insert(encodings.value_encoding);
+    encodings_set.insert(encodings.dictionary_fallback_encoding);
+    for (auto encoding : encodings_set) {
       thrift_encodings.push_back(ToThrift(encoding));
     }
     column_chunk_->meta_data.__set_encodings(thrift_encodings);
@@ -326,6 +337,7 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
  private:
   format::ColumnChunk* column_chunk_;
   std::shared_ptr<WriterProperties> properties_;
+  const ColumnDescriptor* column_;
 };
 
 std::unique_ptr<ColumnMetaDataBuilder> ColumnMetaDataBuilder::GetColumnMetaDataBuilder(
@@ -346,8 +358,8 @@ void ColumnMetaDataBuilder::set_file_path(const std::string& path) {
   impl_->set_file_path(path);
 }
 
-void ColumnMetaDataBuilder::set_encodings(const std::set<Encoding::type>& path) {
-  impl_->set_encodings(path);
+void ColumnMetaDataBuilder::SetEncodingsWithDictionaryFallback() {
+  impl_->SetEncodingsWithDictionaryFallback();
 }
 
 void ColumnMetaDataBuilder::Finish(int64_t num_values, int64_t dictionary_page_offset,
