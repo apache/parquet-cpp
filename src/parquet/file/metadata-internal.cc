@@ -306,14 +306,14 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
     column_chunk_->meta_data.__set_total_compressed_size(compressed_size);
     std::vector<format::Encoding::type> thrift_encodings;
     thrift_encodings.push_back(ToThrift(properties_->level_encoding()));
-    if (properties_->dictionary_enabled()) {
+    if (properties_->dictionary_enabled(column_->path())) {
       thrift_encodings.push_back(ToThrift(properties_->dictionary_encoding()));
       // add the encoding only if it is unique
       if (properties_->version() == ParquetVersion::PARQUET_2_0) {
         thrift_encodings.push_back(ToThrift(properties_->dictionary_index_encoding()));
       }
     }
-    if (!properties_->dictionary_enabled() || dictionary_fallback) {
+    if (!properties_->dictionary_enabled(column_->path()) || dictionary_fallback) {
       thrift_encodings.push_back(ToThrift(properties_->encoding(column_->path())));
     }
     column_chunk_->meta_data.__set_encodings(thrift_encodings);

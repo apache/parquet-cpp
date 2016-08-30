@@ -22,6 +22,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "parquet/exception.h"
 #include "parquet/types.h"
 #include "parquet/schema/types.h"
 #include "parquet/util/input.h"
@@ -108,9 +109,32 @@ class PARQUET_EXPORT WriterProperties {
       return this;
     }
 
-    Builder* disable_dictionary() {
-      dictionary_enabled_ = false;
+    Builder* enable_dictionary() {
+      dictionary_enabled_default_ = true;
       return this;
+    }
+
+    Builder* disable_dictionary() {
+      dictionary_enabled_default_ = false;
+      return this;
+    }
+
+    Builder* enable_dictionary(const std::string& path) {
+      dictionary_enabled_[path] = true;
+      return this;
+    }
+
+    Builder* enable_dictionary(const std::shared_ptr<schema::ColumnPath>& path) {
+      return this->enable_dictionary(path->ToDotString());
+    }
+
+    Builder* disable_dictionary(const std::string& path) {
+      dictionary_enabled_[path] = true;
+      return this;
+    }
+
+    Builder* disable_dictionary(const std::shared_ptr<schema::ColumnPath>& path) {
+      return this->enable_dictionary(path->ToDotString());
     }
 
     Builder* dictionary_pagesize(int64_t dictionary_psize) {
@@ -133,16 +157,42 @@ class PARQUET_EXPORT WriterProperties {
       return this;
     }
 
+    /**
+     * Define the encoding that is used when we don't utilise dictionary encoding.
+     *
+     * This either apply if dictionary encoding is disabled or if we fallback
+     * as the dictionary grew too large.
+     */
     Builder* encoding(Encoding::type encoding_type) {
+      if (encoding_type == Encoding::PLAIN_DICTIONARY ||
+          encoding_type == Encoding::RLE_DICTIONARY) {
+        throw ParquetException("Can't use dictionary encoding as fallback encoding");
+      }
       default_encoding_ = encoding_type;
       return this;
     }
 
+    /**
+     * Define the encoding that is used when we don't utilise dictionary encoding.
+     *
+     * This either apply if dictionary encoding is disabled or if we fallback
+     * as the dictionary grew too large.
+     */
     Builder* encoding(const std::string& path, Encoding::type encoding_type) {
+      if (encoding_type == Encoding::PLAIN_DICTIONARY ||
+          encoding_type == Encoding::RLE_DICTIONARY) {
+        throw ParquetException("Can't use dictionary encoding as fallback encoding");
+      }
       encodings_[path] = encoding_type;
       return this;
     }
 
+    /**
+     * Define the encoding that is used when we don't utilise dictionary encoding.
+     *
+     * This either apply if dictionary encoding is disabled or if we fallback
+     * as the dictionary grew too large.
+     */
     Builder* encoding(
         const std::shared_ptr<schema::ColumnPath>& path, Encoding::type encoding_type) {
       return this->encoding(path->ToDotString(), encoding_type);
@@ -164,14 +214,16 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     std::shared_ptr<WriterProperties> build() {
-      return std::shared_ptr<WriterProperties>(new WriterProperties(allocator_,
-          dictionary_enabled_, dictionary_pagesize_, pagesize_, version_, created_by_,
-          default_encoding_, encodings_, default_codec_, codecs_));
+      return std::shared_ptr<WriterProperties>(
+          new WriterProperties(allocator_, dictionary_enabled_default_,
+              dictionary_enabled_, dictionary_pagesize_, pagesize_, version_, created_by_,
+              default_encoding_, encodings_, default_codec_, codecs_));
     }
 
    private:
     MemoryAllocator* allocator_;
-    bool dictionary_enabled_;
+    bool dictionary_enabled_default_;
+    std::unordered_map<std::string, bool> dictionary_enabled_;
     int64_t dictionary_pagesize_;
     int64_t pagesize_;
     ParquetVersion::type version_;
@@ -188,7 +240,11 @@ class PARQUET_EXPORT WriterProperties {
 
   inline MemoryAllocator* allocator() const { return allocator_; }
 
-  bool dictionary_enabled() const { return dictionary_enabled_; }
+  bool dictionary_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
+    auto it = dictionary_enabled_.find(path->ToDotString());
+    if (it != dictionary_enabled_.end()) { return it->second; }
+    return dictionary_enabled_default_;
+  }
 
   inline int64_t dictionary_pagesize() const { return dictionary_pagesize_; }
 
@@ -230,12 +286,14 @@ class PARQUET_EXPORT WriterProperties {
   }
 
  private:
-  explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled,
+  explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled_default,
+      std::unordered_map<std::string, bool> dictionary_enabled,
       int64_t dictionary_pagesize, int64_t pagesize, ParquetVersion::type version,
       const std::string& created_by, Encoding::type default_encoding,
       std::unordered_map<std::string, Encoding::type> encodings,
       Compression::type default_codec, const ColumnCodecs& codecs)
       : allocator_(allocator),
+        dictionary_enabled_default_(dictionary_enabled_default),
         dictionary_enabled_(dictionary_enabled),
         dictionary_pagesize_(dictionary_pagesize),
         pagesize_(pagesize),
@@ -246,7 +304,8 @@ class PARQUET_EXPORT WriterProperties {
         default_codec_(default_codec),
         codecs_(codecs) {}
   MemoryAllocator* allocator_;
-  bool dictionary_enabled_;
+  bool dictionary_enabled_default_;
+  std::unordered_map<std::string, bool> dictionary_enabled_;
   int64_t dictionary_pagesize_;
   int64_t pagesize_;
   ParquetVersion::type parquet_version_;
