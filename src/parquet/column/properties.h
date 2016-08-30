@@ -78,9 +78,9 @@ class PARQUET_EXPORT ReaderProperties {
 
 ReaderProperties PARQUET_EXPORT default_reader_properties();
 
-static int64_t DEFAULT_PAGE_SIZE = 1024 * 1024;
-static bool DEFAULT_IS_DICTIONARY_ENABLED = true;
-static int64_t DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+static constexpr int64_t DEFAULT_PAGE_SIZE = 1024 * 1024;
+static constexpr bool DEFAULT_IS_DICTIONARY_ENABLED = true;
+static constexpr int64_t DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 static constexpr Encoding::type DEFAULT_ENCODING = Encoding::PLAIN;
 static constexpr ParquetVersion::type DEFAULT_WRITER_VERSION =
     ParquetVersion::PARQUET_1_0;
@@ -240,7 +240,7 @@ class PARQUET_EXPORT WriterProperties {
 
   inline MemoryAllocator* allocator() const { return allocator_; }
 
-  bool dictionary_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
+  inline bool dictionary_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
     auto it = dictionary_enabled_.find(path->ToDotString());
     if (it != dictionary_enabled_.end()) { return it->second; }
     return dictionary_enabled_default_;
@@ -259,8 +259,6 @@ class PARQUET_EXPORT WriterProperties {
     if (it != encodings_.end()) { return it->second; }
     return default_encoding_;
   }
-
-  inline Encoding::type level_encoding() const { return Encoding::RLE; }
 
   inline Encoding::type dictionary_encoding() const {
     if (parquet_version_ == ParquetVersion::PARQUET_1_0) {

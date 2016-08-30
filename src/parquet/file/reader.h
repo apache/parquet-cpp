@@ -40,29 +40,26 @@ class PARQUET_EXPORT RowGroupReader {
  public:
   // Forward declare the PIMPL
   struct Contents {
-    virtual int num_columns() const = 0;
-    virtual int64_t num_rows() const = 0;
     virtual std::unique_ptr<PageReader> GetColumnPageReader(int i) = 0;
+    virtual const RowGroupMetaData* metadata() const = 0;
   };
 
   RowGroupReader(const SchemaDescriptor* schema, std::unique_ptr<Contents> contents,
       MemoryAllocator* allocator);
 
+  // Returns the rowgroup metadata
+  const RowGroupMetaData* metadata() const;
+
   // Construct a ColumnReader for the indicated row group-relative
   // column. Ownership is shared with the RowGroupReader.
   std::shared_ptr<ColumnReader> Column(int i);
-  int num_columns() const;
-  int64_t num_rows() const;
 
  private:
-  // Owned by the parent ParquetFileReader
   const SchemaDescriptor* schema_;
-
   // PIMPL idiom
   // This is declared in the .cc file so that we can hide compiled Thrift
   // headers from the public API and also more easily create test fixtures.
   std::unique_ptr<Contents> contents_;
-
   MemoryAllocator* allocator_;
 };
 
@@ -73,13 +70,8 @@ class PARQUET_EXPORT ParquetFileReader {
     virtual ~Contents() {}
     // Perform any cleanup associated with the file contents
     virtual void Close() = 0;
-
     virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i) = 0;
-
-    virtual int64_t num_rows() const = 0;
-    virtual int num_columns() const = 0;
-    virtual int num_row_groups() const = 0;
-    virtual const FileMetaData* metadata() = 0;
+    virtual const FileMetaData* metadata() const = 0;
   };
 
   ParquetFileReader();
@@ -99,17 +91,8 @@ class PARQUET_EXPORT ParquetFileReader {
   // The RowGroupReader is owned by the FileReader
   std::shared_ptr<RowGroupReader> RowGroup(int i);
 
-  int num_columns() const;
-  int64_t num_rows() const;
-  int num_row_groups() const;
-
   // Returns the file metadata
-  const FileMetaData* metadata();
-
-  // Returns the file schema descriptor
-  const SchemaDescriptor* descr() { return schema_; }
-
-  const ColumnDescriptor* column_schema(int i) const { return schema_->Column(i); }
+  const FileMetaData* metadata() const;
 
   void DebugPrint(
       std::ostream& stream, std::list<int> selected_columns, bool print_values = true);
@@ -119,9 +102,6 @@ class PARQUET_EXPORT ParquetFileReader {
   // This is declared in the .cc file so that we can hide compiled Thrift
   // headers from the public API and also more easily create test fixtures.
   std::unique_ptr<Contents> contents_;
-
-  // The SchemaDescriptor is provided by the Contents impl
-  const SchemaDescriptor* schema_;
 };
 
 }  // namespace parquet

@@ -31,20 +31,21 @@ class ColumnMetaData::ColumnMetaDataImpl {
   ~ColumnMetaDataImpl() {}
 
   // column chunk
-  int64_t file_offset() const { return column_->file_offset; }
-  const std::string& file_path() const { return column_->file_path; }
+  inline int64_t file_offset() const { return column_->file_offset; }
+  inline const std::string& file_path() const { return column_->file_path; }
 
   // column metadata
-  Type::type type() { return FromThrift(column_->meta_data.type); }
+  inline Type::type type() { return FromThrift(column_->meta_data.type); }
 
-  int64_t num_values() const { return column_->meta_data.num_values; }
+  inline int64_t num_values() const { return column_->meta_data.num_values; }
+
   std::shared_ptr<schema::ColumnPath> path_in_schema() {
     return std::make_shared<schema::ColumnPath>(column_->meta_data.path_in_schema);
   }
 
-  bool is_stats_set() const { return column_->meta_data.__isset.statistics; }
+  inline bool is_stats_set() const { return column_->meta_data.__isset.statistics; }
 
-  ColumnStatistics Stats() const {
+  inline const ColumnStatistics Statistics() const {
     const format::ColumnMetaData& meta_data = column_->meta_data;
 
     ColumnStatistics result;
@@ -55,7 +56,7 @@ class ColumnMetaData::ColumnMetaDataImpl {
     return result;
   }
 
-  Compression::type compression() const { return FromThrift(column_->meta_data.codec); }
+  inline Compression::type compression() const { return FromThrift(column_->meta_data.codec); }
 
   std::vector<Encoding::type> Encodings() const {
     const format::ColumnMetaData& meta_data = column_->meta_data;
@@ -67,11 +68,27 @@ class ColumnMetaData::ColumnMetaDataImpl {
     return encodings;
   }
 
-  int64_t total_compressed_size() const {
+  inline int64_t has_dictionary_page() const {
+    return column_->meta_data.__isset.dictionary_page_offset;
+  }
+
+  inline int64_t dictionary_page_offset() const {
+    return column_->meta_data.dictionary_page_offset;
+  }
+
+  inline int64_t data_page_offset() const {
+    return column_->meta_data.data_page_offset;
+  }
+
+  inline int64_t index_page_offset() const {
+    return column_->meta_data.index_page_offset;
+  }
+
+  inline int64_t total_compressed_size() const {
     return column_->meta_data.total_compressed_size;
   }
 
-  int64_t total_uncompressed_size() const {
+  inline int64_t total_uncompressed_size() const {
     return column_->meta_data.total_uncompressed_size;
   }
 
@@ -79,7 +96,7 @@ class ColumnMetaData::ColumnMetaDataImpl {
   const format::ColumnChunk* column_;
 };
 
-std::unique_ptr<ColumnMetaData> ColumnMetaData::GetColumnMetaData(
+std::unique_ptr<ColumnMetaData> ColumnMetaData::Make(
     const uint8_t* metadata) {
   return std::unique_ptr<ColumnMetaData>(new ColumnMetaData(metadata));
 }
@@ -111,13 +128,30 @@ std::shared_ptr<schema::ColumnPath> ColumnMetaData::path_in_schema() const {
   return impl_->path_in_schema();
 }
 
-ColumnStatistics ColumnMetaData::Stats() const {
-  return impl_->Stats();
+const ColumnStatistics ColumnMetaData::Statistics() const {
+  return impl_->Statistics();
 }
 
 bool ColumnMetaData::is_stats_set() const {
   return impl_->is_stats_set();
 }
+
+int64_t ColumnMetaData::has_dictionary_page() const {
+  return impl_->has_dictionary_page();
+}
+
+int64_t ColumnMetaData::dictionary_page_offset() const {
+  return impl_->dictionary_page_offset();
+}
+
+int64_t ColumnMetaData::data_page_offset() const {
+  return impl_->data_page_offset();
+}
+
+int64_t ColumnMetaData::index_page_offset() const {
+  return impl_->index_page_offset();
+}
+
 
 Compression::type ColumnMetaData::compression() const {
   return impl_->compression();
@@ -142,16 +176,16 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
       : row_group_(row_group) {}
   ~RowGroupMetaDataImpl() {}
 
-  int num_columns() const { return row_group_->columns.size(); }
+  inline int num_columns() const { return row_group_->columns.size(); }
 
-  int64_t num_rows() const { return row_group_->num_rows; }
+  inline int64_t num_rows() const { return row_group_->num_rows; }
 
-  int64_t total_byte_size() const { return row_group_->total_byte_size; }
+  inline int64_t total_byte_size() const { return row_group_->total_byte_size; }
 
-  std::unique_ptr<ColumnMetaData> GetColumnMetaData(int i) {
+  std::unique_ptr<ColumnMetaData> Column(int i) {
     DCHECK(i < num_columns()) << "The file only has " << num_columns()
                               << " columns, requested metadata for column: " << i;
-    return ColumnMetaData::GetColumnMetaData(
+    return ColumnMetaData::Make(
         reinterpret_cast<const uint8_t*>(&row_group_->columns[i]));
   }
 
@@ -159,7 +193,7 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
   const format::RowGroup* row_group_;
 };
 
-std::unique_ptr<RowGroupMetaData> RowGroupMetaData::GetRowGroupMetaData(
+std::unique_ptr<RowGroupMetaData> RowGroupMetaData::Make(
     const uint8_t* metadata) {
   return std::unique_ptr<RowGroupMetaData>(new RowGroupMetaData(metadata));
 }
@@ -181,54 +215,71 @@ int64_t RowGroupMetaData::total_byte_size() const {
   return impl_->total_byte_size();
 }
 
-std::unique_ptr<ColumnMetaData> RowGroupMetaData::GetColumnMetaData(int i) const {
-  return impl_->GetColumnMetaData(i);
+std::unique_ptr<ColumnMetaData> RowGroupMetaData::Column(int i) const {
+  return impl_->Column(i);
 }
 
 // file metadata
 class FileMetaData::FileMetaDataImpl {
  public:
-  explicit FileMetaDataImpl(const uint8_t* metadata)
-      : metadata_{std::unique_ptr<const format::FileMetaData>(
-            reinterpret_cast<const format::FileMetaData*>(metadata))} {
-    schema::FlatSchemaConverter converter(
-        &metadata_->schema[0], metadata_->schema.size());
-    schema_.Init(converter.Convert());
+  friend FileMetaDataBuilder;
+  FileMetaDataImpl() {}
+ 
+  explicit FileMetaDataImpl(const uint8_t* metadata, uint32_t* metadata_len) {
+    metadata_.reset(new format::FileMetaData);
+    DeserializeThriftMsg(metadata, metadata_len, metadata_.get());
+    InitSchema();
   }
   ~FileMetaDataImpl() {}
-  int64_t num_rows() const { return metadata_->num_rows; }
-  int num_row_groups() const { return metadata_->row_groups.size(); }
-  int32_t version() const { return metadata_->version; }
-  const std::string& created_by() const { return metadata_->created_by; }
-  int num_schema_elements() const { return metadata_->schema.size(); }
+
+  inline int num_columns() const { return schema_.num_columns(); }
+  inline int64_t num_rows() const { return metadata_->num_rows; }
+  inline int num_row_groups() const { return metadata_->row_groups.size(); }
+  inline int32_t version() const { return metadata_->version; }
+  inline const std::string& created_by() const { return metadata_->created_by; }
+  inline int num_schema_elements() const { return metadata_->schema.size(); }
 
   void WriteTo(OutputStream* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
 
-  std::unique_ptr<RowGroupMetaData> GetRowGroupMetaData(int i) {
+  std::unique_ptr<RowGroupMetaData> RowGroup(int i) {
     DCHECK(i < num_row_groups())
         << "The file only has " << num_row_groups()
         << " row groups, requested metadata for row group: " << i;
-    return RowGroupMetaData::GetRowGroupMetaData(
+    return RowGroupMetaData::Make(
         reinterpret_cast<const uint8_t*>(&metadata_->row_groups[i]));
   }
 
   const SchemaDescriptor* schema() const { return &schema_; }
 
+ protected:
+  std::unique_ptr<format::FileMetaData> metadata_;
+  void InitSchema() {
+    schema::FlatSchemaConverter converter(
+        &metadata_->schema[0], metadata_->schema.size());
+    schema_.Init(converter.Convert());
+  }
  private:
-  std::unique_ptr<const format::FileMetaData> metadata_;
   SchemaDescriptor schema_;
 };
 
-std::unique_ptr<FileMetaData> FileMetaData::GetFileMetaData(const uint8_t* metadata) {
-  return std::unique_ptr<FileMetaData>(new FileMetaData(metadata));
+std::unique_ptr<FileMetaData> FileMetaData::Make(const uint8_t* metadata, uint32_t* metadata_len) {
+  return std::unique_ptr<FileMetaData>(new FileMetaData(metadata, metadata_len));
 }
 
-FileMetaData::FileMetaData(const uint8_t* metadata)
-    : impl_{std::unique_ptr<FileMetaDataImpl>(new FileMetaDataImpl(metadata))} {}
+FileMetaData::FileMetaData(const uint8_t* metadata, uint32_t* metadata_len)
+    : impl_{std::unique_ptr<FileMetaDataImpl>(new FileMetaDataImpl(metadata, metadata_len))} {}
+
+FileMetaData::FileMetaData()
+    : impl_{std::unique_ptr<FileMetaDataImpl>(new FileMetaDataImpl())} {}
+
 FileMetaData::~FileMetaData() {}
 
-std::unique_ptr<RowGroupMetaData> FileMetaData::GetRowGroupMetaData(int i) const {
-  return impl_->GetRowGroupMetaData(i);
+std::unique_ptr<RowGroupMetaData> FileMetaData::RowGroup(int i) const {
+  return impl_->RowGroup(i);
+}
+
+int FileMetaData::num_columns() const {
+  return impl_->num_columns();
 }
 
 int64_t FileMetaData::num_rows() const {
@@ -305,7 +356,7 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
     column_chunk_->meta_data.__set_total_uncompressed_size(uncompressed_size);
     column_chunk_->meta_data.__set_total_compressed_size(compressed_size);
     std::vector<format::Encoding::type> thrift_encodings;
-    thrift_encodings.push_back(ToThrift(properties_->level_encoding()));
+    thrift_encodings.push_back(ToThrift(Encoding::RLE));
     if (properties_->dictionary_enabled(column_->path())) {
       thrift_encodings.push_back(ToThrift(properties_->dictionary_encoding()));
       // add the encoding only if it is unique
@@ -325,7 +376,7 @@ class ColumnMetaDataBuilder::ColumnMetaDataBuilderImpl {
   const ColumnDescriptor* column_;
 };
 
-std::unique_ptr<ColumnMetaDataBuilder> ColumnMetaDataBuilder::GetColumnMetaDataBuilder(
+std::unique_ptr<ColumnMetaDataBuilder> ColumnMetaDataBuilder::Make(
     const std::shared_ptr<WriterProperties>& props, const ColumnDescriptor* column,
     uint8_t* contents) {
   return std::unique_ptr<ColumnMetaDataBuilder>(
@@ -370,7 +421,7 @@ class RowGroupMetaDataBuilder::RowGroupMetaDataBuilderImpl {
         << "The schema only has " << num_columns()
         << " columns, requested metadata for column: " << current_column_;
     auto column = schema_->Column(current_column_);
-    auto column_builder = ColumnMetaDataBuilder::GetColumnMetaDataBuilder(properties_,
+    auto column_builder = ColumnMetaDataBuilder::Make(properties_,
         column, reinterpret_cast<uint8_t*>(&row_group_->columns[current_column_++]));
     auto column_builder_ptr = column_builder.get();
     column_builders_.push_back(std::move(column_builder));
@@ -406,7 +457,7 @@ class RowGroupMetaDataBuilder::RowGroupMetaDataBuilderImpl {
 };
 
 std::unique_ptr<RowGroupMetaDataBuilder>
-RowGroupMetaDataBuilder::GetRowGroupMetaDataBuilder(
+RowGroupMetaDataBuilder::Make(
     const std::shared_ptr<WriterProperties>& props, const SchemaDescriptor* schema_,
     uint8_t* contents) {
   return std::unique_ptr<RowGroupMetaDataBuilder>(
@@ -432,6 +483,7 @@ void RowGroupMetaDataBuilder::Finish(int64_t num_rows) {
 // file metadata
 class FileMetaDataBuilder::FileMetaDataBuilderImpl {
  public:
+  friend class FileMetaDataImpl;
   explicit FileMetaDataBuilderImpl(
       const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props)
       : properties_(props), schema_(schema) {
@@ -441,7 +493,7 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
 
   RowGroupMetaDataBuilder* AppendRowGroupMetaData() {
     auto row_group = std::unique_ptr<format::RowGroup>(new format::RowGroup());
-    auto row_group_builder = RowGroupMetaDataBuilder::GetRowGroupMetaDataBuilder(
+    auto row_group_builder = RowGroupMetaDataBuilder::Make(
         properties_, schema_, reinterpret_cast<uint8_t*>(row_group.get()));
     RowGroupMetaDataBuilder* row_group_ptr = row_group_builder.get();
     row_group_builders_.push_back(std::move(row_group_builder));
@@ -466,18 +518,22 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
         static_cast<parquet::schema::GroupNode*>(schema_->schema().get()),
         &metadata_->schema);
     flattener.Flatten();
-    return FileMetaData::GetFileMetaData(reinterpret_cast<uint8_t*>(metadata_.release()));
+    auto file_meta_data = std::unique_ptr<FileMetaData>(new FileMetaData());
+    file_meta_data->impl_->metadata_ = std::move(metadata_);
+    file_meta_data->impl_->InitSchema();
+    return file_meta_data;
   }
 
- private:
+ protected:
   std::unique_ptr<format::FileMetaData> metadata_;
+ private:
   const std::shared_ptr<WriterProperties> properties_;
   std::vector<std::unique_ptr<format::RowGroup>> row_groups_;
   std::vector<std::unique_ptr<RowGroupMetaDataBuilder>> row_group_builders_;
   const SchemaDescriptor* schema_;
 };
 
-std::unique_ptr<FileMetaDataBuilder> FileMetaDataBuilder::GetFileMetaDataBuilder(
+std::unique_ptr<FileMetaDataBuilder> FileMetaDataBuilder::Make(
     const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props) {
   return std::unique_ptr<FileMetaDataBuilder>(new FileMetaDataBuilder(schema, props));
 }

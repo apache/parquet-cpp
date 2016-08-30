@@ -141,34 +141,27 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
   return std::shared_ptr<Page>(nullptr);
 }
 
-// ----------------------------------------------------------------------
-// SerializedRowGroup
-
-int64_t SerializedRowGroup::num_rows() const {
-  return metadata_->num_rows;
-}
-
-int SerializedRowGroup::num_columns() const {
-  return metadata_->columns.size();
+const RowGroupMetaData* SerializedRowGroup::metadata() const {
+  return row_group_metadata_.get();
 }
 
 std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   // Read column chunk from the file
-  const format::ColumnChunk& col = metadata_->columns[i];
+  auto col = row_group_metadata_->Column(i);
 
-  int64_t col_start = col.meta_data.data_page_offset;
-  if (col.meta_data.__isset.dictionary_page_offset &&
-      col_start > col.meta_data.dictionary_page_offset) {
-    col_start = col.meta_data.dictionary_page_offset;
+  int64_t col_start = col->data_page_offset();
+  if (col->has_dictionary_page() &&
+      col_start > col->dictionary_page_offset()) {
+    col_start = col->dictionary_page_offset();
   }
 
-  int64_t bytes_to_read = col.meta_data.total_compressed_size;
+  int64_t bytes_to_read = col->total_compressed_size();
   std::unique_ptr<InputStream> stream;
 
   stream = properties_.GetStream(source_, col_start, bytes_to_read);
 
   return std::unique_ptr<PageReader>(new SerializedPageReader(
-      std::move(stream), FromThrift(col.meta_data.codec), properties_.allocator()));
+      std::move(stream), col->compression(), properties_.allocator()));
 }
 
 // ----------------------------------------------------------------------
@@ -201,26 +194,14 @@ SerializedFile::~SerializedFile() {
 
 std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
   std::unique_ptr<SerializedRowGroup> contents(
-      new SerializedRowGroup(source_.get(), &metadata_->row_groups[i], properties_));
+      new SerializedRowGroup(source_.get(), file_metadata_->RowGroup(i), properties_));
 
   return std::make_shared<RowGroupReader>(
-      file_meta_data_->schema(), std::move(contents), properties_.allocator());
+      file_metadata_->schema(), std::move(contents), properties_.allocator());
 }
 
-int64_t SerializedFile::num_rows() const {
-  return metadata_->num_rows;
-}
-
-int SerializedFile::num_columns() const {
-  return file_meta_data_->schema()->num_columns();
-}
-
-int SerializedFile::num_row_groups() const {
-  return metadata_->row_groups.size();
-}
-
-const FileMetaData* SerializedFile::metadata() {
-  return file_meta_data_.get();
+const FileMetaData* SerializedFile::metadata() const {
+  return file_metadata_.get();
 }
 
 SerializedFile::SerializedFile(std::unique_ptr<RandomAccessSource> source,
@@ -256,12 +237,8 @@ void SerializedFile::ParseMetaData() {
     throw ParquetException("Invalid parquet file. Could not read metadata bytes.");
   }
 
-  auto metadata_ptr = std::unique_ptr<format::FileMetaData>(new format::FileMetaData());
-  metadata_ = metadata_ptr.get();
-  DeserializeThriftMsg(&metadata_buffer[0], &metadata_len, metadata_);
-
-  file_meta_data_ =
-      FileMetaData::GetFileMetaData(reinterpret_cast<uint8_t*>(metadata_ptr.release()));
+  file_metadata_ =
+      FileMetaData::Make(&metadata_buffer[0], &metadata_len);
 }
 
 }  // namespace parquet
