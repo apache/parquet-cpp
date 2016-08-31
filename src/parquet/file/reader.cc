@@ -47,7 +47,7 @@ RowGroupReader::RowGroupReader(const SchemaDescriptor* schema,
 
 std::shared_ptr<ColumnReader> RowGroupReader::Column(int i) {
   DCHECK(i < schema_->num_columns()) << "The RowGroup only has " << schema_->num_columns()
-                            << "columns, requested column: " << i;
+                                     << "columns, requested column: " << i;
   const ColumnDescriptor* descr = schema_->Column(i);
 
   std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i);
@@ -103,8 +103,9 @@ const FileMetaData* ParquetFileReader::metadata() const {
 }
 
 std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
-  DCHECK(i < metadata()->num_row_groups()) << "The file only has " << metadata()->num_row_groups()
-                               << "row groups, requested reader for: " << i;
+  DCHECK(i < metadata()->num_row_groups()) << "The file only has "
+                                           << metadata()->num_row_groups()
+                                           << "row groups, requested reader for: " << i;
   return contents_->GetRowGroup(i);
 }
 
@@ -123,7 +124,8 @@ void ParquetFileReader::DebugPrint(
   stream << "Created By: " << file_metadata->created_by() << "\n";
   stream << "Total rows: " << file_metadata->num_rows() << "\n";
   stream << "Number of RowGroups: " << file_metadata->num_row_groups() << "\n";
-  stream << "Number of Real Columns: " << file_metadata->schema()->group()->field_count() << "\n";
+  stream << "Number of Real Columns: "
+         << file_metadata->schema_descriptor()->group()->field_count() << "\n";
 
   if (selected_columns.size() == 0) {
     for (int i = 0; i < file_metadata->num_columns(); i++) {
@@ -140,7 +142,7 @@ void ParquetFileReader::DebugPrint(
   stream << "Number of Columns: " << file_metadata->num_columns() << "\n";
   stream << "Number of Selected Columns: " << selected_columns.size() << "\n";
   for (auto i : selected_columns) {
-    const ColumnDescriptor* descr = file_metadata->schema()->Column(i);
+    const ColumnDescriptor* descr = file_metadata->schema_descriptor()->Column(i);
     stream << "Column " << i << ": " << descr->name() << " ("
            << type_to_string(descr->physical_type()) << ")" << std::endl;
   }
@@ -149,22 +151,21 @@ void ParquetFileReader::DebugPrint(
     stream << "--- Row Group " << r << " ---\n";
 
     auto group_reader = RowGroup(r);
-    std::unique_ptr<RowGroupMetaData> group_metadata =
-        file_metadata->RowGroup(r);
+    std::unique_ptr<RowGroupMetaData> group_metadata = file_metadata->RowGroup(r);
 
     stream << "--- Total Bytes " << group_metadata->total_byte_size() << " ---\n";
     stream << "  rows: " << group_metadata->num_rows() << "---\n";
 
     // Print column metadata
     for (auto i : selected_columns) {
-      ColumnStatistics stats = group_metadata->Column(i)->Statistics();
+      ColumnStatistics stats = group_metadata->ColumnChunk(i)->Statistics();
 
-      const ColumnDescriptor* descr = file_metadata->schema()->Column(i);
+      const ColumnDescriptor* descr = file_metadata->schema_descriptor()->Column(i);
       stream << "Column " << i << std::endl
-             << ", values: " << group_metadata->Column(i)->num_values()
+             << ", values: " << group_metadata->ColumnChunk(i)->num_values()
              << ", null values: " << stats.null_count
              << ", distinct values: " << stats.distinct_count << std::endl;
-      if (group_metadata->Column(i)->is_stats_set()) {
+      if (group_metadata->ColumnChunk(i)->is_stats_set()) {
         stream << "  max: " << FormatStatValue(descr->physical_type(), stats.max->c_str())
                << ", min: "
                << FormatStatValue(descr->physical_type(), stats.min->c_str());
@@ -173,17 +174,16 @@ void ParquetFileReader::DebugPrint(
       }
       stream << std::endl
              << "  compression: "
-             << compression_to_string(group_metadata->Column(i)->compression())
+             << compression_to_string(group_metadata->ColumnChunk(i)->compression())
              << ", encodings: ";
-      for (auto encoding : group_metadata->Column(i)->Encodings()) {
+      for (auto encoding : group_metadata->ColumnChunk(i)->Encodings()) {
         stream << encoding_to_string(encoding) << " ";
       }
       stream << std::endl
              << "  uncompressed size: "
-             << group_metadata->Column(i)->total_uncompressed_size()
+             << group_metadata->ColumnChunk(i)->total_uncompressed_size()
              << ", compressed size: "
-             << group_metadata->Column(i)->total_compressed_size()
-             << std::endl;
+             << group_metadata->ColumnChunk(i)->total_compressed_size() << std::endl;
     }
 
     if (!print_values) { continue; }
@@ -201,7 +201,8 @@ void ParquetFileReader::DebugPrint(
       ss << "%-" << COL_WIDTH << "s";
       std::string fmt = ss.str();
 
-      snprintf(buffer, bufsize, fmt.c_str(), file_metadata->schema()->Column(i)->name().c_str());
+      snprintf(buffer, bufsize, fmt.c_str(),
+          file_metadata->schema_descriptor()->Column(i)->name().c_str());
       stream << buffer;
 
       // This is OK in this method as long as the RowGroupReader does not get

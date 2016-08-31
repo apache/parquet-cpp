@@ -70,8 +70,8 @@ class SerializedPageReader : public PageReader {
 // RowGroupReader::Contents implementation for the Parquet file specification
 class SerializedRowGroup : public RowGroupReader::Contents {
  public:
-  SerializedRowGroup(RandomAccessSource* source, std::unique_ptr<RowGroupMetaData> metadata,
-      const ReaderProperties props)
+  SerializedRowGroup(RandomAccessSource* source,
+      std::unique_ptr<RowGroupMetaData> metadata, const ReaderProperties props)
       : source_(source), row_group_metadata_(std::move(metadata)), properties_(props) {}
 
   virtual const RowGroupMetaData* metadata() const;

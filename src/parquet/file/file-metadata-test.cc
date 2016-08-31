@@ -54,13 +54,13 @@ TEST(Metadata, TestBuildAccess) {
   stats_float.max = &float_max;
 
   auto f_builder = FileMetaDataBuilder::Make(&schema, props);
-  auto rg1_builder = f_builder->AppendRowGroupMetaData();
-  auto rg2_builder = f_builder->AppendRowGroupMetaData();
+  auto rg1_builder = f_builder->AppendRowGroup();
+  auto rg2_builder = f_builder->AppendRowGroup();
 
   // Write the metadata
   // rowgroup1 metadata
-  auto col1_builder = rg1_builder->NextColumnMetaData();
-  auto col2_builder = rg1_builder->NextColumnMetaData();
+  auto col1_builder = rg1_builder->NextColumnChunk();
+  auto col2_builder = rg1_builder->NextColumnChunk();
   // column metadata
   col1_builder->SetStatistics(stats_int);
   col2_builder->SetStatistics(stats_float);
@@ -69,8 +69,8 @@ TEST(Metadata, TestBuildAccess) {
   rg1_builder->Finish(nrows / 2);
 
   // rowgroup2 metadata
-  col1_builder = rg2_builder->NextColumnMetaData();
-  col2_builder = rg2_builder->NextColumnMetaData();
+  col1_builder = rg2_builder->NextColumnChunk();
+  col2_builder = rg2_builder->NextColumnChunk();
   // column metadata
   col1_builder->SetStatistics(stats_int);
   col2_builder->SetStatistics(stats_float);
@@ -94,8 +94,8 @@ TEST(Metadata, TestBuildAccess) {
   ASSERT_EQ(nrows / 2, rg1_accessor->num_rows());
   ASSERT_EQ(1024, rg1_accessor->total_byte_size());
 
-  auto rg1_column1 = rg1_accessor->Column(0);
-  auto rg1_column2 = rg1_accessor->Column(1);
+  auto rg1_column1 = rg1_accessor->ColumnChunk(0);
+  auto rg1_column2 = rg1_accessor->ColumnChunk(1);
   ASSERT_EQ(true, rg1_column1->is_stats_set());
   ASSERT_EQ(true, rg1_column2->is_stats_set());
   ASSERT_EQ("100.100", *rg1_column2->Statistics().min);
@@ -122,8 +122,8 @@ TEST(Metadata, TestBuildAccess) {
   ASSERT_EQ(nrows / 2, rg2_accessor->num_rows());
   ASSERT_EQ(1024, rg2_accessor->total_byte_size());
 
-  auto rg2_column1 = rg2_accessor->Column(0);
-  auto rg2_column2 = rg2_accessor->Column(1);
+  auto rg2_column1 = rg2_accessor->ColumnChunk(0);
+  auto rg2_column2 = rg2_accessor->ColumnChunk(1);
   ASSERT_EQ(true, rg2_column1->is_stats_set());
   ASSERT_EQ(true, rg2_column2->is_stats_set());
   ASSERT_EQ("100.100", *rg2_column2->Statistics().min);

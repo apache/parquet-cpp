@@ -31,6 +31,7 @@
 
 namespace parquet {
 
+// ColumnStatistics does not own the min/max values
 struct ColumnStatistics {
   int64_t null_count;
   int64_t distinct_count;
@@ -38,13 +39,12 @@ struct ColumnStatistics {
   const std::string* max;
 };
 
-class PARQUET_EXPORT ColumnMetaData {
+class PARQUET_EXPORT ColumnChunkMetaData {
  public:
   // API convenience to get a MetaData accessor
-  static std::unique_ptr<ColumnMetaData> Make(const uint8_t* metadata);
+  static std::unique_ptr<ColumnChunkMetaData> Make(const uint8_t* metadata);
 
-  explicit ColumnMetaData(const uint8_t* metadata);
-  ~ColumnMetaData();
+  ~ColumnChunkMetaData();
 
   // column chunk
   int64_t file_offset() const;
@@ -66,9 +66,10 @@ class PARQUET_EXPORT ColumnMetaData {
   int64_t total_uncompressed_size() const;
 
  private:
+  explicit ColumnChunkMetaData(const uint8_t* metadata);
   // PIMPL Idiom
-  class ColumnMetaDataImpl;
-  std::unique_ptr<ColumnMetaDataImpl> impl_;
+  class ColumnChunkMetaDataImpl;
+  std::unique_ptr<ColumnChunkMetaDataImpl> impl_;
 };
 
 class PARQUET_EXPORT RowGroupMetaData {
@@ -76,16 +77,16 @@ class PARQUET_EXPORT RowGroupMetaData {
   // API convenience to get a MetaData accessor
   static std::unique_ptr<RowGroupMetaData> Make(const uint8_t* metadata);
 
-  explicit RowGroupMetaData(const uint8_t* metadata);
   ~RowGroupMetaData();
 
   // row-group metadata
   int num_columns() const;
   int64_t num_rows() const;
   int64_t total_byte_size() const;
-  std::unique_ptr<ColumnMetaData> Column(int i) const;
+  std::unique_ptr<ColumnChunkMetaData> ColumnChunk(int i) const;
 
  private:
+  explicit RowGroupMetaData(const uint8_t* metadata);
   // PIMPL Idiom
   class RowGroupMetaDataImpl;
   std::unique_ptr<RowGroupMetaDataImpl> impl_;
@@ -95,11 +96,9 @@ class FileMetaDataBuilder;
 
 class PARQUET_EXPORT FileMetaData {
  public:
-  friend FileMetaDataBuilder;
   // API convenience to get a MetaData accessor
-  static std::unique_ptr<FileMetaData> Make(const uint8_t* serialized_metadata, uint32_t* metadata_len);
-
-  explicit FileMetaData(const uint8_t* serialized_metadata, uint32_t* metadata_len);
+  static std::unique_ptr<FileMetaData> Make(
+      const uint8_t* serialized_metadata, uint32_t* metadata_len);
 
   ~FileMetaData();
 
@@ -115,9 +114,11 @@ class PARQUET_EXPORT FileMetaData {
   void WriteTo(OutputStream* dst);
 
   // Return const-pointer to make it clear that this object is not to be copied
-  const SchemaDescriptor* schema() const;
+  const SchemaDescriptor* schema_descriptor() const;
 
- protected:
+ private:
+  friend FileMetaDataBuilder;
+  explicit FileMetaData(const uint8_t* serialized_metadata, uint32_t* metadata_len);
   // PIMPL Idiom
   FileMetaData();
   class FileMetaDataImpl;
@@ -125,22 +126,20 @@ class PARQUET_EXPORT FileMetaData {
 };
 
 // Builder API
-class PARQUET_EXPORT ColumnMetaDataBuilder {
+class PARQUET_EXPORT ColumnChunkMetaDataBuilder {
  public:
   // API convenience to get a MetaData reader
-  static std::unique_ptr<ColumnMetaDataBuilder> Make(
+  static std::unique_ptr<ColumnChunkMetaDataBuilder> Make(
       const std::shared_ptr<WriterProperties>& props, const ColumnDescriptor* column,
       uint8_t* contents);
 
-  explicit ColumnMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
-      const ColumnDescriptor* column, uint8_t* contents);
-  ~ColumnMetaDataBuilder();
+  ~ColumnChunkMetaDataBuilder();
 
   // column chunk
   // Used when a dataset is spread across multiple files
   void set_file_path(const std::string& path);
   // column metadata
-  // ownership of min/max is with ColumnMetadata
+  // ownership of min/max is with ColumnChunkMetadata
   void SetStatistics(const ColumnStatistics& stats);
 
   // commit the metadata
@@ -149,9 +148,11 @@ class PARQUET_EXPORT ColumnMetaDataBuilder {
       int64_t uncompressed_size, bool dictionary_fallback);
 
  private:
+  explicit ColumnChunkMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
+      const ColumnDescriptor* column, uint8_t* contents);
   // PIMPL Idiom
-  class ColumnMetaDataBuilderImpl;
-  std::unique_ptr<ColumnMetaDataBuilderImpl> impl_;
+  class ColumnChunkMetaDataBuilderImpl;
+  std::unique_ptr<ColumnChunkMetaDataBuilderImpl> impl_;
 };
 
 class PARQUET_EXPORT RowGroupMetaDataBuilder {
@@ -161,16 +162,16 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
       const std::shared_ptr<WriterProperties>& props, const SchemaDescriptor* schema_,
       uint8_t* contents);
 
-  explicit RowGroupMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
-      const SchemaDescriptor* schema_, uint8_t* contents);
   ~RowGroupMetaDataBuilder();
 
-  ColumnMetaDataBuilder* NextColumnMetaData();
+  ColumnChunkMetaDataBuilder* NextColumnChunk();
 
   // commit the metadata
   void Finish(int64_t num_rows);
 
  private:
+  explicit RowGroupMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
+      const SchemaDescriptor* schema_, uint8_t* contents);
   // PIMPL Idiom
   class RowGroupMetaDataBuilderImpl;
   std::unique_ptr<RowGroupMetaDataBuilderImpl> impl_;
@@ -182,16 +183,16 @@ class PARQUET_EXPORT FileMetaDataBuilder {
   static std::unique_ptr<FileMetaDataBuilder> Make(
       const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
 
-  explicit FileMetaDataBuilder(
-      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
   ~FileMetaDataBuilder();
 
-  RowGroupMetaDataBuilder* AppendRowGroupMetaData();
+  RowGroupMetaDataBuilder* AppendRowGroup();
 
   // commit the metadata
   std::unique_ptr<FileMetaData> Finish();
 
  private:
+  explicit FileMetaDataBuilder(
+      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
   // PIMPL Idiom
   class FileMetaDataBuilderImpl;
   std::unique_ptr<FileMetaDataBuilderImpl> impl_;

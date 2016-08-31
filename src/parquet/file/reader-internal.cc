@@ -147,11 +147,10 @@ const RowGroupMetaData* SerializedRowGroup::metadata() const {
 
 std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   // Read column chunk from the file
-  auto col = row_group_metadata_->Column(i);
+  auto col = row_group_metadata_->ColumnChunk(i);
 
   int64_t col_start = col->data_page_offset();
-  if (col->has_dictionary_page() &&
-      col_start > col->dictionary_page_offset()) {
+  if (col->has_dictionary_page() && col_start > col->dictionary_page_offset()) {
     col_start = col->dictionary_page_offset();
   }
 
@@ -197,7 +196,7 @@ std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
       new SerializedRowGroup(source_.get(), file_metadata_->RowGroup(i), properties_));
 
   return std::make_shared<RowGroupReader>(
-      file_metadata_->schema(), std::move(contents), properties_.allocator());
+      file_metadata_->schema_descriptor(), std::move(contents), properties_.allocator());
 }
 
 const FileMetaData* SerializedFile::metadata() const {
@@ -237,8 +236,7 @@ void SerializedFile::ParseMetaData() {
     throw ParquetException("Invalid parquet file. Could not read metadata bytes.");
   }
 
-  file_metadata_ =
-      FileMetaData::Make(&metadata_buffer[0], &metadata_len);
+  file_metadata_ = FileMetaData::Make(&metadata_buffer[0], &metadata_len);
 }
 
 }  // namespace parquet
