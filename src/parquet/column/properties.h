@@ -95,7 +95,7 @@ class PARQUET_EXPORT WriterProperties {
    public:
     Builder()
         : allocator_(default_allocator()),
-          dictionary_enabled_(DEFAULT_IS_DICTIONARY_ENABLED),
+          dictionary_enabled_default_(DEFAULT_IS_DICTIONARY_ENABLED),
           dictionary_pagesize_(DEFAULT_DICTIONARY_PAGE_SIZE),
           pagesize_(DEFAULT_PAGE_SIZE),
           version_(DEFAULT_WRITER_VERSION),

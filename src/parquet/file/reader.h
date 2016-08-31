@@ -40,6 +40,7 @@ class PARQUET_EXPORT RowGroupReader {
  public:
   // Forward declare the PIMPL
   struct Contents {
+    virtual ~Contents() {}
     virtual std::unique_ptr<PageReader> GetColumnPageReader(int i) = 0;
     virtual const RowGroupMetaData* metadata() const = 0;
   };
