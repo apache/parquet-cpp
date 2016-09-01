@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 
   try {
     std::unique_ptr<ParquetFileReader> reader = ParquetFileReader::OpenFile(filename);
-    PrintSchema(reader->descr()->schema().get(), std::cout);
+    PrintSchema(reader->metadata()->schema_descriptor()->schema().get(), std::cout);
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: "
               << e.what()
