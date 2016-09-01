@@ -62,7 +62,7 @@ std::string FormatStatValue(Type::type parquet_type, const char* val) {
   return result.str();
 }
 
-std::string encoding_to_string(Encoding::type t) {
+std::string EncodingToString(Encoding::type t) {
   switch (t) {
     case Encoding::PLAIN:
       return "PLAIN";
@@ -94,7 +94,7 @@ std::string encoding_to_string(Encoding::type t) {
   }
 }
 
-std::string compression_to_string(Compression::type t) {
+std::string CompressionToString(Compression::type t) {
   switch (t) {
     case Compression::UNCOMPRESSED:
       return "UNCOMPRESSED";
@@ -114,7 +114,7 @@ std::string compression_to_string(Compression::type t) {
   }
 }
 
-std::string type_to_string(Type::type t) {
+std::string TypeToString(Type::type t) {
   switch (t) {
     case Type::BOOLEAN:
       return "BOOLEAN";
@@ -146,7 +146,7 @@ std::string type_to_string(Type::type t) {
   }
 }
 
-std::string logical_type_to_string(LogicalType::type t) {
+std::string LogicalTypeToString(LogicalType::type t) {
   switch (t) {
     case LogicalType::NONE:
       return "NONE";
@@ -197,7 +197,7 @@ std::string logical_type_to_string(LogicalType::type t) {
   }
 }
 
-size_t get_value_byte_size(Type::type parquet_type) {
+int GetTypeByteSize(Type::type parquet_type) {
   switch (parquet_type) {
     case Type::BOOLEAN:
       return type_traits<BooleanType::type_num>::value_byte_size;

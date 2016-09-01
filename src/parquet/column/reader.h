@@ -44,9 +44,6 @@ class PARQUET_EXPORT ColumnReader {
   static std::shared_ptr<ColumnReader> Make(const ColumnDescriptor*,
       std::unique_ptr<PageReader>, MemoryAllocator* allocator = default_allocator());
 
-  virtual int64_t ReadBatchValues(int32_t batch_size, int16_t* def_levels,
-      int16_t* rep_levels, uint8_t* values, int64_t* values_read) = 0;
-
   // Returns true if there are still values in this column.
   bool HasNext() {
     // Either there is no data page available yet, or the data page has been
@@ -61,6 +58,13 @@ class PARQUET_EXPORT ColumnReader {
 
   const ColumnDescriptor* descr() const { return descr_; }
 
+  int64_t GetRemainingInPage() {
+      if (!HasNext()) {
+          return 0;
+      }
+      return num_buffered_values_ - num_decoded_values_;
+  }
+
  protected:
   virtual bool ReadNewPage() = 0;
 
@@ -70,7 +74,6 @@ class PARQUET_EXPORT ColumnReader {
   int64_t ReadDefinitionLevels(int64_t batch_size, int16_t* levels);
 
   // Read multiple repetition levels into preallocated memory
-  //
   // Returns the number of decoded repetition levels
   int64_t ReadRepetitionLevels(int64_t batch_size, int16_t* levels);
 
@@ -131,9 +134,6 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   int64_t ReadBatch(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
       T* values, int64_t* values_read);
 
-  virtual int64_t ReadBatchValues(int32_t batch_size, int16_t* def_levels,
-      int16_t* rep_levels, uint8_t* values, int64_t* values_read);
-
  private:
   typedef Decoder<DType> DecoderType;
 
@@ -160,13 +160,6 @@ template <typename DType>
 inline int64_t TypedColumnReader<DType>::ReadValues(int64_t batch_size, T* out) {
   int64_t num_decoded = current_decoder_->Decode(out, batch_size);
   return num_decoded;
-}
-
-template <typename DType>
-int64_t TypedColumnReader<DType>::ReadBatchValues(int32_t batch_size, int16_t* def_levels,
-    int16_t* rep_levels, uint8_t* values, int64_t* values_read) {
-  return ReadBatch(
-      batch_size, def_levels, rep_levels, reinterpret_cast<T*>(values), values_read);
 }
 
 template <typename DType>

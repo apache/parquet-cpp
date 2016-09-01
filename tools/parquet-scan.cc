@@ -22,6 +22,39 @@
 
 #include "parquet/api/reader.h"
 
+template<typename RType>
+int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels, uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
+  typedef typename RType::T Type;
+  auto typed_reader = static_cast<RType*>(reader);
+  auto vals = reinterpret_cast<Type*>(&values[0]);
+  return typed_reader->ReadBatch(batch_size, def_levels, rep_levels, vals, values_buffered);
+}
+
+int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels, uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
+  switch (reader->type()) {
+    case parquet::Type::BOOLEAN:
+        return ScanAll<parquet::BoolReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::INT32:
+        return ScanAll<parquet::Int32Reader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::INT64:
+        return ScanAll<parquet::Int64Reader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::INT96:
+        return ScanAll<parquet::Int96Reader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::FLOAT:
+        return ScanAll<parquet::FloatReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::DOUBLE:
+        return ScanAll<parquet::DoubleReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::BYTE_ARRAY:
+        return ScanAll<parquet::ByteArrayReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    case parquet::Type::FIXED_LEN_BYTE_ARRAY:
+        return ScanAll<parquet::FixedLenByteArrayReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+    default:
+        parquet::ParquetException::NYI("type reader not implemented");
+  }
+  // Unreachable code, but supress compiler warning
+  return 0;
+}
+
 int main(int argc, char** argv) {
   if (argc > 4 || argc < 1) {
     std::cerr << "Usage: parquet-scan [--batch-size=] [--columns=...] <file>"
@@ -64,7 +97,7 @@ int main(int argc, char** argv) {
         parquet::ParquetFileReader::OpenFile(filename);
     // columns are not specified explicitly. Add all columns
     if (num_columns == 0) {
-      num_columns = reader->num_columns();
+      num_columns = reader->metadata()->num_columns();
       columns.resize(num_columns);
       for (int i = 0; i < num_columns; i++) {
         columns[i] = i;
@@ -73,20 +106,19 @@ int main(int argc, char** argv) {
 
     int64_t total_rows[num_columns];
 
-    for (int r = 0; r < reader->num_row_groups(); ++r) {
+    for (int r = 0; r < reader->metadata()->num_row_groups(); ++r) {
       auto group_reader = reader->RowGroup(r);
       int col = 0;
       for (auto i : columns) {
         total_rows[col] = 0;
         std::shared_ptr<parquet::ColumnReader> col_reader = group_reader->Column(i);
         size_t value_byte_size =
-            get_value_byte_size(col_reader->descr()->physical_type());
+            GetTypeByteSize(col_reader->descr()->physical_type());
         std::vector<uint8_t> values(batch_size * value_byte_size);
 
         int64_t values_read = 0;
         while (col_reader->HasNext()) {
-          total_rows[col] += col_reader->ReadBatchValues(batch_size, def_levels.data(),
-              rep_levels.data(), values.data(), &values_read);
+          total_rows[col] += ScanAllValues(batch_size, def_levels.data(), rep_levels.data(), values.data(), &values_read, col_reader.get());
         }
         col++;
       }
