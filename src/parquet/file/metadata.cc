@@ -27,7 +27,18 @@ namespace parquet {
 // ColumnChunk metadata
 class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
  public:
-  explicit ColumnChunkMetaDataImpl(const format::ColumnChunk* column) : column_(column) {}
+  explicit ColumnChunkMetaDataImpl(const format::ColumnChunk* column) : column_(column) {
+    const format::ColumnMetaData& meta_data = column->meta_data;
+    for (auto encoding : meta_data.encodings) {
+      encodings_.push_back(FromThrift(encoding));
+    }
+    if (meta_data.__isset.statistics) {
+      stats_.null_count = meta_data.statistics.null_count;
+      stats_.distinct_count = meta_data.statistics.distinct_count;
+      stats_.max = &meta_data.statistics.max;
+      stats_.min = &meta_data.statistics.min;
+    }
+  }
   ~ColumnChunkMetaDataImpl() {}
 
   // column chunk
@@ -45,30 +56,13 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
 
   inline bool is_stats_set() const { return column_->meta_data.__isset.statistics; }
 
-  inline const ColumnStatistics Statistics() const {
-    const format::ColumnMetaData& meta_data = column_->meta_data;
-
-    ColumnStatistics result;
-    result.null_count = meta_data.statistics.null_count;
-    result.distinct_count = meta_data.statistics.distinct_count;
-    result.max = &meta_data.statistics.max;
-    result.min = &meta_data.statistics.min;
-    return result;
-  }
+  inline const ColumnStatistics& statistics() const { return stats_; }
 
   inline Compression::type compression() const {
     return FromThrift(column_->meta_data.codec);
   }
 
-  std::vector<Encoding::type> Encodings() const {
-    const format::ColumnMetaData& meta_data = column_->meta_data;
-
-    std::vector<Encoding::type> encodings;
-    for (auto encoding : meta_data.encodings) {
-      encodings.push_back(FromThrift(encoding));
-    }
-    return encodings;
-  }
+  const std::vector<Encoding::type>& encodings() const { return encodings_; }
 
   inline int64_t has_dictionary_page() const {
     return column_->meta_data.__isset.dictionary_page_offset;
@@ -93,6 +87,8 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   }
 
  private:
+  ColumnStatistics stats_;
+  std::vector<Encoding::type> encodings_;
   const format::ColumnChunk* column_;
 };
 
@@ -127,8 +123,8 @@ std::shared_ptr<schema::ColumnPath> ColumnChunkMetaData::path_in_schema() const 
   return impl_->path_in_schema();
 }
 
-const ColumnStatistics ColumnChunkMetaData::Statistics() const {
-  return impl_->Statistics();
+const ColumnStatistics& ColumnChunkMetaData::statistics() const {
+  return impl_->statistics();
 }
 
 bool ColumnChunkMetaData::is_stats_set() const {
@@ -155,8 +151,8 @@ Compression::type ColumnChunkMetaData::compression() const {
   return impl_->compression();
 }
 
-std::vector<Encoding::type> ColumnChunkMetaData::Encodings() const {
-  return impl_->Encodings();
+const std::vector<Encoding::type>& ColumnChunkMetaData::encodings() const {
+  return impl_->encodings();
 }
 
 int64_t ColumnChunkMetaData::total_uncompressed_size() const {
@@ -356,7 +352,7 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     std::vector<format::Encoding::type> thrift_encodings;
     thrift_encodings.push_back(ToThrift(Encoding::RLE));
     if (properties_->dictionary_enabled(column_->path())) {
-      thrift_encodings.push_back(ToThrift(properties_->dictionary_encoding()));
+      thrift_encodings.push_back(ToThrift(properties_->dictionary_page_encoding()));
       // add the encoding only if it is unique
       if (properties_->version() == ParquetVersion::PARQUET_2_0) {
         thrift_encodings.push_back(ToThrift(properties_->dictionary_index_encoding()));

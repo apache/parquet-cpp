@@ -260,7 +260,7 @@ class PARQUET_EXPORT WriterProperties {
     return default_encoding_;
   }
 
-  inline Encoding::type dictionary_encoding() const {
+  inline Encoding::type dictionary_index_encoding() const {
     if (parquet_version_ == ParquetVersion::PARQUET_1_0) {
       return Encoding::PLAIN_DICTIONARY;
     } else {
@@ -268,7 +268,7 @@ class PARQUET_EXPORT WriterProperties {
     }
   }
 
-  inline Encoding::type dictionary_index_encoding() const {
+  inline Encoding::type dictionary_page_encoding() const {
     if (parquet_version_ == ParquetVersion::PARQUET_1_0) {
       return Encoding::PLAIN_DICTIONARY;
     } else {

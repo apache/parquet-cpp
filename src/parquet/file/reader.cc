@@ -158,15 +158,16 @@ void ParquetFileReader::DebugPrint(
 
     // Print column metadata
     for (auto i : selected_columns) {
-      ColumnStatistics stats = group_metadata->ColumnChunk(i)->Statistics();
+      auto column_chunk = group_metadata->ColumnChunk(i);
+      const ColumnStatistics stats = column_chunk->statistics();
 
       const ColumnDescriptor* descr = file_metadata->schema_descriptor()->Column(i);
       stream << "Column " << i << std::endl
-             << ", values: " << group_metadata->ColumnChunk(i)->num_values()
-             << ", null values: " << stats.null_count
-             << ", distinct values: " << stats.distinct_count << std::endl;
-      if (group_metadata->ColumnChunk(i)->is_stats_set()) {
-        stream << "  max: " << FormatStatValue(descr->physical_type(), stats.max->c_str())
+             << ", values: " << column_chunk->num_values();
+      if (column_chunk->is_stats_set()) {
+        stream << ", null values: " << stats.null_count
+               << ", distinct values: " << stats.distinct_count << std::endl
+               << "  max: " << FormatStatValue(descr->physical_type(), stats.max->c_str())
                << ", min: "
                << FormatStatValue(descr->physical_type(), stats.min->c_str());
       } else {
@@ -174,16 +175,16 @@ void ParquetFileReader::DebugPrint(
       }
       stream << std::endl
              << "  compression: "
-             << compression_to_string(group_metadata->ColumnChunk(i)->compression())
+             << compression_to_string(column_chunk->compression())
              << ", encodings: ";
-      for (auto encoding : group_metadata->ColumnChunk(i)->Encodings()) {
+      for (auto encoding : column_chunk->encodings()) {
         stream << encoding_to_string(encoding) << " ";
       }
       stream << std::endl
              << "  uncompressed size: "
-             << group_metadata->ColumnChunk(i)->total_uncompressed_size()
+             << column_chunk->total_uncompressed_size()
              << ", compressed size: "
-             << group_metadata->ColumnChunk(i)->total_compressed_size() << std::endl;
+             << column_chunk->total_compressed_size() << std::endl;
     }
 
     if (!print_values) { continue; }

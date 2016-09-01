@@ -55,9 +55,9 @@ class PARQUET_EXPORT ColumnChunkMetaData {
   int64_t num_values() const;
   std::shared_ptr<schema::ColumnPath> path_in_schema() const;
   bool is_stats_set() const;
-  const ColumnStatistics Statistics() const;
+  const ColumnStatistics& statistics() const;
   Compression::type compression() const;
-  std::vector<Encoding::type> Encodings() const;
+  const std::vector<Encoding::type>& encodings() const;
   int64_t has_dictionary_page() const;
   int64_t dictionary_page_offset() const;
   int64_t data_page_offset() const;

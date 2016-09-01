@@ -195,7 +195,7 @@ std::shared_ptr<ColumnWriter> ColumnWriter::Make(const ColumnDescriptor* descr,
     const WriterProperties* properties) {
   Encoding::type encoding = properties->encoding(descr->path());
   if (properties->dictionary_enabled(descr->path())) {
-    encoding = properties->dictionary_encoding();
+    encoding = properties->dictionary_page_encoding();
   }
   switch (descr->physical_type()) {
     case Type::BOOLEAN:
