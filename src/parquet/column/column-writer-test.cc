@@ -91,14 +91,14 @@ class TestPrimitiveWriter : public ::testing::Test {
         new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, &metadata_));
     WriterProperties::Builder wp_builder;
     if (encoding == Encoding::PLAIN_DICTIONARY || encoding == Encoding::RLE_DICTIONARY) {
-        wp_builder.enable_dictionary();
+      wp_builder.enable_dictionary();
     } else {
-        wp_builder.disable_dictionary();
-        wp_builder.encoding(encoding);
+      wp_builder.disable_dictionary();
+      wp_builder.encoding(encoding);
     }
     writer_properties_ = wp_builder.build();
-    std::shared_ptr<ColumnWriter> writer = ColumnWriter::Make(schema_.get(), std::move(pager),
-        output_size, writer_properties_.get());
+    std::shared_ptr<ColumnWriter> writer = ColumnWriter::Make(
+        schema_.get(), std::move(pager), output_size, writer_properties_.get());
     return std::static_pointer_cast<TypedColumnWriter<TestType>>(writer);
   }
 
