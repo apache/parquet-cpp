@@ -196,8 +196,8 @@ TEST(TestLevelEncoder, MinimumBufferSize) {
     }
   }
 
-  std::vector<uint8_t> output(LevelEncoder::MaxBufferSize(
-          Encoding::RLE, 1, kNumToEncode));
+  std::vector<uint8_t> output(
+      LevelEncoder::MaxBufferSize(Encoding::RLE, 1, kNumToEncode));
 
   LevelEncoder encoder;
   encoder.Init(Encoding::RLE, 1, kNumToEncode, output.data(), output.size());
