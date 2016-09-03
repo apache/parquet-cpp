@@ -173,7 +173,7 @@ void ParquetFileReader::DebugPrint(
         stream << "  Statistics Not Set";
       }
       stream << std::endl
-             << "  compression: " << compression_to_string(column_chunk->compression())
+             << "  compression: " << CompressionToString(column_chunk->compression())
              << ", encodings: ";
       for (auto encoding : column_chunk->encodings()) {
         stream << EncodingToString(encoding) << " ";

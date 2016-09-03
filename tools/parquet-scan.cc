@@ -22,34 +22,45 @@
 
 #include "parquet/api/reader.h"
 
-template<typename RType>
-int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels, uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
+template <typename RType>
+int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
+    uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
   typedef typename RType::T Type;
   auto typed_reader = static_cast<RType*>(reader);
   auto vals = reinterpret_cast<Type*>(&values[0]);
-  return typed_reader->ReadBatch(batch_size, def_levels, rep_levels, vals, values_buffered);
+  return typed_reader->ReadBatch(
+      batch_size, def_levels, rep_levels, vals, values_buffered);
 }
 
-int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels, uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
+int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
+    uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
   switch (reader->type()) {
     case parquet::Type::BOOLEAN:
-        return ScanAll<parquet::BoolReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::BoolReader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::INT32:
-        return ScanAll<parquet::Int32Reader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::Int32Reader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::INT64:
-        return ScanAll<parquet::Int64Reader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::Int64Reader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::INT96:
-        return ScanAll<parquet::Int96Reader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::Int96Reader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::FLOAT:
-        return ScanAll<parquet::FloatReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::FloatReader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::DOUBLE:
-        return ScanAll<parquet::DoubleReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::DoubleReader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::BYTE_ARRAY:
-        return ScanAll<parquet::ByteArrayReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::ByteArrayReader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     case parquet::Type::FIXED_LEN_BYTE_ARRAY:
-        return ScanAll<parquet::FixedLenByteArrayReader>(batch_size, def_levels, rep_levels, values, values_buffered, reader);
+      return ScanAll<parquet::FixedLenByteArrayReader>(
+          batch_size, def_levels, rep_levels, values, values_buffered, reader);
     default:
-        parquet::ParquetException::NYI("type reader not implemented");
+      parquet::ParquetException::NYI("type reader not implemented");
   }
   // Unreachable code, but supress compiler warning
   return 0;
@@ -112,13 +123,13 @@ int main(int argc, char** argv) {
       for (auto i : columns) {
         total_rows[col] = 0;
         std::shared_ptr<parquet::ColumnReader> col_reader = group_reader->Column(i);
-        size_t value_byte_size =
-            GetTypeByteSize(col_reader->descr()->physical_type());
+        size_t value_byte_size = GetTypeByteSize(col_reader->descr()->physical_type());
         std::vector<uint8_t> values(batch_size * value_byte_size);
 
         int64_t values_read = 0;
         while (col_reader->HasNext()) {
-          total_rows[col] += ScanAllValues(batch_size, def_levels.data(), rep_levels.data(), values.data(), &values_read, col_reader.get());
+          total_rows[col] += ScanAllValues(batch_size, def_levels.data(),
+              rep_levels.data(), values.data(), &values_read, col_reader.get());
         }
         col++;
       }

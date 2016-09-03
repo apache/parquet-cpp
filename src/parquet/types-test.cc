@@ -31,15 +31,13 @@ TEST(TestTypeToString, PhysicalTypes) {
   ASSERT_STREQ("FLOAT", TypeToString(Type::FLOAT).c_str());
   ASSERT_STREQ("DOUBLE", TypeToString(Type::DOUBLE).c_str());
   ASSERT_STREQ("BYTE_ARRAY", TypeToString(Type::BYTE_ARRAY).c_str());
-  ASSERT_STREQ(
-      "FIXED_LEN_BYTE_ARRAY", TypeToString(Type::FIXED_LEN_BYTE_ARRAY).c_str());
+  ASSERT_STREQ("FIXED_LEN_BYTE_ARRAY", TypeToString(Type::FIXED_LEN_BYTE_ARRAY).c_str());
 }
 
 TEST(TestLogicalTypeToString, LogicalTypes) {
   ASSERT_STREQ("NONE", LogicalTypeToString(LogicalType::NONE).c_str());
   ASSERT_STREQ("UTF8", LogicalTypeToString(LogicalType::UTF8).c_str());
-  ASSERT_STREQ(
-      "MAP_KEY_VALUE", LogicalTypeToString(LogicalType::MAP_KEY_VALUE).c_str());
+  ASSERT_STREQ("MAP_KEY_VALUE", LogicalTypeToString(LogicalType::MAP_KEY_VALUE).c_str());
   ASSERT_STREQ("LIST", LogicalTypeToString(LogicalType::LIST).c_str());
   ASSERT_STREQ("ENUM", LogicalTypeToString(LogicalType::ENUM).c_str());
   ASSERT_STREQ("DECIMAL", LogicalTypeToString(LogicalType::DECIMAL).c_str());
