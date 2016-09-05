@@ -58,11 +58,6 @@ class PARQUET_EXPORT ColumnReader {
 
   const ColumnDescriptor* descr() const { return descr_; }
 
-  int64_t GetRemainingInPage() {
-    if (!HasNext()) { return 0; }
-    return num_buffered_values_ - num_decoded_values_;
-  }
-
  protected:
   virtual bool ReadNewPage() = 0;
 
