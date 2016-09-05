@@ -15,25 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Headers: top level
-install(FILES
-  levels.h
-  page.h
-  properties.h
-  reader.h
-  scan-all.h
-  write-all.h
-  scanner.h
-  writer.h
-  statistics.h
-  DESTINATION include/parquet/column)
+SET(LINK_LIBS
+  snappystatic
+  thriftstatic)
 
-ADD_PARQUET_TEST(column-reader-test)
-ADD_PARQUET_TEST(column-writer-test)
-ADD_PARQUET_TEST(levels-test)
-ADD_PARQUET_TEST(properties-test)
-ADD_PARQUET_TEST(scanner-test)
-ADD_PARQUET_TEST(statistics-test)
-
-ADD_PARQUET_BENCHMARK(column-io-benchmark)
-ADD_PARQUET_BENCHMARK(level-benchmark)
+if (PARQUET_BUILD_EXECUTABLES)
+  add_executable(reader-writer reader-writer.cc)
+  target_link_libraries(reader-writer ${LINK_LIBS}
+	parquet_static)
+endif()

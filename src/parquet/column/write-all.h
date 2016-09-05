@@ -15,19 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_API_WRITER_H
-#define PARQUET_API_WRITER_H
+#ifndef PARQUET_WRITE_ALL_H
+#define PARQUET_WRITE_ALL_H
 
-// Column reader API
 #include "parquet/column/writer.h"
-#include "parquet/column/write-all.h"
-#include "parquet/exception.h"
-#include "parquet/file/writer.h"
 
-// Schemas
-#include "parquet/api/schema.h"
+namespace parquet {
 
-// IO
-#include "parquet/api/io.h"
+template <typename RType>
+void WriteAll(int64_t batch_size, const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* writer) {
+  typedef typename RType::T Type;
+  auto typed_writer = static_cast<RType*>(writer);
+  auto vals = reinterpret_cast<const Type*>(&values[0]);
+  typed_writer->WriteBatch(batch_size, def_levels, rep_levels, vals);
+}
 
-#endif  // PARQUET_API_WRITER_H
+void PARQUET_EXPORT WriteAllValues(int64_t batch_size, const int16_t* def_levels, const
+int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* Writer);
+
+}  // namespace parquet
+
+#endif  // PARQUET_WRITE_ALL_H
