@@ -9,17 +9,19 @@ else
 fi
 
 wget -O miniconda.sh $MINICONDA_URL
-MINICONDA=$TRAVIS_BUILD_DIR/miniconda
+MINICONDA=$HOME/miniconda
 bash miniconda.sh -b -p $MINICONDA
 export PATH="$MINICONDA/bin:$PATH"
+
 conda update -y -q conda
+conda install -y -q conda-build
 conda info -a
 
 conda config --set show_channel_urls yes
 conda config --add channels conda-forge
 conda config --add channels apache
 
-conda install --yes conda-build jinja2 anaconda-client
+conda install --yes jinja2 anaconda-client
 
 cd $TRAVIS_BUILD_DIR
 
