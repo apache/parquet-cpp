@@ -46,12 +46,9 @@ class PARQUET_EXPORT RowGroupWriter {
     // virtual void WriteRowGroupStatitics();
     virtual ColumnWriter* NextColumn() = 0;
     virtual void Close() = 0;
-
-    // Return const-pointer to make it clear that this object is not to be copied
-    virtual const SchemaDescriptor* schema() const = 0;
   };
 
-  RowGroupWriter(std::unique_ptr<Contents> contents, MemoryAllocator* allocator);
+  RowGroupWriter(std::unique_ptr<Contents> contents);
 
   /**
    * Construct a ColumnWriter for the indicated row group-relative column.
@@ -75,13 +72,8 @@ class PARQUET_EXPORT RowGroupWriter {
   // virtual void WriteRowGroupStatitics();
 
  private:
-  // Owned by the parent ParquetFileWriter
-  const SchemaDescriptor* schema_;
-
   // Holds a pointer to an instance of Contents implementation
   std::unique_ptr<Contents> contents_;
-
-  MemoryAllocator* allocator_;
 };
 
 class PARQUET_EXPORT ParquetFileWriter {
@@ -101,10 +93,9 @@ class PARQUET_EXPORT ParquetFileWriter {
     virtual int num_row_groups() const = 0;
 
     virtual const std::shared_ptr<WriterProperties>& properties() const = 0;
-
-    // Return const-poitner to make it clear that this object is not to be copied
-    const SchemaDescriptor* schema() const { return &schema_; }
-    SchemaDescriptor schema_;
+   // Return const-poitner to make it clear that this object is not to be copied
+     const SchemaDescriptor* schema() const { return &schema_; }
+     SchemaDescriptor schema_;
   };
 
   ParquetFileWriter();
@@ -152,19 +143,9 @@ class PARQUET_EXPORT ParquetFileWriter {
    */
   const std::shared_ptr<WriterProperties>& properties() const;
 
-  /**
-   * Returns the file schema descriptor
-   */
-  const SchemaDescriptor* descr() { return schema_; }
-
-  const ColumnDescriptor* column_schema(int i) const { return schema_->Column(i); }
-
  private:
   // Holds a pointer to an instance of Contents implementation
   std::unique_ptr<Contents> contents_;
-
-  // The SchemaDescriptor is provided by the Contents impl
-  const SchemaDescriptor* schema_;
 };
 
 }  // namespace parquet
