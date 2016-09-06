@@ -43,10 +43,10 @@ class PARQUET_EXPORT RowGroupReader {
     virtual ~Contents() {}
     virtual std::unique_ptr<PageReader> GetColumnPageReader(int i) = 0;
     virtual const RowGroupMetaData* metadata() const = 0;
+    virtual const ReaderProperties* properties() const = 0;
   };
 
-  RowGroupReader(const SchemaDescriptor* schema, std::unique_ptr<Contents> contents,
-      MemoryAllocator* allocator);
+  explicit RowGroupReader(std::unique_ptr<Contents> contents);
 
   // Returns the rowgroup metadata
   const RowGroupMetaData* metadata() const;
@@ -56,12 +56,10 @@ class PARQUET_EXPORT RowGroupReader {
   std::shared_ptr<ColumnReader> Column(int i);
 
  private:
-  const SchemaDescriptor* schema_;
   // PIMPL idiom
   // This is declared in the .cc file so that we can hide compiled Thrift
   // headers from the public API and also more easily create test fixtures.
   std::unique_ptr<Contents> contents_;
-  MemoryAllocator* allocator_;
 };
 
 class PARQUET_EXPORT ParquetFileReader {
