@@ -166,7 +166,8 @@ int64_t ColumnChunkMetaData::total_compressed_size() const {
 // row-group metadata
 class RowGroupMetaData::RowGroupMetaDataImpl {
  public:
-  explicit RowGroupMetaDataImpl(const format::RowGroup* row_group, const SchemaDescriptor* schema)
+  explicit RowGroupMetaDataImpl(
+      const format::RowGroup* row_group, const SchemaDescriptor* schema)
       : row_group_(row_group), schema_(schema) {}
   ~RowGroupMetaDataImpl() {}
 
@@ -176,7 +177,7 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
 
   inline int64_t total_byte_size() const { return row_group_->total_byte_size; }
 
-  inline const SchemaDescriptor* schema() const { return schema_;}
+  inline const SchemaDescriptor* schema() const { return schema_; }
 
   std::unique_ptr<ColumnChunkMetaData> ColumnChunk(int i) {
     DCHECK(i < num_columns()) << "The file only has " << num_columns()
@@ -190,11 +191,13 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
   const SchemaDescriptor* schema_;
 };
 
-std::unique_ptr<RowGroupMetaData> RowGroupMetaData::Make(const uint8_t* metadata, const SchemaDescriptor* schema) {
+std::unique_ptr<RowGroupMetaData> RowGroupMetaData::Make(
+    const uint8_t* metadata, const SchemaDescriptor* schema) {
   return std::unique_ptr<RowGroupMetaData>(new RowGroupMetaData(metadata, schema));
 }
 
-RowGroupMetaData::RowGroupMetaData(const uint8_t* metadata, const SchemaDescriptor* schema)
+RowGroupMetaData::RowGroupMetaData(
+    const uint8_t* metadata, const SchemaDescriptor* schema)
     : impl_{std::unique_ptr<RowGroupMetaDataImpl>(new RowGroupMetaDataImpl(
           reinterpret_cast<const format::RowGroup*>(metadata), schema))} {}
 RowGroupMetaData::~RowGroupMetaData() {}
@@ -211,7 +214,7 @@ int64_t RowGroupMetaData::total_byte_size() const {
   return impl_->total_byte_size();
 }
 
-const SchemaDescriptor* RowGroupMetaData::schema() const { 
+const SchemaDescriptor* RowGroupMetaData::schema() const {
   return impl_->schema();
 }
 

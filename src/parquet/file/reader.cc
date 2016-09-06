@@ -45,11 +45,14 @@ RowGroupReader::RowGroupReader(std::unique_ptr<Contents> contents)
     : contents_(std::move(contents)) {}
 
 std::shared_ptr<ColumnReader> RowGroupReader::Column(int i) {
-  DCHECK(i < metadata()->num_columns()) << "The RowGroup only has " << metadata()->num_columns() << "columns, requested column: " << i;
+  DCHECK(i < metadata()->num_columns()) << "The RowGroup only has "
+                                        << metadata()->num_columns()
+                                        << "columns, requested column: " << i;
   const ColumnDescriptor* descr = metadata()->schema()->Column(i);
 
   std::unique_ptr<PageReader> page_reader = contents_->GetColumnPageReader(i);
-  return ColumnReader::Make(descr, std::move(page_reader), const_cast<ReaderProperties*>(contents_->properties())->allocator());
+  return ColumnReader::Make(descr, std::move(page_reader),
+      const_cast<ReaderProperties*>(contents_->properties())->allocator());
 }
 
 // Returns the rowgroup metadata

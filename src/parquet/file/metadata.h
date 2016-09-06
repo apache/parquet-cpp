@@ -75,7 +75,8 @@ class PARQUET_EXPORT ColumnChunkMetaData {
 class PARQUET_EXPORT RowGroupMetaData {
  public:
   // API convenience to get a MetaData accessor
-  static std::unique_ptr<RowGroupMetaData> Make(const uint8_t* metadata, const SchemaDescriptor* schema);
+  static std::unique_ptr<RowGroupMetaData> Make(
+      const uint8_t* metadata, const SchemaDescriptor* schema);
 
   ~RowGroupMetaData();
 
