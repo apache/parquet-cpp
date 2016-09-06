@@ -217,6 +217,8 @@ TEST(TestLevelEncoder, MinimumBufferSize2) {
 
   std::vector<int16_t> levels;
   for (int i = 0; i < kNumToEncode; ++i) {
+    // This forces a literal run of 00000001
+    // followed by eight 1s
     if ((i % 16) < 7) {
       levels.push_back(0);
     } else {
@@ -224,14 +226,16 @@ TEST(TestLevelEncoder, MinimumBufferSize2) {
     }
   }
 
-  std::vector<uint8_t> output(
-      LevelEncoder::MaxBufferSize(Encoding::RLE, 2, kNumToEncode));
+  for (int bit_width = 1; bit_width <= 8; bit_width++) {
+    std::vector<uint8_t> output(
+        LevelEncoder::MaxBufferSize(Encoding::RLE, bit_width, kNumToEncode));
 
-  LevelEncoder encoder;
-  encoder.Init(Encoding::RLE, 2, kNumToEncode, output.data(), output.size());
-  int encode_count = encoder.Encode(kNumToEncode, levels.data());
+    LevelEncoder encoder;
+    encoder.Init(Encoding::RLE, bit_width, kNumToEncode, output.data(), output.size());
+    int encode_count = encoder.Encode(kNumToEncode, levels.data());
 
-  ASSERT_EQ(kNumToEncode, encode_count);
+    ASSERT_EQ(kNumToEncode, encode_count);
+  }
 }
 
 }  // namespace parquet
