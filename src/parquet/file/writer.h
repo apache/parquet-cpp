@@ -93,7 +93,8 @@ class PARQUET_EXPORT ParquetFileWriter {
     virtual int num_row_groups() const = 0;
 
     virtual const std::shared_ptr<WriterProperties>& properties() const = 0;
-    // Return const-poitner to make it clear that this object is not to be copied
+
+    // Return const-pointer to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const { return &schema_; }
     SchemaDescriptor schema_;
   };
@@ -142,6 +143,16 @@ class PARQUET_EXPORT ParquetFileWriter {
    * Configuration passed to the writer, e.g. the used Parquet format version.
    */
   const std::shared_ptr<WriterProperties>& properties() const;
+
+  /**
+    * Returns the file schema descriptor
+    */
+  const SchemaDescriptor* descr() const;
+
+  /**
+   * Returns a column descriptor in schema
+   */
+  const ColumnDescriptor* column_schema(int i) const;
 
  private:
   // Holds a pointer to an instance of Contents implementation

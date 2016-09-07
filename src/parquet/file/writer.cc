@@ -61,6 +61,14 @@ std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
   return result;
 }
 
+const SchemaDescriptor* ParquetFileWriter::descr() const {
+  return contents_->schema();
+}
+
+const ColumnDescriptor* ParquetFileWriter::column_schema(int i) const {
+  return contents_->schema()->Column(i);
+}
+
 void ParquetFileWriter::Open(std::unique_ptr<ParquetFileWriter::Contents> contents) {
   contents_ = std::move(contents);
 }
