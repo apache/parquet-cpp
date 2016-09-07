@@ -175,8 +175,9 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
   void Finish();
 
  private:
-  explicit RowGroupMetaDataBuilder(int64_t num_rows, const std::shared_ptr<WriterProperties>& props,
-      const SchemaDescriptor* schema_, uint8_t* contents);
+  explicit RowGroupMetaDataBuilder(int64_t num_rows,
+      const std::shared_ptr<WriterProperties>& props, const SchemaDescriptor* schema_,
+      uint8_t* contents);
   // PIMPL Idiom
   class RowGroupMetaDataBuilderImpl;
   std::unique_ptr<RowGroupMetaDataBuilderImpl> impl_;

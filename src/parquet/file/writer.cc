@@ -27,10 +27,8 @@ namespace parquet {
 // ----------------------------------------------------------------------
 // RowGroupWriter public API
 
-RowGroupWriter::RowGroupWriter(
-    std::unique_ptr<Contents> contents)
-    : contents_(std::move(contents)) {
-}
+RowGroupWriter::RowGroupWriter(std::unique_ptr<Contents> contents)
+    : contents_(std::move(contents)) {}
 
 void RowGroupWriter::Close() {
   if (contents_) {

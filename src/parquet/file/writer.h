@@ -48,7 +48,7 @@ class PARQUET_EXPORT RowGroupWriter {
     virtual void Close() = 0;
   };
 
-  RowGroupWriter(std::unique_ptr<Contents> contents);
+  explicit RowGroupWriter(std::unique_ptr<Contents> contents);
 
   /**
    * Construct a ColumnWriter for the indicated row group-relative column.
@@ -93,9 +93,9 @@ class PARQUET_EXPORT ParquetFileWriter {
     virtual int num_row_groups() const = 0;
 
     virtual const std::shared_ptr<WriterProperties>& properties() const = 0;
-   // Return const-poitner to make it clear that this object is not to be copied
-     const SchemaDescriptor* schema() const { return &schema_; }
-     SchemaDescriptor schema_;
+    // Return const-poitner to make it clear that this object is not to be copied
+    const SchemaDescriptor* schema() const { return &schema_; }
+    SchemaDescriptor schema_;
   };
 
   ParquetFileWriter();

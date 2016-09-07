@@ -49,7 +49,8 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type
 void SerializedPageWriter::Close() {
   // index_page_offset = 0 since they are not supported
   // TODO: Remove default fallback = 'false' when implemented
-  metadata_->Finish(num_values_, dictionary_page_offset_, 0, data_page_offset_, total_compressed_size_, total_uncompressed_size_, false);
+  metadata_->Finish(num_values_, dictionary_page_offset_, 0, data_page_offset_,
+      total_compressed_size_, total_uncompressed_size_, false);
 }
 
 std::shared_ptr<Buffer> SerializedPageWriter::Compress(
@@ -88,9 +89,7 @@ int64_t SerializedPageWriter::WriteDataPage(const DataPage& page) {
   // TODO(PARQUET-594) crc checksum
 
   int64_t start_pos = sink_->Tell();
-  if (data_page_offset_ == 0) {
-    data_page_offset_ = start_pos;
-  }
+  if (data_page_offset_ == 0) { data_page_offset_ = start_pos; }
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   int64_t header_size = sink_->Tell() - start_pos;
   sink_->Write(compressed_data->data(), compressed_data->size());
@@ -119,9 +118,7 @@ int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   // TODO(PARQUET-594) crc checksum
 
   int64_t start_pos = sink_->Tell();
-  if (dictionary_page_offset_ == 0) {
-    dictionary_page_offset_ = start_pos;
-  }
+  if (dictionary_page_offset_ == 0) { dictionary_page_offset_ = start_pos; }
   SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
   int64_t header_size = sink_->Tell() - start_pos;
   sink_->Write(compressed_data->data(), compressed_data->size());
@@ -150,22 +147,23 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
   if (current_column_writer_) { current_column_writer_->Close(); }
 
   const ColumnDescriptor* column_descr = col_meta->descriptor();
-  std::unique_ptr<PageWriter> pager(new SerializedPageWriter(
-      sink_, properties_->compression(column_descr->path()), col_meta, properties_->allocator()));
-  current_column_writer_ =
-      ColumnWriter::Make(col_meta->descriptor(), std::move(pager), num_rows_, properties_);
+  std::unique_ptr<PageWriter> pager(
+      new SerializedPageWriter(sink_, properties_->compression(column_descr->path()),
+          col_meta, properties_->allocator()));
+  current_column_writer_ = ColumnWriter::Make(
+      col_meta->descriptor(), std::move(pager), num_rows_, properties_);
   return current_column_writer_.get();
 }
 
 void RowGroupSerializer::Close() {
   if (!closed_) {
     closed_ = true;
-    
+
     if (current_column_writer_) {
       current_column_writer_->Close();
       current_column_writer_.reset();
     }
-    //Ensures all columns have been written
+    // Ensures all columns have been written
     metadata_->Finish();
   }
 }
@@ -186,7 +184,7 @@ void FileSerializer::Close() {
   if (is_open_) {
     if (row_group_writer_) { row_group_writer_->Close(); }
     row_group_writer_.reset();
-   
+
     // Write magic bytes and metadata
     WriteMetaData();
 
@@ -216,8 +214,8 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   num_rows_ += num_rows;
   num_row_groups_++;
   auto rg_metadata = metadata_->AppendRowGroup(num_rows);
-  std::unique_ptr<RowGroupWriter::Contents> contents(new RowGroupSerializer(
-      num_rows, sink_.get(), rg_metadata, properties_.get()));
+  std::unique_ptr<RowGroupWriter::Contents> contents(
+      new RowGroupSerializer(num_rows, sink_.get(), rg_metadata, properties_.get()));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents)));
   return row_group_writer_.get();
 }

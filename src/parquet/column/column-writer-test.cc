@@ -72,9 +72,10 @@ class TestPrimitiveWriter : public ::testing::Test {
     writer_properties_ = default_writer_properties();
     definition_levels_out_.resize(SMALL_SIZE);
     repetition_levels_out_.resize(SMALL_SIZE);
-    
+
     SetUpSchemaRequired();
-    metadata_accessor_ = parquet::ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_)); 
+    metadata_accessor_ =
+        parquet::ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_));
   }
 
   void BuildReader() {
@@ -88,9 +89,10 @@ class TestPrimitiveWriter : public ::testing::Test {
   std::shared_ptr<TypedColumnWriter<TestType>> BuildWriter(
       int64_t output_size = SMALL_SIZE, Encoding::type encoding = Encoding::PLAIN) {
     sink_.reset(new InMemoryOutputStream());
-    metadata_ = parquet::ColumnChunkMetaDataBuilder::Make(writer_properties_, schema_.get(), reinterpret_cast<uint8_t*>(&thrift_metadata_)); 
-    std::unique_ptr<SerializedPageWriter> pager(
-        new SerializedPageWriter(sink_.get(), Compression::UNCOMPRESSED, metadata_.get()));
+    metadata_ = parquet::ColumnChunkMetaDataBuilder::Make(
+        writer_properties_, schema_.get(), reinterpret_cast<uint8_t*>(&thrift_metadata_));
+    std::unique_ptr<SerializedPageWriter> pager(new SerializedPageWriter(
+        sink_.get(), Compression::UNCOMPRESSED, metadata_.get()));
     WriterProperties::Builder wp_builder;
     if (encoding == Encoding::PLAIN_DICTIONARY || encoding == Encoding::RLE_DICTIONARY) {
       wp_builder.enable_dictionary();
@@ -128,9 +130,7 @@ class TestPrimitiveWriter : public ::testing::Test {
     ASSERT_EQ(this->values_, this->values_out_);
   }
 
-  int64_t metadata_num_values() const {
-    return metadata_accessor_->num_values();
-  }
+  int64_t metadata_num_values() const { return metadata_accessor_->num_values(); }
 
  protected:
   int64_t values_read_;
