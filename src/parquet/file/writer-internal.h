@@ -97,7 +97,6 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   int64_t total_bytes_written_;
   bool closed_;
 
-  int64_t current_column_index_;
   std::shared_ptr<ColumnWriter> current_column_writer_;
 };
 

@@ -99,7 +99,7 @@ static void BM_ReadInt64Column(::benchmark::State& state) {
   std::vector<int16_t> repetition_levels(state.range_x(), 0);
   std::shared_ptr<ColumnDescriptor> schema = Int64Schema(repetition);
   std::shared_ptr<parquet::WriterProperties> properties = default_writer_properties();
-  auto metadata = parquet::ColumnChunkMetaDataBuilder::Make(
+  auto metadata = ColumnChunkMetaDataBuilder::Make(
       properties, schema.get(), reinterpret_cast<uint8_t*>(&thrift_metadata));
 
   InMemoryOutputStream dst;

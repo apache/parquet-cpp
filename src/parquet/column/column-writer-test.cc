@@ -75,7 +75,7 @@ class TestPrimitiveWriter : public ::testing::Test {
 
     SetUpSchemaRequired();
     metadata_accessor_ =
-        parquet::ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_));
+        ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_));
   }
 
   void BuildReader() {
@@ -89,7 +89,7 @@ class TestPrimitiveWriter : public ::testing::Test {
   std::shared_ptr<TypedColumnWriter<TestType>> BuildWriter(
       int64_t output_size = SMALL_SIZE, Encoding::type encoding = Encoding::PLAIN) {
     sink_.reset(new InMemoryOutputStream());
-    metadata_ = parquet::ColumnChunkMetaDataBuilder::Make(
+    metadata_ = ColumnChunkMetaDataBuilder::Make(
         writer_properties_, schema_.get(), reinterpret_cast<uint8_t*>(&thrift_metadata_));
     std::unique_ptr<SerializedPageWriter> pager(new SerializedPageWriter(
         sink_.get(), Compression::UNCOMPRESSED, metadata_.get()));
