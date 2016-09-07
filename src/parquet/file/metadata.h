@@ -172,7 +172,7 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
   int num_columns();
 
   // commit the metadata
-  void Finish();
+  void Finish(int64_t total_bytes_written);
 
  private:
   explicit RowGroupMetaDataBuilder(int64_t num_rows,

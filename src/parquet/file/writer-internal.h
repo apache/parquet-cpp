@@ -77,6 +77,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
         sink_(sink),
         metadata_(std::move(metadata)),
         properties_(properties),
+        total_bytes_written_(0),
         closed_(false) {}
 
   int num_columns() const override;
@@ -93,6 +94,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   OutputStream* sink_;
   RowGroupMetaDataBuilder* metadata_;
   const WriterProperties* properties_;
+  int64_t total_bytes_written_;
   bool closed_;
 
   int64_t current_column_index_;

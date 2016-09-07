@@ -144,7 +144,7 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
   // Throws an error if more columns are being written
   auto col_meta = metadata_->NextColumnChunk();
 
-  if (current_column_writer_) { current_column_writer_->Close(); }
+  if (current_column_writer_) { total_bytes_written_ = current_column_writer_->Close(); }
 
   const ColumnDescriptor* column_descr = col_meta->descriptor();
   std::unique_ptr<PageWriter> pager(
@@ -160,11 +160,11 @@ void RowGroupSerializer::Close() {
     closed_ = true;
 
     if (current_column_writer_) {
-      current_column_writer_->Close();
+      total_bytes_written_ = current_column_writer_->Close();
       current_column_writer_.reset();
     }
     // Ensures all columns have been written
-    metadata_->Finish();
+    metadata_->Finish(total_bytes_written_);
   }
 }
 
