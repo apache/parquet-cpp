@@ -146,12 +146,12 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
 
   if (current_column_writer_) { total_bytes_written_ = current_column_writer_->Close(); }
 
-  const ColumnDescriptor* column_descr = col_meta->descriptor();
+  const ColumnDescriptor* column_descr = col_meta->descr();
   std::unique_ptr<PageWriter> pager(
       new SerializedPageWriter(sink_, properties_->compression(column_descr->path()),
           col_meta, properties_->allocator()));
-  current_column_writer_ = ColumnWriter::Make(
-      col_meta->descriptor(), std::move(pager), num_rows_, properties_);
+  current_column_writer_ =
+      ColumnWriter::Make(col_meta->descr(), std::move(pager), num_rows_, properties_);
   return current_column_writer_.get();
 }
 

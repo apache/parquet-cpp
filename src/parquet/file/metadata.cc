@@ -258,7 +258,7 @@ class FileMetaData::FileMetaDataImpl {
         reinterpret_cast<const uint8_t*>(&metadata_->row_groups[i]), &schema_);
   }
 
-  const SchemaDescriptor* schema_descriptor() const { return &schema_; }
+  const SchemaDescriptor* schema() const { return &schema_; }
 
  private:
   friend FileMetaDataBuilder;
@@ -313,8 +313,8 @@ int FileMetaData::num_schema_elements() const {
   return impl_->num_schema_elements();
 }
 
-const SchemaDescriptor* FileMetaData::schema_descriptor() const {
-  return impl_->schema_descriptor();
+const SchemaDescriptor* FileMetaData::schema() const {
+  return impl_->schema();
 }
 
 void FileMetaData::WriteTo(OutputStream* dst) {
@@ -381,7 +381,7 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     column_chunk_->meta_data.__set_encodings(thrift_encodings);
   }
 
-  const ColumnDescriptor* descriptor() const { return column_; }
+  const ColumnDescriptor* descr() const { return column_; }
 
  private:
   format::ColumnChunk* column_chunk_;
@@ -415,8 +415,8 @@ void ColumnChunkMetaDataBuilder::Finish(int64_t num_values,
       compressed_size, uncompressed_size, dictionary_fallback);
 }
 
-const ColumnDescriptor* ColumnChunkMetaDataBuilder::descriptor() const {
-  return impl_->descriptor();
+const ColumnDescriptor* ColumnChunkMetaDataBuilder::descr() const {
+  return impl_->descr();
 }
 
 void ColumnChunkMetaDataBuilder::SetStatistics(const ColumnStatistics& result) {
@@ -547,7 +547,7 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
     metadata_->__set_version(properties_->version());
     metadata_->__set_created_by(properties_->created_by());
     parquet::schema::SchemaFlattener flattener(
-        static_cast<parquet::schema::GroupNode*>(schema_->schema().get()),
+        static_cast<parquet::schema::GroupNode*>(schema_->schema_root().get()),
         &metadata_->schema);
     flattener.Flatten();
     auto file_meta_data = std::unique_ptr<FileMetaData>(new FileMetaData());

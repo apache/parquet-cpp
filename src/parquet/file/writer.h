@@ -147,12 +147,12 @@ class PARQUET_EXPORT ParquetFileWriter {
   /**
     * Returns the file schema descriptor
     */
-  const SchemaDescriptor* descr() const;
+  const SchemaDescriptor* schema() const;
 
   /**
    * Returns a column descriptor in schema
    */
-  const ColumnDescriptor* column_schema(int i) const;
+  const ColumnDescriptor* descr(int i) const;
 
  private:
   // Holds a pointer to an instance of Contents implementation

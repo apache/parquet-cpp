@@ -61,11 +61,11 @@ std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
   return result;
 }
 
-const SchemaDescriptor* ParquetFileWriter::descr() const {
+const SchemaDescriptor* ParquetFileWriter::schema() const {
   return contents_->schema();
 }
 
-const ColumnDescriptor* ParquetFileWriter::column_schema(int i) const {
+const ColumnDescriptor* ParquetFileWriter::descr(int i) const {
   return contents_->schema()->Column(i);
 }
 

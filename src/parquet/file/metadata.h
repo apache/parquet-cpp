@@ -117,7 +117,7 @@ class PARQUET_EXPORT FileMetaData {
   void WriteTo(OutputStream* dst);
 
   // Return const-pointer to make it clear that this object is not to be copied
-  const SchemaDescriptor* schema_descriptor() const;
+  const SchemaDescriptor* schema() const;
 
  private:
   friend FileMetaDataBuilder;
@@ -145,7 +145,7 @@ class PARQUET_EXPORT ColumnChunkMetaDataBuilder {
   // ownership of min/max is with ColumnChunkMetadata
   void SetStatistics(const ColumnStatistics& stats);
   // get the column descriptor
-  const ColumnDescriptor* descriptor() const;
+  const ColumnDescriptor* descr() const;
   // commit the metadata
   void Finish(int64_t num_values, int64_t dictonary_page_offset,
       int64_t index_page_offset, int64_t data_page_offset, int64_t compressed_size,

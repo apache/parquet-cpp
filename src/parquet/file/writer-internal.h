@@ -75,7 +75,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       RowGroupMetaDataBuilder* metadata, const WriterProperties* properties)
       : num_rows_(num_rows),
         sink_(sink),
-        metadata_(std::move(metadata)),
+        metadata_(metadata),
         properties_(properties),
         total_bytes_written_(0),
         closed_(false) {}
