@@ -40,7 +40,7 @@ const int SMALL_SIZE = 100;
 // Larger size to test some corner cases, only used in some specific cases.
 const int LARGE_SIZE = 10000;
 // Very large size to test dictionary fallback.
-const int VERY_LARGE_SIZE = 1000000;
+const int VERY_LARGE_SIZE = 400000;
 
 template <typename TestType>
 class TestPrimitiveWriter : public ::testing::Test {
@@ -77,6 +77,8 @@ class TestPrimitiveWriter : public ::testing::Test {
 
     SetUpSchemaRequired();
   }
+
+  Type::type type_num() { return TestType::type_num; }
 
   void BuildReader() {
     auto buffer = sink_->GetBuffer();
@@ -214,8 +216,6 @@ void TestPrimitiveWriter<BooleanType>::GenerateData(int64_t num_values) {
 typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
     BooleanType, ByteArrayType, FLBAType> TestTypes;
 
-typedef TestPrimitiveWriter<Int32Type> TestInt32PrimitiveWriter;
-
 TYPED_TEST_CASE(TestPrimitiveWriter, TestTypes);
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlain) {
@@ -345,8 +345,8 @@ TYPED_TEST(TestPrimitiveWriter, RequiredLargeChunk) {
   ASSERT_EQ(this->values_, this->values_out_);
 }
 
-// Test case for dictionary fallback encoding
-TEST_F(TestInt32PrimitiveWriter, RequiredVeryLargeChunk) {
+// Test case for dictionary fallback encoding skip BooleanType
+TYPED_TEST(TestPrimitiveWriter, RequiredVeryLargeChunk) {
   this->GenerateData(VERY_LARGE_SIZE);
 
   auto writer = this->BuildWriter(VERY_LARGE_SIZE, Encoding::PLAIN_DICTIONARY);
@@ -358,8 +358,15 @@ TEST_F(TestInt32PrimitiveWriter, RequiredVeryLargeChunk) {
   ASSERT_EQ(SMALL_SIZE, this->values_read_);
   this->values_.resize(SMALL_SIZE);
   ASSERT_EQ(this->values_, this->values_out_);
-  // There are 3 encodings in a fallback case
-  ASSERT_EQ(3, this->metadata_num_encodings());
+  if (this->type_num() != Type::BOOLEAN) {
+    // There are 3 encodings (RLE, PLAIN_DICTIONARY, PLAIN) in a fallback case
+    ASSERT_EQ(3, this->metadata_num_encodings());
+  } else {
+    // Dictionary encoding is not allowed for boolean type
+    // There are 2 encodings (RLE, PLAIN) in a non dictionary encoding case
+    ASSERT_EQ(2, this->metadata_num_encodings());
+  }
 }
+
 }  // namespace test
 }  // namespace parquet

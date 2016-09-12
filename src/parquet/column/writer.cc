@@ -121,7 +121,7 @@ void ColumnWriter::AddDataPage() {
 
   // Write the page to OutputStream eagerly if there is no dictionary or
   // if dictionary encoding has fallen back to PLAIN
-  if (has_dictionary_ && !fallback_) {  // Saves pages until end of dictionary encoding
+  if (has_dictionary_ && !fallback_) {  // Save pages until end of dictionary encoding
     data_pages_.push_back(std::move(page));
   } else {  // Eagerly write pages
     WriteDataPage(page);
