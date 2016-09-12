@@ -375,8 +375,11 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
         thrift_encodings.push_back(ToThrift(properties_->dictionary_index_encoding()));
       }
     }
-    if (!properties_->dictionary_enabled(column_->path()) || dictionary_fallback) {
+    else { // Dictionary not enabled
       thrift_encodings.push_back(ToThrift(properties_->encoding(column_->path())));
+    }
+    if (dictionary_fallback) {// Only PLAIN encoding is supported for fallback in V1
+      thrift_encodings.push_back(ToThrift(Encoding::PLAIN));
     }
     column_chunk_->meta_data.__set_encodings(thrift_encodings);
   }

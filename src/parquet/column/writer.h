@@ -33,6 +33,7 @@
 
 namespace parquet {
 
+static constexpr int WRITE_BURST = 1000;
 class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
@@ -57,6 +58,7 @@ class PARQUET_EXPORT ColumnWriter {
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
   virtual void WriteDictionaryPage() = 0;
+  virtual void VerifyDictionaryFallback() = 0;
 
   void AddDataPage();
   void WriteDataPage(const DataPage& page);
@@ -103,13 +105,15 @@ class PARQUET_EXPORT ColumnWriter {
   int total_bytes_written_;
   bool closed_;
 
+  bool fallback_;
+
   std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
   std::unique_ptr<InMemoryOutputStream> repetition_levels_sink_;
 
+  std::vector<DataPage> data_pages_;
+
  private:
   void InitSinks();
-
-  std::vector<DataPage> data_pages_;
 };
 
 // API to write values to a single column. This is the main client facing API.
@@ -131,26 +135,23 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
     return current_encoder_->FlushValues();
   }
   void WriteDictionaryPage() override;
+  void VerifyDictionaryFallback() override;
 
  private:
+  void WriteMiniBatch(int64_t num_values, const int16_t* def_levels,
+      const int16_t* rep_levels, const T* values);
+
   typedef Encoder<DType> EncoderType;
 
   // Write values to a temporary buffer before they are encoded into pages
   void WriteValues(int64_t num_values, const T* values);
-
-  // Map of encoding type to the respective encoder object. For example, a
-  // column chunk's data pages may include both dictionary-encoded and
-  // plain-encoded data.
-  std::unordered_map<int, std::shared_ptr<EncoderType>> encoders_;
-
   std::unique_ptr<EncoderType> current_encoder_;
 };
 
 template <typename DType>
-inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
+inline void TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
     const int16_t* def_levels, const int16_t* rep_levels, const T* values) {
   int64_t values_to_write = 0;
-
   // If the field is required and non-repeated, there are no definition levels
   if (descr_->max_definition_level() > 0) {
     for (int64_t i = 0; i < num_values; ++i) {
@@ -178,7 +179,7 @@ inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
   }
 
   if (num_rows_ > expected_rows_) {
-    throw ParquetException("More rows were written in the column chunk then expected");
+    throw ParquetException("More rows were written in the column chunk than expected");
   }
 
   WriteValues(values_to_write, values);
@@ -189,8 +190,24 @@ inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
   if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
     AddDataPage();
   }
+  if (has_dictionary_ && !fallback_) { VerifyDictionaryFallback(); }
 }
 
+template <typename DType>
+inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
+    const int16_t* def_levels, const int16_t* rep_levels, const T* values) {
+
+// WriteMiniBatch(num_values, def_levels, rep_levels, values);
+  int num_batches = num_values / WRITE_BURST;
+  int64_t num_remaining = num_values % WRITE_BURST;
+  for (int round = 0; round < num_batches; round++) {
+    int64_t offset = round * WRITE_BURST;
+    WriteMiniBatch(WRITE_BURST, &def_levels[offset], &rep_levels[offset], &values[offset]);
+  }
+  int64_t offset = num_batches * WRITE_BURST;
+  WriteMiniBatch(num_remaining, &def_levels[offset], &rep_levels[offset], &values[offset]);
+}
+    
 template <typename DType>
 void TypedColumnWriter<DType>::WriteValues(int64_t num_values, const T* values) {
   current_encoder_->Put(values, num_values);

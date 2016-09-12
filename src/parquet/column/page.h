@@ -171,7 +171,7 @@ class PageWriter {
  public:
   virtual ~PageWriter() {}
 
-  virtual void Close() = 0;
+  virtual void Close(bool fallback) = 0;
 
   virtual int64_t WriteDataPage(const DataPage& page) = 0;
 

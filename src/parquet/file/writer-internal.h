@@ -44,7 +44,7 @@ class SerializedPageWriter : public PageWriter {
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override;
 
-  void Close() override;
+  void Close(bool fallback) override;
 
  private:
   OutputStream* sink_;
