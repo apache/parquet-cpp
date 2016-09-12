@@ -33,7 +33,7 @@
 
 namespace parquet {
 
-static constexpr int WRITE_BURST = 1000;
+static constexpr int WRITE_BATCH_SIZE = 1000;
 class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
@@ -196,15 +196,14 @@ inline void TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
 template <typename DType>
 inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
     const int16_t* def_levels, const int16_t* rep_levels, const T* values) {
-  // WriteMiniBatch(num_values, def_levels, rep_levels, values);
-  int num_batches = num_values / WRITE_BURST;
-  int64_t num_remaining = num_values % WRITE_BURST;
+  int num_batches = num_values / WRITE_BATCH_SIZE;
+  int64_t num_remaining = num_values % WRITE_BATCH_SIZE;
   for (int round = 0; round < num_batches; round++) {
-    int64_t offset = round * WRITE_BURST;
+    int64_t offset = round * WRITE_BATCH_SIZE;
     WriteMiniBatch(
-        WRITE_BURST, &def_levels[offset], &rep_levels[offset], &values[offset]);
+        WRITE_BATCH_SIZE, &def_levels[offset], &rep_levels[offset], &values[offset]);
   }
-  int64_t offset = num_batches * WRITE_BURST;
+  int64_t offset = num_batches * WRITE_BATCH_SIZE;
   WriteMiniBatch(
       num_remaining, &def_levels[offset], &rep_levels[offset], &values[offset]);
 }
