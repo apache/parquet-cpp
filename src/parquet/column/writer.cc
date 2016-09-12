@@ -33,7 +33,7 @@ std::shared_ptr<WriterProperties> default_writer_properties() {
 }
 
 ColumnWriter::ColumnWriter(const ColumnDescriptor* descr,
-    std::unique_ptr<PageWriter> pager, int64_t expected_rows, bool has_dictionary, 
+    std::unique_ptr<PageWriter> pager, int64_t expected_rows, bool has_dictionary,
     Encoding::type encoding, const WriterProperties* properties)
     : descr_(descr),
       pager_(std::move(pager)),
@@ -121,10 +121,10 @@ void ColumnWriter::AddDataPage() {
 
   // Write the page to OutputStream eagerly if there is no dictionary or
   // if dictionary encoding has fallen back to PLAIN
-  if (has_dictionary_ && !fallback_) {// Saves pages until end of dictionary encoding
+  if (has_dictionary_ && !fallback_) {  // Saves pages until end of dictionary encoding
     data_pages_.push_back(std::move(page));
-  } else {// Eagerly write pages
-     WriteDataPage(page);
+  } else {  // Eagerly write pages
+    WriteDataPage(page);
   }
 
   // Re-initialize the sinks as GetBuffer made them invalid.
@@ -153,9 +153,9 @@ int64_t ColumnWriter::Close() {
   }
 
   if (num_rows_ != expected_rows_) {
-      throw ParquetException(
-              "Less than the number of expected rows written in"
-              " the current column chunk");
+    throw ParquetException(
+        "Less than the number of expected rows written in"
+        " the current column chunk");
   }
 
   return total_bytes_written_;
@@ -193,18 +193,18 @@ template <typename Type>
 void TypedColumnWriter<Type>::VerifyDictionaryFallback() {
   auto dict_encoder = static_cast<DictEncoder<Type>*>(current_encoder_.get());
   if (dict_encoder->dict_encoded_size() >= properties_->dictionary_pagesize()) {
-      WriteDictionaryPage();
-      // Write the buffered Dictionary Indicies
-      AddDataPage();
-      for (size_t i = 0; i < data_pages_.size(); i++) {
-        WriteDataPage(data_pages_[i]);
-      }
-      data_pages_.clear();
-      fallback_ = true;
-      // Only PLAIN encoding is supported for fallback in V1
-      current_encoder_ = std::unique_ptr<EncoderType>(
-          new PlainEncoder<Type>(descr_, properties_->allocator()));
+    WriteDictionaryPage();
+    // Write the buffered Dictionary Indicies
+    AddDataPage();
+    for (size_t i = 0; i < data_pages_.size(); i++) {
+      WriteDataPage(data_pages_[i]);
     }
+    data_pages_.clear();
+    fallback_ = true;
+    // Only PLAIN encoding is supported for fallback in V1
+    current_encoder_ = std::unique_ptr<EncoderType>(
+        new PlainEncoder<Type>(descr_, properties_->allocator()));
+  }
 }
 
 template <typename Type>

@@ -196,18 +196,19 @@ inline void TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
 template <typename DType>
 inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
     const int16_t* def_levels, const int16_t* rep_levels, const T* values) {
-
-// WriteMiniBatch(num_values, def_levels, rep_levels, values);
+  // WriteMiniBatch(num_values, def_levels, rep_levels, values);
   int num_batches = num_values / WRITE_BURST;
   int64_t num_remaining = num_values % WRITE_BURST;
   for (int round = 0; round < num_batches; round++) {
     int64_t offset = round * WRITE_BURST;
-    WriteMiniBatch(WRITE_BURST, &def_levels[offset], &rep_levels[offset], &values[offset]);
+    WriteMiniBatch(
+        WRITE_BURST, &def_levels[offset], &rep_levels[offset], &values[offset]);
   }
   int64_t offset = num_batches * WRITE_BURST;
-  WriteMiniBatch(num_remaining, &def_levels[offset], &rep_levels[offset], &values[offset]);
+  WriteMiniBatch(
+      num_remaining, &def_levels[offset], &rep_levels[offset], &values[offset]);
 }
-    
+
 template <typename DType>
 void TypedColumnWriter<DType>::WriteValues(int64_t num_values, const T* values) {
   current_encoder_->Put(values, num_values);

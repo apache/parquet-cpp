@@ -130,7 +130,7 @@ class TestPrimitiveWriter : public ::testing::Test {
     ASSERT_EQ(this->values_, this->values_out_);
   }
 
-  int64_t metadata_num_values() { 
+  int64_t metadata_num_values() {
     auto metadata_accessor =
         ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_));
     return metadata_accessor->num_values();

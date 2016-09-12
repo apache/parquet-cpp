@@ -374,11 +374,10 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
       if (properties_->version() == ParquetVersion::PARQUET_2_0) {
         thrift_encodings.push_back(ToThrift(properties_->dictionary_index_encoding()));
       }
-    }
-    else { // Dictionary not enabled
+    } else {  // Dictionary not enabled
       thrift_encodings.push_back(ToThrift(properties_->encoding(column_->path())));
     }
-    if (dictionary_fallback) {// Only PLAIN encoding is supported for fallback in V1
+    if (dictionary_fallback) {  // Only PLAIN encoding is supported for fallback in V1
       thrift_encodings.push_back(ToThrift(Encoding::PLAIN));
     }
     column_chunk_->meta_data.__set_encodings(thrift_encodings);
