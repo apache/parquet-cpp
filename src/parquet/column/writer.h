@@ -23,6 +23,8 @@
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 #include "parquet/column/properties.h"
+#include "parquet/column/statistics.h"
+#include "parquet/file/metadata.h"
 #include "parquet/encodings/encoder.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
@@ -36,11 +38,11 @@ namespace parquet {
 static constexpr int WRITE_BATCH_SIZE = 1000;
 class PARQUET_EXPORT ColumnWriter {
  public:
-  ColumnWriter(const ColumnDescriptor*, std::unique_ptr<PageWriter>,
+  ColumnWriter(ColumnChunkMetaDataBuilder*, std::unique_ptr<PageWriter>,
       int64_t expected_rows, bool has_dictionary, Encoding::type encoding,
       const WriterProperties* properties);
 
-  static std::shared_ptr<ColumnWriter> Make(const ColumnDescriptor*,
+  static std::shared_ptr<ColumnWriter> Make(ColumnChunkMetaDataBuilder*,
       std::unique_ptr<PageWriter>, int64_t expected_rows,
       const WriterProperties* properties);
 
@@ -86,6 +88,7 @@ class PARQUET_EXPORT ColumnWriter {
   // Serialize the buffered Data Pages
   void FlushBufferedDataPages();
 
+  ColumnChunkMetaDataBuilder* metadata_;
   const ColumnDescriptor* descr_;
 
   std::unique_ptr<PageWriter> pager_;
@@ -130,6 +133,18 @@ class PARQUET_EXPORT ColumnWriter {
 
   std::vector<CompressedDataPage> data_pages_;
 
+  // Initialized in subclass constructors
+  std::shared_ptr<RowGroupStatistics> page_statistics_;
+  std::shared_ptr<RowGroupStatistics> chunk_statistics_;
+
+  template <typename Type>
+  void InitStatistics() {
+    page_statistics_ =
+        std::make_shared<TypedRowGroupStatistics<Type>>(descr_, allocator_);
+    chunk_statistics_ =
+        std::make_shared<TypedRowGroupStatistics<Type>>(descr_, allocator_);
+  }
+
  private:
   void InitSinks();
 };
@@ -140,8 +155,9 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
  public:
   typedef typename DType::c_type T;
 
-  TypedColumnWriter(const ColumnDescriptor* schema, std::unique_ptr<PageWriter> pager,
-      int64_t expected_rows, Encoding::type encoding, const WriterProperties* properties);
+  TypedColumnWriter(ColumnChunkMetaDataBuilder* metadata,
+      std::unique_ptr<PageWriter> pager, int64_t expected_rows, Encoding::type encoding,
+      const WriterProperties* properties);
 
   // Write a batch of repetition levels, definition levels, and values to the
   // column.
@@ -201,6 +217,11 @@ inline int64_t TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
   }
 
   WriteValues(values_to_write, values);
+
+  if (page_statistics_ != nullptr) {
+    auto stats = static_cast<TypedRowGroupStatistics<DType>*>(page_statistics_.get());
+    stats->Update(values, values_to_write, num_values - values_to_write);
+  }
 
   num_buffered_values_ += num_values;
   num_buffered_encoded_values_ += values_to_write;
