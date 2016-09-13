@@ -57,10 +57,26 @@ class PARQUET_EXPORT ColumnWriter {
 
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
-  virtual void WriteDictionaryPage() = 0;
-  virtual void VerifyDictionaryFallback() = 0;
+  /**
+   * Serializes Dictionary Page if enabled
+   */
 
+  virtual void WriteDictionaryPage() = 0;
+  /**
+   * Checks if the Dictionary Page size limit is reached
+   * If the limit is reached, the Dictionary and Data Pages are serialized
+   * The encoding is switched to PLAIN
+   */
+
+  virtual void CheckDictionarySizeLimit() = 0;
+
+  /**
+   * Adds Data Pages to an in memory buffer in dictionary encoding mode
+   * Serializes the Data Pages in other encoding modes
+   */
   void AddDataPage();
+
+  // Serializes Data Pages
   void WriteDataPage(const DataPage& page);
 
   // Write multiple definition levels
@@ -71,6 +87,9 @@ class PARQUET_EXPORT ColumnWriter {
 
   std::shared_ptr<Buffer> RleEncodeLevels(
       const std::shared_ptr<Buffer>& buffer, int16_t max_level);
+
+  // Serialize the buffered Data Pages
+  void FlushBufferedDataPages();
 
   const ColumnDescriptor* descr_;
 
@@ -102,9 +121,13 @@ class PARQUET_EXPORT ColumnWriter {
   // Total number of rows written with this ColumnWriter
   int num_rows_;
 
+  // Records the total number of bytes written by the serializer
   int total_bytes_written_;
+  
+  // Flag to check if the Writer has been closed
   bool closed_;
 
+  // Flag to infer if dictionary encoding has fallen back to PLAIN
   bool fallback_;
 
   std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
@@ -135,7 +158,7 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
     return current_encoder_->FlushValues();
   }
   void WriteDictionaryPage() override;
-  void VerifyDictionaryFallback() override;
+  void CheckDictionarySizeLimit() override;
 
  private:
   void WriteMiniBatch(int64_t num_values, const int16_t* def_levels,
@@ -190,20 +213,28 @@ inline void TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
   if (current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
     AddDataPage();
   }
-  if (has_dictionary_ && !fallback_) { VerifyDictionaryFallback(); }
+  if (has_dictionary_ && !fallback_) { CheckDictionarySizeLimit(); }
 }
 
 template <typename DType>
 inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
     const int16_t* def_levels, const int16_t* rep_levels, const T* values) {
-  int num_batches = num_values / WRITE_BATCH_SIZE;
-  int64_t num_remaining = num_values % WRITE_BATCH_SIZE;
+  /* We check for DataPage limits only after we have inserted the values. If a user
+   * writes a large number of values, the DataPage size can be much above the limit.
+   * The purpose of this chunking is to bound this. Even if a user writes large number
+   * of values, the chunking will ensure the AddDataPage() is called at a reasonable
+   * pagesize limit
+   */
+  int64_t write_batch_size = properties_->write_batch_size();
+  int num_batches = num_values / write_batch_size;
+  int64_t num_remaining = num_values % write_batch_size;
   for (int round = 0; round < num_batches; round++) {
-    int64_t offset = round * WRITE_BATCH_SIZE;
+    int64_t offset = round * write_batch_size;
     WriteMiniBatch(
-        WRITE_BATCH_SIZE, &def_levels[offset], &rep_levels[offset], &values[offset]);
+        write_batch_size, &def_levels[offset], &rep_levels[offset], &values[offset]);
   }
-  int64_t offset = num_batches * WRITE_BATCH_SIZE;
+  // Write the remaining values
+  int64_t offset = num_batches * write_batch_size;
   WriteMiniBatch(
       num_remaining, &def_levels[offset], &rep_levels[offset], &values[offset]);
 }

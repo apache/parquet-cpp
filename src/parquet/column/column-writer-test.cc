@@ -133,15 +133,21 @@ class TestPrimitiveWriter : public ::testing::Test {
   }
 
   int64_t metadata_num_values() {
+    // Metadata accessor must be created lazily.
+    // This is because the ColumnChunkMetaData semantics dictate the metadata object is
+    // complete (no changes to the metadata buffer can be made after instantiation)
     auto metadata_accessor =
-        ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_));
+        ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&thrift_metadata_));
     return metadata_accessor->num_values();
   }
 
-  int64_t metadata_num_encodings() {
+  std::vector<Encoding::type> metadata_encodings() {
+    // Metadata accessor must be created lazily.
+    // This is because the ColumnChunkMetaData semantics dictate the metadata object is
+    // complete (no changes to the metadata buffer can be made after instantiation)
     auto metadata_accessor =
-        ColumnChunkMetaData::Make(reinterpret_cast<uint8_t*>(&thrift_metadata_));
-    return metadata_accessor->encodings().size();
+        ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&thrift_metadata_));
+    return metadata_accessor->encodings();
   }
 
  protected:
@@ -358,13 +364,16 @@ TYPED_TEST(TestPrimitiveWriter, RequiredVeryLargeChunk) {
   ASSERT_EQ(SMALL_SIZE, this->values_read_);
   this->values_.resize(SMALL_SIZE);
   ASSERT_EQ(this->values_, this->values_out_);
+  std::vector<Encoding::type> encodings = this->metadata_encodings();
+  // There are 3 encodings (RLE, PLAIN_DICTIONARY, PLAIN) in a fallback case
+  // Dictionary encoding is not allowed for boolean type
+  // There are 2 encodings (RLE, PLAIN) in a non dictionary encoding case
+  ASSERT_EQ(Encoding::RLE, encodings[0]);
   if (this->type_num() != Type::BOOLEAN) {
-    // There are 3 encodings (RLE, PLAIN_DICTIONARY, PLAIN) in a fallback case
-    ASSERT_EQ(3, this->metadata_num_encodings());
+    ASSERT_EQ(Encoding::PLAIN_DICTIONARY, encodings[1]);
+    ASSERT_EQ(Encoding::PLAIN, encodings[2]);
   } else {
-    // Dictionary encoding is not allowed for boolean type
-    // There are 2 encodings (RLE, PLAIN) in a non dictionary encoding case
-    ASSERT_EQ(2, this->metadata_num_encodings());
+    ASSERT_EQ(Encoding::PLAIN, encodings[1]);
   }
 }
 

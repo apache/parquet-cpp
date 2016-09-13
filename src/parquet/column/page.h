@@ -171,7 +171,9 @@ class PageWriter {
  public:
   virtual ~PageWriter() {}
 
-  virtual void Close(bool fallback) = 0;
+  // The Column Writer decides if dictionary encoding is used if set and
+  // if the dictionary encoding has fallen back to default encoding on reaching dictionary page limit
+  virtual void Close(bool has_dictionary, bool fallback) = 0;
 
   virtual int64_t WriteDataPage(const DataPage& page) = 0;
 
