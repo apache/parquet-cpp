@@ -9,6 +9,8 @@ addons:
     - g++-4.9
     - valgrind
     - libboost-dev
+    - libboost-filesystem-dev
+    - libboost-system-dev
     - libboost-program-options-dev
     - libboost-test-dev
     - libssl-dev
