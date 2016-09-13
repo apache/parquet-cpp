@@ -41,7 +41,8 @@ typename std::enable_if<is_arrow_float<ArrowType>::value,
 NonNullArray(size_t size) {
   std::vector<typename ArrowType::c_type> values;
   ::arrow::test::random_real<typename ArrowType::c_type>(size, 0, 0, 1, &values);
-  ::arrow::NumericBuilder<ArrowType> builder(::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::NumericBuilder<ArrowType> builder(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
   builder.Append(values.data(), values.size());
   return std::static_pointer_cast<::arrow::PrimitiveArray>(builder.Finish());
 }
@@ -52,7 +53,8 @@ typename std::enable_if<is_arrow_int<ArrowType>::value,
 NonNullArray(size_t size) {
   std::vector<typename ArrowType::c_type> values;
   ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
-  ::arrow::NumericBuilder<ArrowType> builder(::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::NumericBuilder<ArrowType> builder(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
   builder.Append(values.data(), values.size());
   return std::static_pointer_cast<::arrow::PrimitiveArray>(builder.Finish());
 }
@@ -61,7 +63,8 @@ template <class ArrowType>
 typename std::enable_if<is_arrow_string<ArrowType>::value,
     std::shared_ptr<::arrow::StringArray>>::type
 NonNullArray(size_t size) {
-  ::arrow::StringBuilder builder(::arrow::default_memory_pool(), std::make_shared<::arrow::StringType>());
+  ::arrow::StringBuilder builder(
+      ::arrow::default_memory_pool(), std::make_shared<::arrow::StringType>());
   for (size_t i = 0; i < size; i++) {
     builder.Append("test-string");
   }
@@ -72,7 +75,8 @@ template <>
 std::shared_ptr<::arrow::PrimitiveArray> NonNullArray<::arrow::BooleanType>(size_t size) {
   std::vector<uint8_t> values;
   ::arrow::test::randint<uint8_t>(size, 0, 1, &values);
-  ::arrow::BooleanBuilder builder(::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
+  ::arrow::BooleanBuilder builder(
+      ::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
   builder.Append(values.data(), values.size());
   return std::static_pointer_cast<::arrow::PrimitiveArray>(builder.Finish());
 }
@@ -90,7 +94,8 @@ NullableArray(size_t size, size_t num_nulls) {
     valid_bytes[i * 2] = 0;
   }
 
-  ::arrow::NumericBuilder<ArrowType> builder(::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::NumericBuilder<ArrowType> builder(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
   builder.Append(values.data(), values.size(), valid_bytes.data());
   return std::static_pointer_cast<::arrow::PrimitiveArray>(builder.Finish());
 }
@@ -108,7 +113,8 @@ NullableArray(size_t size, size_t num_nulls) {
     valid_bytes[i * 2] = 0;
   }
 
-  ::arrow::NumericBuilder<ArrowType> builder(::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::NumericBuilder<ArrowType> builder(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
   builder.Append(values.data(), values.size(), valid_bytes.data());
   return std::static_pointer_cast<::arrow::PrimitiveArray>(builder.Finish());
 }
@@ -124,7 +130,8 @@ NullableArray(size_t size, size_t num_nulls) {
     valid_bytes[i * 2] = 0;
   }
 
-  ::arrow::StringBuilder builder(::arrow::default_memory_pool(), std::make_shared<::arrow::StringType>());
+  ::arrow::StringBuilder builder(
+      ::arrow::default_memory_pool(), std::make_shared<::arrow::StringType>());
   for (size_t i = 0; i < size; i++) {
     builder.Append("test-string");
   }
@@ -143,13 +150,14 @@ std::shared_ptr<::arrow::PrimitiveArray> NullableArray<::arrow::BooleanType>(
     valid_bytes[i * 2] = 0;
   }
 
-  ::arrow::BooleanBuilder builder(::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
+  ::arrow::BooleanBuilder builder(
+      ::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
   builder.Append(values.data(), values.size(), valid_bytes.data());
   return std::static_pointer_cast<::arrow::PrimitiveArray>(builder.Finish());
 }
 
-std::shared_ptr<::arrow::Column> MakeColumn(
-    const std::string& name, const std::shared_ptr<::arrow::Array>& array, bool nullable) {
+std::shared_ptr<::arrow::Column> MakeColumn(const std::string& name,
+    const std::shared_ptr<::arrow::Array>& array, bool nullable) {
   auto field = std::make_shared<::arrow::Field>(name, array->type(), nullable);
   return std::make_shared<::arrow::Column>(field, array);
 }
@@ -182,7 +190,8 @@ void ExpectArray(typename ArrowType::c_type* expected, ::arrow::Array* result) {
 
 template <>
 void ExpectArray<::arrow::BooleanType>(uint8_t* expected, ::arrow::Array* result) {
-  ::arrow::BooleanBuilder builder(::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
+  ::arrow::BooleanBuilder builder(
+      ::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
   builder.Append(expected, result->length());
   std::shared_ptr<::arrow::Array> expected_array = builder.Finish();
   EXPECT_TRUE(result->Equals(expected_array));

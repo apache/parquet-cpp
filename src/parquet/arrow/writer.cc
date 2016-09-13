@@ -221,7 +221,7 @@ Status FileWriter::Impl::Close() {
 }
 
 #define TYPED_BATCH_CASE(ENUM, ArrowType, ParquetType)                            \
-  case ::arrow::Type::ENUM:                                                                \
+  case ::arrow::Type::ENUM:                                                       \
     return TypedWriteBatch<ParquetType, ArrowType>(writer, data, offset, length); \
     break;
 

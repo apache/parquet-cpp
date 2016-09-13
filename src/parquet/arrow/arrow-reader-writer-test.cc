@@ -265,8 +265,9 @@ class TestParquetIO : public ::testing::Test {
 // There we write an UInt32 Array but receive an Int64 Array as result for
 // Parquet version 1.0.
 
-typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type, ::arrow::UInt16Type, ::arrow::Int16Type,
-    ::arrow::Int32Type, ::arrow::UInt64Type, ::arrow::Int64Type, ::arrow::TimestampType, ::arrow::FloatType, ::arrow::DoubleType,
+typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type,
+    ::arrow::UInt16Type, ::arrow::Int16Type, ::arrow::Int32Type, ::arrow::UInt64Type,
+    ::arrow::Int64Type, ::arrow::TimestampType, ::arrow::FloatType, ::arrow::DoubleType,
     ::arrow::StringType> TestTypes;
 
 TYPED_TEST_CASE(TestParquetIO, TestTypes);
@@ -284,8 +285,8 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredWrite) {
   auto values = NonNullArray<TypeParam>(SMALL_SIZE);
   std::shared_ptr<Table> table = MakeSimpleTable(values, false);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(), this->sink_,
-      values->length(), default_writer_properties()));
+  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+      this->sink_, values->length(), default_writer_properties()));
 
   std::shared_ptr<Table> out;
   this->ReadTableFromFile(this->ReaderFromSink(), &out);
@@ -312,8 +313,8 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalReadWrite) {
   std::shared_ptr<Array> values = NullableArray<TypeParam>(SMALL_SIZE, 10);
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(), this->sink_,
-      values->length(), default_writer_properties()));
+  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+      this->sink_, values->length(), default_writer_properties()));
 
   this->ReadAndCheckSingleColumnTable(values);
 }
@@ -365,8 +366,8 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalChunkedWrite) {
   auto values = NullableArray<TypeParam>(LARGE_SIZE, 100);
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(
-      table.get(), ::arrow::default_memory_pool(), this->sink_, 512, default_writer_properties()));
+  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+      this->sink_, 512, default_writer_properties()));
 
   this->ReadAndCheckSingleColumnTable(values);
 }
@@ -375,7 +376,8 @@ using TestUInt32ParquetIO = TestParquetIO<::arrow::UInt32Type>;
 
 TEST_F(TestUInt32ParquetIO, Parquet_2_0_Compability) {
   // This also tests max_definition_level = 1
-  std::shared_ptr<PrimitiveArray> values = NullableArray<::arrow::UInt32Type>(LARGE_SIZE, 100);
+  std::shared_ptr<PrimitiveArray> values =
+      NullableArray<::arrow::UInt32Type>(LARGE_SIZE, 100);
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
 
   // Parquet 2.0 roundtrip should yield an uint32_t column again
@@ -391,7 +393,8 @@ TEST_F(TestUInt32ParquetIO, Parquet_2_0_Compability) {
 
 TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
   // This also tests max_definition_level = 1
-  std::shared_ptr<PrimitiveArray> values = NullableArray<::arrow::UInt32Type>(LARGE_SIZE, 100);
+  std::shared_ptr<PrimitiveArray> values =
+      NullableArray<::arrow::UInt32Type>(LARGE_SIZE, 100);
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
 
   // Parquet 1.0 returns an int64_t column as there is no way to tell a Parquet 1.0
@@ -401,8 +404,8 @@ TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
       ::parquet::WriterProperties::Builder()
           .version(ParquetVersion::PARQUET_1_0)
           ->build();
-  ASSERT_OK_NO_THROW(
-      WriteFlatTable(table.get(), ::arrow::default_memory_pool(), this->sink_, 512, properties));
+  ASSERT_OK_NO_THROW(WriteFlatTable(
+      table.get(), ::arrow::default_memory_pool(), this->sink_, 512, properties));
 
   std::shared_ptr<Array> expected_values;
   std::shared_ptr<PoolBuffer> int64_data =
@@ -481,8 +484,9 @@ class TestPrimitiveParquetIO : public TestParquetIO<TestType> {
   }
 };
 
-typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type, ::arrow::UInt16Type, ::arrow::Int16Type,
-    ::arrow::UInt32Type, ::arrow::Int32Type, ::arrow::UInt64Type, ::arrow::Int64Type, ::arrow::FloatType,
+typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type,
+    ::arrow::UInt16Type, ::arrow::Int16Type, ::arrow::UInt32Type, ::arrow::Int32Type,
+    ::arrow::UInt64Type, ::arrow::Int64Type, ::arrow::FloatType,
     ::arrow::DoubleType> PrimitiveTestTypes;
 
 TYPED_TEST_CASE(TestPrimitiveParquetIO, PrimitiveTestTypes);

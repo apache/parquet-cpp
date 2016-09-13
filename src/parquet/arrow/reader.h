@@ -33,7 +33,6 @@ class MemoryPool;
 class RowBatch;
 class Status;
 class Table;
-
 }
 
 namespace parquet {

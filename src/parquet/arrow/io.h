@@ -32,7 +32,7 @@ namespace arrow {
 
 class MemoryPool;
 
-} // namespace arrow
+}  // namespace arrow
 
 namespace parquet {
 

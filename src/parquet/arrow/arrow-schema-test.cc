@@ -48,10 +48,12 @@ const auto INT64 = std::make_shared<::arrow::Int64Type>();
 const auto FLOAT = std::make_shared<::arrow::FloatType>();
 const auto DOUBLE = std::make_shared<::arrow::DoubleType>();
 const auto UTF8 = std::make_shared<::arrow::StringType>();
-const auto TIMESTAMP_MS = std::make_shared<::arrow::TimestampType>(::arrow::TimestampType::Unit::MILLI);
+const auto TIMESTAMP_MS =
+    std::make_shared<::arrow::TimestampType>(::arrow::TimestampType::Unit::MILLI);
 // TODO: This requires parquet-cpp implementing the MICROS enum value
 // const auto TIMESTAMP_US = std::make_shared<TimestampType>(TimestampType::Unit::MICRO);
-const auto BINARY = std::make_shared<::arrow::ListType>(std::make_shared<Field>("", UINT8));
+const auto BINARY =
+    std::make_shared<::arrow::ListType>(std::make_shared<Field>("", UINT8));
 const auto DECIMAL_8_4 = std::make_shared<::arrow::DecimalType>(8, 4);
 
 class TestConvertParquetSchema : public ::testing::Test {
@@ -180,8 +182,7 @@ class TestConvertArrowSchema : public ::testing::Test {
     NodePtr schema_node = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     const GroupNode* expected_schema_node =
         static_cast<const GroupNode*>(schema_node.get());
-    const GroupNode* result_schema_node =
-        result_schema_->group_node();
+    const GroupNode* result_schema_node = result_schema_->group_node();
 
     ASSERT_EQ(expected_schema_node->field_count(), result_schema_node->field_count());
 
