@@ -23,7 +23,6 @@
 #include "parquet/api/io.h"
 #include "parquet/arrow/utils.h"
 
-#include "arrow/util/memory-pool.h"
 #include "arrow/util/status.h"
 
 using arrow::Status;
@@ -93,10 +92,10 @@ int64_t ParquetReadSource::Read(int64_t nbytes, uint8_t* out) {
   return bytes_read;
 }
 
-std::shared_ptr<::parquet::Buffer> ParquetReadSource::Read(int64_t nbytes) {
+std::shared_ptr<Buffer> ParquetReadSource::Read(int64_t nbytes) {
   // TODO(wesm): This code is duplicated from parquet/util/input.cc; suggests
   // that there should be more code sharing amongst file-like sources
-  auto result = std::make_shared<::parquet::OwnedMutableBuffer>(0, allocator_);
+  auto result = std::make_shared<OwnedMutableBuffer>(0, allocator_);
   result->Resize(nbytes);
 
   int64_t bytes_read = Read(nbytes, result->mutable_data());

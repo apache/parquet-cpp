@@ -29,8 +29,12 @@
 #include "parquet/api/io.h"
 #include "parquet/arrow/io.h"
 
+using arrow::default_memory_pool;
 using arrow::MemoryPool;
 using arrow::Status;
+
+// To assist with readability
+using ArrowROFile = arrow::io::RandomAccessFile;
 
 namespace parquet {
 namespace arrow {
@@ -54,7 +58,7 @@ TEST(TestParquetAllocator, DefaultCtor) {
 // Pass through to the default memory pool
 class TrackingPool : public MemoryPool {
  public:
-  TrackingPool() : pool_(::arrow::default_memory_pool()), bytes_allocated_(0) {}
+  TrackingPool() : pool_(default_memory_pool()), bytes_allocated_(0) {}
 
   Status Allocate(int64_t size, uint8_t** out) override {
     RETURN_NOT_OK(pool_->Allocate(size, out));
@@ -99,7 +103,7 @@ TEST(TestParquetAllocator, CustomPool) {
 // ----------------------------------------------------------------------
 // Read source tests
 
-class BufferReader : public ::arrow::io::RandomAccessFile {
+class BufferReader : public ArrowROFile {
  public:
   BufferReader(const uint8_t* buffer, int buffer_size)
       : buffer_(buffer), buffer_size_(buffer_size), position_(0) {}
@@ -151,7 +155,7 @@ TEST(TestParquetReadSource, Basics) {
   std::string data = "this is the data";
   auto data_buffer = reinterpret_cast<const uint8_t*>(data.c_str());
 
-  ParquetAllocator allocator(::arrow::default_memory_pool());
+  ParquetAllocator allocator(default_memory_pool());
 
   auto file = std::make_shared<BufferReader>(data_buffer, data.size());
   auto source = std::make_shared<ParquetReadSource>(&allocator);
@@ -164,7 +168,7 @@ TEST(TestParquetReadSource, Basics) {
   ASSERT_NO_THROW(source->Seek(0));
 
   // Seek out of bounds
-  ASSERT_THROW(source->Seek(100), ::parquet::ParquetException);
+  ASSERT_THROW(source->Seek(100), ParquetException);
 
   uint8_t buffer[50];
 
@@ -172,11 +176,11 @@ TEST(TestParquetReadSource, Basics) {
   ASSERT_EQ(0, std::memcmp(buffer, "this", 4));
   ASSERT_EQ(4, source->Tell());
 
-  std::shared_ptr<::parquet::Buffer> pq_buffer;
+  std::shared_ptr<Buffer> pq_buffer;
 
   ASSERT_NO_THROW(pq_buffer = source->Read(7));
 
-  auto expected_buffer = std::make_shared<::parquet::Buffer>(data_buffer + 4, 7);
+  auto expected_buffer = std::make_shared<Buffer>(data_buffer + 4, 7);
 
   ASSERT_TRUE(expected_buffer->Equals(*pq_buffer.get()));
 }
