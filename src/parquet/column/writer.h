@@ -123,7 +123,7 @@ class PARQUET_EXPORT ColumnWriter {
 
   // Records the total number of bytes written by the serializer
   int total_bytes_written_;
-  
+
   // Flag to check if the Writer has been closed
   bool closed_;
 

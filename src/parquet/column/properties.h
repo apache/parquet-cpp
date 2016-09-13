@@ -221,10 +221,10 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     std::shared_ptr<WriterProperties> build() {
-      return std::shared_ptr<WriterProperties>(
-          new WriterProperties(allocator_, dictionary_enabled_default_,
-              dictionary_enabled_, dictionary_pagesize_limit_, write_batch_size_, pagesize_, version_, created_by_,
-              default_encoding_, encodings_, default_codec_, codecs_));
+      return std::shared_ptr<WriterProperties>(new WriterProperties(allocator_,
+          dictionary_enabled_default_, dictionary_enabled_, dictionary_pagesize_limit_,
+          write_batch_size_, pagesize_, version_, created_by_, default_encoding_,
+          encodings_, default_codec_, codecs_));
     }
 
    private:
@@ -297,8 +297,8 @@ class PARQUET_EXPORT WriterProperties {
   explicit WriterProperties(MemoryAllocator* allocator, bool dictionary_enabled_default,
       std::unordered_map<std::string, bool> dictionary_enabled,
       int64_t dictionary_pagesize, int64_t write_batch_size, int64_t pagesize,
-      ParquetVersion::type version,
-      const std::string& created_by, Encoding::type default_encoding,
+      ParquetVersion::type version, const std::string& created_by,
+      Encoding::type default_encoding,
       std::unordered_map<std::string, Encoding::type> encodings,
       Compression::type default_codec, const ColumnCodecs& codecs)
       : allocator_(allocator),

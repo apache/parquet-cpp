@@ -158,12 +158,12 @@ int64_t ColumnWriter::Close() {
 }
 
 void ColumnWriter::FlushBufferedDataPages() {
-   // Write all outstanding data to a new page
-   if (num_buffered_values_ > 0) { AddDataPage(); }
-   for (size_t i = 0; i < data_pages_.size(); i++) {
-     WriteDataPage(data_pages_[i]);
-   }
-   data_pages_.clear();
+  // Write all outstanding data to a new page
+  if (num_buffered_values_ > 0) { AddDataPage(); }
+  for (size_t i = 0; i < data_pages_.size(); i++) {
+    WriteDataPage(data_pages_[i]);
+  }
+  data_pages_.clear();
 }
 
 // ----------------------------------------------------------------------
@@ -183,7 +183,8 @@ TypedColumnWriter<Type>::TypedColumnWriter(const ColumnDescriptor* descr,
       break;
     case Encoding::PLAIN_DICTIONARY:
     case Encoding::RLE_DICTIONARY:
-      current_encoder_.reset(new DictEncoder<Type>(descr, &pool_, properties->allocator()));
+      current_encoder_.reset(
+          new DictEncoder<Type>(descr, &pool_, properties->allocator()));
       break;
     default:
       ParquetException::NYI("Selected encoding is not supported");

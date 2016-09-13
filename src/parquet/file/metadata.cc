@@ -379,9 +379,7 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     }
     // Only PLAIN encoding is supported for fallback in V1
     // TODO(majetideepak): Use user specified encoding for V2
-    if (dictionary_fallback) { 
-      thrift_encodings.push_back(ToThrift(Encoding::PLAIN));
-    }
+    if (dictionary_fallback) { thrift_encodings.push_back(ToThrift(Encoding::PLAIN)); }
     column_chunk_->meta_data.__set_encodings(thrift_encodings);
   }
 
@@ -414,7 +412,8 @@ void ColumnChunkMetaDataBuilder::set_file_path(const std::string& path) {
 
 void ColumnChunkMetaDataBuilder::Finish(int64_t num_values,
     int64_t dictionary_page_offset, int64_t index_page_offset, int64_t data_page_offset,
-    int64_t compressed_size, int64_t uncompressed_size, bool has_dictionary, bool dictionary_fallback) {
+    int64_t compressed_size, int64_t uncompressed_size, bool has_dictionary,
+    bool dictionary_fallback) {
   impl_->Finish(num_values, dictionary_page_offset, index_page_offset, data_page_offset,
       compressed_size, uncompressed_size, has_dictionary, dictionary_fallback);
 }
