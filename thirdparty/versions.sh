@@ -1,4 +1,4 @@
-ARROW_VERSION="52089d609dff3d8d2abe99c7b94f7af9fe4735bd"
+ARROW_VERSION="6b8abb4402ff1f39fc5944a7df6e3b4755691d87"
 ARROW_URL="https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
 ARROW_BASEDIR="arrow-${ARROW_VERSION}"
 
