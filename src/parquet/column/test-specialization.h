@@ -22,6 +22,7 @@
 #ifndef PARQUET_COLUMN_TEST_SPECIALIZATION_H
 #define PARQUET_COLUMN_TEST_SPECIALIZATION_H
 
+#include <algorithm>
 #include <limits>
 #include <vector>
 
