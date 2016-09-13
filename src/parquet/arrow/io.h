@@ -26,13 +26,7 @@
 #include "parquet/api/io.h"
 
 #include "arrow/io/interfaces.h"
-#include "arrow/util/visibility.h"
-
-namespace arrow {
-
-class MemoryPool;
-
-}  // namespace arrow
+#include "arrow/util/memory-pool.h"
 
 namespace parquet {
 
