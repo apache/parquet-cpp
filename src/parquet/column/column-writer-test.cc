@@ -351,7 +351,7 @@ TYPED_TEST(TestPrimitiveWriter, RequiredLargeChunk) {
   ASSERT_EQ(this->values_, this->values_out_);
 }
 
-// Test case for dictionary fallback encoding skip BooleanType
+// Test case for dictionary fallback encoding
 TYPED_TEST(TestPrimitiveWriter, RequiredVeryLargeChunk) {
   this->GenerateData(VERY_LARGE_SIZE);
 
