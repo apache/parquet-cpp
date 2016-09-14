@@ -57,23 +57,18 @@ class PARQUET_EXPORT ColumnWriter {
 
  protected:
   virtual std::shared_ptr<Buffer> GetValuesBuffer() = 0;
-  /**
-   * Serializes Dictionary Page if enabled
-   */
 
+  // Serializes Dictionary Page if enabled
   virtual void WriteDictionaryPage() = 0;
-  /**
-   * Checks if the Dictionary Page size limit is reached
-   * If the limit is reached, the Dictionary and Data Pages are serialized
-   * The encoding is switched to PLAIN
-   */
+
+  // Checks if the Dictionary Page size limit is reached
+  // If the limit is reached, the Dictionary and Data Pages are serialized
+  // The encoding is switched to PLAIN
 
   virtual void CheckDictionarySizeLimit() = 0;
 
-  /**
-   * Adds Data Pages to an in memory buffer in dictionary encoding mode
-   * Serializes the Data Pages in other encoding modes
-   */
+  // Adds Data Pages to an in memory buffer in dictionary encoding mode
+  // Serializes the Data Pages in other encoding modes
   void AddDataPage();
 
   // Serializes Data Pages
@@ -219,12 +214,11 @@ inline void TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
 template <typename DType>
 inline void TypedColumnWriter<DType>::WriteBatch(int64_t num_values,
     const int16_t* def_levels, const int16_t* rep_levels, const T* values) {
-  /* We check for DataPage limits only after we have inserted the values. If a user
-   * writes a large number of values, the DataPage size can be much above the limit.
-   * The purpose of this chunking is to bound this. Even if a user writes large number
-   * of values, the chunking will ensure the AddDataPage() is called at a reasonable
-   * pagesize limit
-   */
+  // We check for DataPage limits only after we have inserted the values. If a user
+  // writes a large number of values, the DataPage size can be much above the limit.
+  // The purpose of this chunking is to bound this. Even if a user writes large number
+  // of values, the chunking will ensure the AddDataPage() is called at a reasonable
+  // pagesize limit
   int64_t write_batch_size = properties_->write_batch_size();
   int num_batches = num_values / write_batch_size;
   int64_t num_remaining = num_values % write_batch_size;
