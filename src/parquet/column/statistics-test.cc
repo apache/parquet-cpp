@@ -46,37 +46,27 @@ using schema::GroupNode;
 namespace test {
 
 template <typename TestType>
-class TestRowGroupStatistics : public ::testing::Test {
+class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
  public:
   using T = typename TestType::c_type;
   using TypedStats = TypedRowGroupStatistics<TestType>;
 
-  void SetUp() {
-    node_ = PrimitiveNode::Make("column", Repetition::REQUIRED, TestType::type_num,
-        LogicalType::NONE, FLBA_LENGTH);
-    schema_ = std::make_shared<ColumnDescriptor>(node_, 0, 0);
-  }
-
-  T* GetValuesPointer(std::vector<T>&);
   std::vector<T> GetDeepCopy(
       const std::vector<T>&);  // allocates new memory for FLBA/ByteArray
+
+  T* GetValuesPointer(std::vector<T>&);
   void DeepFree(std::vector<T>&);
 
-  void GenerateData(int64_t num_values) {
-    values_.resize(num_values);
-    InitValues<T>(num_values, values_, buffer_);
-    values_ptr_ = GetValuesPointer(values_);
-  }
-
   void TestMinMaxEncode() {
-    GenerateData(1000);
+    this->GenerateData(1000);
 
-    TypedStats statistics1(schema_.get());
-    statistics1.Update(values_ptr_, values_.size(), 0);
+    TypedStats statistics1(this->descr_.get());
+    statistics1.Update(this->values_ptr_, this->values_.size(), 0);
     std::string encoded_min = statistics1.EncodedMin();
     std::string encoded_max = statistics1.EncodedMax();
 
-    TypedStats statistics2(schema_.get(), encoded_min, encoded_max, values_.size(), 0, 0);
+    TypedStats statistics2(
+        this->descr_.get(), encoded_min, encoded_max, this->values_.size(), 0, 0);
 
     ASSERT_EQ(encoded_min, statistics2.EncodedMin());
     ASSERT_EQ(encoded_max, statistics2.EncodedMax());
@@ -85,11 +75,11 @@ class TestRowGroupStatistics : public ::testing::Test {
   }
 
   void TestReset() {
-    GenerateData(1000);
+    this->GenerateData(1000);
 
-    TypedStats statistics(schema_.get());
-    statistics.Update(values_ptr_, values_.size(), 0);
-    ASSERT_EQ(values_.size(), statistics.num_values());
+    TypedStats statistics(this->descr_.get());
+    statistics.Update(this->values_ptr_, this->values_.size(), 0);
+    ASSERT_EQ(this->values_.size(), statistics.num_values());
 
     statistics.Reset();
     ASSERT_EQ(0, statistics.null_count());
@@ -102,41 +92,37 @@ class TestRowGroupStatistics : public ::testing::Test {
     int num_null[2];
     random_numbers(2, 42, 0, 100, num_null);
 
-    TypedStats statistics1(schema_.get());
-    GenerateData(1000);
-    statistics1.Update(values_ptr_, values_.size() - num_null[0], num_null[0]);
+    TypedStats statistics1(this->descr_.get());
+    this->GenerateData(1000);
+    statistics1.Update(
+        this->values_ptr_, this->values_.size() - num_null[0], num_null[0]);
 
-    TypedStats statistics2(schema_.get());
-    GenerateData(1000);
-    statistics2.Update(values_ptr_, values_.size() - num_null[1], num_null[1]);
+    TypedStats statistics2(this->descr_.get());
+    this->GenerateData(1000);
+    statistics2.Update(
+        this->values_ptr_, this->values_.size() - num_null[1], num_null[1]);
 
-    TypedStats total(schema_.get());
+    TypedStats total(this->descr_.get());
     total.Merge(statistics1);
     total.Merge(statistics2);
 
     ASSERT_EQ(num_null[0] + num_null[1], total.null_count());
-    ASSERT_EQ(values_.size() * 2 - num_null[0] - num_null[1], total.num_values());
+    ASSERT_EQ(this->values_.size() * 2 - num_null[0] - num_null[1], total.num_values());
     ASSERT_EQ(total.min(), std::min(statistics1.min(), statistics2.min()));
     ASSERT_EQ(total.max(), std::max(statistics1.max(), statistics2.max()));
   }
 
   void TestFullRoundtrip(int64_t num_values, int64_t null_count) {
-    auto node = PrimitiveNode::Make("column", Repetition::OPTIONAL, TestType::type_num,
-        LogicalType::NONE, FLBA_LENGTH);
-    auto gnode = std::static_pointer_cast<GroupNode>(
-        GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({node})));
-
-    GenerateData(num_values);
+    this->GenerateData(num_values);
 
     // compute statistics for the whole batch
-    const int max_def_level = 1, max_rep_level = 0;
-    const ColumnDescriptor descr(node, max_def_level, max_rep_level);
-    TypedStats expected_stats(&descr);
-    expected_stats.Update(values_ptr_, num_values - null_count, null_count);
+    TypedStats expected_stats(this->descr_.get());
+    expected_stats.Update(this->values_ptr_, num_values - null_count, null_count);
 
     auto sink = std::make_shared<InMemoryOutputStream>();
+    auto gnode = std::static_pointer_cast<GroupNode>(this->node_);
     std::shared_ptr<WriterProperties> writer_properties =
-        WriterProperties::Builder().collect_statistics("schema.column")->build();
+        WriterProperties::Builder().collect_statistics("column")->build();
     auto file_writer = ParquetFileWriter::Open(sink, gnode, writer_properties);
     auto row_group_writer = file_writer->AppendRowGroup(num_values);
     auto column_writer =
@@ -151,14 +137,13 @@ class TestRowGroupStatistics : public ::testing::Test {
       std::vector<int16_t> definition_levels(batch_null_count, 0);
       definition_levels.insert(
           definition_levels.end(), batch_num_values - batch_null_count, 1);
-      auto beg = values_.begin() + i * num_values / 2;
+      auto beg = this->values_.begin() + i * num_values / 2;
       auto end = beg + batch_num_values;
       std::vector<T> batch = GetDeepCopy(std::vector<T>(beg, end));
       T* batch_values_ptr = GetValuesPointer(batch);
       column_writer->WriteBatch(
           batch_num_values, definition_levels.data(), nullptr, batch_values_ptr);
       DeepFree(batch);
-      bool_buffer_.clear();
     }
     column_writer->Close();
     row_group_writer->Close();
@@ -176,16 +161,6 @@ class TestRowGroupStatistics : public ::testing::Test {
     ASSERT_EQ(expected_stats.EncodedMin(), stats->EncodedMin());
     ASSERT_EQ(expected_stats.EncodedMax(), stats->EncodedMax());
   }
-
- protected:
-  std::vector<T> values_;
-  std::vector<uint8_t> buffer_;
-  std::vector<uint8_t> bool_buffer_;
-  T* values_ptr_;
-
- private:
-  NodePtr node_;
-  std::shared_ptr<ColumnDescriptor> schema_;
 };
 
 template <typename TestType>
@@ -196,9 +171,11 @@ typename TestType::c_type* TestRowGroupStatistics<TestType>::GetValuesPointer(
 
 template <>
 bool* TestRowGroupStatistics<BooleanType>::GetValuesPointer(std::vector<bool>& values) {
-  bool_buffer_.resize(values.size());
-  std::copy(values.begin(), values.end(), bool_buffer_.begin());
-  return reinterpret_cast<bool*>(bool_buffer_.data());
+  static std::vector<uint8_t> bool_buffer;
+  bool_buffer.clear();
+  bool_buffer.resize(values.size());
+  std::copy(values.begin(), values.end(), bool_buffer.begin());
+  return reinterpret_cast<bool*>(bool_buffer.data());
 }
 
 template <typename TestType>
@@ -264,14 +241,17 @@ using TestTypes = ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, D
 TYPED_TEST_CASE(TestRowGroupStatistics, TestTypes);
 
 TYPED_TEST(TestRowGroupStatistics, MinMaxEncode) {
+  this->SetUpSchemaRequired();
   this->TestMinMaxEncode();
 }
 
 TYPED_TEST(TestRowGroupStatistics, Reset) {
+  this->SetUpSchemaRequired();
   this->TestReset();
 }
 
 TYPED_TEST(TestRowGroupStatistics, FullRoundtrip) {
+  this->SetUpSchemaOptional();
   this->TestFullRoundtrip(100, 31);
   this->TestFullRoundtrip(1000, 415);
   this->TestFullRoundtrip(10000, 926);
@@ -285,6 +265,7 @@ using NumericTypes = ::testing::Types<Int32Type, Int64Type, FloatType, DoubleTyp
 TYPED_TEST_CASE(TestNumericRowGroupStatistics, NumericTypes);
 
 TYPED_TEST(TestNumericRowGroupStatistics, Merge) {
+  this->SetUpSchemaOptional();
   this->TestMerge();
 }
 
