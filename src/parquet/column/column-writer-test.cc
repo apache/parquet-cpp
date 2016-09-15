@@ -150,7 +150,7 @@ typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
 
 TYPED_TEST_CASE(TestPrimitiveWriter, TestTypes);
 
-typedef TestPrimitiveWriter<Int32Type> TestNullValuesWriter;
+using TestNullValuesWriter = TestPrimitiveWriter<Int32Type>;
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlain) {
   this->TestRequiredWithEncoding(Encoding::PLAIN);
