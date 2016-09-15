@@ -30,7 +30,7 @@ int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
       batch_size, def_levels, rep_levels, vals, values_buffered);
 }
 
-int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
+inline int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
     uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
   switch (reader->type()) {
     case parquet::Type::BOOLEAN:
