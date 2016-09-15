@@ -100,7 +100,8 @@ class CompressedDataPage : public DataPage {
   CompressedDataPage(const std::shared_ptr<Buffer>& buffer, int32_t num_values,
       Encoding::type encoding, Encoding::type definition_level_encoding,
       Encoding::type repetition_level_encoding, int64_t uncompressed_size)
-      : DataPage(buffer, num_values, encoding, definition_level_encoding, repetition_level_encoding),
+      : DataPage(buffer, num_values, encoding, definition_level_encoding,
+            repetition_level_encoding),
         uncompressed_size_(uncompressed_size) {}
 
   int64_t uncompressed_size() const { return uncompressed_size_; }
