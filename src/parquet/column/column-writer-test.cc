@@ -305,6 +305,7 @@ TYPED_TEST(TestPrimitiveWriter, RequiredVeryLargeChunk) {
   }
 }
 
+// PARQUET-719
 // Test case for NULL values
 TEST_F(TestNullValuesWriter, OptionalNullValueChunk) {
   this->SetUpSchemaOptional();
@@ -315,6 +316,7 @@ TEST_F(TestNullValuesWriter, OptionalNullValueChunk) {
   std::vector<int16_t> repetition_levels(LARGE_SIZE, 0);
 
   auto writer = this->BuildWriter(LARGE_SIZE);
+  // All values being written are NULL
   writer->WriteBatch(
       this->values_.size(), definition_levels.data(), repetition_levels.data(), NULL);
   writer->Close();
