@@ -167,7 +167,7 @@ Status FileWriter::Impl::TypedWriteBatch(::parquet::ColumnWriter* column_writer,
 // * Arrow data is stored bitwise thus we cannot use std::copy to transform from
 //   ArrowType::c_type to ParquetType::c_type
 template <>
-Status FileWriter::Impl::TypedWriteBatch<::parquet::BooleanType, BooleanType>(
+Status FileWriter::Impl::TypedWriteBatch<::parquet::BooleanType, ::arrow::BooleanType>(
     ::parquet::ColumnWriter* column_writer, const PrimitiveArray* data, int64_t offset,
     int64_t length) {
   DCHECK((offset + length) <= data->length());

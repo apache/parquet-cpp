@@ -40,16 +40,6 @@ using arrow::Status;
 using arrow::Table;
 
 using ParquetBuffer = parquet::Buffer;
-using parquet::BufferReader;
-using parquet::default_writer_properties;
-using parquet::InMemoryOutputStream;
-using parquet::LogicalType;
-using parquet::ParquetFileReader;
-using parquet::ParquetFileWriter;
-using parquet::RandomAccessSource;
-using parquet::Repetition;
-using parquet::SchemaDescriptor;
-using parquet::ParquetVersion;
 using ParquetType = parquet::Type;
 using parquet::schema::GroupNode;
 using parquet::schema::NodePtr;
