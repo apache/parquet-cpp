@@ -41,10 +41,6 @@ using arrow::PoolBuffer;
 using arrow::Status;
 using arrow::Table;
 
-using parquet::ColumnReader;
-using parquet::Repetition;
-using parquet::TypedColumnReader;
-
 // Help reduce verbosity
 using ParquetRAS = parquet::RandomAccessSource;
 using ParquetReader = parquet::ParquetFileReader;
@@ -67,23 +63,23 @@ using BuilderType = typename ArrowTypeTraits<ArrowType>::builder_type;
 
 class FileReader::Impl {
  public:
-  Impl(MemoryPool* pool, std::unique_ptr<::parquet::ParquetFileReader> reader);
+  Impl(MemoryPool* pool, std::unique_ptr<ParquetFileReader> reader);
   virtual ~Impl() {}
 
-  bool CheckForFlatColumn(const ::parquet::ColumnDescriptor* descr);
+  bool CheckForFlatColumn(const ColumnDescriptor* descr);
   Status GetFlatColumn(int i, std::unique_ptr<FlatColumnReader>* out);
   Status ReadFlatColumn(int i, std::shared_ptr<Array>* out);
   Status ReadFlatTable(std::shared_ptr<Table>* out);
 
  private:
   MemoryPool* pool_;
-  std::unique_ptr<::parquet::ParquetFileReader> reader_;
+  std::unique_ptr<ParquetFileReader> reader_;
 };
 
 class FlatColumnReader::Impl {
  public:
-  Impl(MemoryPool* pool, const ::parquet::ColumnDescriptor* descr,
-      ::parquet::ParquetFileReader* reader, int column_index);
+  Impl(MemoryPool* pool, const ColumnDescriptor* descr,
+      ParquetFileReader* reader, int column_index);
   virtual ~Impl() {}
 
   Status NextBatch(int batch_size, std::shared_ptr<Array>* out);
@@ -130,8 +126,8 @@ class FlatColumnReader::Impl {
   }
 
   MemoryPool* pool_;
-  const ::parquet::ColumnDescriptor* descr_;
-  ::parquet::ParquetFileReader* reader_;
+  const ColumnDescriptor* descr_;
+  ParquetFileReader* reader_;
   int column_index_;
   int next_row_group_;
   std::shared_ptr<ColumnReader> column_reader_;
@@ -144,10 +140,10 @@ class FlatColumnReader::Impl {
 };
 
 FileReader::Impl::Impl(
-    MemoryPool* pool, std::unique_ptr<::parquet::ParquetFileReader> reader)
+    MemoryPool* pool, std::unique_ptr<ParquetFileReader> reader)
     : pool_(pool), reader_(std::move(reader)) {}
 
-bool FileReader::Impl::CheckForFlatColumn(const ::parquet::ColumnDescriptor* descr) {
+bool FileReader::Impl::CheckForFlatColumn(const ColumnDescriptor* descr) {
   if ((descr->max_repetition_level() > 0) || (descr->max_definition_level() > 1)) {
     return false;
   } else if ((descr->max_definition_level() == 1) &&
@@ -196,7 +192,7 @@ Status FileReader::Impl::ReadFlatTable(std::shared_ptr<Table>* table) {
 }
 
 FileReader::FileReader(
-    MemoryPool* pool, std::unique_ptr<::parquet::ParquetFileReader> reader)
+    MemoryPool* pool, std::unique_ptr<ParquetFileReader> reader)
     : impl_(new FileReader::Impl(pool, std::move(reader))) {}
 
 FileReader::~FileReader() {}
@@ -228,8 +224,8 @@ Status FileReader::ReadFlatTable(std::shared_ptr<Table>* out) {
   return impl_->ReadFlatTable(out);
 }
 
-FlatColumnReader::Impl::Impl(MemoryPool* pool, const ::parquet::ColumnDescriptor* descr,
-    ::parquet::ParquetFileReader* reader, int column_index)
+FlatColumnReader::Impl::Impl(MemoryPool* pool, const ColumnDescriptor* descr,
+    ParquetFileReader* reader, int column_index)
     : pool_(pool),
       descr_(descr),
       reader_(reader),
@@ -320,16 +316,16 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::StringType, ByteArrayType
   int values_to_read = batch_size;
   ::arrow::StringBuilder builder(pool_, field_->type);
   while ((values_to_read > 0) && column_reader_) {
-    values_buffer_.Resize(values_to_read * sizeof(::parquet::ByteArray));
+    values_buffer_.Resize(values_to_read * sizeof(ByteArray));
     if (descr_->max_definition_level() > 0) {
       def_levels_buffer_.Resize(values_to_read * sizeof(int16_t));
     }
     auto reader =
-        dynamic_cast<TypedColumnReader<::parquet::ByteArrayType>*>(column_reader_.get());
+        dynamic_cast<TypedColumnReader<ByteArrayType>*>(column_reader_.get());
     int64_t values_read;
     int64_t levels_read;
     int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
-    auto values = reinterpret_cast<::parquet::ByteArray*>(values_buffer_.mutable_data());
+    auto values = reinterpret_cast<ByteArray*>(values_buffer_.mutable_data());
     PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(
                              values_to_read, def_levels, nullptr, values, &values_read));
     values_to_read -= levels_read;

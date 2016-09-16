@@ -47,11 +47,11 @@ namespace arrow {
 
 class FileWriter::Impl {
  public:
-  Impl(MemoryPool* pool, std::unique_ptr<::parquet::ParquetFileWriter> writer);
+  Impl(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer);
 
   Status NewRowGroup(int64_t chunk_size);
   template <typename ParquetType, typename ArrowType>
-  Status TypedWriteBatch(::parquet::ColumnWriter* writer, const PrimitiveArray* data,
+  Status TypedWriteBatch(ColumnWriter* writer, const PrimitiveArray* data,
       int64_t offset, int64_t length);
 
   // TODO(uwe): Same code as in reader.cc the only difference is the name of the temporary
@@ -96,12 +96,12 @@ class FileWriter::Impl {
   // as expected by parquet-cpp.
   PoolBuffer data_buffer_;
   PoolBuffer def_levels_buffer_;
-  std::unique_ptr<::parquet::ParquetFileWriter> writer_;
-  ::parquet::RowGroupWriter* row_group_writer_;
+  std::unique_ptr<ParquetFileWriter> writer_;
+  RowGroupWriter* row_group_writer_;
 };
 
 FileWriter::Impl::Impl(
-    MemoryPool* pool, std::unique_ptr<::parquet::ParquetFileWriter> writer)
+    MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
     : pool_(pool),
       data_buffer_(pool),
       writer_(std::move(writer)),
@@ -114,7 +114,7 @@ Status FileWriter::Impl::NewRowGroup(int64_t chunk_size) {
 }
 
 template <typename ParquetType, typename ArrowType>
-Status FileWriter::Impl::TypedWriteBatch(::parquet::ColumnWriter* column_writer,
+Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
     const PrimitiveArray* data, int64_t offset, int64_t length) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
@@ -122,7 +122,7 @@ Status FileWriter::Impl::TypedWriteBatch(::parquet::ColumnWriter* column_writer,
   DCHECK((offset + length) <= data->length());
   auto data_ptr = reinterpret_cast<const ArrowCType*>(data->data()->data()) + offset;
   auto writer =
-      reinterpret_cast<::parquet::TypedColumnWriter<ParquetType>*>(column_writer);
+      reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
   if (writer->descr()->max_definition_level() == 0) {
     // no nulls, just dump the data
     const ParquetCType* data_writer_ptr = nullptr;
@@ -167,14 +167,14 @@ Status FileWriter::Impl::TypedWriteBatch(::parquet::ColumnWriter* column_writer,
 // * Arrow data is stored bitwise thus we cannot use std::copy to transform from
 //   ArrowType::c_type to ParquetType::c_type
 template <>
-Status FileWriter::Impl::TypedWriteBatch<::parquet::BooleanType, ::arrow::BooleanType>(
-    ::parquet::ColumnWriter* column_writer, const PrimitiveArray* data, int64_t offset,
+Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
+    ColumnWriter* column_writer, const PrimitiveArray* data, int64_t offset,
     int64_t length) {
   DCHECK((offset + length) <= data->length());
   RETURN_NOT_OK(data_buffer_.Resize(length));
   auto data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
-  auto writer = reinterpret_cast<::parquet::TypedColumnWriter<::parquet::BooleanType>*>(
+  auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(
       column_writer);
   if (writer->descr()->max_definition_level() == 0) {
     // no nulls, just dump the data
@@ -227,7 +227,7 @@ Status FileWriter::Impl::Close() {
 
 Status FileWriter::Impl::WriteFlatColumnChunk(
     const PrimitiveArray* data, int64_t offset, int64_t length) {
-  ::parquet::ColumnWriter* writer;
+  ColumnWriter* writer;
   PARQUET_CATCH_NOT_OK(writer = row_group_writer_->NextColumn());
   switch (data->type_enum()) {
     TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
@@ -258,15 +258,15 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
 
 Status FileWriter::Impl::WriteFlatColumnChunk(
     const StringArray* data, int64_t offset, int64_t length) {
-  ::parquet::ColumnWriter* column_writer;
+  ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
   DCHECK((offset + length) <= data->length());
-  RETURN_NOT_OK(data_buffer_.Resize(length * sizeof(::parquet::ByteArray)));
-  auto buffer_ptr = reinterpret_cast<::parquet::ByteArray*>(data_buffer_.mutable_data());
+  RETURN_NOT_OK(data_buffer_.Resize(length * sizeof(ByteArray)));
+  auto buffer_ptr = reinterpret_cast<ByteArray*>(data_buffer_.mutable_data());
   auto values = std::dynamic_pointer_cast<PrimitiveArray>(data->values());
   auto data_ptr = reinterpret_cast<const uint8_t*>(values->data()->data());
   DCHECK(values != nullptr);
-  auto writer = reinterpret_cast<::parquet::TypedColumnWriter<::parquet::ByteArrayType>*>(
+  auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(
       column_writer);
   if (writer->descr()->max_definition_level() > 0) {
     RETURN_NOT_OK(def_levels_buffer_.Resize(length * sizeof(int16_t)));
@@ -275,7 +275,7 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
   if (writer->descr()->max_definition_level() == 0 || data->null_count() == 0) {
     // no nulls, just dump the data
     for (int64_t i = 0; i < length; i++) {
-      buffer_ptr[i] = ::parquet::ByteArray(
+      buffer_ptr[i] = ByteArray(
           data->value_length(i + offset), data_ptr + data->value_offset(i));
     }
     if (writer->descr()->max_definition_level() > 0) {
@@ -289,7 +289,7 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
         def_levels_ptr[i] = 0;
       } else {
         def_levels_ptr[i] = 1;
-        buffer_ptr[buffer_idx++] = ::parquet::ByteArray(
+        buffer_ptr[buffer_idx++] = ByteArray(
             data->value_length(i + offset), data_ptr + data->value_offset(i + offset));
       }
     }
@@ -302,7 +302,7 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
 }
 
 FileWriter::FileWriter(
-    MemoryPool* pool, std::unique_ptr<::parquet::ParquetFileWriter> writer)
+    MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
     : impl_(new FileWriter::Impl(pool, std::move(writer))) {}
 
 Status FileWriter::NewRowGroup(int64_t chunk_size) {
@@ -337,9 +337,9 @@ MemoryPool* FileWriter::memory_pool() const {
 FileWriter::~FileWriter() {}
 
 Status WriteFlatTable(const Table* table, MemoryPool* pool,
-    const std::shared_ptr<::parquet::OutputStream>& sink, int64_t chunk_size,
-    const std::shared_ptr<::parquet::WriterProperties>& properties) {
-  std::shared_ptr<::parquet::SchemaDescriptor> parquet_schema;
+    const std::shared_ptr<OutputStream>& sink, int64_t chunk_size,
+    const std::shared_ptr<WriterProperties>& properties) {
+  std::shared_ptr<SchemaDescriptor> parquet_schema;
   RETURN_NOT_OK(
       ToParquetSchema(table->schema().get(), *properties.get(), &parquet_schema));
   auto schema_node = std::static_pointer_cast<GroupNode>(parquet_schema->schema_root());
