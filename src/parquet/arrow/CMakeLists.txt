@@ -25,33 +25,59 @@ set(PARQUET_ARROW_SRCS
   writer.cc
 )
 
-set(PARQUET_ARROW_LIBS
-  arrow
-  arrow_io
-  parquet_shared
-)
-
-add_library(parquet_arrow SHARED
+add_library(parquet_arrow_objlib OBJECT
   ${PARQUET_ARROW_SRCS}
 )
-target_link_libraries(parquet_arrow ${PARQUET_ARROW_LIBS})
-SET_TARGET_PROPERTIES(parquet_arrow PROPERTIES LINKER_LANGUAGE CXX)
 
-if (APPLE)
-  set_target_properties(parquet_arrow
-    PROPERTIES
-    BUILD_WITH_INSTALL_RPATH ON
-    INSTALL_NAME_DIR "@rpath")
+# SET_TARGET_PROPERTIES(parquet_arrow PROPERTIES LINKER_LANGUAGE CXX)
+
+if (PARQUET_BUILD_SHARED)
+    add_library(parquet_arrow_shared SHARED $<TARGET_OBJECTS:parquet_arrow_objlib>)
+    set_target_properties(parquet_arrow_shared
+      PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
+      LINK_FLAGS "${SHARED_LINK_FLAGS}"
+      OUTPUT_NAME "parquet_arrow")
+    target_link_libraries(parquet_arrow_shared
+      arrow
+      arrow_io
+      parquet_shared)
+    if (APPLE)
+      set_target_properties(parquet_arrow_shared
+        PROPERTIES
+        BUILD_WITH_INSTALL_RPATH ON
+        INSTALL_NAME_DIR "@rpath")
+    endif()
+endif()
+
+if (PARQUET_BUILD_STATIC)
+    add_library(parquet_arrow_static STATIC $<TARGET_OBJECTS:parquet_arrow_objlib>)
+    set_target_properties(parquet_arrow_static
+      PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
+      OUTPUT_NAME "parquet_arrow")
+  target_link_libraries(parquet_arrow_static
+      arrow_static
+      arrow_static
+      parquet_static)
+  install(TARGETS parquet_arrow_static
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
 endif()
 
 ADD_PARQUET_TEST(arrow-schema-test)
-ADD_PARQUET_LINK_LIBRARIES(arrow-schema-test parquet_arrow arrow)
-
 ADD_PARQUET_TEST(arrow-io-test)
-ADD_PARQUET_LINK_LIBRARIES(arrow-io-test parquet_arrow)
-
 ADD_PARQUET_TEST(arrow-reader-writer-test)
-ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-test parquet_arrow)
+
+if (PARQUET_BUILD_STATIC)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-schema-test parquet_arrow_static)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-io-test parquet_arrow_static)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-test parquet_arrow_static)
+else()
+  ADD_PARQUET_LINK_LIBRARIES(arrow-schema-test parquet_arrow_shared)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-io-test parquet_arrow_shared)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-test parquet_arrow_shared)
+endif()
 
 # Headers: top level
 install(FILES
@@ -61,8 +87,4 @@ install(FILES
   utils.h
   writer.h
   DESTINATION include/parquet/arrow)
-
-install(TARGETS parquet_arrow
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib)
 
