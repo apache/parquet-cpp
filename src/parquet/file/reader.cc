@@ -166,7 +166,9 @@ void ParquetFileReader::DebugPrint(
       stream << "Column " << i << std::endl << ", values: " << column_chunk->num_values();
       if (column_chunk->is_stats_set()) {
         std::string min = stats->EncodedMin(), max = stats->EncodedMax();
-        stream << "  max: " << FormatStatValue(descr->physical_type(), max.c_str())
+        stream << ", null values: " << stats->null_count()
+               << ", distinct values: " << stats->distinct_count() << std::endl
+               << "  max: " << FormatStatValue(descr->physical_type(), max.c_str())
                << ", min: " << FormatStatValue(descr->physical_type(), min.c_str());
       } else {
         stream << "  Statistics Not Set";
