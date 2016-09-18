@@ -15,6 +15,7 @@ else
   # Allow passing specific libs to build on the command line
   for arg in "$*"; do
     case $arg in
+      "arrow")      F_ARROW=1 ;;
       "zlib")       F_ZLIB=1 ;;
       "gbenchmark") F_GBENCHMARK=1 ;;
       "gtest")      F_GTEST=1 ;;
@@ -56,6 +57,15 @@ if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
 fi
 
 STANDARD_DARWIN_FLAGS="-std=c++11 -stdlib=libc++"
+
+# build arrow
+if [ -n "$F_ALL" -o -n "$F_ARROW" ]; then
+    cd $TP_DIR/$ARROW_BASEDIR/cpp
+    source ./setup_build_env.sh
+    cmake . -DARROW_PARQUET=OFF -DARROW_HDFS=ON -DCMAKE_INSTALL_PREFIX=$PREFIX
+    make -j$PARALLEL install
+    # :
+fi
 
 # build googletest
 GOOGLETEST_ERROR="failed for googletest!"

@@ -53,6 +53,7 @@ cmake \
     -DCMAKE_BUILD_TYPE=debug \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
     -DPARQUET_BUILD_BENCHMARKS=off \
+    -DPARQUET_ARROW=ON \
     ..
 
 make

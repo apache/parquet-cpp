@@ -1,3 +1,7 @@
+ARROW_VERSION="6b8abb4402ff1f39fc5944a7df6e3b4755691d87"
+ARROW_URL="https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
+ARROW_BASEDIR="arrow-${ARROW_VERSION}"
+
 SNAPPY_VERSION=1.1.3
 SNAPPY_URL="https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz"
 SNAPPY_BASEDIR=snappy-$SNAPPY_VERSION

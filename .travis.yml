@@ -9,6 +9,8 @@ addons:
     - g++-4.9
     - valgrind
     - libboost-dev
+    - libboost-filesystem-dev
+    - libboost-system-dev
     - libboost-program-options-dev
     - libboost-test-dev
     - libssl-dev
@@ -26,7 +28,7 @@ matrix:
     before_script:
     - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
     - cmake -DCMAKE_CXX_FLAGS="-Werror" -DPARQUET_TEST_MEMCHECK=ON -DPARQUET_BUILD_BENCHMARKS=ON
-      -DPARQUET_GENERATE_COVERAGE=1 $TRAVIS_BUILD_DIR
+      -DPARQUET_ARROW=ON -DPARQUET_GENERATE_COVERAGE=1 $TRAVIS_BUILD_DIR
     - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
   - compiler: clang
     os: linux
@@ -76,7 +78,7 @@ before_install:
 
 before_script:
 - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
-- cmake -DCMAKE_CXX_FLAGS="-Werror" $TRAVIS_BUILD_DIR
+- cmake -DCMAKE_CXX_FLAGS="-Werror" -DPARQUET_ARROW=ON $TRAVIS_BUILD_DIR
 - export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
 
 script:

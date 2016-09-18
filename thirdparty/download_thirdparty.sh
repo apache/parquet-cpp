@@ -20,6 +20,11 @@ download_extract_and_cleanup() {
     rm $filename
 }
 
+if [ ! -d ${ARROW_BASEDIR} ]; then
+  echo "Fetching arrow"
+  download_extract_and_cleanup $ARROW_URL
+fi
+
 if [ ! -d ${SNAPPY_BASEDIR} ]; then
   echo "Fetching snappy"
   download_extract_and_cleanup $SNAPPY_URL

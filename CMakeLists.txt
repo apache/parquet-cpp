@@ -82,6 +82,9 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_EXECUTABLES
     "Build the libparquet executable CLI tools"
     ON)
+  option(PARQUET_ARROW
+    "Build the Arrow support"
+    OFF)
 endif()
 
 # If build in-source, create the latest symlink. If build out-of-source, which is
@@ -245,6 +248,16 @@ function(ADD_PARQUET_TEST_DEPENDENCIES REL_TEST_NAME)
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
 
   add_dependencies(${TEST_NAME} ${ARGN})
+endfunction()
+
+# A wrapper for add_dependencies() that is compatible with PARQUET_BUILD_TESTS.
+function(ADD_PARQUET_LINK_LIBRARIES REL_TEST_NAME)
+  if(NOT PARQUET_BUILD_TESTS)
+    return()
+  endif()
+  get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
+
+  target_link_libraries(${TEST_NAME} ${ARGN})
 endfunction()
 
 enable_testing()
@@ -553,6 +566,12 @@ if (PARQUET_BUILD_SHARED)
     target_link_libraries(parquet_shared
       LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
       LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+    if (APPLE)
+      set_target_properties(parquet_shared
+        PROPERTIES
+        BUILD_WITH_INSTALL_RPATH ON
+        INSTALL_NAME_DIR "@rpath")
+    endif()
 endif()
 
 if (PARQUET_BUILD_STATIC)
@@ -582,6 +601,22 @@ add_dependencies(parquet_objlib parquet_thrift)
 
 add_subdirectory(benchmarks)
 add_subdirectory(tools)
+
+# Arrow
+if (PARQUET_ARROW)
+  find_package(Arrow REQUIRED)
+  include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
+  add_library(arrow SHARED IMPORTED)
+  set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
+  add_library(arrow_io SHARED IMPORTED)
+  set_target_properties(arrow_io PROPERTIES IMPORTED_LOCATION ${ARROW_IO_SHARED_LIB})
+  add_library(arrow_static STATIC IMPORTED)
+  set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
+  add_library(arrow_io_static STATIC IMPORTED)
+  set_target_properties(arrow_io_static PROPERTIES IMPORTED_LOCATION ${ARROW_IO_STATIC_LIB})
+
+  add_subdirectory(src/parquet/arrow)
+endif()
 
 add_custom_target(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
