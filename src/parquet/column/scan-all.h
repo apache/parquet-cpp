@@ -31,6 +31,6 @@ int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
 }
 
 int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
-                      uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader);
+    uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader);
 
 #endif  // PARQUET_SCAN_ALL_H
