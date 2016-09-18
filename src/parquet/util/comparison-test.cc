@@ -17,17 +17,20 @@
 
 #include <gtest/gtest.h>
 
-#include "parquet/schema/descriptor.h"
-#include "parquet/types.h"
-#include "parquet/util/comparison.h"
-
 #include <cstdint>
 #include <iostream>
 #include <vector>
 
+#include "parquet/schema/descriptor.h"
+#include "parquet/types.h"
+#include "parquet/util/comparison.h"
+
 namespace parquet {
 
 namespace test {
+
+using parquet::schema::NodePtr;
+using parquet::schema::PrimitiveNode;
 
 static ByteArray ByteArrayFromString(const std::string& s) {
   auto ptr = reinterpret_cast<const uint8_t*>(s.data());
@@ -40,7 +43,6 @@ static FLBA FLBAFromString(const std::string& s) {
 }
 
 TEST(Comparison, ByteArray) {
-  using namespace parquet::schema;
   NodePtr node = PrimitiveNode::Make("bytearray", Repetition::REQUIRED, Type::BYTE_ARRAY);
   ColumnDescriptor descr(node, 0, 0);
   Compare<parquet::ByteArray> less(&descr);
@@ -60,8 +62,6 @@ TEST(Comparison, ByteArray) {
 }
 
 TEST(Comparison, FLBA) {
-  using namespace parquet::schema;
-
   std::string a = "Antidisestablishmentarianism";
   std::string b = "Bundesgesundheitsministerium";
   auto arr1 = FLBAFromString(a);
@@ -77,7 +77,6 @@ TEST(Comparison, FLBA) {
 TEST(Comparison, Int96) {
   parquet::Int96 a{1, 41, 14}, b{1, 41, 42};
 
-  using namespace parquet::schema;
   NodePtr node = PrimitiveNode::Make("int96", Repetition::REQUIRED, Type::INT96);
   ColumnDescriptor descr(node, 0, 0);
   Compare<parquet::Int96> less(&descr);
