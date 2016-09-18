@@ -75,7 +75,7 @@ TEST(Comparison, FLBA) {
 }
 
 TEST(Comparison, Int96) {
-  parquet::Int96 a{1, 41, 14}, b{1, 41, 42};
+  parquet::Int96 a{{1, 41, 14}}, b{{1, 41, 42}};
 
   NodePtr node = PrimitiveNode::Make("int96", Repetition::REQUIRED, Type::INT96);
   ColumnDescriptor descr(node, 0, 0);
