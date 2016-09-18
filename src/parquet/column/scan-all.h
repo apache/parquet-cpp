@@ -20,6 +20,8 @@
 
 #include "parquet/column/reader.h"
 
+namespace parquet {
+
 template <typename RType>
 int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
     uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader) {
@@ -30,7 +32,10 @@ int64_t ScanAll(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
       batch_size, def_levels, rep_levels, vals, values_buffered);
 }
 
-int64_t ScanAllValues(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
-    uint8_t* values, int64_t* values_buffered, parquet::ColumnReader* reader);
+int64_t PARQUET_EXPORT ScanAllValues(int32_t batch_size, int16_t* def_levels,
+    int16_t* rep_levels, uint8_t* values, int64_t* values_buffered,
+    parquet::ColumnReader* reader);
+
+}  // namespace parquet
 
 #endif  // PARQUET_SCAN_ALL_H
