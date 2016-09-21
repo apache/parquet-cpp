@@ -68,15 +68,18 @@ endif()
 ADD_PARQUET_TEST(arrow-schema-test)
 ADD_PARQUET_TEST(arrow-io-test)
 ADD_PARQUET_TEST(arrow-reader-writer-test)
+ADD_PARQUET_BENCHMARK(arrow-reader-writer-benchmark)
 
 if (PARQUET_BUILD_STATIC)
   ADD_PARQUET_LINK_LIBRARIES(arrow-schema-test parquet_arrow_static)
   ADD_PARQUET_LINK_LIBRARIES(arrow-io-test parquet_arrow_static)
   ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-test parquet_arrow_static)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-benchmark parquet_arrow_static)
 else()
   ADD_PARQUET_LINK_LIBRARIES(arrow-schema-test parquet_arrow_shared)
   ADD_PARQUET_LINK_LIBRARIES(arrow-io-test parquet_arrow_shared)
   ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-test parquet_arrow_shared)
+  ADD_PARQUET_LINK_LIBRARIES(arrow-reader-writer-benchmark parquet_arrow_shared)
 endif()
 
 # Headers: top level
