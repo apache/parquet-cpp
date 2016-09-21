@@ -60,13 +60,13 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
   void TestMinMaxEncode() {
     this->GenerateData(1000);
 
-    TypedStats statistics1(this->descr_.get());
+    TypedStats statistics1(this->schema_.Column(0));
     statistics1.Update(this->values_ptr_, this->values_.size(), 0);
     std::string encoded_min = statistics1.EncodeMin();
     std::string encoded_max = statistics1.EncodeMax();
 
     TypedStats statistics2(
-        this->descr_.get(), encoded_min, encoded_max, this->values_.size(), 0, 0);
+        this->schema_.Column(0), encoded_min, encoded_max, this->values_.size(), 0, 0);
 
     ASSERT_EQ(encoded_min, statistics2.EncodeMin());
     ASSERT_EQ(encoded_max, statistics2.EncodeMax());
@@ -77,7 +77,7 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
   void TestReset() {
     this->GenerateData(1000);
 
-    TypedStats statistics(this->descr_.get());
+    TypedStats statistics(this->schema_.Column(0));
     statistics.Update(this->values_ptr_, this->values_.size(), 0);
     ASSERT_EQ(this->values_.size(), statistics.num_values());
 
@@ -92,17 +92,17 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     int num_null[2];
     random_numbers(2, 42, 0, 100, num_null);
 
-    TypedStats statistics1(this->descr_.get());
+    TypedStats statistics1(this->schema_.Column(0));
     this->GenerateData(1000);
     statistics1.Update(
         this->values_ptr_, this->values_.size() - num_null[0], num_null[0]);
 
-    TypedStats statistics2(this->descr_.get());
+    TypedStats statistics2(this->schema_.Column(0));
     this->GenerateData(1000);
     statistics2.Update(
         this->values_ptr_, this->values_.size() - num_null[1], num_null[1]);
 
-    TypedStats total(this->descr_.get());
+    TypedStats total(this->schema_.Column(0));
     total.Merge(statistics1);
     total.Merge(statistics2);
 
@@ -116,7 +116,7 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     this->GenerateData(num_values);
 
     // compute statistics for the whole batch
-    TypedStats expected_stats(this->descr_.get());
+    TypedStats expected_stats(this->schema_.Column(0));
     expected_stats.Update(this->values_ptr_, num_values - null_count, null_count);
 
     auto sink = std::make_shared<InMemoryOutputStream>();
@@ -241,17 +241,17 @@ using TestTypes = ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, D
 TYPED_TEST_CASE(TestRowGroupStatistics, TestTypes);
 
 TYPED_TEST(TestRowGroupStatistics, MinMaxEncode) {
-  this->SetUpSchemaRequired();
+  this->SetUpSchema(Repetition::REQUIRED);
   this->TestMinMaxEncode();
 }
 
 TYPED_TEST(TestRowGroupStatistics, Reset) {
-  this->SetUpSchemaRequired();
+  this->SetUpSchema(Repetition::OPTIONAL);
   this->TestReset();
 }
 
 TYPED_TEST(TestRowGroupStatistics, FullRoundtrip) {
-  this->SetUpSchemaOptional();
+  this->SetUpSchema(Repetition::OPTIONAL);
   this->TestFullRoundtrip(100, 31);
   this->TestFullRoundtrip(1000, 415);
   this->TestFullRoundtrip(10000, 926);
@@ -265,7 +265,7 @@ using NumericTypes = ::testing::Types<Int32Type, Int64Type, FloatType, DoubleTyp
 TYPED_TEST_CASE(TestNumericRowGroupStatistics, NumericTypes);
 
 TYPED_TEST(TestNumericRowGroupStatistics, Merge) {
-  this->SetUpSchemaOptional();
+  this->SetUpSchema(Repetition::OPTIONAL);
   this->TestMerge();
 }
 

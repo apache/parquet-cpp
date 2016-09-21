@@ -182,8 +182,8 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   std::unique_ptr<EncoderType> current_encoder_;
 
   typedef TypedRowGroupStatistics<DType> TypedStats;
-  std::shared_ptr<TypedStats> page_statistics_;
-  std::shared_ptr<TypedStats> chunk_statistics_;
+  std::unique_ptr<TypedStats> page_statistics_;
+  std::unique_ptr<TypedStats> chunk_statistics_;
 };
 
 template <typename DType>
@@ -223,8 +223,7 @@ inline int64_t TypedColumnWriter<DType>::WriteMiniBatch(int64_t num_values,
   WriteValues(values_to_write, values);
 
   if (page_statistics_ != nullptr) {
-    auto stats = static_cast<TypedRowGroupStatistics<DType>*>(page_statistics_.get());
-    stats->Update(values, values_to_write, num_values - values_to_write);
+    page_statistics_->Update(values, values_to_write, num_values - values_to_write);
   }
 
   num_buffered_values_ += num_values;

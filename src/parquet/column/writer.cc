@@ -199,10 +199,8 @@ TypedColumnWriter<Type>::TypedColumnWriter(ColumnChunkMetaDataBuilder* metadata,
   }
 
   if (properties->statistics_enabled(descr_->path())) {
-    page_statistics_ = std::make_shared<TypedStats>(descr_, allocator_);
-    chunk_statistics_ = std::make_shared<TypedStats>(descr_, allocator_);
-  } else {
-    page_statistics_ = chunk_statistics_ = nullptr;
+    page_statistics_ = std::unique_ptr<TypedStats>(new TypedStats(descr_, allocator_));
+    chunk_statistics_ = std::unique_ptr<TypedStats>(new TypedStats(descr_, allocator_));
   }
 }
 
