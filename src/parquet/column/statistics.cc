@@ -16,6 +16,7 @@
 // under the License.
 
 #include <algorithm>
+#include <cstring>
 
 #include "parquet/column/statistics.h"
 #include "parquet/encodings/plain-encoding.h"
@@ -25,11 +26,6 @@
 #include "parquet/exception.h"
 
 namespace parquet {
-
-template <typename TypedStats>
-std::shared_ptr<TypedStats> RowGroupStatistics::as() {
-  return std::static_pointer_cast<TypedStats>(shared_from_this());
-}
 
 template <typename DType>
 TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(
@@ -91,10 +87,9 @@ template <>
 void TypedRowGroupStatistics<FLBAType>::Copy(
     const FLBA& src, FLBA* dst, OwnedMutableBuffer& buffer) {
   if (dst->ptr == src.ptr) return;
-  auto len = descr_->type_length();
+  uint32_t len = descr_->type_length();
   buffer.Resize(len);
-  for (int i = 0; i < len; i++)
-    buffer[i] = src.ptr[i];
+  std::memcpy(&buffer[0], src.ptr, len);
   *dst = FLBA(buffer.data());
 }
 
@@ -103,8 +98,7 @@ void TypedRowGroupStatistics<ByteArrayType>::Copy(
     const ByteArray& src, ByteArray* dst, OwnedMutableBuffer& buffer) {
   if (dst->ptr == src.ptr) return;
   buffer.Resize(src.len);
-  for (uint32_t i = 0; i < src.len; i++)
-    buffer[i] = src.ptr[i];
+  std::memcpy(&buffer[0], src.ptr, src.len);
   *dst = ByteArray(src.len, buffer.data());
 }
 
@@ -132,37 +126,32 @@ void TypedRowGroupStatistics<DType>::Update(
 }
 
 template <typename DType>
-void TypedRowGroupStatistics<DType>::Merge(const RowGroupStatistics& other) {
-  if (this->physical_type() != other.physical_type())
-    throw ParquetException("Can't merge statistics with different types");
-
+void TypedRowGroupStatistics<DType>::Merge(const TypedRowGroupStatistics<DType>& other) {
   this->MergeCounts(other);
 
   if (!other.HasMinMax()) return;
 
-  const auto& typed_other = static_cast<const TypedRowGroupStatistics<DType>&>(other);
-
   if (!has_min_max_) {
-    Copy(typed_other.min_, &this->min_, min_buffer_);
-    Copy(typed_other.max_, &this->max_, max_buffer_);
+    Copy(other.min_, &this->min_, min_buffer_);
+    Copy(other.max_, &this->max_, max_buffer_);
     has_min_max_ = true;
     return;
   }
 
   Compare<T> compare(descr_);
-  Copy(std::min(this->min_, typed_other.min_, compare), &this->min_, min_buffer_);
-  Copy(std::max(this->max_, typed_other.max_, compare), &this->max_, max_buffer_);
+  Copy(std::min(this->min_, other.min_, compare), &this->min_, min_buffer_);
+  Copy(std::max(this->max_, other.max_, compare), &this->max_, max_buffer_);
 }
 
 template <typename DType>
-std::string TypedRowGroupStatistics<DType>::EncodedMin() {
+std::string TypedRowGroupStatistics<DType>::EncodeMin() {
   std::string s;
   if (HasMinMax()) this->PlainEncode(min_, &s);
   return s;
 }
 
 template <typename DType>
-std::string TypedRowGroupStatistics<DType>::EncodedMax() {
+std::string TypedRowGroupStatistics<DType>::EncodeMax() {
   std::string s;
   if (HasMinMax()) this->PlainEncode(max_, &s);
   return s;
@@ -172,8 +161,8 @@ template <typename DType>
 EncodedStatistics TypedRowGroupStatistics<DType>::Encode() {
   EncodedStatistics s;
   if (HasMinMax()) {
-    s.set_min(this->EncodedMin());
-    s.set_max(this->EncodedMax());
+    s.set_min(this->EncodeMin());
+    s.set_max(this->EncodeMax());
   }
   s.set_null_count(this->null_count());
   return s;
@@ -203,15 +192,5 @@ template class TypedRowGroupStatistics<FloatType>;
 template class TypedRowGroupStatistics<DoubleType>;
 template class TypedRowGroupStatistics<ByteArrayType>;
 template class TypedRowGroupStatistics<FLBAType>;
-
-template std::shared_ptr<BoolStatistics> RowGroupStatistics::as<BoolStatistics>();
-template std::shared_ptr<Int32Statistics> RowGroupStatistics::as<Int32Statistics>();
-template std::shared_ptr<Int64Statistics> RowGroupStatistics::as<Int64Statistics>();
-template std::shared_ptr<Int96Statistics> RowGroupStatistics::as<Int96Statistics>();
-template std::shared_ptr<FloatStatistics> RowGroupStatistics::as<FloatStatistics>();
-template std::shared_ptr<DoubleStatistics> RowGroupStatistics::as<DoubleStatistics>();
-template std::shared_ptr<ByteArrayStatistics>
-RowGroupStatistics::as<ByteArrayStatistics>();
-template std::shared_ptr<FLBAStatistics> RowGroupStatistics::as<FLBAStatistics>();
 
 }  // namespace parquet

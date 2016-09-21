@@ -62,14 +62,14 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
 
     TypedStats statistics1(this->descr_.get());
     statistics1.Update(this->values_ptr_, this->values_.size(), 0);
-    std::string encoded_min = statistics1.EncodedMin();
-    std::string encoded_max = statistics1.EncodedMax();
+    std::string encoded_min = statistics1.EncodeMin();
+    std::string encoded_max = statistics1.EncodeMax();
 
     TypedStats statistics2(
         this->descr_.get(), encoded_min, encoded_max, this->values_.size(), 0, 0);
 
-    ASSERT_EQ(encoded_min, statistics2.EncodedMin());
-    ASSERT_EQ(encoded_max, statistics2.EncodedMax());
+    ASSERT_EQ(encoded_min, statistics2.EncodeMin());
+    ASSERT_EQ(encoded_max, statistics2.EncodeMax());
     ASSERT_EQ(statistics1.min(), statistics2.min());
     ASSERT_EQ(statistics1.max(), statistics2.max());
   }
@@ -84,8 +84,8 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     statistics.Reset();
     ASSERT_EQ(0, statistics.null_count());
     ASSERT_EQ(0, statistics.num_values());
-    ASSERT_EQ("", statistics.EncodedMin());
-    ASSERT_EQ("", statistics.EncodedMax());
+    ASSERT_EQ("", statistics.EncodeMin());
+    ASSERT_EQ("", statistics.EncodeMax());
   }
 
   void TestMerge() {
@@ -122,7 +122,7 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     auto sink = std::make_shared<InMemoryOutputStream>();
     auto gnode = std::static_pointer_cast<GroupNode>(this->node_);
     std::shared_ptr<WriterProperties> writer_properties =
-        WriterProperties::Builder().collect_statistics("column")->build();
+        WriterProperties::Builder().enable_statistics("column")->build();
     auto file_writer = ParquetFileWriter::Open(sink, gnode, writer_properties);
     auto row_group_writer = file_writer->AppendRowGroup(num_values);
     auto column_writer =
@@ -154,12 +154,12 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     auto file_reader = ParquetFileReader::Open(std::move(source));
     auto rg_reader = file_reader->RowGroup(0);
     auto column_chunk = rg_reader->metadata()->ColumnChunk(0);
-    auto stats = column_chunk->statistics()->template as<TypedStats>();
+    std::shared_ptr<RowGroupStatistics> stats = column_chunk->statistics();
     // check values after serialization + deserialization
     ASSERT_EQ(null_count, stats->null_count());
     ASSERT_EQ(num_values - null_count, stats->num_values());
-    ASSERT_EQ(expected_stats.EncodedMin(), stats->EncodedMin());
-    ASSERT_EQ(expected_stats.EncodedMax(), stats->EncodedMax());
+    ASSERT_EQ(expected_stats.EncodeMin(), stats->EncodeMin());
+    ASSERT_EQ(expected_stats.EncodeMax(), stats->EncodeMax());
   }
 };
 

@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "parquet/exception.h"
 #include "parquet/file/metadata.h"
 #include "parquet/schema/converter.h"
 #include "parquet/thrift/util.h"
@@ -24,7 +25,7 @@
 namespace parquet {
 
 template <typename DType>
-static std::shared_ptr<RowGroupStatistics> MakeColumnStatsT(
+static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     const format::ColumnMetaData& metadata, const ColumnDescriptor* descr) {
   return std::make_shared<TypedRowGroupStatistics<DType>>(descr, metadata.statistics.min,
       metadata.statistics.max, metadata.num_values - metadata.statistics.null_count,
@@ -35,23 +36,23 @@ std::shared_ptr<RowGroupStatistics> MakeColumnStats(
     const format::ColumnMetaData& meta_data, const ColumnDescriptor* descr) {
   switch (meta_data.type) {
     case Type::BOOLEAN:
-      return MakeColumnStatsT<BooleanType>(meta_data, descr);
+      return MakeTypedColumnStats<BooleanType>(meta_data, descr);
     case Type::INT32:
-      return MakeColumnStatsT<Int32Type>(meta_data, descr);
+      return MakeTypedColumnStats<Int32Type>(meta_data, descr);
     case Type::INT64:
-      return MakeColumnStatsT<Int64Type>(meta_data, descr);
+      return MakeTypedColumnStats<Int64Type>(meta_data, descr);
     case Type::INT96:
-      return MakeColumnStatsT<Int96Type>(meta_data, descr);
+      return MakeTypedColumnStats<Int96Type>(meta_data, descr);
     case Type::DOUBLE:
-      return MakeColumnStatsT<DoubleType>(meta_data, descr);
+      return MakeTypedColumnStats<DoubleType>(meta_data, descr);
     case Type::FLOAT:
-      return MakeColumnStatsT<FloatType>(meta_data, descr);
+      return MakeTypedColumnStats<FloatType>(meta_data, descr);
     case Type::BYTE_ARRAY:
-      return MakeColumnStatsT<ByteArrayType>(meta_data, descr);
+      return MakeTypedColumnStats<ByteArrayType>(meta_data, descr);
     case Type::FIXED_LEN_BYTE_ARRAY:
-      return MakeColumnStatsT<FLBAType>(meta_data, descr);
+      return MakeTypedColumnStats<FLBAType>(meta_data, descr);
   }
-  return nullptr;
+  throw ParquetException("Can't decode page statistics for selected column type");
 }
 
 // MetaData Accessor
@@ -383,8 +384,8 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     format::Statistics stats;
     stats.null_count = val.null_count;
     stats.distinct_count = val.distinct_count;
-    stats.max = val.max;
-    stats.min = val.min;
+    stats.max = val.max();
+    stats.min = val.min();
     stats.__isset.min = val.has_min;
     stats.__isset.max = val.has_max;
     stats.__isset.null_count = val.has_null_count;

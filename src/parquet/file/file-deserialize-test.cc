@@ -105,10 +105,10 @@ void CheckDataPageHeader(const format::DataPageHeader expected, const Page* page
   ASSERT_EQ(expected.repetition_level_encoding, data_page->repetition_level_encoding());
 
   if (expected.statistics.__isset.max) {
-    ASSERT_EQ(expected.statistics.max, data_page->statistics().max);
+    ASSERT_EQ(expected.statistics.max, data_page->statistics().max());
   }
   if (expected.statistics.__isset.min) {
-    ASSERT_EQ(expected.statistics.min, data_page->statistics().min);
+    ASSERT_EQ(expected.statistics.min, data_page->statistics().min());
   }
 }
 

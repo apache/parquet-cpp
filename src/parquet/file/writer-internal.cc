@@ -48,8 +48,8 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type
 
 static format::Statistics ToThrift(const EncodedStatistics& row_group_statistics) {
   format::Statistics statistics;
-  if (row_group_statistics.has_min) statistics.__set_min(row_group_statistics.min);
-  if (row_group_statistics.has_max) statistics.__set_max(row_group_statistics.max);
+  if (row_group_statistics.has_min) statistics.__set_min(row_group_statistics.min());
+  if (row_group_statistics.has_max) statistics.__set_max(row_group_statistics.max());
   if (row_group_statistics.has_null_count)
     statistics.__set_null_count(row_group_statistics.null_count);
   if (row_group_statistics.has_distinct_count)

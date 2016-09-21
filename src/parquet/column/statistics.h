@@ -19,6 +19,7 @@
 #define PARQUET_COLUMN_STATISTICS_H
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "parquet/types.h"
@@ -29,9 +30,16 @@
 
 namespace parquet {
 
-struct PARQUET_EXPORT EncodedStatistics {
-  std::string max;
-  std::string min;
+class PARQUET_EXPORT EncodedStatistics {
+  std::shared_ptr<std::string> max_, min_;
+
+ public:
+  EncodedStatistics()
+      : max_(std::make_shared<std::string>()), min_(std::make_shared<std::string>()) {}
+
+  const std::string& max() const { return *max_; }
+  const std::string& min() const { return *min_; }
+
   int64_t null_count = 0;
   int64_t distinct_count = 0;
 
@@ -45,13 +53,13 @@ struct PARQUET_EXPORT EncodedStatistics {
   }
 
   inline EncodedStatistics& set_max(const std::string& value) {
-    max = value;
+    *max_ = value;
     has_max = true;
     return *this;
   }
 
   inline EncodedStatistics& set_min(const std::string& value) {
-    min = value;
+    *min_ = value;
     has_min = true;
     return *this;
   }
@@ -81,16 +89,12 @@ class PARQUET_EXPORT RowGroupStatistics
 
   virtual bool HasMinMax() const = 0;
   virtual void Reset() = 0;
-  virtual void Merge(const RowGroupStatistics& other) = 0;
-
-  template <typename TypedStats>
-  std::shared_ptr<TypedStats> as();
 
   // Plain-encoded minimum value
-  virtual std::string EncodedMin() = 0;
+  virtual std::string EncodeMin() = 0;
 
   // Plain-encoded maximum value
-  virtual std::string EncodedMax() = 0;
+  virtual std::string EncodeMax() = 0;
 
   virtual EncodedStatistics Encode() = 0;
 
@@ -142,15 +146,15 @@ class PARQUET_EXPORT TypedRowGroupStatistics : public RowGroupStatistics {
 
   bool HasMinMax() const override;
   void Reset() override;
-  void Merge(const RowGroupStatistics& other) override;
+  void Merge(const TypedRowGroupStatistics<DType>& other);
 
   void Update(const T* values, int64_t num_not_null, int64_t num_null);
 
   const T& min() const { return min_; }
   const T& max() const { return max_; }
 
-  std::string EncodedMin() override;
-  std::string EncodedMax() override;
+  std::string EncodeMin() override;
+  std::string EncodeMax() override;
   EncodedStatistics Encode() override;
 
  private:

@@ -69,6 +69,15 @@ class PARQUET_EXPORT ColumnWriter {
 
   virtual void CheckDictionarySizeLimit() = 0;
 
+  // Plain-encoded statistics of the current page
+  virtual EncodedStatistics GetPageStatistics() = 0;
+
+  // Plain-encoded statistics of the whole chunk
+  virtual EncodedStatistics GetChunkStatistics() = 0;
+
+  // Merges page statistics into chunk statistics, then resets the values
+  virtual void ResetPageStatistics() = 0;
+
   // Adds Data Pages to an in memory buffer in dictionary encoding mode
   // Serializes the Data Pages in other encoding modes
   void AddDataPage();
@@ -133,18 +142,6 @@ class PARQUET_EXPORT ColumnWriter {
 
   std::vector<CompressedDataPage> data_pages_;
 
-  // Initialized in subclass constructors
-  std::shared_ptr<RowGroupStatistics> page_statistics_;
-  std::shared_ptr<RowGroupStatistics> chunk_statistics_;
-
-  template <typename Type>
-  void InitStatistics() {
-    page_statistics_ =
-        std::make_shared<TypedRowGroupStatistics<Type>>(descr_, allocator_);
-    chunk_statistics_ =
-        std::make_shared<TypedRowGroupStatistics<Type>>(descr_, allocator_);
-  }
-
  private:
   void InitSinks();
 };
@@ -170,6 +167,9 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   }
   void WriteDictionaryPage() override;
   void CheckDictionarySizeLimit() override;
+  EncodedStatistics GetPageStatistics() override;
+  EncodedStatistics GetChunkStatistics() override;
+  void ResetPageStatistics() override;
 
  private:
   int64_t WriteMiniBatch(int64_t num_values, const int16_t* def_levels,
@@ -180,6 +180,10 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   // Write values to a temporary buffer before they are encoded into pages
   void WriteValues(int64_t num_values, const T* values);
   std::unique_ptr<EncoderType> current_encoder_;
+
+  typedef TypedRowGroupStatistics<DType> TypedStats;
+  std::shared_ptr<TypedStats> page_statistics_;
+  std::shared_ptr<TypedStats> chunk_statistics_;
 };
 
 template <typename DType>

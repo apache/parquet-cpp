@@ -82,28 +82,28 @@ static constexpr int64_t DEFAULT_PAGE_SIZE = 1024 * 1024;
 static constexpr bool DEFAULT_IS_DICTIONARY_ENABLED = true;
 static constexpr int64_t DEFAULT_DICTIONARY_PAGE_SIZE_LIMIT = DEFAULT_PAGE_SIZE;
 static constexpr int64_t DEFAULT_WRITE_BATCH_SIZE = 1024;
-static constexpr bool DEFAULT_COLLECT_STATISTICS = false;
+static constexpr bool DEFAULT_ARE_STATISTICS_ENABLED = true;
 static constexpr Encoding::type DEFAULT_ENCODING = Encoding::PLAIN;
 static constexpr ParquetVersion::type DEFAULT_WRITER_VERSION =
     ParquetVersion::PARQUET_1_0;
 static std::string DEFAULT_CREATED_BY = "Apache parquet-cpp";
 static constexpr Compression::type DEFAULT_COMPRESSION_TYPE = Compression::UNCOMPRESSED;
 
-class PARQUET_EXPORT ColumnSettings {
+class PARQUET_EXPORT ColumnProperties {
  public:
-  ColumnSettings(Encoding::type encoding = DEFAULT_ENCODING,
+  ColumnProperties(Encoding::type encoding = DEFAULT_ENCODING,
       Compression::type codec = DEFAULT_COMPRESSION_TYPE,
       bool dictionary_enabled = DEFAULT_IS_DICTIONARY_ENABLED,
-      bool collect_statistics = DEFAULT_COLLECT_STATISTICS)
+      bool statistics_enabled = DEFAULT_ARE_STATISTICS_ENABLED)
       : encoding(encoding),
         codec(codec),
         dictionary_enabled(dictionary_enabled),
-        collect_statistics(collect_statistics) {}
+        statistics_enabled(statistics_enabled) {}
 
   Encoding::type encoding;
   Compression::type codec;
   bool dictionary_enabled;
-  bool collect_statistics;
+  bool statistics_enabled;
 };
 
 class PARQUET_EXPORT WriterProperties {
@@ -125,17 +125,17 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     Builder* enable_dictionary() {
-      default_column_settings_.dictionary_enabled = true;
+      default_column_properties_.dictionary_enabled = true;
       return this;
     }
 
     Builder* disable_dictionary() {
-      default_column_settings_.dictionary_enabled = false;
+      default_column_properties_.dictionary_enabled = false;
       return this;
     }
 
     Builder* enable_dictionary(const std::string& path) {
-      column_settings_[path].dictionary_enabled = true;
+      dictionary_enabled_[path] = true;
       return this;
     }
 
@@ -144,7 +144,7 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     Builder* disable_dictionary(const std::string& path) {
-      column_settings_[path].dictionary_enabled = false;
+      dictionary_enabled_[path] = false;
       return this;
     }
 
@@ -189,7 +189,7 @@ class PARQUET_EXPORT WriterProperties {
         throw ParquetException("Can't use dictionary encoding as fallback encoding");
       }
 
-      default_column_settings_.encoding = encoding_type;
+      default_column_properties_.encoding = encoding_type;
       return this;
     }
 
@@ -205,7 +205,7 @@ class PARQUET_EXPORT WriterProperties {
         throw ParquetException("Can't use dictionary encoding as fallback encoding");
       }
 
-      column_settings_[path].encoding = encoding_type;
+      encodings_[path] = encoding_type;
       return this;
     }
 
@@ -221,12 +221,12 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     Builder* compression(Compression::type codec) {
-      default_column_settings_.codec = codec;
+      default_column_properties_.codec = codec;
       return this;
     }
 
     Builder* compression(const std::string& path, Compression::type codec) {
-      column_settings_[path].codec = codec;
+      codecs_[path] = codec;
       return this;
     }
 
@@ -235,25 +235,56 @@ class PARQUET_EXPORT WriterProperties {
       return this->compression(path->ToDotString(), codec);
     }
 
-    Builder* collect_statistics(bool enable = true) {
-      default_column_settings_.collect_statistics = enable;
+    Builder* enable_statistics() {
+      default_column_properties_.statistics_enabled = true;
       return this;
     }
 
-    Builder* collect_statistics(const std::string& path, bool enable = true) {
-      column_settings_[path].collect_statistics = enable;
+    Builder* disable_statistics() {
+      default_column_properties_.statistics_enabled = false;
       return this;
     }
 
-    Builder* collect_statistics(
-        const std::shared_ptr<schema::ColumnPath>& path, bool enable = true) {
-      return this->collect_statistics(path->ToDotString(), enable);
+    Builder* enable_statistics(const std::string& path) {
+      statistics_enabled_[path] = true;
+      return this;
+    }
+
+    Builder* enable_statistics(const std::shared_ptr<schema::ColumnPath>& path) {
+      return this->enable_statistics(path->ToDotString());
+    }
+
+    Builder* disable_statistics(const std::string& path) {
+      statistics_enabled_[path] = false;
+      return this;
+    }
+
+    Builder* disable_statistics(const std::shared_ptr<schema::ColumnPath>& path) {
+      return this->disable_statistics(path->ToDotString());
     }
 
     std::shared_ptr<WriterProperties> build() {
+      std::unordered_map<std::string, ColumnProperties> column_properties;
+      auto get = [&](const std::string& key) -> ColumnProperties& {
+        auto it = column_properties.find(key);
+        if (it == column_properties.end())
+          return column_properties[key] = default_column_properties_;
+        else
+          return it->second;
+      };
+
+      for (const auto& item : encodings_)
+        get(item.first).encoding = item.second;
+      for (const auto& item : codecs_)
+        get(item.first).codec = item.second;
+      for (const auto& item : dictionary_enabled_)
+        get(item.first).dictionary_enabled = item.second;
+      for (const auto& item : statistics_enabled_)
+        get(item.first).statistics_enabled = item.second;
+
       return std::shared_ptr<WriterProperties>(new WriterProperties(allocator_,
           dictionary_pagesize_limit_, write_batch_size_, pagesize_, version_, created_by_,
-          default_column_settings_, column_settings_));
+          default_column_properties_, column_properties));
     }
 
    private:
@@ -264,9 +295,12 @@ class PARQUET_EXPORT WriterProperties {
     ParquetVersion::type version_;
     std::string created_by_;
 
-    // Settings used for each column unless overridden in column_settings_
-    ColumnSettings default_column_settings_;
-    std::unordered_map<std::string, ColumnSettings> column_settings_;
+    // Settings used for each column unless overridden in any of the maps below
+    ColumnProperties default_column_properties_;
+    std::unordered_map<std::string, Encoding::type> encodings_;
+    std::unordered_map<std::string, Compression::type> codecs_;
+    std::unordered_map<std::string, bool> dictionary_enabled_;
+    std::unordered_map<std::string, bool> statistics_enabled_;
   };
 
   inline MemoryAllocator* allocator() const { return allocator_; }
@@ -297,42 +331,42 @@ class PARQUET_EXPORT WriterProperties {
     }
   }
 
-  const ColumnSettings& column_settings(
+  const ColumnProperties& column_properties(
       const std::shared_ptr<schema::ColumnPath>& path) const {
-    auto it = column_settings_.find(path->ToDotString());
-    if (it != column_settings_.end()) return it->second;
-    return default_column_settings_;
+    auto it = column_properties_.find(path->ToDotString());
+    if (it != column_properties_.end()) return it->second;
+    return default_column_properties_;
   }
 
   Encoding::type encoding(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_settings(path).encoding;
+    return column_properties(path).encoding;
   }
 
   Compression::type compression(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_settings(path).codec;
+    return column_properties(path).codec;
   }
 
   bool dictionary_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_settings(path).dictionary_enabled;
+    return column_properties(path).dictionary_enabled;
   }
 
-  bool collect_statistics(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_settings(path).collect_statistics;
+  bool statistics_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
+    return column_properties(path).statistics_enabled;
   }
 
  private:
   explicit WriterProperties(MemoryAllocator* allocator, int64_t dictionary_pagesize_limit,
       int64_t write_batch_size, int64_t pagesize, ParquetVersion::type version,
-      const std::string& created_by, const ColumnSettings& default_column_settings,
-      const std::unordered_map<std::string, ColumnSettings>& column_settings)
+      const std::string& created_by, const ColumnProperties& default_column_properties,
+      const std::unordered_map<std::string, ColumnProperties>& column_properties)
       : allocator_(allocator),
         dictionary_pagesize_limit_(dictionary_pagesize_limit),
         write_batch_size_(write_batch_size),
         pagesize_(pagesize),
         parquet_version_(version),
         parquet_created_by_(created_by),
-        default_column_settings_(default_column_settings),
-        column_settings_(column_settings) {}
+        default_column_properties_(default_column_properties),
+        column_properties_(column_properties) {}
 
   MemoryAllocator* allocator_;
   int64_t dictionary_pagesize_limit_;
@@ -340,8 +374,8 @@ class PARQUET_EXPORT WriterProperties {
   int64_t pagesize_;
   ParquetVersion::type parquet_version_;
   std::string parquet_created_by_;
-  ColumnSettings default_column_settings_;
-  std::unordered_map<std::string, ColumnSettings> column_settings_;
+  ColumnProperties default_column_properties_;
+  std::unordered_map<std::string, ColumnProperties> column_properties_;
 };
 
 std::shared_ptr<WriterProperties> PARQUET_EXPORT default_writer_properties();

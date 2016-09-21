@@ -119,16 +119,11 @@ void ColumnWriter::AddDataPage() {
   uncompressed_ptr += definition_levels->size();
   memcpy(uncompressed_ptr, values->data(), values->size());
 
-  EncodedStatistics page_stats;
-  if (page_statistics_) page_stats = page_statistics_->Encode();
+  EncodedStatistics page_stats = GetPageStatistics();
+  ResetPageStatistics();
   std::shared_ptr<Buffer> compressed_data = pager_->Compress(uncompressed_data);
   CompressedDataPage page(compressed_data, num_buffered_values_, encoding_, Encoding::RLE,
       Encoding::RLE, uncompressed_size, page_stats);
-
-  if (chunk_statistics_ != nullptr) {
-    chunk_statistics_->Merge(*page_statistics_);
-    page_statistics_->Reset();
-  }
 
   // Write the page to OutputStream eagerly if there is no dictionary or
   // if dictionary encoding has fallen back to PLAIN
@@ -156,8 +151,8 @@ int64_t ColumnWriter::Close() {
 
     FlushBufferedDataPages();
 
-    if (chunk_statistics_ != nullptr)
-      metadata_->SetStatistics(chunk_statistics_->Encode());
+    EncodedStatistics chunk_statistics = GetChunkStatistics();
+    if (chunk_statistics.is_set()) metadata_->SetStatistics(chunk_statistics);
     pager_->Close(has_dictionary_, fallback_);
   }
 
@@ -203,8 +198,9 @@ TypedColumnWriter<Type>::TypedColumnWriter(ColumnChunkMetaDataBuilder* metadata,
       ParquetException::NYI("Selected encoding is not supported");
   }
 
-  if (properties->collect_statistics(descr_->path())) {
-    InitStatistics<Type>();
+  if (properties->statistics_enabled(descr_->path())) {
+    page_statistics_ = std::make_shared<TypedStats>(descr_, allocator_);
+    chunk_statistics_ = std::make_shared<TypedStats>(descr_, allocator_);
   } else {
     page_statistics_ = chunk_statistics_ = nullptr;
   }
@@ -236,6 +232,28 @@ void TypedColumnWriter<Type>::WriteDictionaryPage() {
   DictionaryPage page(
       buffer, dict_encoder->num_entries(), properties_->dictionary_index_encoding());
   total_bytes_written_ += pager_->WriteDictionaryPage(page);
+}
+
+template <typename Type>
+EncodedStatistics TypedColumnWriter<Type>::GetPageStatistics() {
+  EncodedStatistics result;
+  if (page_statistics_) result = page_statistics_->Encode();
+  return result;
+}
+
+template <typename Type>
+EncodedStatistics TypedColumnWriter<Type>::GetChunkStatistics() {
+  EncodedStatistics result;
+  if (chunk_statistics_) result = chunk_statistics_->Encode();
+  return result;
+}
+
+template <typename Type>
+void TypedColumnWriter<Type>::ResetPageStatistics() {
+  if (chunk_statistics_ != nullptr) {
+    chunk_statistics_->Merge(*page_statistics_);
+    page_statistics_->Reset();
+  }
 }
 
 // ----------------------------------------------------------------------

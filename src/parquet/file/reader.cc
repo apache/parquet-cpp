@@ -160,12 +160,12 @@ void ParquetFileReader::DebugPrint(
     // Print column metadata
     for (auto i : selected_columns) {
       auto column_chunk = group_metadata->ColumnChunk(i);
-      const auto stats = column_chunk->statistics();
+      std::shared_ptr<RowGroupStatistics> stats = column_chunk->statistics();
 
       const ColumnDescriptor* descr = file_metadata->schema()->Column(i);
       stream << "Column " << i << std::endl << ", values: " << column_chunk->num_values();
       if (column_chunk->is_stats_set()) {
-        std::string min = stats->EncodedMin(), max = stats->EncodedMax();
+        std::string min = stats->EncodeMin(), max = stats->EncodeMax();
         stream << ", null values: " << stats->null_count()
                << ", distinct values: " << stats->distinct_count() << std::endl
                << "  max: " << FormatStatValue(descr->physical_type(), max.c_str())
