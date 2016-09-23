@@ -48,6 +48,10 @@ if (PARQUET_BUILD_SHARED)
         BUILD_WITH_INSTALL_RPATH ON
         INSTALL_NAME_DIR "@rpath")
     endif()
+
+  install(TARGETS parquet_arrow_shared
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
 endif()
 
 if (PARQUET_BUILD_STATIC)
