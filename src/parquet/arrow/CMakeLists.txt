@@ -58,7 +58,7 @@ if (PARQUET_BUILD_STATIC)
       OUTPUT_NAME "parquet_arrow")
   target_link_libraries(parquet_arrow_static
       arrow_static
-      arrow_static
+      arrow_io
       parquet_static)
   install(TARGETS parquet_arrow_static
       ARCHIVE DESTINATION lib
@@ -87,4 +87,3 @@ install(FILES
   utils.h
   writer.h
   DESTINATION include/parquet/arrow)
-

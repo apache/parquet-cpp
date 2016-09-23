@@ -18,8 +18,8 @@
 #include <gtest/gtest.h>
 
 #include "parquet/column/reader.h"
-#include "parquet/column/test-util.h"
 #include "parquet/column/test-specialization.h"
+#include "parquet/column/test-util.h"
 #include "parquet/column/writer.h"
 #include "parquet/file/reader.h"
 #include "parquet/file/writer.h"
@@ -84,7 +84,8 @@ class TestSerialize : public PrimitiveTypedTest<TestType> {
 };
 
 typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
-    BooleanType, ByteArrayType, FLBAType> TestTypes;
+    BooleanType, ByteArrayType, FLBAType>
+    TestTypes;
 
 TYPED_TEST_CASE(TestSerialize, TestTypes);
 

@@ -17,16 +17,16 @@
 
 #include <gtest/gtest.h>
 
-#include "parquet/column/test-util.h"
 #include "parquet/column/test-specialization.h"
+#include "parquet/column/test-util.h"
 
-#include "parquet/file/reader-internal.h"
-#include "parquet/file/writer-internal.h"
 #include "parquet/column/reader.h"
 #include "parquet/column/writer.h"
+#include "parquet/file/reader-internal.h"
+#include "parquet/file/writer-internal.h"
+#include "parquet/types.h"
 #include "parquet/util/input.h"
 #include "parquet/util/output.h"
-#include "parquet/types.h"
 
 namespace parquet {
 
@@ -146,7 +146,8 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
 };
 
 typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
-    BooleanType, ByteArrayType, FLBAType> TestTypes;
+    BooleanType, ByteArrayType, FLBAType>
+    TestTypes;
 
 TYPED_TEST_CASE(TestPrimitiveWriter, TestTypes);
 
