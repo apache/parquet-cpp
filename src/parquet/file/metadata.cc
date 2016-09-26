@@ -231,7 +231,8 @@ class FileMetaData::FileMetaDataImpl {
  public:
   FileMetaDataImpl() : metadata_len_(0) {}
 
-  explicit FileMetaDataImpl(const uint8_t* metadata, uint32_t* metadata_len) : metadata_len_(0) {
+  explicit FileMetaDataImpl(const uint8_t* metadata, uint32_t* metadata_len)
+      : metadata_len_(0) {
     metadata_.reset(new format::FileMetaData);
     DeserializeThriftMsg(metadata, metadata_len, metadata_.get());
     metadata_len_ = *metadata_len;

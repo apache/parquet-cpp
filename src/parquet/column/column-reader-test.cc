@@ -158,8 +158,8 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequiredSkip) {
   max_rep_level_ = 0;
   NodePtr type = schema::Int32("b", Repetition::REQUIRED);
   const ColumnDescriptor descr(type, max_def_level_, max_rep_level_);
-  MakePages<Int32Type>(&descr, num_pages, levels_per_page, def_levels_,
-      rep_levels_, values_, data_buffer_, pages_, Encoding::PLAIN);
+  MakePages<Int32Type>(&descr, num_pages, levels_per_page, def_levels_, rep_levels_,
+      values_, data_buffer_, pages_, Encoding::PLAIN);
   InitReader(&descr);
   vector<int32_t> vresult(levels_per_page / 2, -1);
   vector<int16_t> dresult(levels_per_page / 2, -1);
@@ -173,27 +173,33 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequiredSkip) {
   int64_t levels_skipped = reader->Skip(2 * levels_per_page);
   ASSERT_EQ(2 * levels_per_page, levels_skipped);
   // Read half a page
-  reader->ReadBatch(levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
-  vector<int32_t> sub_values(values_.begin() + 2 * levels_per_page, values_.begin() + 2.5 * levels_per_page);
+  reader->ReadBatch(
+      levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
+  vector<int32_t> sub_values(
+      values_.begin() + 2 * levels_per_page, values_.begin() + 2.5 * levels_per_page);
   ASSERT_TRUE(vector_equal(sub_values, vresult));
 
   // 2) skip_size == page_size (skip across two pages)
   levels_skipped = reader->Skip(levels_per_page);
   ASSERT_EQ(levels_per_page, levels_skipped);
   // Read half a page
-  reader->ReadBatch(levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
+  reader->ReadBatch(
+      levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
   sub_values.clear();
-  sub_values.insert(sub_values.end(), values_.begin() + 3.5 * levels_per_page, values_.begin() + 4 * levels_per_page);
+  sub_values.insert(sub_values.end(), values_.begin() + 3.5 * levels_per_page,
+      values_.begin() + 4 * levels_per_page);
   ASSERT_TRUE(vector_equal(sub_values, vresult));
 
   // 3) skip_size < page_size (skip limited to a single page)
   // Skip half a page
   levels_skipped = reader->Skip(levels_per_page / 2);
-  ASSERT_EQ( 0.5 * levels_per_page, levels_skipped);
+  ASSERT_EQ(0.5 * levels_per_page, levels_skipped);
   // Read half a page
-  reader->ReadBatch(levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
+  reader->ReadBatch(
+      levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
   sub_values.clear();
-  sub_values.insert(sub_values.end(), values_.begin() + 4.5 * levels_per_page, values_.end());
+  sub_values.insert(
+      sub_values.end(), values_.begin() + 4.5 * levels_per_page, values_.end());
   ASSERT_TRUE(vector_equal(sub_values, vresult));
 
   values_.clear();
@@ -202,7 +208,6 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequiredSkip) {
   pages_.clear();
   reader_.reset();
 }
-
 
 TEST_F(TestPrimitiveReader, TestDictionaryEncodedPages) {
   max_def_level_ = 0;
