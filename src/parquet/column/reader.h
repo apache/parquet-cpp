@@ -23,6 +23,7 @@
 #include <cstring>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
@@ -124,8 +125,12 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // This API is the same for both V1 and V2 of the DataPage
   //
   // @returns: actual number of levels read (see values_read for number of values read)
-  int64_t ReadBatch(int32_t batch_size, int16_t* def_levels, int16_t* rep_levels,
+  int64_t ReadBatch(int batch_size, int16_t* def_levels, int16_t* rep_levels,
       T* values, int64_t* values_read);
+
+  // Skip reading levels
+  // Returns the number of levels skipped
+  int64_t Skip(int64_t num_rows_to_skip);
 
  private:
   typedef Decoder<DType> DecoderType;
@@ -166,7 +171,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
 
   // TODO(wesm): keep reading data pages until batch_size is reached, or the
   // row group is finished
-  batch_size = std::min(batch_size, num_buffered_values_);
+  batch_size = std::min(batch_size, num_buffered_values_ - num_decoded_values_);
 
   int64_t num_def_levels = 0;
   int64_t num_rep_levels = 0;
@@ -200,6 +205,28 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
 
   return total_values;
 }
+
+template <typename DType>
+inline int64_t TypedColumnReader<DType>::Skip(int64_t num_rows_to_skip) {
+  int64_t rows_to_skip = num_rows_to_skip;
+  while (HasNext() && rows_to_skip > 0) {
+    // If the number of rows to skip is more than the number of undecoded values, skip the Page.
+    if (rows_to_skip > (num_buffered_values_ - num_decoded_values_)) {
+       rows_to_skip -= num_buffered_values_ - num_decoded_values_;
+       num_decoded_values_ = num_buffered_values_;
+    } else {
+      // We need to read this Page
+      // Jump to the right offset in the Page
+      int64_t values_read = 0;
+      std::vector<uint8_t> vals(rows_to_skip * type_traits<DType::type_num>::value_byte_size); // templating bool vector is a problem since we cannot get its underlying buffer
+      std::vector<int16_t> def_levels(rows_to_skip);
+      std::vector<int16_t> rep_levels(rows_to_skip);
+      rows_to_skip -= ReadBatch(static_cast<int>(rows_to_skip), def_levels.data(), rep_levels.data(), reinterpret_cast<T*>(vals.data()), &values_read);
+    }
+  }
+  return num_rows_to_skip - rows_to_skip;
+}
+
 
 typedef TypedColumnReader<BooleanType> BoolReader;
 typedef TypedColumnReader<Int32Type> Int32Reader;
