@@ -301,11 +301,13 @@ add_library(zlibstatic STATIC IMPORTED)
 set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
 
 ## GTest
-add_custom_target(unittest ctest -L unittest)
-find_package(GTest REQUIRED)
-include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
-add_library(gtest STATIC IMPORTED)
-set_target_properties(gtest PROPERTIES IMPORTED_LOCATION ${GTEST_STATIC_LIB})
+if(PARQUET_BUILD_BENCHMARKS)
+  add_custom_target(unittest ctest -L unittest)
+  find_package(GTest REQUIRED)
+  include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
+  add_library(gtest STATIC IMPORTED)
+  set_target_properties(gtest PROPERTIES IMPORTED_LOCATION ${GTEST_STATIC_LIB})
+endif()
 
 ## Google Benchmark
 if ("$ENV{GBENCHMARK_HOME}" STREQUAL "")

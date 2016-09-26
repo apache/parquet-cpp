@@ -13,7 +13,7 @@ if [ "$#" = "0" ]; then
   F_ALL=1
 else
   # Allow passing specific libs to build on the command line
-  for arg in "$*"; do
+  for arg in "$@"; do
     case $arg in
       "arrow")      F_ARROW=1 ;;
       "zlib")       F_ZLIB=1 ;;
