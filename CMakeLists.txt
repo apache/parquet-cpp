@@ -122,7 +122,7 @@ endif()
 #
 # Arguments after the test name will be passed to set_tests_properties().
 function(ADD_PARQUET_BENCHMARK REL_BENCHMARK_NAME)
-    if(NOT PARQUET_BUILD_BENCHMARKS)
+  if(NOT PARQUET_BUILD_BENCHMARKS)
     return()
   endif()
   get_filename_component(BENCHMARK_NAME ${REL_BENCHMARK_NAME} NAME_WE)
@@ -301,11 +301,13 @@ add_library(zlibstatic STATIC IMPORTED)
 set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
 
 ## GTest
-add_custom_target(unittest ctest -L unittest)
-find_package(GTest REQUIRED)
-include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
-add_library(gtest STATIC IMPORTED)
-set_target_properties(gtest PROPERTIES IMPORTED_LOCATION ${GTEST_STATIC_LIB})
+if(PARQUET_BUILD_TESTS)
+  add_custom_target(unittest ctest -L unittest)
+  find_package(GTest REQUIRED)
+  include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
+  add_library(gtest STATIC IMPORTED)
+  set_target_properties(gtest PROPERTIES IMPORTED_LOCATION ${GTEST_STATIC_LIB})
+endif()
 
 ## Google Benchmark
 if ("$ENV{GBENCHMARK_HOME}" STREQUAL "")
