@@ -218,16 +218,22 @@ inline int64_t TypedColumnReader<DType>::Skip(int64_t num_rows_to_skip) {
     } else {
       // We need to read this Page
       // Jump to the right offset in the Page
+      int64_t batch_size = 1024;  // ReadBatch with a smaller memory footprint
       int64_t values_read = 0;
-      std::vector<uint8_t> vals(
-          rows_to_skip *
-          type_traits<DType::type_num>::value_byte_size);  // templating bool vector is a
-                                                           // problem since we cannot get
-                                                           // its underlying buffer
-      std::vector<int16_t> def_levels(rows_to_skip);
-      std::vector<int16_t> rep_levels(rows_to_skip);
-      rows_to_skip -= ReadBatch(static_cast<int>(rows_to_skip), def_levels.data(),
-          rep_levels.data(), reinterpret_cast<T*>(vals.data()), &values_read);
+      auto vals = std::make_shared<OwnedMutableBuffer>(
+          batch_size * type_traits<DType::type_num>::value_byte_size, this->allocator_);
+      auto def_levels = std::make_shared<OwnedMutableBuffer>(
+          batch_size * sizeof(int16_t), this->allocator_);
+      auto rep_levels = std::make_shared<OwnedMutableBuffer>(
+          batch_size * sizeof(int16_t), this->allocator_);
+      do {
+        batch_size = std::min(batch_size, rows_to_skip);
+        values_read =
+            ReadBatch(batch_size, reinterpret_cast<int16_t*>(def_levels->mutable_data()),
+                reinterpret_cast<int16_t*>(rep_levels->mutable_data()),
+                reinterpret_cast<T*>(vals->mutable_data()), &values_read);
+        rows_to_skip -= values_read;
+      } while (values_read > 0 && rows_to_skip > 0);
     }
   }
   return num_rows_to_skip - rows_to_skip;

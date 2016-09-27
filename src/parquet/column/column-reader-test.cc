@@ -174,7 +174,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequiredSkip) {
   ASSERT_EQ(2 * levels_per_page, levels_skipped);
   // Read half a page
   reader->ReadBatch(
-      levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
+      levels_per_page / 2, dresult.data(), rresult.data(), vresult.data(), &values_read);
   vector<int32_t> sub_values(
       values_.begin() + 2 * levels_per_page, values_.begin() + 2.5 * levels_per_page);
   ASSERT_TRUE(vector_equal(sub_values, vresult));
@@ -184,7 +184,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequiredSkip) {
   ASSERT_EQ(levels_per_page, levels_skipped);
   // Read half a page
   reader->ReadBatch(
-      levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
+      levels_per_page / 2, dresult.data(), rresult.data(), vresult.data(), &values_read);
   sub_values.clear();
   sub_values.insert(sub_values.end(), values_.begin() + 3.5 * levels_per_page,
       values_.begin() + 4 * levels_per_page);
@@ -196,7 +196,7 @@ TEST_F(TestPrimitiveReader, TestInt32FlatRequiredSkip) {
   ASSERT_EQ(0.5 * levels_per_page, levels_skipped);
   // Read half a page
   reader->ReadBatch(
-      levels_per_page / 2, &dresult[0], &rresult[0], &vresult[0], &values_read);
+      levels_per_page / 2, dresult.data(), rresult.data(), vresult.data(), &values_read);
   sub_values.clear();
   sub_values.insert(
       sub_values.end(), values_.begin() + 4.5 * levels_per_page, values_.end());
