@@ -509,6 +509,7 @@ set(LIBPARQUET_SRCS
   src/parquet/column/writer.cc
   src/parquet/column/scanner.cc
   src/parquet/column/scan-all.cc
+  src/parquet/column/statistics.cc
 
   src/parquet/compression/codec.cc
   src/parquet/compression/snappy-codec.cc
