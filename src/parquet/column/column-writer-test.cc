@@ -25,6 +25,7 @@
 #include "parquet/file/reader-internal.h"
 #include "parquet/file/writer-internal.h"
 #include "parquet/types.h"
+#include "parquet/util/comparison.h"
 #include "parquet/util/input.h"
 #include "parquet/util/output.h"
 
@@ -97,20 +98,7 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
     this->SyncValuesOut();
   }
 
-  void ReadColumnFully(Compression::type compression = Compression::UNCOMPRESSED) {
-    BuildReader(compression);
-    values_read_ = 0;
-    int64_t levels_read = 0;
-    while (values_read_ < this->values_out_.size()) {
-      int64_t values_read_recently = 0;
-      levels_read += reader_->ReadBatch(this->values_out_.size() - values_read_,
-          definition_levels_out_.data() + values_read_,
-          repetition_levels_out_.data() + values_read_,
-          this->values_out_ptr_ + values_read_, &values_read_recently);
-      values_read_ += values_read_recently;
-    }
-    this->SyncValuesOut();
-  }
+  void ReadColumnFully(Compression::type compression = Compression::UNCOMPRESSED);
 
   void TestRequiredWithEncoding(Encoding::type encoding) {
     return TestRequiredWithSettings(encoding, Compression::UNCOMPRESSED, false, false);
@@ -132,6 +120,15 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
 
     this->SetupValuesOut(num_rows);
     this->ReadColumnFully(compression);
+    Compare<T> compare(this->descr_);
+    for (size_t i = 0; i < this->values_.size(); i++) {
+      if (compare(this->values_[i], this->values_out_[i]) ||
+          compare(this->values_out_[i], this->values_[i])) {
+        std::cout << "Failed at " << i << std::endl;
+      }
+      ASSERT_FALSE(compare(this->values_[i], this->values_out_[i]));
+      ASSERT_FALSE(compare(this->values_out_[i], this->values_[i]));
+    }
     ASSERT_EQ(this->values_, this->values_out_);
   }
 
@@ -169,7 +166,53 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
   std::unique_ptr<ColumnChunkMetaDataBuilder> metadata_;
   std::unique_ptr<InMemoryOutputStream> sink_;
   std::shared_ptr<WriterProperties> writer_properties_;
+  std::vector<std::shared_ptr<std::vector<uint8_t>>> data_buffer_;
 };
+
+template <typename TestType>
+void TestPrimitiveWriter<TestType>::ReadColumnFully(Compression::type compression) {
+  BuildReader(compression);
+  values_read_ = 0;
+  while (values_read_ < this->values_out_.size()) {
+    int64_t values_read_recently = 0;
+    reader_->ReadBatch(this->values_out_.size() - values_read_,
+        definition_levels_out_.data() + values_read_,
+        repetition_levels_out_.data() + values_read_,
+        this->values_out_ptr_ + values_read_, &values_read_recently);
+    values_read_ += values_read_recently;
+  }
+  this->SyncValuesOut();
+}
+
+template <>
+void TestPrimitiveWriter<FLBAType>::ReadColumnFully(Compression::type compression) {
+  BuildReader(compression);
+  this->data_buffer_.clear();
+
+  values_read_ = 0;
+  while (values_read_ < this->values_out_.size()) {
+    int64_t values_read_recently = 0;
+    reader_->ReadBatch(this->values_out_.size() - values_read_,
+        definition_levels_out_.data() + values_read_,
+        repetition_levels_out_.data() + values_read_,
+        this->values_out_ptr_ + values_read_, &values_read_recently);
+
+    // Copy contents of the pointers
+    auto data = std::make_shared<std::vector<uint8_t>>(
+        values_read_recently * this->descr_->type_length());
+    uint8_t* data_ptr = data->data();
+    for (int64_t i = 0; i < values_read_recently; i++) {
+      memcpy(data_ptr + this->descr_->type_length() * i,
+          this->values_out_[i + values_read_].ptr, this->descr_->type_length());
+      this->values_out_[i + values_read_].ptr =
+          data_ptr + this->descr_->type_length() * i;
+    }
+    data_buffer_.push_back(data);
+
+    values_read_ += values_read_recently;
+  }
+  this->SyncValuesOut();
+}
 
 typedef ::testing::Types<Int32Type, Int64Type, Int96Type, FloatType, DoubleType,
     BooleanType, ByteArrayType, FLBAType> TestTypes;
