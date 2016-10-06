@@ -41,8 +41,7 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type
       dictionary_page_offset_(0),
       data_page_offset_(0),
       total_uncompressed_size_(0),
-      total_compressed_size_(0),
-      compression_buffer_(std::make_shared<OwnedMutableBuffer>(0, allocator)) {
+      total_compressed_size_(0) {
   compressor_ = Codec::Create(codec);
 }
 
