@@ -173,7 +173,7 @@ template <typename TestType>
 void TestPrimitiveWriter<TestType>::ReadColumnFully(Compression::type compression) {
   BuildReader(compression);
   values_read_ = 0;
-  while (values_read_ < this->values_out_.size()) {
+  while (values_read_ < static_cast<int64_t>(this->values_out_.size())) {
     int64_t values_read_recently = 0;
     reader_->ReadBatch(this->values_out_.size() - values_read_,
         definition_levels_out_.data() + values_read_,
