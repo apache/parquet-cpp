@@ -38,7 +38,7 @@ namespace test {
 // The default size used in most tests.
 const int SMALL_SIZE = 100;
 // Larger size to test some corner cases, only used in some specific cases.
-const int LARGE_SIZE = 10000;
+const int LARGE_SIZE = 100000;
 // Very large size to test dictionary fallback.
 const int VERY_LARGE_SIZE = 400000;
 
@@ -97,26 +97,41 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
     this->SyncValuesOut();
   }
 
+  void ReadColumnFully(Compression::type compression = Compression::UNCOMPRESSED) {
+    BuildReader(compression);
+    values_read_ = 0;
+    int64_t levels_read = 0;
+    while (values_read_ < this->values_out_.size()) {
+      int64_t values_read_recently = 0;
+      levels_read += reader_->ReadBatch(this->values_out_.size() - values_read_,
+          definition_levels_out_.data() + values_read_,
+          repetition_levels_out_.data() + values_read_,
+          this->values_out_ptr_ + values_read_, &values_read_recently);
+      values_read_ += values_read_recently;
+    }
+    this->SyncValuesOut();
+  }
+
   void TestRequiredWithEncoding(Encoding::type encoding) {
     return TestRequiredWithSettings(encoding, Compression::UNCOMPRESSED, false, false);
   }
 
   void TestRequiredWithSettings(Encoding::type encoding, Compression::type compression,
-      bool enable_dictionary, bool enable_statistics) {
-    this->GenerateData(SMALL_SIZE);
+      bool enable_dictionary, bool enable_statistics, int64_t num_rows = SMALL_SIZE) {
+    this->GenerateData(num_rows);
 
     // Test case 1: required and non-repeated, so no definition or repetition levels
     ColumnProperties column_properties(
         encoding, compression, enable_dictionary, enable_statistics);
     std::shared_ptr<TypedColumnWriter<TestType>> writer =
-        this->BuildWriter(SMALL_SIZE, column_properties);
+        this->BuildWriter(num_rows, column_properties);
     writer->WriteBatch(this->values_.size(), nullptr, nullptr, this->values_ptr_);
     // The behaviour should be independent from the number of Close() calls
     writer->Close();
     writer->Close();
 
-    this->ReadColumn(compression);
-    ASSERT_EQ(SMALL_SIZE, this->values_read_);
+    this->SetupValuesOut(num_rows);
+    this->ReadColumnFully(compression);
     ASSERT_EQ(this->values_, this->values_out_);
   }
 
@@ -198,23 +213,28 @@ TYPED_TEST(TestPrimitiveWriter, RequiredRLEDictionary) {
 */
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlainWithSnappyCompression) {
-  this->TestRequiredWithSettings(Encoding::PLAIN, Compression::SNAPPY, false, false);
+  this->TestRequiredWithSettings(
+      Encoding::PLAIN, Compression::SNAPPY, false, false, LARGE_SIZE);
 }
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlainWithGzipCompression) {
-  this->TestRequiredWithSettings(Encoding::PLAIN, Compression::GZIP, false, false);
+  this->TestRequiredWithSettings(
+      Encoding::PLAIN, Compression::GZIP, false, false, LARGE_SIZE);
 }
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlainWithStats) {
-  this->TestRequiredWithSettings(Encoding::PLAIN, Compression::UNCOMPRESSED, false, true);
+  this->TestRequiredWithSettings(
+      Encoding::PLAIN, Compression::UNCOMPRESSED, false, true, LARGE_SIZE);
 }
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlainWithStatsAndSnappyCompression) {
-  this->TestRequiredWithSettings(Encoding::PLAIN, Compression::SNAPPY, false, true);
+  this->TestRequiredWithSettings(
+      Encoding::PLAIN, Compression::SNAPPY, false, true, LARGE_SIZE);
 }
 
 TYPED_TEST(TestPrimitiveWriter, RequiredPlainWithStatsAndGzipCompression) {
-  this->TestRequiredWithSettings(Encoding::PLAIN, Compression::GZIP, false, true);
+  this->TestRequiredWithSettings(
+      Encoding::PLAIN, Compression::GZIP, false, true, LARGE_SIZE);
 }
 
 TYPED_TEST(TestPrimitiveWriter, Optional) {
