@@ -166,7 +166,7 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
   std::unique_ptr<ColumnChunkMetaDataBuilder> metadata_;
   std::unique_ptr<InMemoryOutputStream> sink_;
   std::shared_ptr<WriterProperties> writer_properties_;
-  std::vector<std::shared_ptr<std::vector<uint8_t>>> data_buffer_;
+  std::vector<std::vector<uint8_t>> data_buffer_;
 };
 
 template <typename TestType>
@@ -198,16 +198,15 @@ void TestPrimitiveWriter<FLBAType>::ReadColumnFully(Compression::type compressio
         this->values_out_ptr_ + values_read_, &values_read_recently);
 
     // Copy contents of the pointers
-    auto data = std::make_shared<std::vector<uint8_t>>(
-        values_read_recently * this->descr_->type_length());
-    uint8_t* data_ptr = data->data();
+    std::vector<uint8_t> data(values_read_recently * this->descr_->type_length());
+    uint8_t* data_ptr = data.data();
     for (int64_t i = 0; i < values_read_recently; i++) {
       memcpy(data_ptr + this->descr_->type_length() * i,
           this->values_out_[i + values_read_].ptr, this->descr_->type_length());
       this->values_out_[i + values_read_].ptr =
           data_ptr + this->descr_->type_length() * i;
     }
-    data_buffer_.push_back(data);
+    data_buffer_.emplace_back(std::move(data));
 
     values_read_ += values_read_recently;
   }
