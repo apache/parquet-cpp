@@ -68,10 +68,11 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(const ColumnDescriptor* 
 }
 
 template <>
-TypedRowGroupStatistics<ByteArrayType>::TypedRowGroupStatistics(const ColumnDescriptor* schema,
-                                                        const std::string& encoded_min, const std::string& encoded_max, int64_t num_values,
-                                                        int64_t null_count, int64_t distinct_count, MemoryAllocator* allocator)
-   : allocator_(allocator), min_buffer_(0, allocator_), max_buffer_(0, allocator_) {
+TypedRowGroupStatistics<ByteArrayType>::TypedRowGroupStatistics(
+    const ColumnDescriptor* schema,
+    const std::string& encoded_min, const std::string& encoded_max, int64_t num_values,
+    int64_t null_count, int64_t distinct_count, MemoryAllocator* allocator)
+    : allocator_(allocator), min_buffer_(0, allocator_), max_buffer_(0, allocator_) {
   IncrementNumValues(num_values);
   IncrementNullCount(null_count);
   IncrementDistinctCount(distinct_count);
