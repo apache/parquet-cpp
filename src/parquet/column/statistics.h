@@ -130,7 +130,7 @@ class PARQUET_EXPORT RowGroupStatistics
 };
 
 template <typename DType>
-class PARQUET_EXPORT TypedRowGroupStatistics : public RowGroupStatistics {
+class TypedRowGroupStatistics : public RowGroupStatistics {
  public:
   using T = typename DType::c_type;
 
@@ -204,14 +204,14 @@ using DoubleStatistics = TypedRowGroupStatistics<DoubleType>;
 using ByteArrayStatistics = TypedRowGroupStatistics<ByteArrayType>;
 using FLBAStatistics = TypedRowGroupStatistics<FLBAType>;
 
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<BooleanType>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<Int32Type>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<Int64Type>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<Int96Type>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<FloatType>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<DoubleType>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<ByteArrayType>;
-extern template class PARQUET_EXPORT TypedRowGroupStatistics<FLBAType>;
+extern template class TypedRowGroupStatistics<BooleanType>;
+extern template class TypedRowGroupStatistics<Int32Type>;
+extern template class TypedRowGroupStatistics<Int64Type>;
+extern template class TypedRowGroupStatistics<Int96Type>;
+extern template class TypedRowGroupStatistics<FloatType>;
+extern template class TypedRowGroupStatistics<DoubleType>;
+extern template class TypedRowGroupStatistics<ByteArrayType>;
+extern template class TypedRowGroupStatistics<FLBAType>;
 
 }  // namespace parquet
 
