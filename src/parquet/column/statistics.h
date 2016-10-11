@@ -170,6 +170,30 @@ class PARQUET_EXPORT TypedRowGroupStatistics : public RowGroupStatistics {
   OwnedMutableBuffer min_buffer_, max_buffer_;
 };
 
+template <typename DType>
+inline void TypedRowGroupStatistics<DType>::Copy(const T& src, T* dst, OwnedMutableBuffer&) {
+  *dst = src;
+}
+
+template <>
+inline void TypedRowGroupStatistics<FLBAType>::Copy(
+    const FLBA& src, FLBA* dst, OwnedMutableBuffer& buffer) {
+  if (dst->ptr == src.ptr) return;
+  uint32_t len = descr_->type_length();
+  buffer.Resize(len);
+  std::memcpy(&buffer[0], src.ptr, len);
+  *dst = FLBA(buffer.data());
+}
+
+template <>
+inline void TypedRowGroupStatistics<ByteArrayType>::Copy(
+    const ByteArray& src, ByteArray* dst, OwnedMutableBuffer& buffer) {
+  if (dst->ptr == src.ptr) return;
+  buffer.Resize(src.len);
+  std::memcpy(&buffer[0], src.ptr, src.len);
+  *dst = ByteArray(src.len, buffer.data());
+}
+
 using BoolStatistics = TypedRowGroupStatistics<BooleanType>;
 using Int32Statistics = TypedRowGroupStatistics<Int32Type>;
 using Int64Statistics = TypedRowGroupStatistics<Int64Type>;
@@ -178,6 +202,15 @@ using FloatStatistics = TypedRowGroupStatistics<FloatType>;
 using DoubleStatistics = TypedRowGroupStatistics<DoubleType>;
 using ByteArrayStatistics = TypedRowGroupStatistics<ByteArrayType>;
 using FLBAStatistics = TypedRowGroupStatistics<FLBAType>;
+
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<BooleanType>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<Int32Type>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<Int64Type>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<Int96Type>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<FloatType>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<DoubleType>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<ByteArrayType>;
+extern template class PARQUET_EXPORT TypedRowGroupStatistics<FLBAType>;
 
 }  // namespace parquet
 

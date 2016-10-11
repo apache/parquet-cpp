@@ -79,30 +79,6 @@ void TypedRowGroupStatistics<DType>::Reset() {
 }
 
 template <typename DType>
-void TypedRowGroupStatistics<DType>::Copy(const T& src, T* dst, OwnedMutableBuffer&) {
-  *dst = src;
-}
-
-template <>
-void TypedRowGroupStatistics<FLBAType>::Copy(
-    const FLBA& src, FLBA* dst, OwnedMutableBuffer& buffer) {
-  if (dst->ptr == src.ptr) return;
-  uint32_t len = descr_->type_length();
-  buffer.Resize(len);
-  std::memcpy(&buffer[0], src.ptr, len);
-  *dst = FLBA(buffer.data());
-}
-
-template <>
-void TypedRowGroupStatistics<ByteArrayType>::Copy(
-    const ByteArray& src, ByteArray* dst, OwnedMutableBuffer& buffer) {
-  if (dst->ptr == src.ptr) return;
-  buffer.Resize(src.len);
-  std::memcpy(&buffer[0], src.ptr, src.len);
-  *dst = ByteArray(src.len, buffer.data());
-}
-
-template <typename DType>
 void TypedRowGroupStatistics<DType>::Update(
     const T* values, int64_t num_not_null, int64_t num_null) {
   DCHECK(num_not_null >= 0);
