@@ -20,20 +20,30 @@
 ## Third Party Dependencies
 
 - snappy
-- lz4
 - zlib
 - thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 - googletest 1.7.0 (cannot be installed with package managers)
 - Google Benchmark (only required if building benchmarks)
 
 You can install these dependencies using a package manager or using the
-`thirdparty/` scripts in this repository. On Homebrew, you can run:
+`thirdparty/` scripts in this repository.
+
+Mac already has zlib; on Homebrew, you can run:
 
 ```shell
- brew install snappy lz4 thrift zlib
+ brew install snappy thrift
 ```
 
-To build the thirdparty libraries in-tree, run:
+For Linux, just run
+
+```shell
+source setup_build_env.sh
+```
+
+By default, it will create a build directory `build/`. You can override the
+build directory by setting the BUILD_DIR env variable to another location.
+
+To manually build the thirdparty libraries in-tree, run:
 
 ```shell
 ./thirdparty/download_thirdparty.sh
@@ -41,19 +51,12 @@ To build the thirdparty libraries in-tree, run:
 source thirdparty/set_thirdparty_env.sh
 ```
 
-The provided script `setup_build_env.sh` sets up a build environment for you
-with third party dependencies.  You use it by running `source
-setup_build_env.sh`.  By default, it will create a build directory `build/`.
-You can override the build directory by setting the BUILD_DIR env variable to
-another location.
-
 After building the thirdparty libraries, for future development iteration you
 can set the dependency environment variables (detailed below) by running
 
-`source $BUILD_DIR/thirdparty/set_thirdparty_env.sh`
-
-Note, the environment variables are set automatically the first time you run
-`setup_build_env.sh`.
+```shell
+source $BUILD_DIR/thirdparty/set_thirdparty_env.sh
+```
 
 The unit tests depend on `googletest` which cannot be installed with Homebrew
 or normal package managers. If you wish to use system dependencies, we
@@ -73,12 +76,18 @@ export GTEST_HOME=`pwd`/thirdparty/$GTEST_BASEDIR
   - You can customize dependent library locations through various environment variables:
     - THRIFT_HOME customizes the thrift installed location.
     - SNAPPY_HOME customizes the snappy installed location.
-    - LZ4_HOME customizes the lz4 installed location.
+    - ZLIB_HOME customizes the zlib installed location.
 
 - `make`
 
 The binaries will be built to ./debug which contains the libraries to link against as
 well as a few example executables.
+
+To disable the testing (which requires `googletest`), pass
+`-DPARQUET_BUILD_TESTS=Off` to `cmake`.
+
+For release-level builds (enable optimizations and disable debugging), pass
+`-DCMAKE_BUILD_TYPE=Release` to `cmake`.
 
 Incremental builds can be done afterwords with just `make`.
 
