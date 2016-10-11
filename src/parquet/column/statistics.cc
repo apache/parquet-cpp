@@ -20,10 +20,10 @@
 
 #include "parquet/column/statistics.h"
 #include "parquet/encodings/plain-encoding.h"
+#include "parquet/exception.h"
 #include "parquet/util/buffer.h"
 #include "parquet/util/comparison.h"
 #include "parquet/util/output.h"
-#include "parquet/exception.h"
 
 namespace parquet {
 

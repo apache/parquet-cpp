@@ -22,8 +22,8 @@
 #include <memory>
 #include <string>
 
-#include "parquet/types.h"
 #include "parquet/schema/descriptor.h"
+#include "parquet/types.h"
 #include "parquet/util/buffer.h"
 #include "parquet/util/mem-allocator.h"
 #include "parquet/util/visibility.h"
@@ -171,7 +171,8 @@ class PARQUET_EXPORT TypedRowGroupStatistics : public RowGroupStatistics {
 };
 
 template <typename DType>
-inline void TypedRowGroupStatistics<DType>::Copy(const T& src, T* dst, OwnedMutableBuffer&) {
+inline void TypedRowGroupStatistics<DType>::Copy(
+    const T& src, T* dst, OwnedMutableBuffer&) {
   *dst = src;
 }
 
