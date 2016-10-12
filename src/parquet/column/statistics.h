@@ -197,11 +197,11 @@ inline void TypedRowGroupStatistics<ByteArrayType>::Copy(
 
 template <>
 void TypedRowGroupStatistics<ByteArrayType>::PlainEncode(
-   const T& src, std::string* dst);
+    const T& src, std::string* dst);
 
 template <>
 void TypedRowGroupStatistics<ByteArrayType>::PlainDecode(
-   const std::string& src, T* dst);
+    const std::string& src, T* dst);
 
 using BoolStatistics = TypedRowGroupStatistics<BooleanType>;
 using Int32Statistics = TypedRowGroupStatistics<Int32Type>;
