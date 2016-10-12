@@ -64,27 +64,7 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(const ColumnDescriptor* 
 
   if (!encoded_min.empty()) { PlainDecode(encoded_min, &min_); }
   if (!encoded_max.empty()) { PlainDecode(encoded_max, &max_); }
-  has_min_max_ = !encoded_min.empty() && !encoded_max.empty();
-}
-
-template <>
-TypedRowGroupStatistics<ByteArrayType>::TypedRowGroupStatistics(
-    const ColumnDescriptor* schema,
-    const std::string& encoded_min, const std::string& encoded_max, int64_t num_values,
-    int64_t null_count, int64_t distinct_count, MemoryAllocator* allocator)
-    : allocator_(allocator), min_buffer_(0, allocator_), max_buffer_(0, allocator_) {
-  IncrementNumValues(num_values);
-  IncrementNullCount(null_count);
-  IncrementDistinctCount(distinct_count);
-
-  SetDescr(schema);
-
-  min_.len = encoded_min.size();
-  min_.ptr = reinterpret_cast<const uint8_t*>(encoded_min.c_str());
-  max_.len = encoded_max.size();
-  max_.ptr = reinterpret_cast<const uint8_t*>(encoded_max.c_str());
-
-  has_min_max_ = !encoded_min.empty() && !encoded_max.empty();
+  has_min_max_ = !encoded_min.empty() || !encoded_max.empty();
 }
 
 template <typename DType>
@@ -178,6 +158,19 @@ void TypedRowGroupStatistics<DType>::PlainDecode(const std::string& src, T* dst)
   PlainDecoder<DType> decoder(descr());
   decoder.SetData(1, reinterpret_cast<const uint8_t*>(src.c_str()), src.size());
   decoder.Decode(dst, 1);
+}
+
+template <>
+void TypedRowGroupStatistics<ByteArrayType>::PlainEncode(
+   const T& src, std::string* dst) {
+  dst->assign(reinterpret_cast<const char*>(src.ptr), src.len);
+}
+
+template <>
+void TypedRowGroupStatistics<ByteArrayType>::PlainDecode(
+   const std::string& src, T* dst) {
+  dst->len = src.size();
+  dst->ptr = reinterpret_cast<const uint8_t*>(src.c_str());
 }
 
 template class TypedRowGroupStatistics<BooleanType>;
