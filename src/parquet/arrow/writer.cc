@@ -260,9 +260,8 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
   DCHECK((offset + length) <= data->length());
   RETURN_NOT_OK(data_buffer_.Resize(length * sizeof(ByteArray)));
   auto buffer_ptr = reinterpret_cast<ByteArray*>(data_buffer_.mutable_data());
-  auto values = std::dynamic_pointer_cast<PrimitiveArray>(data->values());
-  auto data_ptr = reinterpret_cast<const uint8_t*>(values->data()->data());
-  DCHECK(values != nullptr);
+  auto data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
+  DCHECK(data_ptr != nullptr);
   auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
   if (writer->descr()->max_definition_level() > 0) {
     RETURN_NOT_OK(def_levels_buffer_.Resize(length * sizeof(int16_t)));
