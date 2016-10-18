@@ -75,15 +75,6 @@ fi
 
 STANDARD_DARWIN_FLAGS="-std=c++11 -stdlib=libc++"
 
-# build arrow
-if [ -n "$F_ALL" -o -n "$F_ARROW" ]; then
-    cd $TP_DIR/$ARROW_BASEDIR/cpp
-    source ./setup_build_env.sh
-    cmake . -DARROW_PARQUET=OFF -DARROW_HDFS=ON -DCMAKE_INSTALL_PREFIX=$PREFIX
-    make -j$PARALLEL install
-    # :
-fi
-
 # build googletest
 GOOGLETEST_ERROR="failed for googletest!"
 if [ -n "$F_ALL" -o -n "$F_GTEST" ]; then
@@ -140,6 +131,17 @@ if [ -n "$F_ALL" -o -n "$F_THRIFT" ]; then
 	make clean
     make install
   fi
+fi
+
+# build arrow
+if [ -n "$F_ALL" -o -n "$F_ARROW" ]; then
+    cd $TP_DIR/$ARROW_BASEDIR/cpp
+    cmake -DARROW_BUILD_TESTS=off \
+          -DARROW_HDFS=ON \
+          -DCMAKE_INSTALL_PREFIX=$PREFIX \
+          .
+    make -j$PARALLEL install
+    # :
 fi
 
 echo "---------------------"
