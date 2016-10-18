@@ -38,22 +38,6 @@ matrix:
     before_install:
     - mkdir $TRAVIS_BUILD_DIR/parquet-build
     - pushd $TRAVIS_BUILD_DIR/parquet-build
-  - compiler: gcc
-    env: PARQUET_TEST_GROUP=packaging
-    os: linux
-    before_script:
-    - export CC="gcc-4.9"
-    - export CXX="g++-4.9"
-    script:
-    - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
-  - os: osx
-    env: PARQUET_TEST_GROUP=packaging
-    compiler: clang
-    addons:
-    before_script:
-    before_install:
-    script:
-    - $TRAVIS_BUILD_DIR/ci/travis_conda_build.sh
 
 language: cpp
 
