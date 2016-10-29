@@ -142,7 +142,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
 
   TypedRowGroupStatistics(const ColumnDescriptor* schema, const std::string& encoded_min,
       const std::string& encoded_max, int64_t num_values, int64_t null_count,
-      int64_t distinct_count, MemoryAllocator* allocator = default_allocator());
+      int64_t distinct_count, bool has_min_max, MemoryAllocator* allocator = default_allocator());
 
   bool HasMinMax() const override;
   void Reset() override;

@@ -54,7 +54,7 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(const typename DType::c_
 template <typename DType>
 TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(const ColumnDescriptor* schema,
     const std::string& encoded_min, const std::string& encoded_max, int64_t num_values,
-    int64_t null_count, int64_t distinct_count, MemoryAllocator* allocator)
+    int64_t null_count, int64_t distinct_count, bool has_min_max, MemoryAllocator* allocator)
     : allocator_(allocator), min_buffer_(0, allocator_), max_buffer_(0, allocator_) {
   IncrementNumValues(num_values);
   IncrementNullCount(null_count);
@@ -64,7 +64,7 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(const ColumnDescriptor* 
 
   if (!encoded_min.empty()) { PlainDecode(encoded_min, &min_); }
   if (!encoded_max.empty()) { PlainDecode(encoded_max, &max_); }
-  has_min_max_ = !encoded_min.empty() || !encoded_max.empty();
+  has_min_max_ = has_min_max;
 }
 
 template <typename DType>
