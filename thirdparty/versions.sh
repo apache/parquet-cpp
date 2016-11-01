@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ARROW_VERSION="676c32ccea6274c75b2750453c1ddbc5f645c037"
+ARROW_VERSION="d946e7917d55cb220becd6469ae93430f2e60764"
 ARROW_URL="https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
 ARROW_BASEDIR="arrow-${ARROW_VERSION}"
 
