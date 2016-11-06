@@ -181,59 +181,74 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
   explicit PlainEncoder(
       const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
       : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator),
-        values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {}
+        bits_available_(IN_MEMORY_DEFAULT_CAPACITY),
+        bits_buffer_(new OwnedMutableBuffer(IN_MEMORY_DEFAULT_CAPACITY / 8, allocator)),
+        values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {
+    bit_writer_.reset(new BitWriter(bits_buffer_->mutable_data(), bits_buffer_->size()));
+  }
 
   int64_t EstimatedDataEncodedSize() override { return values_sink_->Tell(); }
 
   std::shared_ptr<Buffer> FlushValues() override {
+    if (bits_available_ > 0) {
+      bit_writer_->Flush();
+      values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written());
+    }
+
     std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
     values_sink_.reset(
         new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, this->allocator_));
     return buffer;
   }
 
-  void Put(const bool* src, int num_values) override {
-    Encode(src, num_values, values_sink_.get());
+#define PLAINDECODER_BOOLEAN_PUT(input_type, function_attributes)                 \
+  void Put(input_type src, int num_values) function_attributes {                  \
+    int bit_offset = 0;                                                           \
+    if (bits_available_ > 0) {                                                    \
+      int bits_to_write = std::min(bits_available_, num_values);                  \
+      for (int i = 0; i < bits_to_write; i++) {                                   \
+        bit_writer_->PutValue(src[i], 1);                                         \
+      }                                                                           \
+      bits_available_ -= bits_to_write;                                           \
+      bit_offset = bits_to_write;                                                 \
+                                                                                  \
+      if (bits_available_ == 0) {                                                 \
+        bit_writer_->Flush();                                                     \
+        values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()); \
+      }                                                                           \
+    }                                                                             \
+                                                                                  \
+    if (bit_offset < num_values) {                                                \
+      int bits_to_write = num_values - bit_offset;                                \
+      int bytes_required = BitUtil::Ceil(bits_to_write, 8);                       \
+      if (bytes_required > bits_buffer_->size()) {                                \
+        bits_buffer_->Resize(bytes_required);                                     \
+      }                                                                           \
+      bits_available_ = bits_buffer_->size() * 8;                                 \
+      bit_writer_.reset(                                                          \
+          new BitWriter(bits_buffer_->mutable_data(), bits_buffer_->size()));     \
+                                                                                  \
+      /* As we have allocated a large enough buffer, we can write                 \
+         all values directly. */                                                  \
+      for (int i = bit_offset; i < num_values; i++) {                             \
+        bit_writer_->PutValue(src[i], 1);                                         \
+      }                                                                           \
+      bits_available_ -= bits_to_write;                                           \
+                                                                                  \
+      if (bits_available_ == 0) {                                                 \
+        bit_writer_->Flush();                                                     \
+        values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()); \
+      }                                                                           \
+    }                                                                             \
   }
 
-  void Put(const std::vector<bool>& src, int num_values) {
-    Encode(src, num_values, values_sink_.get());
-  }
-
-  void Encode(const bool* src, int num_values, OutputStream* dst) {
-    int bytes_required = BitUtil::Ceil(num_values, 8);
-    OwnedMutableBuffer tmp_buffer(bytes_required, allocator_);
-
-    BitWriter bit_writer(&tmp_buffer[0], bytes_required);
-    for (int i = 0; i < num_values; ++i) {
-      bit_writer.PutValue(src[i], 1);
-    }
-    bit_writer.Flush();
-
-    // Write the result to the output stream
-    dst->Write(bit_writer.buffer(), bit_writer.bytes_written());
-  }
-
-  void Encode(const std::vector<bool>& src, int num_values, OutputStream* dst) {
-    int bytes_required = BitUtil::Ceil(num_values, 8);
-
-    // TODO(wesm)
-    // Use a temporary buffer for now and copy, because the BitWriter is not
-    // aware of OutputStream. Later we can add some kind of Request/Flush API
-    // to OutputStream
-    OwnedMutableBuffer tmp_buffer(bytes_required, allocator_);
-
-    BitWriter bit_writer(&tmp_buffer[0], bytes_required);
-    for (int i = 0; i < num_values; ++i) {
-      bit_writer.PutValue(src[i], 1);
-    }
-    bit_writer.Flush();
-
-    // Write the result to the output stream
-    dst->Write(bit_writer.buffer(), bit_writer.bytes_written());
-  }
+  PLAINDECODER_BOOLEAN_PUT(const bool*, override)
+  PLAINDECODER_BOOLEAN_PUT(const std::vector<bool>&, )
 
  protected:
+  int bits_available_;
+  std::unique_ptr<BitWriter> bit_writer_;
+  std::unique_ptr<OwnedMutableBuffer> bits_buffer_;
   std::shared_ptr<InMemoryOutputStream> values_sink_;
 };
 

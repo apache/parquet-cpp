@@ -421,5 +421,22 @@ TEST_F(TestNullValuesWriter, OptionalNullValueChunk) {
   ASSERT_EQ(0, this->values_read_);
 }
 
+// PARQUET-764
+// Correct bitpacking for boolean write at non-byte boundaries
+using TestBooleanValuesWriter = TestPrimitiveWriter<BooleanType>;
+TEST_F(TestBooleanValuesWriter, AlternateBooleanValues) {
+  this->SetUpSchema(Repetition::REQUIRED);
+  auto writer = this->BuildWriter();
+  for (int i = 0; i < SMALL_SIZE; i++) {
+    bool value = (i % 2 == 0) ? true : false;
+    writer->WriteBatch(1, nullptr, nullptr, &value);
+  }
+  writer->Close();
+  this->ReadColumn();
+  for (int i = 0; i < SMALL_SIZE; i++) {
+    ASSERT_EQ((i % 2 == 0) ? true : false, this->values_out_[i]) << i;
+  }
+}
+
 }  // namespace test
 }  // namespace parquet
