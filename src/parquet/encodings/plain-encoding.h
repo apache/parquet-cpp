@@ -181,18 +181,23 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
   explicit PlainEncoder(
       const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
       : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator),
-        bits_available_(IN_MEMORY_DEFAULT_CAPACITY),
-        bits_buffer_(new OwnedMutableBuffer(IN_MEMORY_DEFAULT_CAPACITY / 8, allocator)),
+        bits_available_(IN_MEMORY_DEFAULT_CAPACITY * 8),
+        bits_buffer_(IN_MEMORY_DEFAULT_CAPACITY, allocator),
         values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {
-    bit_writer_.reset(new BitWriter(bits_buffer_->mutable_data(), bits_buffer_->size()));
+    bit_writer_.reset(new BitWriter(bits_buffer_.mutable_data(), bits_buffer_.size()));
   }
 
-  int64_t EstimatedDataEncodedSize() override { return values_sink_->Tell(); }
+  int64_t EstimatedDataEncodedSize() override {
+    return values_sink_->Tell() + bit_writer_->bytes_written();
+  }
 
   std::shared_ptr<Buffer> FlushValues() override {
     if (bits_available_ > 0) {
       bit_writer_->Flush();
       values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written());
+      bits_available_ = 0;
+      bit_writer_->Clear();
+      bits_available_ = bits_buffer_.size() * 8;
     }
 
     std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
@@ -215,28 +220,26 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
       if (bits_available_ == 0) {                                                 \
         bit_writer_->Flush();                                                     \
         values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()); \
+        bit_writer_->Clear();                                                     \
       }                                                                           \
     }                                                                             \
                                                                                   \
-    if (bit_offset < num_values) {                                                \
-      int bits_to_write = num_values - bit_offset;                                \
-      int bytes_required = BitUtil::Ceil(bits_to_write, 8);                       \
-      if (bytes_required > bits_buffer_->size()) {                                \
-        bits_buffer_->Resize(bytes_required);                                     \
-      }                                                                           \
-      bits_available_ = bits_buffer_->size() * 8;                                 \
-      bit_writer_.reset(                                                          \
-          new BitWriter(bits_buffer_->mutable_data(), bits_buffer_->size()));     \
+    int bits_remaining = num_values - bit_offset;                                 \
+    while (bit_offset < num_values) {                                             \
+      bits_available_ = bits_buffer_.size() * 8;                                  \
                                                                                   \
-      /* As we have allocated a large enough buffer, we can write all values. */  \
-      for (int i = bit_offset; i < num_values; i++) {                             \
+      int bits_to_write = std::min(bits_available_, bits_remaining);              \
+      for (int i = bit_offset; i < bit_offset + bits_to_write; i++) {             \
         bit_writer_->PutValue(src[i], 1);                                         \
       }                                                                           \
+      bit_offset += bits_to_write;                                                \
       bits_available_ -= bits_to_write;                                           \
+      bits_remaining -= bits_to_write;                                            \
                                                                                   \
       if (bits_available_ == 0) {                                                 \
         bit_writer_->Flush();                                                     \
         values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()); \
+        bit_writer_->Clear();                                                     \
       }                                                                           \
     }                                                                             \
   }
@@ -247,7 +250,7 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
  protected:
   int bits_available_;
   std::unique_ptr<BitWriter> bit_writer_;
-  std::unique_ptr<OwnedMutableBuffer> bits_buffer_;
+  OwnedMutableBuffer bits_buffer_;
   std::shared_ptr<InMemoryOutputStream> values_sink_;
 };
 
