@@ -228,8 +228,7 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
       bit_writer_.reset(                                                          \
           new BitWriter(bits_buffer_->mutable_data(), bits_buffer_->size()));     \
                                                                                   \
-      /* As we have allocated a large enough buffer, we can write                 \
-         all values directly. */                                                  \
+      /* As we have allocated a large enough buffer, we can write all values. */  \
       for (int i = bit_offset; i < num_values; i++) {                             \
         bit_writer_->PutValue(src[i], 1);                                         \
       }                                                                           \
