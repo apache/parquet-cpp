@@ -507,7 +507,6 @@ set(LIBPARQUET_SRCS
   src/parquet/column/levels.cc
   src/parquet/column/reader.cc
   src/parquet/column/writer.cc
-  src/parquet/column/write-all.cc
   src/parquet/column/scanner.cc
   src/parquet/column/scan-all.cc
   src/parquet/column/statistics.cc

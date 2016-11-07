@@ -22,7 +22,6 @@ install(FILES
   properties.h
   reader.h
   scan-all.h
-  write-all.h
   scanner.h
   writer.h
   statistics.h
