@@ -33,7 +33,7 @@
  * Parquet File = "Parquet data" + "Parquet Metadata"
  * "Parquet data" is simply a vector of RowGroups. Each RowGroup is a batch of rows in a columnar layout
  * "Parquet Metadata" contains the "file schema" and attributes of the RowGroups and their Columns
- * "file schema" is a tree where each node is a primitive type (leaf nodes) or a complex (nested) type (internal nodes)
+ * "file schema" is a tree where each node is either a primitive type (leaf nodes) or a complex (nested) type (internal nodes)
  * For specific details, please refer the format here:
  * https://github.com/apache/parquet-format/blob/master/LogicalTypes.md
 **/
@@ -56,17 +56,17 @@ class ParquetWriter {
     fields.push_back(parquet::schema::PrimitiveNode::Make("boolean_field", parquet::Repetition::REQUIRED, parquet::Type::BOOLEAN, parquet::LogicalType::NONE));
     // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED, logical type:TIME_MILLIS
     fields.push_back(parquet::schema::PrimitiveNode::Make("int32_field", parquet::Repetition::REQUIRED, parquet::Type::INT32, parquet::LogicalType::TIME_MILLIS));
-    // Create a primitive node named 'int64_field' with type:INT64, repetition:REQUIRED
-    fields.push_back(parquet::schema::PrimitiveNode::Make("int64_field", parquet::Repetition::REQUIRED, parquet::Type::INT64, parquet::LogicalType::NONE));
+    // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
+    fields.push_back(parquet::schema::PrimitiveNode::Make("int64_field", parquet::Repetition::REPEATED, parquet::Type::INT64, parquet::LogicalType::NONE));
     // Create a primitive node named 'int96_field' with type:INT96, repetition:REQUIRED
     fields.push_back(parquet::schema::PrimitiveNode::Make("int96_field", parquet::Repetition::REQUIRED, parquet::Type::INT96, parquet::LogicalType::NONE));
     // Create a primitive node named 'float_field' with type:FLOAT, repetition:REQUIRED
     fields.push_back(parquet::schema::PrimitiveNode::Make("float_field", parquet::Repetition::REQUIRED, parquet::Type::FLOAT, parquet::LogicalType::NONE));
     // Create a primitive node named 'double_field' with type:DOUBLE, repetition:REQUIRED
     fields.push_back(parquet::schema::PrimitiveNode::Make("double_field", parquet::Repetition::REQUIRED, parquet::Type::DOUBLE, parquet::LogicalType::NONE));
-    // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:REQUIRED, logical type:UTF8
-    fields.push_back(parquet::schema::PrimitiveNode::Make("ba_field", parquet::Repetition::REQUIRED, parquet::Type::BYTE_ARRAY, parquet::LogicalType::UTF8));
-    // Create a primitive node named 'flba_field' with type:FIXED_LEN_BYTE_ARRAY, repetition:REQUIRED, logical type:DECIMAL
+    // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
+    fields.push_back(parquet::schema::PrimitiveNode::Make("ba_field", parquet::Repetition::OPTIONAL, parquet::Type::BYTE_ARRAY, parquet::LogicalType::NONE));
+    // Create a primitive node named 'flba_field' with type:FIXED_LEN_BYTE_ARRAY, repetition:REQUIRED
     fields.push_back(parquet::schema::PrimitiveNode::Make("flba_field", parquet::Repetition::REQUIRED, parquet::Type::FIXED_LEN_BYTE_ARRAY, parquet::LogicalType::NONE, FIXED_LENGTH));
 
     // Create a GroupNode named 'schema' using the primitive nodes defined above
@@ -101,6 +101,9 @@ int main(int argc, char** argv) {
 /**********************************************************************************
                            PARQUET WRITER EXAMPLE
 **********************************************************************************/
+  // parquet::REQUIRED fields do not need definition and repetition level values
+  // parquet::OPTIONAL fields require only definition level values
+  // parquet::REPEATED fields require both definition and repetition level values
   try {
     // Create a ParquetWriter instance
     auto parquet_writer = std::unique_ptr<ParquetWriter>(new ParquetWriter());
@@ -130,16 +133,21 @@ int main(int argc, char** argv) {
     }
     colWriter->Close();
     
-    // Write the Int64 column 
+    // Write the Int64 column. Each row has repeats twice. 
     colWriter = rgWriter->NextColumn();
-    for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
+    for (int i = 0; i < 2 * NUM_ROWS_PER_ROW_GROUP; i++) {
        int64_t value = i * 1000 * 1000;
        value *= 1000 * 1000;
-       WriteAllValues(1, nullptr, nullptr, reinterpret_cast<const uint8_t*>(&value), colWriter);
+       int16_t definition_level = 1;
+       int16_t repetition_level = 0;
+       if ((i % 2) == 0) {
+           repetition_level = 1; // start of a new record
+       }
+       WriteAllValues(1, &definition_level, &repetition_level, reinterpret_cast<const uint8_t*>(&value), colWriter);
     }
     colWriter->Close();
 
-    // Write the INT96 column 
+    // Write the INT96 column. 
     colWriter = rgWriter->NextColumn();
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
        parquet::Int96 value;
@@ -166,7 +174,7 @@ int main(int argc, char** argv) {
     }
     colWriter->Close();
        
-    // Write the ByteArray column 
+    // Write the ByteArray column. Make every alternate values NULL 
     colWriter = rgWriter->NextColumn();
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
        parquet::ByteArray value;
@@ -174,9 +182,15 @@ int main(int argc, char** argv) {
        hello[7] = '0' + i / 100;
        hello[8] = '0' + (i / 10) % 10;
        hello[9] = '0' + i % 10;
-       value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
-       value.len = FIXED_LENGTH;
-       WriteAllValues(1, nullptr, nullptr, reinterpret_cast<const uint8_t*>(&value), colWriter);
+       if ( i % 2 == 0) {
+          int16_t definition_level = 1;
+          value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
+          value.len = FIXED_LENGTH;
+          WriteAllValues(1, &definition_level, nullptr, reinterpret_cast<const uint8_t*>(&value), colWriter);
+       } else {
+          int16_t definition_level = 0;
+          WriteAllValues(1, &definition_level, nullptr, nullptr, colWriter);
+       }
     }
     colWriter->Close();
     
@@ -238,12 +252,13 @@ int main(int argc, char** argv) {
 
         // Get the Column Reader for the boolean column
         column_reader = row_group_reader->Column(0);
+
         // Read all the rows in the column
         i = 0;
         while (column_reader->HasNext()) {
           bool value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, nullptr, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
           // There are no NULL values in the rows written
@@ -261,7 +276,7 @@ int main(int argc, char** argv) {
         while (column_reader->HasNext()) {
           int32_t value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, nullptr, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
           // There are no NULL values in the rows written
@@ -287,6 +302,11 @@ int main(int argc, char** argv) {
           int64_t expected_value = i * 1000 * 1000;
           expected_value *= 1000 * 1000;
           assert(value ==  expected_value);
+          if ((i % 2) == 0) {
+              assert(repetition_level ==  1);
+          } else {
+              assert(repetition_level ==  0);
+          }
           i++;
         }
 
@@ -297,7 +317,7 @@ int main(int argc, char** argv) {
         while (column_reader->HasNext()) {
           parquet::Int96 value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, nullptr, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
           // There are no NULL values in the rows written
@@ -320,7 +340,7 @@ int main(int argc, char** argv) {
         while (column_reader->HasNext()) {
           float value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, nullptr, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
           // There are no NULL values in the rows written
@@ -338,7 +358,7 @@ int main(int argc, char** argv) {
         while (column_reader->HasNext()) {
           double value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, nullptr, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
           // There are no NULL values in the rows written
@@ -356,18 +376,25 @@ int main(int argc, char** argv) {
         while (column_reader->HasNext()) {
           parquet::ByteArray value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, &definition_level, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
-          // There are no NULL values in the rows written
-          assert(values_read == 1);
           // Verify the value written
           char expected_value[FIXED_LENGTH] = "parquet";
           expected_value[7] = '0' + i / 100;
           expected_value[8] = '0' + (i / 10) % 10;
           expected_value[9] = '0' + i % 10;
-          assert(value.len == FIXED_LENGTH);
-          assert(memcmp(value.ptr, &expected_value[0], FIXED_LENGTH) == 0);
+          if (i % 2 == 0) {// only alternate values exist
+            // There are no NULL values in the rows written
+            assert(values_read == 1);
+            assert(value.len == FIXED_LENGTH);
+            assert(memcmp(value.ptr, &expected_value[0], FIXED_LENGTH) == 0);
+            assert(definition_level == 1);
+          } else {
+            // There are NULL values in the rows written
+            assert(values_read == 0);
+            assert(definition_level == 0);
+          }
           i++;
         }
 
@@ -378,7 +405,7 @@ int main(int argc, char** argv) {
         while (column_reader->HasNext()) {
           parquet::FixedLenByteArray value;
           // Read one value at a time. The number of rows read is returned. values_read contains the number of non-null rows
-          rows_read = parquet::ScanAllValues(1, &definition_level, &repetition_level, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
+          rows_read = parquet::ScanAllValues(1, nullptr, nullptr, reinterpret_cast<uint8_t*>(&value), &values_read, column_reader.get());
           // Ensure only one value is read
           assert(rows_read == 1);
           // There are no NULL values in the rows written
