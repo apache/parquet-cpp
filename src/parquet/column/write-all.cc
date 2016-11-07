@@ -19,35 +19,38 @@
 
 namespace parquet {
 
-void WriteAllValues(int64_t batch_size, const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* writer) {
+void WriteAllValues(int64_t batch_size, const int16_t* def_levels,
+    const int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* writer) {
   switch (writer->type()) {
     case parquet::Type::BOOLEAN:
-        WriteAll<parquet::BoolWriter>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::BoolWriter>(batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::INT32:
-        WriteAll<parquet::Int32Writer>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::Int32Writer>(batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::INT64:
-        WriteAll<parquet::Int64Writer>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::Int64Writer>(batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::INT96:
-        WriteAll<parquet::Int96Writer>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::Int96Writer>(batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::FLOAT:
-        WriteAll<parquet::FloatWriter>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::FloatWriter>(batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::DOUBLE:
-        WriteAll<parquet::DoubleWriter>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::DoubleWriter>(batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::BYTE_ARRAY:
-        WriteAll<parquet::ByteArrayWriter>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::ByteArrayWriter>(
+          batch_size, def_levels, rep_levels, values, writer);
+      break;
     case parquet::Type::FIXED_LEN_BYTE_ARRAY:
-        WriteAll<parquet::FixedLenByteArrayWriter>(batch_size, def_levels, rep_levels, values, writer);
-        break;
+      WriteAll<parquet::FixedLenByteArrayWriter>(
+          batch_size, def_levels, rep_levels, values, writer);
+      break;
     default:
-        parquet::ParquetException::NYI("type writer not implemented");
-        break;
+      parquet::ParquetException::NYI("type writer not implemented");
+      break;
   }
 }
 

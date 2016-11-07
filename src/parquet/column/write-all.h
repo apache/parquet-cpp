@@ -23,15 +23,16 @@
 namespace parquet {
 
 template <typename RType>
-void WriteAll(int64_t batch_size, const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* writer) {
+void WriteAll(int64_t batch_size, const int16_t* def_levels, const int16_t* rep_levels,
+    const uint8_t* values, parquet::ColumnWriter* writer) {
   typedef typename RType::T Type;
   auto typed_writer = static_cast<RType*>(writer);
   auto vals = reinterpret_cast<const Type*>(&values[0]);
   typed_writer->WriteBatch(batch_size, def_levels, rep_levels, vals);
 }
 
-void PARQUET_EXPORT WriteAllValues(int64_t batch_size, const int16_t* def_levels, const
-int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* Writer);
+void PARQUET_EXPORT WriteAllValues(int64_t batch_size, const int16_t* def_levels,
+    const int16_t* rep_levels, const uint8_t* values, parquet::ColumnWriter* Writer);
 
 }  // namespace parquet
 

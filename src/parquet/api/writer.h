@@ -19,8 +19,8 @@
 #define PARQUET_API_WRITER_H
 
 // Column reader API
-#include "parquet/column/writer.h"
 #include "parquet/column/write-all.h"
+#include "parquet/column/writer.h"
 #include "parquet/exception.h"
 #include "parquet/file/writer.h"
 
