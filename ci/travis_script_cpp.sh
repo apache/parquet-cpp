@@ -16,6 +16,10 @@ set -e
 
 : ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/parquet-build}
 
+# Check licenses according to Apache policy
+git archive HEAD -o parquet-cpp-src.tar.gz
+./dev/release/run-rat.sh parquet-cpp-src.tar.gz
+
 pushd $CPP_BUILD_DIR
 
 make lint
