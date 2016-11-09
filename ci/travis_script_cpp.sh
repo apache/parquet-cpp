@@ -12,9 +12,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License. See accompanying LICENSE file.
 
-set -e
+set -xe
 
 : ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/parquet-build}
+
+# Check licenses according to Apache policy
+git archive HEAD -o parquet-cpp-src.tar.gz "--remote=file://$TRAVIS_BUILD_DIR"
+$TRAVIS_BUILD_DIR/dev/release/run-rat.sh parquet-cpp-src.tar.gz
 
 pushd $CPP_BUILD_DIR
 
