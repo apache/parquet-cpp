@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License. See accompanying LICENSE file.
 
-set -e
+set -xe
 
 : ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/parquet-build}
 
