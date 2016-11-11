@@ -54,12 +54,12 @@ TEST(TestSchemaPrinter, Examples) {
   NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, fields);
 
   std::string result = Print(schema);
-  std::string expected = R"(repeated group schema {
-  required int32 a
+  std::string expected = R"(message schema {
+  required int32 a;
   optional group bag {
-    repeated group b {
-      optional int64 item1
-      required boolean item2
+    repeated group b (LIST) {
+      optional int64 item1;
+      required boolean item2;
     }
   }
 }
