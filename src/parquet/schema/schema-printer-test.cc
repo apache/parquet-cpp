@@ -51,6 +51,9 @@ TEST(TestSchemaPrinter, Examples) {
   NodePtr bag(GroupNode::Make("bag", Repetition::OPTIONAL, {list}));
   fields.push_back(bag);
 
+  fields.push_back(PrimitiveNode::Make("c", Repetition::REQUIRED, Type::INT32,
+                                       LogicalType::DECIMAL, -1, 3, 2));
+
   NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, fields);
 
   std::string result = Print(schema);
@@ -62,6 +65,7 @@ TEST(TestSchemaPrinter, Examples) {
       required boolean item2;
     }
   }
+  required int32 c (DECIMAL(3,2));
 }
 )";
   ASSERT_EQ(expected, result);
