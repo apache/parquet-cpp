@@ -211,7 +211,7 @@ typedef TypedRowGroupStatistics<DoubleType> DoubleStatistics;
 typedef TypedRowGroupStatistics<ByteArrayType> ByteArrayStatistics;
 typedef TypedRowGroupStatistics<FLBAType> FLBAStatistics;
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
 #endif
@@ -225,7 +225,7 @@ extern template class PARQUET_EXPORT TypedRowGroupStatistics<DoubleType>;
 extern template class PARQUET_EXPORT TypedRowGroupStatistics<ByteArrayType>;
 extern template class PARQUET_EXPORT TypedRowGroupStatistics<FLBAType>;
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 
