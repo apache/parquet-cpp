@@ -19,6 +19,10 @@ ARROW_VERSION="d946e7917d55cb220becd6469ae93430f2e60764"
 ARROW_URL="https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
 ARROW_BASEDIR="arrow-${ARROW_VERSION}"
 
+BROTLI_VERSION="5db62dcc9d386579609540cdf8869e95ad334bbd"
+BROTLI_URL="https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
+BROTLI_BASEDIR="brotli-${BROTLI_VERSION}"
+
 SNAPPY_VERSION=1.1.3
 SNAPPY_URL="https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz"
 SNAPPY_BASEDIR=snappy-$SNAPPY_VERSION

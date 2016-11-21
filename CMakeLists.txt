@@ -294,6 +294,16 @@ include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
 add_library(snappystatic STATIC IMPORTED)
 set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
 
+## Brotli
+find_package(Brotli REQUIRED)
+include_directories(SYSTEM ${BROTLI_INCLUDE_DIR})
+add_library(brotlistatic_enc STATIC IMPORTED)
+set_target_properties(brotlistatic_enc PROPERTIES IMPORTED_LOCATION ${BROTLI_LIBRARY_ENC})
+add_library(brotlistatic_dec STATIC IMPORTED)
+set_target_properties(brotlistatic_dec PROPERTIES IMPORTED_LOCATION ${BROTLI_LIBRARY_DEC})
+add_library(brotlistatic_common STATIC IMPORTED)
+set_target_properties(brotlistatic_common PROPERTIES IMPORTED_LOCATION ${BROTLI_LIBRARY_COMMON})
+
 ## ZLIB
 find_package(ZLIB REQUIRED)
 include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
@@ -512,6 +522,7 @@ set(LIBPARQUET_SRCS
   src/parquet/column/statistics.cc
 
   src/parquet/compression/codec.cc
+  src/parquet/compression/brotli-codec.cc
   src/parquet/compression/snappy-codec.cc
   src/parquet/compression/gzip-codec.cc
 
@@ -539,6 +550,9 @@ set(LIBPARQUET_LINK_LIBS
 
 set(LIBPARQUET_PRIVATE_LINK_LIBS
   parquet_thrift
+  brotlistatic_dec
+  brotlistatic_enc
+  brotlistatic_common
   snappystatic
   thriftstatic
   zlibstatic
