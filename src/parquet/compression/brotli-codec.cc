@@ -27,7 +27,7 @@ namespace parquet {
 
 void BrotliCodec::Decompress(
     int64_t input_len, const uint8_t* input, int64_t output_len, uint8_t* output_buffer) {
-  size_t output_size;
+  size_t output_size = output_len;
   if (BrotliDecoderDecompress(input_len, input, &output_size, output_buffer) !=
       BROTLI_DECODER_RESULT_SUCCESS) {
     throw parquet::ParquetException("Corrupt brotli compressed data.");
@@ -40,7 +40,7 @@ int64_t BrotliCodec::MaxCompressedLen(int64_t input_len, const uint8_t* input) {
 
 int64_t BrotliCodec::Compress(int64_t input_len, const uint8_t* input,
     int64_t output_buffer_len, uint8_t* output_buffer) {
-  size_t output_len;
+  size_t output_len = output_buffer_len;
   // TODO: Make quality configurable. We use 8 as a default as it is the best
   //       trade-off for Parquet workload
   if (BrotliEncoderCompress(8, BROTLI_DEFAULT_WINDOW, BROTLI_DEFAULT_MODE, input_len,
