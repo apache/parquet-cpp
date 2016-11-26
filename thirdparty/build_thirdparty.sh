@@ -33,6 +33,7 @@ else
   for arg in "$@"; do
     case $arg in
       "arrow")      F_ARROW=1 ;;
+      "brotli")     F_BROTLI=1 ;;
       "zlib")       F_ZLIB=1 ;;
       "gbenchmark") F_GBENCHMARK=1 ;;
       "gtest")      F_GTEST=1 ;;
@@ -140,6 +141,14 @@ if [ -n "$F_ALL" -o -n "$F_ARROW" ]; then
           -DARROW_HDFS=ON \
           -DCMAKE_INSTALL_PREFIX=$PREFIX \
           .
+    make -j$PARALLEL install
+    # :
+fi
+
+# build brotli
+if [ -n "$F_ALL" -o -n "$F_BROTLI" ]; then
+    cd $TP_DIR/$BROTLI_BASEDIR
+    cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DBUILD_SHARED_LIBS=OFF .
     make -j$PARALLEL install
     # :
 fi

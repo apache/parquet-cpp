@@ -42,6 +42,11 @@ if [ ! -d ${ARROW_BASEDIR} ]; then
   download_extract_and_cleanup $ARROW_URL
 fi
 
+if [ ! -d ${BROTLI_BASEDIR} ]; then
+  echo "Fetching brotli"
+  download_extract_and_cleanup $BROTLI_URL
+fi
+
 if [ ! -d ${SNAPPY_BASEDIR} ]; then
   echo "Fetching snappy"
   download_extract_and_cleanup $SNAPPY_URL
