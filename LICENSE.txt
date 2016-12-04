@@ -233,3 +233,14 @@ Home page: https://kudu.apache.org/
 License: http://www.apache.org/licenses/LICENSE-2.0
 
 --------------------------------------------------------------------------------
+
+This product includes code from Apache Impala (incubating), formerly
+Impala. The Impala code and rights were donated to the ASF as part of the
+Incubator process after the initial code imports into Apache Parquet.
+
+Copyright: 2012 Cloudera, Inc.
+Copyright: 2016 The Apache Software Foundation.
+Home page: http://impala.apache.org/
+License: http://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
