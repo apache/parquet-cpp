@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+# Downloads a release candidate and verifies that it passes binary
+# verification (signature and checksums) and test suites.
+#
+set -ex
+
+HERE=$(cd `dirname "${BASH_SOURCE[0]:-$0}"` && pwd)
+
+parquet_svn_dev_dist_url='https://dist.apache.org/repos/dist/dev/parquet'
+
+download_dist_file() {
+  curl -f -O ${parquet_svn_dev_dist_url}/$1
+}
+
+download_rc_file() {
+  download_dist_file ${verify_version}/$1
+}
+
+import_gpg_keys() {
+  download_dist_file KEYS
+  gpg --import KEYS
+}
+
+fetch_archive() {
+  local dist_name=$1
+  download_rc_file ${dist_name}.tar.gz
+  download_rc_file ${dist_name}.tar.gz.asc
+  download_rc_file ${dist_name}.tar.gz.md5
+  download_rc_file ${dist_name}.tar.gz.sha
+  gpg --verify ${dist_name}.tar.gz.asc ${dist_name}.tar.gz
+  gpg --print-md MD5 ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.md5
+  shasum ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.sha
+}
+
+run_tests() {
+  # Build
+  source ./setup_build_env.sh
+  mkdir -p build
+  cd build
+  cmake -DPARQUET_ARROW=ON ..
+  make -j5
+
+  # Test
+  export PARQUET_TEST_DATA=$(dirname $(pwd))/data
+  make unittest
+}
+
+setup_tempdir() {
+  cleanup() {
+    rm -fr "$TMPDIR"
+  }
+  trap cleanup EXIT
+  TMPDIR=$(mktemp -d -t "$1.XXXXX")
+}
+
+case $# in
+  1) verify_version="$1"
+     ;;
+
+  *) echo "Usage: $0 RC_VERSION"
+     exit 1
+     ;;
+esac
+
+setup_tempdir "parquet-cpp-$verify_version"
+echo "Working in sandbox $TMPDIR"
+cd $TMPDIR
+
+import_gpg_keys
+
+dist_name="apache-parquet-cpp-${verify_version}"
+fetch_archive $dist_name
+tar xvzf ${dist_name}.tar.gz
+cd ${dist_name}
+run_tests
+
+echo 'Release candidate looks good!'
+exit 0
