@@ -240,11 +240,16 @@ Status NodeToList(const GroupNode* group, TypePtr* out) {
 
 Status NodeToField(const NodePtr& node, std::shared_ptr<Field>* out) {
   std::shared_ptr<::arrow::DataType> type;
+  bool nullable = !node->is_required();
 
   if (node->is_repeated()) {
-    return Status::NotImplemented(
-        "No support yet for repeated node types that aren't annotated properly with "
-        "LIST");
+    // 1-level LIST encoding fields are required
+    std::shared_ptr<::arrow::DataType> inner_type;
+    const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
+    RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
+    auto item_field = std::make_shared<Field>(node->name(), inner_type, false);
+    type = std::make_shared<::arrow::ListType>(item_field);
+    nullable = false;
   } else if (node->is_group()) {
     const GroupNode* group = static_cast<const GroupNode*>(node.get());
     if (node->logical_type() == LogicalType::LIST) {
@@ -258,7 +263,7 @@ Status NodeToField(const NodePtr& node, std::shared_ptr<Field>* out) {
     RETURN_NOT_OK(FromPrimitive(primitive, &type));
   }
 
-  *out = std::make_shared<Field>(node->name(), type, !node->is_required());
+  *out = std::make_shared<Field>(node->name(), type, nullable);
   return Status::OK();
 }
 
@@ -279,8 +284,7 @@ Status FromParquetSchema(
 
 Status ListToNode(const std::shared_ptr<::arrow::ListType>& type, const std::string& name,
     bool nullable, const WriterProperties& properties, NodePtr* out) {
-  Repetition::type repetition = Repetition::REQUIRED;
-  if (nullable) { repetition = Repetition::OPTIONAL; }
+  Repetition::type repetition = nullable ? Repetition::OPTIONAL : Repetition::REQUIRED;
 
   NodePtr element;
   RETURN_NOT_OK(FieldToNode(type->value_field(), properties, &element));
@@ -293,8 +297,7 @@ Status ListToNode(const std::shared_ptr<::arrow::ListType>& type, const std::str
 Status StructToNode(const std::shared_ptr<::arrow::StructType>& type,
     const std::string& name, bool nullable, const WriterProperties& properties,
     NodePtr* out) {
-  Repetition::type repetition = Repetition::REQUIRED;
-  if (nullable) { repetition = Repetition::OPTIONAL; }
+  Repetition::type repetition = nullable ? Repetition::OPTIONAL : Repetition::REQUIRED;
 
   std::vector<NodePtr> children(type->num_children());
   for (int i = 0; i < type->num_children(); i++) {
@@ -309,8 +312,8 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
     const WriterProperties& properties, NodePtr* out) {
   LogicalType::type logical_type = LogicalType::NONE;
   ParquetType::type type;
-  Repetition::type repetition = Repetition::REQUIRED;
-  if (field->nullable) { repetition = Repetition::OPTIONAL; }
+  Repetition::type repetition =
+      field->nullable ? Repetition::OPTIONAL : Repetition::REQUIRED;
   int length = -1;
 
   switch (field->type->type) {

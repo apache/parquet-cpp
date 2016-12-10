@@ -323,6 +323,16 @@ TEST_F(TestConvertParquetSchema, ParquetLists) {
     arrow_fields.push_back(std::make_shared<Field>("my_list", arrow_list, true));
   }
 
+  // One-level encoding: Only allows required lists with required cells
+  //   repeated value_type name
+  {
+    parquet_fields.push_back(
+        PrimitiveNode::Make("name", Repetition::REPEATED, ParquetType::INT32));
+    auto arrow_element = std::make_shared<Field>("name", INT32, false);
+    auto arrow_list = std::make_shared<::arrow::ListType>(arrow_element);
+    arrow_fields.push_back(std::make_shared<Field>("name", arrow_list, false));
+  }
+
   auto arrow_schema = std::make_shared<::arrow::Schema>(arrow_fields);
   ASSERT_OK(ConvertSchema(parquet_fields));
 
@@ -334,9 +344,6 @@ TEST_F(TestConvertParquetSchema, UnsupportedThings) {
 
   unsupported_nodes.push_back(
       PrimitiveNode::Make("int96", Repetition::REQUIRED, ParquetType::INT96));
-
-  unsupported_nodes.push_back(
-      GroupNode::Make("repeated-group", Repetition::REPEATED, {}));
 
   unsupported_nodes.push_back(PrimitiveNode::Make(
       "int32", Repetition::OPTIONAL, ParquetType::INT32, LogicalType::DATE));
