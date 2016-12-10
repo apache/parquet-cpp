@@ -1,0 +1,308 @@
+#!/bin/bash
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+# This script is used to create a release candidate. It will update the current
+# .parquetcppversion as well as creates a tag for the new release candidate and
+# publishes the source distribution and signatures to be voted on.
+#
+#   master~1 (0.5.0-snapshot) ----- master (0.6.0-snapshot)
+#                             \---- 0.5.0 (0.5.0)
+#
+# A email template will be generated after successfully generating a release
+# candidate which will need to be sent to the dev@ and private@ mailing lists.
+#
+set -o errexit
+set -o nounset
+
+rc_number=0
+override_version=''
+parquetcpp_git_web_url='https://git-wip-us.apache.org/repos/asf?p=parquet-cpp.git'
+parquet_svn_dist_url='https://dist.apache.org/repos/dist/dev/parquet'
+
+function print_help_and_exit {
+cat <<EOF
+Apache Parquet C++ release candidate tool.
+
+Usage: $0 [-h] [-l p|m|M] [-r #] [-p | publish]
+
+  -h  Print this help message and exit
+  -l  Increment level, must be one of:
+        p, patch (default)
+        m, minor
+        M, major
+  -v  Override the existing version in .parquetcppversion
+  -r  Release candidate number (default: 0)
+  -p  Publish the release candidate (default: dry-run, does not publish anything)
+EOF
+exit 0
+}
+
+publish=0
+increment_level="patch"
+rc_number=0
+while getopts ":hl:v:r:p" opt; do
+  case $opt in
+    l)
+      case ${OPTARG} in
+        'p' | 'patch') increment_level='patch' ;;
+        'm' | 'minor') increment_level='minor' ;;
+        'M' | 'major') increment_level='major' ;;
+         *) echo 'Unknown increment level'; exit 1 ;;
+      esac
+      ;;
+    r)
+      rc_number=${OPTARG}
+      ;;
+    p)
+      publish=1
+      ;;
+    h)
+      print_help_and_exit
+      ;;
+    v)
+      override_version=${OPTARG}
+      ;;
+    *  )
+      echo "Unknown option: -$OPTARG"
+      print_help_and_exit
+      ;;
+  esac
+done
+
+shift $(($OPTIND - 1))
+if [[ "${1:-dry-run}" == "publish" ]]; then
+  publish=1
+fi
+
+# Update local repository
+git fetch --all -q
+git fetch --tags -q
+
+# Verify that this is a clean repository
+if [[ -n "`git status --porcelain`" ]]; then
+  echo "ERROR: Please run from a clean git repository."
+  exit 1
+elif [[ "`git rev-parse --abbrev-ref HEAD`" != "master" ]]; then
+  echo "ERROR: This script must be run from master."
+  exit 1
+fi
+
+if [[ ! -f .parquetcppversion ]]; then
+  echo "Warrning: This script must be run from the root of the repository"
+  exit 1
+fi
+
+# Calculate the new version string
+current_version=$(cat .parquetcppversion | tr '[a-z]' '[A-Z]')
+if ! [[ $current_version =~ .*-SNAPSHOT ]]; then
+  echo "ERROR: .parquetcppversion is required to contain 'SNAPSHOT', it is ${current_version}"
+  exit 1
+else
+  if [[ $override_version != "" ]]; then
+    current_version=$override_version
+  fi
+
+  major=`echo $current_version | cut -d. -f1`
+  minor=`echo $current_version | cut -d. -f2`
+  patch=`echo $current_version | cut -d. -f3 | cut -d- -f1`
+
+  current_version="${major}.${minor}.${patch}"
+
+  if [[ $increment_level == "patch" ]]; then
+    new_master_version="${major}.${minor}.$((patch + 1))"
+  elif [[ $increment_level == "minor" ]]; then
+    new_master_version="${major}.$((minor + 1)).0"
+  elif [[ $increment_level == "major" ]]; then
+    new_master_version="$((major + 1)).0.0"
+  else
+    echo "Unknown release increment ${increment_level}"
+    exit 1
+  fi
+
+  new_snapshot_version="${new_master_version}-SNAPSHOT"
+fi
+
+# Add the rc tag to the current version
+rc_version="${current_version}-rc${rc_number}"
+rc_version_tag="rel/${rc_version}"
+
+echo
+echo "Generating release candidate ${rc_version}"
+echo
+
+# Make sure the tag does not exist
+if git rev-parse ${rc_version_tag} >/dev/null 2>&1; then
+  echo "ERROR: tag ${rc_version_tag} exists."
+  exit 1
+fi
+
+# Reset instructions
+current_git_rev=$(git rev-parse HEAD)
+function print_reset_instructions {
+cat <<EOF
+To roll back your local repo you will need to run:
+
+  git checkout master
+  git reset --hard ${current_git_rev}
+  git tag -D ${rc_version_tag}
+EOF
+}
+
+# If anything goes wrong from here then print roll back instructions before exiting.
+function print_rollback_instructions {
+  echo "ERROR: Looks like something has failed while creating the release candidate."
+  print_reset_instructions
+}
+trap print_rollback_instructions EXIT
+
+# All check are now complete, before we start alert if we are in dry-run
+if [[ $publish == 0 ]]; then
+  echo "Performing dry-run, run with '-p' when you are ready to run and publish a release candidate"
+fi
+
+# This should be a clean repo we are working against. Run clean just to ensure it is.
+git clean -fdxq
+
+echo "Generating changelog"
+./dev/release/changelog $current_version
+git add CHANGELOG
+git commit -m "Updating CHANGELOG for ${current_version} release."
+
+echo "Committing updated .parquetcppversion on master"
+echo $new_snapshot_version > .parquetcppversion
+git add .parquetcppversion
+git commit -m "Incrementing snapshot version to ${new_snapshot_version}."
+
+echo "Creating ${rc_version} staging branch"
+git checkout -b "stage_${rc_version_tag}"
+
+echo "Updating .parquetcppversion on staging branch"
+# Increment the version and create a branch
+echo ${rc_version} > .parquetcppversion
+git add .parquetcppversion
+git commit -m "Updating .parquetcppversion to ${rc_version}."
+
+# Build the source distribution from the new branch
+echo "Building the source distribution"
+dist_dir=dist
+dist_name="apache-parquet-cpp-${rc_version}"
+
+mkdir -p ${dist_dir}
+git archive --prefix=${dist_name}/ -o ${dist_dir}/${dist_name}.tar.gz HEAD
+pushd ${dist_dir}
+  # Sign the tarball.
+  echo "Signing the distribution"
+  gpg --armor --output ${dist_name}.tar.gz.asc --detach-sig ${dist_name}.tar.gz
+
+  # Create the checksums
+  echo "Creating checksums"
+  gpg --print-md MD5 ${dist_name}.tar.gz > ${dist_name}.tar.gz.md5
+  shasum ${dist_name}.tar.gz > ${dist_name}.tar.gz.sha
+popd
+
+parquet_svn_rc_url="${parquet_svn_dist_url}/${rc_version}"
+
+# Publish release candidate to svn and commit and push the new git tag
+if [[ $publish == 1 ]]; then
+  echo "Publishing release candidate to ${parquet_svn_rc_url}"
+  svn mkdir ${parquet_svn_rc_url} -m "parquet-cpp-${current_version} release candidate ${rc_version_tag}"
+  svn co --depth=empty ${parquet_svn_rc_url} ${dist_dir}
+  pushd ${dist_dir}
+  svn add ${dist_name}*
+  svn ci -m "parquet-cpp-${current_version} release candidate ${rc_version_tag}"
+  popd
+
+  echo "Creating tag ${rc_version_tag}"
+  git tag -s ${rc_version_tag} \
+    -m "Apache Parquet C++ ${current_version} release candidate ${rc_version_tag}"
+  git push origin "${rc_version_tag}"
+
+  echo "Pushing updated .parquetcppversion to master"
+  git checkout master
+  git push origin master
+fi
+
+echo "Done creating the release candidate. The following draft email has been created"
+echo "to send to the dev@parquet.apache.org mailing list"
+echo
+
+# Create the email template for the release candidate to be sent to the mailing lists.
+if [[ $(uname) == Darwin ]]; then
+  vote_end=$(date -v+3d)
+else
+  vote_end=$(date -d+3days)
+fi
+
+MESSAGE=$(cat <<__EOF__
+To: dev@parquet.apache.org
+Subject: [VOTE] Release Apache Parquet C++ ${current_version} RC${rc_number}
+
+All,
+
+I propose that we accept the following release candidate as the official
+Apache Parquet C++ ${current_version} release.
+
+Parquet C++ ${rc_version} includes the following:
+---
+The RELEASE NOTES for the release are available at:
+${parquetcpp_git_web_url}&f=RELEASE-NOTES.md&hb=${rc_version_tag}
+
+The CHANGELOG for the release is available at:
+${parquetcpp_git_web_url}&f=CHANGELOG&hb=${rc_version_tag}
+
+The tag used to create the release candidate is:
+${parquetcpp_git_web_url};a=shortlog;h=refs/tags/${rc_version_tag}
+
+The release candidate is available at:
+${parquet_svn_rc_url}/${dist_name}.tar.gz
+
+The MD5 checksum of the release candidate can be found at:
+${parquet_svn_rc_url}/${dist_name}.tar.gz.md5
+
+The signature of the release candidate can be found at:
+${parquet_svn_rc_url}/${dist_name}.tar.gz.asc
+
+The GPG key used to sign the release are available at:
+${parquet_svn_dist_url}/KEYS
+
+Please download, verify, and test.
+
+The vote will close on ${vote_end}
+
+[ ] +1 Release this as Apache Parquet C++ ${current_version}
+[ ] +0
+[ ] -1 Do not release this as Apache Parquet C++ ${current_version} because...
+
+__EOF__
+)
+
+echo "--------------------------------------------------------------------------------"
+echo
+echo "${MESSAGE}"
+echo
+echo "--------------------------------------------------------------------------------"
+echo
+
+# Print reset instructions if this was a dry-run
+if [[ $publish == 0 ]]; then
+  echo
+  echo "This was a dry run, nothing has been published."
+  echo
+  print_reset_instructions
+fi
+
+# Unset error message handler and exit
+trap '' EXIT
+exit 0
