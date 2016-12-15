@@ -55,6 +55,9 @@ class PARQUET_EXPORT RandomAccessSource {
   int64_t size_;
 };
 
+// ----------------------------------------------------------------------
+// SAMPLE implementations of RandomAccessSource, for reading files from local disk
+
 class PARQUET_EXPORT LocalFileSource : public RandomAccessSource {
  public:
   explicit LocalFileSource(MemoryAllocator* allocator = default_allocator())

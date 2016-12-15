@@ -79,7 +79,8 @@ class PARQUET_EXPORT ParquetFileReader {
   ParquetFileReader();
   ~ParquetFileReader();
 
-  // API Convenience to open a serialized Parquet file on disk
+  // API Convenience to open a serialized Parquet file on disk, using SAMPLE
+  // implementations of RandomAccessSource
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
       bool memory_map = true, ReaderProperties props = default_reader_properties());
 
