@@ -56,7 +56,8 @@ class PARQUET_EXPORT RandomAccessSource {
 };
 
 // ----------------------------------------------------------------------
-// SAMPLE implementations of RandomAccessSource, for reading files from local disk
+// Implementations of RandomAccessSource used for testing and internal CLI tools.
+// May not be sufficiently robust for general production use.
 
 class PARQUET_EXPORT LocalFileSource : public RandomAccessSource {
  public:
