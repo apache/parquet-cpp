@@ -48,7 +48,7 @@ namespace arrow {
 constexpr int64_t kJulianToUnixEpochDays = 2440588L;
 constexpr int64_t kNanosecondsInADay = 86400L * 1000L * 1000L * 1000L;
 
-static inline impala_timestamp_to_nanoseconds(const Int96& impala_timestamp) {
+static inline int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timestamp) {
   int64_t days_since_epoch = impala_timestamp.value[2] - kJulianToUnixEpochDays;
   int64_t nanoseconds = *(reinterpret_cast<const int64_t*>(&(impala_timestamp.value)));
   return days_since_epoch * kNanosecondsInADay + nanoseconds;
