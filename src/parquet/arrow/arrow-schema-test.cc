@@ -100,8 +100,8 @@ TEST_F(TestConvertParquetSchema, ParquetFlatPrimitives) {
       ParquetType::INT64, LogicalType::TIMESTAMP_MILLIS));
   arrow_fields.push_back(std::make_shared<Field>("timestamp", TIMESTAMP_MS, false));
 
-  parquet_fields.push_back(PrimitiveNode::Make("timestamp96", Repetition::REQUIRED,
-      ParquetType::INT96));
+  parquet_fields.push_back(
+      PrimitiveNode::Make("timestamp96", Repetition::REQUIRED, ParquetType::INT96));
   arrow_fields.push_back(std::make_shared<Field>("timestamp96", TIMESTAMP_NS, false));
 
   parquet_fields.push_back(

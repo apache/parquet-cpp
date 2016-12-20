@@ -45,10 +45,10 @@ using ParquetReader = parquet::ParquetFileReader;
 namespace parquet {
 namespace arrow {
 
-constexpr int64_t kJulianToUnixEpochDays = 2440588l;
-constexpr int64_t kNanosecondsInADay = 86400l * 1000l * 1000l * 1000l;
+constexpr int64_t kJulianToUnixEpochDays = 2440588L;
+constexpr int64_t kNanosecondsInADay = 86400L * 1000L * 1000L * 1000L;
 
-int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timestamp) {
+static inline impala_timestamp_to_nanoseconds(const Int96& impala_timestamp) {
   int64_t days_since_epoch = impala_timestamp.value[2] - kJulianToUnixEpochDays;
   int64_t nanoseconds = *(reinterpret_cast<const int64_t*>(&(impala_timestamp.value)));
   return days_since_epoch * kNanosecondsInADay + nanoseconds;
@@ -285,8 +285,8 @@ void FlatColumnReader::Impl::ReadNullableFlatBatch(const int16_t* def_levels,
 }
 
 template <>
-void FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int96Type>(const int16_t* def_levels,
-    Int96* values, int64_t values_read, int64_t levels_read) {
+void FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int96Type>(
+    const int16_t* def_levels, Int96* values, int64_t values_read, int64_t levels_read) {
   auto data_ptr = reinterpret_cast<int64_t*>(data_buffer_ptr_);
   int values_idx = 0;
   for (int64_t i = 0; i < levels_read; i++) {
@@ -554,7 +554,8 @@ Status FlatColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>*
     TYPED_BATCH_CASE(DOUBLE, ::arrow::DoubleType, DoubleType)
     TYPED_BATCH_CASE(STRING, ::arrow::StringType, ByteArrayType)
     case ::arrow::Type::TIMESTAMP: {
-      ::arrow::TimestampType* timestamp_type = static_cast<::arrow::TimestampType*>(field_->type.get());
+      ::arrow::TimestampType* timestamp_type =
+          static_cast<::arrow::TimestampType*>(field_->type.get());
       switch (timestamp_type->unit) {
         case ::arrow::TimeUnit::MILLI:
           return TypedReadBatch<::arrow::TimestampType, Int64Type>(batch_size, out);
