@@ -43,13 +43,13 @@ if ( _brotli_roots )
     find_path( BROTLI_INCLUDE_DIR NAMES brotli/decode.h
         PATHS ${_brotli_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "include" )
-    find_library( BROTLI_LIBRARY_ENC NAMES brotlienc
+    find_library( BROTLI_LIBRARY_ENC NAMES libbrotlienc.a brotlienc
         PATHS ${_brotli_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
-    find_library( BROTLI_LIBRARY_DEC NAMES brotlidec
+    find_library( BROTLI_LIBRARY_DEC NAMES libbrotlidec.a brotlidec
         PATHS ${_brotli_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
-    find_library( BROTLI_LIBRARY_COMMON NAMES brotlicommon
+    find_library( BROTLI_LIBRARY_COMMON NAMES libbrotlicommon.a brotlicommon
         PATHS ${_brotli_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
 else ()
