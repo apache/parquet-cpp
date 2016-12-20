@@ -148,7 +148,13 @@ fi
 # build brotli
 if [ -n "$F_ALL" -o -n "$F_BROTLI" ]; then
     cd $TP_DIR/$BROTLI_BASEDIR
-    cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DBUILD_SHARED_LIBS=OFF .
+    cmake -DCMAKE_INSTALL_PREFIX=$PREFIX \
+          -DCMAKE_INSTALL_LIBDIR="lib" \
+          -DBUILD_SHARED_LIBS=OFF .
+    make -j$PARALLEL install
+    cmake -DCMAKE_INSTALL_PREFIX=$PREFIX \
+          -DCMAKE_INSTALL_LIBDIR="lib" \
+          -DBUILD_SHARED_LIBS=on .
     make -j$PARALLEL install
     # :
 fi
