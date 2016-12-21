@@ -255,7 +255,7 @@ class TestParquetIO : public ::testing::Test {
   std::shared_ptr<InMemoryOutputStream> sink_;
 };
 
-// We havee separate tests for UInt32Type as this is currently the only type
+// We have separate tests for UInt32Type as this is currently the only type
 // where a roundtrip does not yield the identical Array structure.
 // There we write an UInt32 Array but receive an Int64 Array as result for
 // Parquet version 1.0.
