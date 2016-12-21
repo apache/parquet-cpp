@@ -271,6 +271,7 @@ enable_testing()
 set(GTEST_VERSION "1.7.0")
 set(GBENCHMARK_VERSION "1.0.0")
 set(SNAPPY_VERSION "1.1.3")
+set(THRIFT_VERSION "0.9.1")
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -282,22 +283,61 @@ message(STATUS "Boost include dir: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
 
 # find thrift headers and libs
-find_package(Thrift REQUIRED)
+find_package(Thrift)
+
+if (NOT THRIFT_FOUND)
+  if (APPLE)
+      message(FATAL_ERROR "thrift compilation under OSX is not currently supported.")
+  endif()
+
+  set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
+  set(THRIFT_HOME "${THRIFT_PREFIX}")
+  set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
+  set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
+  set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
+  set(THRIFT_VENDORED 1)
+
+  if (CMAKE_VERSION VERSION_GREATER "3.2")
+    # BUILD_BYPRODUCTS is a 3.2+ feature
+    ExternalProject_Add(thrift_ep
+      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+      BUILD_IN_SOURCE 1
+      # This is needed for 0.9.1 and can be removed for 0.9.3 again
+      BUILD_COMMAND make clean
+      INSTALL_DIR ${THRIFT_PREFIX}
+      URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
+      BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
+      )
+  else()
+    ExternalProject_Add(thrift_ep
+      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+      BUILD_IN_SOURCE 1
+      # This is needed for 0.9.1 and can be removed for 0.9.3 again
+      BUILD_COMMAND make clean
+      INSTALL_DIR ${THRIFT_PREFIX}
+      URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
+      )
+  endif()
+    set(THRIFT_VENDORED 1)
+else()
+    set(THRIFT_VENDORED 0)
+endif()
+
 include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
-set(LIBS ${LIBS} ${THRIFT_LIBS})
 message(STATUS "Thrift include dir: ${THRIFT_INCLUDE_DIR}")
-message(STATUS "Thrift contrib dir: ${THRIFT_CONTRIB_DIR}")
-message(STATUS "Thrift library path: ${THRIFT_LIBS}")
 message(STATUS "Thrift static library: ${THRIFT_STATIC_LIB}")
 message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
-# for static linking with Thrift, THRIFT_STATIC_LIB is set in FindThrift.cmake
 add_library(thriftstatic STATIC IMPORTED)
 set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
+
+if (THRIFT_VENDORED)
+  add_dependencies(thriftstatic thrift_ep)
+endif()
 
 ## Snappy
 find_package(Snappy)
 if (NOT SNAPPY_FOUND)
-  set(SNAPPY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
+  set(SNAPPY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/snappy_ep/src/snappy_ep-install")
   set(SNAPPY_HOME "${SNAPPY_PREFIX}")
   set(SNAPPY_INCLUDE_DIR "${SNAPPY_PREFIX}/include")
   set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/libsnappy.a")
@@ -346,7 +386,7 @@ if (NOT BROTLI_FOUND)
   set(BROTLI_VENDORED 1)
   set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                         -DCMAKE_INSTALL_PREFIX=${BROTLI_PREFIX}
-                        -DCMAKE_INSTALL_LIBDIR=lib
+                        -DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}
                         -DBUILD_SHARED_LIBS=OFF)
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
@@ -391,6 +431,7 @@ if (NOT ZLIB_FOUND)
   set(ZLIB_VENDORED 1)
   set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                       -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
+                      -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS} -fPIC"
                       -DBUILD_SHARED_LIBS=OFF)
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
@@ -812,7 +853,45 @@ add_subdirectory(tools)
 
 # Arrow
 if (PARQUET_ARROW)
-  find_package(Arrow REQUIRED)
+  find_package(Arrow)
+
+  if (NOT ARROW_FOUND)
+    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep/src/arrow_ep-install")
+    set(ARROW_HOME "${ARROW_PREFIX}")
+    set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
+    set(ARROW_SHARED_LIB "${ARROW_PREFIX}/libarrow.${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/libarrow_io.${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(ARROW_STATIC_LIB "${ARROW_PREFIX}/libarrow.a")
+    set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/libarrow_io.a")
+    set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                         -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
+                         -DARROW_BUILD_TESTS=OFF
+                         -DARROW_HDFS=ON)
+
+    if (CMAKE_VERSION VERSION_GREATER "3.2")
+      # BUILD_BYPRODUCTS is a 3.2+ feature
+      ExternalProject_Add(arrow_ep
+        GIT_REPOSITORY https://github.com/apache/arrow.git
+        GIT_TAG 268ffbeffb1cd0617e52d381d500a2d10f61124c
+        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_IO_SHARED_LIB}" "${ARROW_IO_STATIC_LIB}" "${ARROW_STATIC_LIB}"
+        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
+        # to specify that the CMakeLists.txt of Arrow is located in cpp/
+        #
+        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
+        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+    else()
+        ExternalProject_Add(arrow_ep
+        GIT_REPOSITORY https://github.com/apache/arrow.git
+        GIT_TAG 268ffbeffb1cd0617e52d381d500a2d10f61124c
+        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+    endif()
+    set(ARROW_VENDORED 1)
+  else()
+    set(ARROW_VENDORED 0)
+  endif()
+
   include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
   add_library(arrow SHARED IMPORTED)
   set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
@@ -822,6 +901,13 @@ if (PARQUET_ARROW)
   set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
   add_library(arrow_io_static STATIC IMPORTED)
   set_target_properties(arrow_io_static PROPERTIES IMPORTED_LOCATION ${ARROW_IO_STATIC_LIB})
+
+  if (ARROW_VENDORED)
+    add_dependencies(arrow arrow_ep)
+    add_dependencies(arrow_io arrow_ep)
+    add_dependencies(arrow_static arrow_ep)
+    add_dependencies(arrow_io_static arrow_ep)
+  endif()
 
   add_subdirectory(src/parquet/arrow)
 endif()
