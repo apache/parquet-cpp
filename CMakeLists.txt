@@ -421,7 +421,8 @@ if (BROTLI_VENDORED)
 endif()
 
 ## ZLIB
-find_package(ZLIB)
+# For now: Always build zlib so that the shared lib has -fPIC
+# find_package(ZLIB)
 
 if (NOT ZLIB_FOUND)
   set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
@@ -431,7 +432,7 @@ if (NOT ZLIB_FOUND)
   set(ZLIB_VENDORED 1)
   set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                       -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
-                      -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS} -fPIC"
+                      -DCMAKE_C_FLAGS=-fPIC
                       -DBUILD_SHARED_LIBS=OFF)
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
@@ -859,10 +860,10 @@ if (PARQUET_ARROW)
     set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep/src/arrow_ep-install")
     set(ARROW_HOME "${ARROW_PREFIX}")
     set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
-    set(ARROW_SHARED_LIB "${ARROW_PREFIX}/libarrow.${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/libarrow_io.${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(ARROW_STATIC_LIB "${ARROW_PREFIX}/libarrow.a")
-    set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/libarrow_io.a")
+    set(ARROW_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow_io${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(ARROW_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow.a")
+    set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow_io.a")
     set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                          -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
                          -DARROW_BUILD_TESTS=OFF
