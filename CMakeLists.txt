@@ -304,6 +304,7 @@ if (NOT THRIFT_FOUND)
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
+      INSTALL_COMMAND make install
       INSTALL_DIR ${THRIFT_PREFIX}
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
@@ -314,6 +315,7 @@ if (NOT THRIFT_FOUND)
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
+      INSTALL_COMMAND make install
       INSTALL_DIR ${THRIFT_PREFIX}
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       )
