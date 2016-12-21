@@ -29,6 +29,12 @@ add_library(parquet_arrow_objlib OBJECT
   ${PARQUET_ARROW_SRCS}
 )
 
+# Add dependencies so ExternalProjects are built beforehand
+add_dependencies(parquet_arrow_objlib
+    arrow_static
+    arrow_io
+    parquet_static)
+
 # SET_TARGET_PROPERTIES(parquet_arrow PROPERTIES LINKER_LANGUAGE CXX)
 
 if (PARQUET_BUILD_SHARED)
