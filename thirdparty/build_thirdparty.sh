@@ -67,49 +67,7 @@ ln -sf lib "$PREFIX/lib64"
 # use the compiled tools
 export PATH=$PREFIX/bin:$PATH
 
-# build snappy
-if [ -n "$F_ALL" -o -n "$F_SNAPPY" ]; then
-  cd $TP_DIR/$SNAPPY_BASEDIR
-  ./configure --with-pic --prefix=$PREFIX
-  make -j$PARALLEL install
-fi
-
 STANDARD_DARWIN_FLAGS="-std=c++11 -stdlib=libc++"
-
-# build googletest
-GOOGLETEST_ERROR="failed for googletest!"
-if [ -n "$F_ALL" -o -n "$F_GTEST" ]; then
-  cd $TP_DIR/$GTEST_BASEDIR
-
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    CXXFLAGS=-fPIC cmake -DCMAKE_CXX_FLAGS="$STANDARD_DARWIN_FLAGS -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes" || { echo "cmake $GOOGLETEST_ERROR" ; exit  1; }
-  else
-    CXXFLAGS=-fPIC cmake . || { echo "cmake $GOOGLETEST_ERROR"; exit  1; }
-  fi
-
-  make VERBOSE=1 || { echo "Make $GOOGLETEST_ERROR" ; exit  1; }
-fi
-
-# build google benchmark
-GBENCHMARK_ERROR="failed for google benchmark"
-if [ -n "$F_ALL" -o -n "$F_GBENCHMARK" ]; then
-  cd $TP_DIR/$GBENCHMARK_BASEDIR
-
-  CMAKE_CXX_FLAGS="--std=c++11"
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    CMAKE_CXX_FLAGS=$STANDARD_DARWIN_FLAGS
-  fi
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_CXX_FLAGS="-fPIC $CMAKE_CXX_FLAGS" . || { echo "cmake $GBENCHMARK_ERROR" ; exit 1; }
-
-  make VERBOSE=1 install || { echo "make $GBENCHMARK_ERROR" ; exit 1; }
-fi
-
-# build zlib
-if [ -n "$F_ALL" -o -n "$F_ZLIB" ]; then
-  cd $TP_DIR/$ZLIB_BASEDIR
-  CFLAGS=-fPIC cmake -DCMAKE_INSTALL_PREFIX:PATH=$PREFIX $ZLIB_DIR
-  make -j$PARALLEL install
-fi
 
 # build thrift
 if [ -n "$F_ALL" -o -n "$F_THRIFT" ]; then
@@ -141,20 +99,6 @@ if [ -n "$F_ALL" -o -n "$F_ARROW" ]; then
           -DARROW_HDFS=ON \
           -DCMAKE_INSTALL_PREFIX=$PREFIX \
           .
-    make -j$PARALLEL install
-    # :
-fi
-
-# build brotli
-if [ -n "$F_ALL" -o -n "$F_BROTLI" ]; then
-    cd $TP_DIR/$BROTLI_BASEDIR
-    cmake -DCMAKE_INSTALL_PREFIX=$PREFIX \
-          -DCMAKE_INSTALL_LIBDIR="lib" \
-          -DBUILD_SHARED_LIBS=OFF .
-    make -j$PARALLEL install
-    cmake -DCMAKE_INSTALL_PREFIX=$PREFIX \
-          -DCMAKE_INSTALL_LIBDIR="lib" \
-          -DBUILD_SHARED_LIBS=on .
     make -j$PARALLEL install
     # :
 fi
