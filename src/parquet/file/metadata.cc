@@ -290,9 +290,7 @@ class FileMetaData::FileMetaDataImpl {
   inline const std::string& created_by() const { return metadata_->created_by; }
   inline int num_schema_elements() const { return metadata_->schema.size(); }
 
-  const FileVersion& file_version() const {
-    return file_version_;
-  }
+  const FileVersion& file_version() const { return file_version_; }
 
   void WriteTo(OutputStream* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
 
@@ -695,6 +693,5 @@ bool FileVersion::VersionLt(int major, int minor, int patch) const {
 bool FileVersion::VersionEq(int major, int minor, int patch) const {
   return version.major == major && version.minor == minor && version.patch == patch;
 }
-
 
 }  // namespace parquet

@@ -60,8 +60,8 @@ class TestPageSerde : public ::testing::Test {
     ResetStream();
   }
 
-  void InitSerializedPageReader(int64_t num_rows,
-      Compression::type codec = Compression::UNCOMPRESSED) {
+  void InitSerializedPageReader(
+      int64_t num_rows, Compression::type codec = Compression::UNCOMPRESSED) {
     EndStream();
     std::unique_ptr<InputStream> stream;
     stream.reset(new InMemoryInputStream(out_buffer_));
@@ -225,8 +225,7 @@ TEST_F(TestPageSerde, LZONotSupported) {
   std::vector<uint8_t> faux_data(data_size);
   WriteDataPageHeader(1024, data_size, data_size);
   out_stream_->Write(faux_data.data(), data_size);
-  ASSERT_THROW(InitSerializedPageReader(data_size, Compression::LZO),
-      ParquetException);
+  ASSERT_THROW(InitSerializedPageReader(data_size, Compression::LZO), ParquetException);
 }
 
 // ----------------------------------------------------------------------

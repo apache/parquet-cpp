@@ -42,9 +42,9 @@ namespace parquet {
 // assembled in a serialized stream for storing in a Parquet files
 
 SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
-    int64_t total_num_rows, Compression::type codec_type,
-    MemoryAllocator* allocator)
-    : stream_(std::move(stream)), decompression_buffer_(0, allocator),
+    int64_t total_num_rows, Compression::type codec_type, MemoryAllocator* allocator)
+    : stream_(std::move(stream)),
+      decompression_buffer_(0, allocator),
       seen_num_rows_(0),
       total_num_rows_(total_num_rows) {
   max_page_header_size_ = DEFAULT_MAX_PAGE_HEADER_SIZE;
@@ -92,9 +92,7 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
 
     // Read the compressed data page.
     buffer = stream_->Read(compressed_len, &bytes_read);
-    if (bytes_read != compressed_len) {
-      ParquetException::EofException();
-    }
+    if (bytes_read != compressed_len) { ParquetException::EofException(); }
 
     // Uncompress it if we need to
     if (decompressor_ != NULL) {
@@ -158,11 +156,9 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
 }
 
 SerializedRowGroup::SerializedRowGroup(RandomAccessSource* source,
-    FileMetaData* file_metadata, int row_group_number,
-    const ReaderProperties& props)
+    FileMetaData* file_metadata, int row_group_number, const ReaderProperties& props)
     : source_(source), file_metadata_(file_metadata), properties_(props) {
   row_group_metadata_ = std::move(file_metadata->RowGroup(row_group_number));
-
 }
 const RowGroupMetaData* SerializedRowGroup::metadata() const {
   return row_group_metadata_.get();
@@ -200,9 +196,8 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
 
   stream = properties_.GetStream(source_, col_start, col_length);
 
-  return std::unique_ptr<PageReader>(new SerializedPageReader(
-          std::move(stream), row_group_metadata_->num_rows(),
-          col->compression(), properties_.allocator()));
+  return std::unique_ptr<PageReader>(new SerializedPageReader(std::move(stream),
+      row_group_metadata_->num_rows(), col->compression(), properties_.allocator()));
 }
 
 // ----------------------------------------------------------------------

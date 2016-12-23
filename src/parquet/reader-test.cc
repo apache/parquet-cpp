@@ -39,22 +39,22 @@ const char* data_dir = std::getenv("PARQUET_TEST_DATA");
 std::string alltypes_plain() {
   std::string dir_string(data_dir);
   std::stringstream ss;
-  ss << dir_string << "/" << "alltypes_plain.parquet";
+  ss << dir_string << "/"
+     << "alltypes_plain.parquet";
   return ss.str();
 }
 
 std::string nation_dict_truncated_data_page() {
   std::string dir_string(data_dir);
   std::stringstream ss;
-  ss << dir_string << "/" << "nation.dict-malformed.parquet";
+  ss << dir_string << "/"
+     << "nation.dict-malformed.parquet";
   return ss.str();
 }
 
 class TestAllTypesPlain : public ::testing::Test {
  public:
-  void SetUp() {
-    reader_ = ParquetFileReader::OpenFile(alltypes_plain());
-  }
+  void SetUp() { reader_ = ParquetFileReader::OpenFile(alltypes_plain()); }
 
   void TearDown() {}
 
@@ -195,16 +195,14 @@ TEST(TestFileReaderAdHoc, NationDictTruncatedDataPage) {
   // if we optimistically proceed to decoding, even if there is not enough data
   // available in the stream. Before, we had quite aggressive checking of
   // stream reads, which are not found e.g. in Impala's Parquet implementation
-  auto reader = ParquetFileReader::OpenFile(nation_dict_truncated_data_page(),
-      false);
+  auto reader = ParquetFileReader::OpenFile(nation_dict_truncated_data_page(), false);
   std::stringstream ss;
 
   // empty list means print all
   std::list<int> columns;
   reader->DebugPrint(ss, columns, true);
 
-  reader = ParquetFileReader::OpenFile(nation_dict_truncated_data_page(),
-      true);
+  reader = ParquetFileReader::OpenFile(nation_dict_truncated_data_page(), true);
   std::stringstream ss2;
   reader->DebugPrint(ss2, columns, true);
 

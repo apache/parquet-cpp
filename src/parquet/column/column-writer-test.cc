@@ -61,8 +61,8 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
 
   Type::type type_num() { return TestType::type_num; }
 
-  void BuildReader(int64_t num_rows,
-      Compression::type compression = Compression::UNCOMPRESSED) {
+  void BuildReader(
+      int64_t num_rows, Compression::type compression = Compression::UNCOMPRESSED) {
     auto buffer = sink_->GetBuffer();
     std::unique_ptr<InMemoryInputStream> source(new InMemoryInputStream(buffer));
     std::unique_ptr<SerializedPageReader> page_reader(
