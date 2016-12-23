@@ -195,12 +195,22 @@ TEST(TestFileReaderAdHoc, NationDictTruncatedDataPage) {
   // if we optimistically proceed to decoding, even if there is not enough data
   // available in the stream. Before, we had quite aggressive checking of
   // stream reads, which are not found e.g. in Impala's Parquet implementation
-  auto reader = ParquetFileReader::OpenFile(alltypes_plain());
+  auto reader = ParquetFileReader::OpenFile(nation_dict_truncated_data_page(),
+      false);
   std::stringstream ss;
 
   // empty list means print all
   std::list<int> columns;
   reader->DebugPrint(ss, columns, true);
+
+  reader = ParquetFileReader::OpenFile(nation_dict_truncated_data_page(),
+      true);
+  std::stringstream ss2;
+  reader->DebugPrint(ss2, columns, true);
+
+  // The memory-mapped reads runs over the end of the column chunk and succeeds
+  // by accident
+  ASSERT_EQ(ss2.str(), ss.str());
 }
 
 }  // namespace parquet

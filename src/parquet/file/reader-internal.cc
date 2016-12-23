@@ -89,6 +89,9 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
 
     // Read the compressed data page.
     buffer = stream_->Read(compressed_len, &bytes_read);
+    if (bytes_read != compressed_len) {
+      ParquetException::EofException();
+    }
 
     // Uncompress it if we need to
     if (decompressor_ != NULL) {
@@ -148,6 +151,13 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
   return std::shared_ptr<Page>(nullptr);
 }
 
+SerializedRowGroup::SerializedRowGroup(RandomAccessSource* source,
+    FileMetaData* file_metadata, int row_group_number,
+    const ReaderProperties& props)
+    : source_(source), file_metadata_(file_metadata), properties_(props) {
+  row_group_metadata_ = std::move(file_metadata->RowGroup(row_group_number));
+
+}
 const RowGroupMetaData* SerializedRowGroup::metadata() const {
   return row_group_metadata_.get();
 }
@@ -155,6 +165,9 @@ const RowGroupMetaData* SerializedRowGroup::metadata() const {
 const ReaderProperties* SerializedRowGroup::properties() const {
   return &properties_;
 }
+
+// For PARQUET-816
+static constexpr int64_t kMaxDictHeaderSize = 100;
 
 std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   // Read column chunk from the file
@@ -165,10 +178,21 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
     col_start = col->dictionary_page_offset();
   }
 
-  int64_t bytes_to_read = col->total_compressed_size();
+  int64_t col_length = col->total_compressed_size();
   std::unique_ptr<InputStream> stream;
 
-  stream = properties_.GetStream(source_, col_start, bytes_to_read);
+  // PARQUET-816 workaround for old files created by older parquet-mr
+  const FileVersion& version = file_metadata_->file_version();
+  if (version.application == "parquet-mr" && version.VersionLt(1, 2, 9)) {
+    // The Parquet MR writer had a bug in 1.2.8 and below where it didn't include the
+    // dictionary page header size in total_compressed_size and total_uncompressed_size
+    // (see IMPALA-694). We add padding to compensate.
+    int64_t bytes_remaining = source_->Size() - (col_start + col_length);
+    int64_t padding = std::min<int64_t>(kMaxDictHeaderSize, bytes_remaining);
+    col_length += padding;
+  }
+
+  stream = properties_.GetStream(source_, col_start, col_length);
 
   return std::unique_ptr<PageReader>(new SerializedPageReader(
       std::move(stream), col->compression(), properties_.allocator()));
@@ -204,7 +228,7 @@ SerializedFile::~SerializedFile() {
 
 std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
   std::unique_ptr<SerializedRowGroup> contents(
-      new SerializedRowGroup(source_.get(), file_metadata_->RowGroup(i), properties_));
+      new SerializedRowGroup(source_.get(), file_metadata_.get(), i, properties_));
   return std::make_shared<RowGroupReader>(std::move(contents));
 }
 

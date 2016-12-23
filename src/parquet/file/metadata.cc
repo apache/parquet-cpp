@@ -22,6 +22,8 @@
 #include "parquet/schema/converter.h"
 #include "parquet/thrift/util.h"
 
+#include <boost/algorithm/string.hpp>
+
 namespace parquet {
 
 template <typename DType>
@@ -269,6 +271,13 @@ class FileMetaData::FileMetaDataImpl {
     metadata_.reset(new format::FileMetaData);
     DeserializeThriftMsg(metadata, metadata_len, metadata_.get());
     metadata_len_ = *metadata_len;
+
+    if (metadata_->__isset.created_by) {
+      file_version_ = FileVersion(metadata_->created_by);
+    } else {
+      file_version_ = FileVersion("unknown 0.0.0");
+    }
+
     InitSchema();
   }
   ~FileMetaDataImpl() {}
@@ -280,6 +289,10 @@ class FileMetaData::FileMetaDataImpl {
   inline int32_t version() const { return metadata_->version; }
   inline const std::string& created_by() const { return metadata_->created_by; }
   inline int num_schema_elements() const { return metadata_->schema.size(); }
+
+  const FileVersion& file_version() const {
+    return file_version_;
+  }
 
   void WriteTo(OutputStream* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
 
@@ -306,6 +319,7 @@ class FileMetaData::FileMetaDataImpl {
     schema_.Init(converter.Convert());
   }
   SchemaDescriptor schema_;
+  FileVersion file_version_;
 };
 
 std::unique_ptr<FileMetaData> FileMetaData::Make(
@@ -344,6 +358,10 @@ int FileMetaData::num_row_groups() const {
 
 int32_t FileMetaData::version() const {
   return impl_->version();
+}
+
+const FileVersion& FileMetaData::file_version() const {
+  return impl_->file_version();
 }
 
 const std::string& FileMetaData::created_by() const {
@@ -632,5 +650,51 @@ RowGroupMetaDataBuilder* FileMetaDataBuilder::AppendRowGroup(int64_t num_rows) {
 std::unique_ptr<FileMetaData> FileMetaDataBuilder::Finish() {
   return impl_->Finish();
 }
+
+FileVersion::FileVersion(const std::string& created_by) {
+  namespace ba = boost::algorithm;
+
+  std::string created_by_lower = created_by;
+  std::transform(created_by_lower.begin(), created_by_lower.end(),
+      created_by_lower.begin(), ::tolower);
+
+  std::vector<std::string> tokens;
+  ba::split(tokens, created_by_lower, ba::is_any_of(" "), ba::token_compress_on);
+  // Boost always creates at least one token
+  DCHECK_GT(tokens.size(), 0);
+  application = tokens[0];
+
+  if (tokens.size() >= 3 && tokens[1] == "version") {
+    std::string version_string = tokens[2];
+    // Ignore any trailing nodextra characters
+    int n = version_string.find_first_not_of("0123456789.");
+    std::string version_string_trimmed = version_string.substr(0, n);
+
+    std::vector<std::string> version_tokens;
+    ba::split(version_tokens, version_string_trimmed, ba::is_any_of("."));
+    version.major = version_tokens.size() >= 1 ? atoi(version_tokens[0].c_str()) : 0;
+    version.minor = version_tokens.size() >= 2 ? atoi(version_tokens[1].c_str()) : 0;
+    version.patch = version_tokens.size() >= 3 ? atoi(version_tokens[2].c_str()) : 0;
+  } else {
+    version.major = 0;
+    version.minor = 0;
+    version.patch = 0;
+  }
+}
+
+bool FileVersion::VersionLt(int major, int minor, int patch) const {
+  if (version.major < major) return true;
+  if (version.major > major) return false;
+  DCHECK_EQ(version.major, major);
+  if (version.minor < minor) return true;
+  if (version.minor > minor) return false;
+  DCHECK_EQ(version.minor, minor);
+  return version.patch < patch;
+}
+
+bool FileVersion::VersionEq(int major, int minor, int patch) const {
+  return version.major == major && version.minor == minor && version.patch == patch;
+}
+
 
 }  // namespace parquet
