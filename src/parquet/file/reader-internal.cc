@@ -89,7 +89,6 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
 
     // Read the compressed data page.
     buffer = stream_->Read(compressed_len, &bytes_read);
-    if (bytes_read != compressed_len) ParquetException::EofException();
 
     // Uncompress it if we need to
     if (decompressor_ != NULL) {
