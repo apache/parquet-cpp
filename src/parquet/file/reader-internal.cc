@@ -158,7 +158,7 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
 SerializedRowGroup::SerializedRowGroup(RandomAccessSource* source,
     FileMetaData* file_metadata, int row_group_number, const ReaderProperties& props)
     : source_(source), file_metadata_(file_metadata), properties_(props) {
-  row_group_metadata_ = std::move(file_metadata->RowGroup(row_group_number));
+  row_group_metadata_ = file_metadata->RowGroup(row_group_number);
 }
 const RowGroupMetaData* SerializedRowGroup::metadata() const {
   return row_group_metadata_.get();
