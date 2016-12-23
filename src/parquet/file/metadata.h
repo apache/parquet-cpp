@@ -108,7 +108,7 @@ struct PARQUET_EXPORT FileVersion {
   } version;
 
   FileVersion() {}
-  FileVersion(const std::string& created_by);
+  explicit FileVersion(const std::string& created_by);
 
   /// Returns true if version is strictly less than <major>.<minor>.<patch>
   bool VersionLt(int major, int minor = 0, int patch = 0) const;
