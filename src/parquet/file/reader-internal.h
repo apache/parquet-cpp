@@ -44,8 +44,8 @@ static constexpr uint32_t DEFAULT_PAGE_HEADER_SIZE = 16 * 1024;
 // and the page metadata.
 class SerializedPageReader : public PageReader {
  public:
-  SerializedPageReader(std::unique_ptr<InputStream> stream, Compression::type codec,
-      MemoryAllocator* allocator = default_allocator());
+  SerializedPageReader(std::unique_ptr<InputStream> stream, int64_t num_rows,
+      Compression::type codec, MemoryAllocator* allocator = default_allocator());
 
   virtual ~SerializedPageReader() {}
 
@@ -63,8 +63,15 @@ class SerializedPageReader : public PageReader {
   // Compression codec to use.
   std::unique_ptr<Codec> decompressor_;
   OwnedMutableBuffer decompression_buffer_;
+
   // Maximum allowed page size
   uint32_t max_page_header_size_;
+
+  // Number of rows read in data pages so far
+  int64_t seen_num_rows_;
+
+  // Number of rows in all the data pages
+  int64_t total_num_rows_;
 };
 
 // RowGroupReader::Contents implementation for the Parquet file specification

@@ -42,8 +42,11 @@ namespace parquet {
 // assembled in a serialized stream for storing in a Parquet files
 
 SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
-    Compression::type codec_type, MemoryAllocator* allocator)
-    : stream_(std::move(stream)), decompression_buffer_(0, allocator) {
+    int64_t total_num_rows, Compression::type codec_type,
+    MemoryAllocator* allocator)
+    : stream_(std::move(stream)), decompression_buffer_(0, allocator),
+      seen_num_rows_(0),
+      total_num_rows_(total_num_rows) {
   max_page_header_size_ = DEFAULT_MAX_PAGE_HEADER_SIZE;
   decompressor_ = Codec::Create(codec_type);
 }
@@ -51,7 +54,7 @@ SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
 std::shared_ptr<Page> SerializedPageReader::NextPage() {
   // Loop here because there may be unhandled page types that we skip until
   // finding a page that we do know what to do with
-  while (true) {
+  while (seen_num_rows_ < total_num_rows_) {
     int64_t bytes_read = 0;
     int64_t bytes_available = 0;
     uint32_t header_size = 0;
@@ -130,14 +133,17 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
         }
       }
 
-      auto page = std::make_shared<DataPage>(page_buffer, header.num_values,
+      seen_num_rows_ += header.num_values;
+
+      return std::make_shared<DataPage>(page_buffer, header.num_values,
           FromThrift(header.encoding), FromThrift(header.definition_level_encoding),
           FromThrift(header.repetition_level_encoding), page_statistics);
-
-      return page;
     } else if (current_page_header_.type == format::PageType::DATA_PAGE_V2) {
       const format::DataPageHeaderV2& header = current_page_header_.data_page_header_v2;
       bool is_compressed = header.__isset.is_compressed ? header.is_compressed : false;
+
+      seen_num_rows_ += header.num_values;
+
       return std::make_shared<DataPageV2>(page_buffer, header.num_values,
           header.num_nulls, header.num_rows, FromThrift(header.encoding),
           header.definition_levels_byte_length, header.repetition_levels_byte_length,
@@ -195,7 +201,8 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   stream = properties_.GetStream(source_, col_start, col_length);
 
   return std::unique_ptr<PageReader>(new SerializedPageReader(
-      std::move(stream), col->compression(), properties_.allocator()));
+          std::move(stream), row_group_metadata_->num_rows(),
+          col->compression(), properties_.allocator()));
 }
 
 // ----------------------------------------------------------------------
