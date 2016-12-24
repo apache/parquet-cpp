@@ -91,34 +91,34 @@ class PARQUET_EXPORT RowGroupMetaData {
 
 class FileMetaDataBuilder;
 
-struct PARQUET_EXPORT FileVersion {
-  /// Application that wrote the file. e.g. "IMPALA"
-  std::string application;
-
-  /// Version of the application that wrote the file, expressed in three parts
-  /// (<major>.<minor>.<patch>). Unspecified parts default to 0, and extra parts are
-  /// ignored. e.g.:
-  /// "1.2.3"    => {1, 2, 3}
-  /// "1.2"      => {1, 2, 0}
-  /// "1.2-cdh5" => {1, 2, 0}
-  struct {
-    int major;
-    int minor;
-    int patch;
-  } version;
-
-  FileVersion() {}
-  explicit FileVersion(const std::string& created_by);
-
-  /// Returns true if version is strictly less than <major>.<minor>.<patch>
-  bool VersionLt(int major, int minor = 0, int patch = 0) const;
-
-  /// Returns true if version is equal to <major>.<minor>.<patch>
-  bool VersionEq(int major, int minor, int patch) const;
-};
-
 class PARQUET_EXPORT FileMetaData {
  public:
+  struct Version {
+    /// Application that wrote the file. e.g. "IMPALA"
+    std::string application;
+
+    /// Version of the application that wrote the file, expressed in three parts
+    /// (<major>.<minor>.<patch>). Unspecified parts default to 0, and extra parts are
+    /// ignored. e.g.:
+    /// "1.2.3"    => {1, 2, 3}
+    /// "1.2"      => {1, 2, 0}
+    /// "1.2-cdh5" => {1, 2, 0}
+    struct {
+      int major;
+      int minor;
+      int patch;
+    } version;
+
+    Version() {}
+    explicit Version(const std::string& created_by);
+
+    /// Returns true if version is strictly less than <major>.<minor>.<patch>
+    bool VersionLt(int major, int minor = 0, int patch = 0) const;
+
+    /// Returns true if version is equal to <major>.<minor>.<patch>
+    bool VersionEq(int major, int minor, int patch) const;
+  };
+
   // API convenience to get a MetaData accessor
   static std::unique_ptr<FileMetaData> Make(
       const uint8_t* serialized_metadata, uint32_t* metadata_len);
@@ -135,7 +135,7 @@ class PARQUET_EXPORT FileMetaData {
   int num_schema_elements() const;
   std::unique_ptr<RowGroupMetaData> RowGroup(int i) const;
 
-  const FileVersion& file_version() const;
+  const Version& writer_version() const;
 
   void WriteTo(OutputStream* dst);
 

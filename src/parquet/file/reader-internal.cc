@@ -184,7 +184,7 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   std::unique_ptr<InputStream> stream;
 
   // PARQUET-816 workaround for old files created by older parquet-mr
-  const FileVersion& version = file_metadata_->file_version();
+  const FileMetaData::Version& version = file_metadata_->writer_version();
   if (version.application == "parquet-mr" && version.VersionLt(1, 2, 9)) {
     // The Parquet MR writer had a bug in 1.2.8 and below where it didn't include the
     // dictionary page header size in total_compressed_size and total_uncompressed_size
