@@ -97,8 +97,8 @@ class PARQUET_EXPORT ParquetFileWriter {
   ParquetFileWriter();
   ~ParquetFileWriter();
 
-  static std::unique_ptr<ParquetFileWriter> Open(std::
-      shared_ptr<::arrow::io::OutputStream> sink,
+  static std::unique_ptr<ParquetFileWriter> Open(
+      std::shared_ptr<::arrow::io::OutputStream> sink,
       const std::shared_ptr<schema::GroupNode>& schema,
       const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 

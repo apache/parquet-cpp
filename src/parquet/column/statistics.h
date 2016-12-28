@@ -171,8 +171,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
 };
 
 template <typename DType>
-inline void TypedRowGroupStatistics<DType>::Copy(
-    const T& src, T* dst, PoolBuffer*) {
+inline void TypedRowGroupStatistics<DType>::Copy(const T& src, T* dst, PoolBuffer*) {
   *dst = src;
 }
 

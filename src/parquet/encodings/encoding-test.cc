@@ -250,8 +250,7 @@ class TestDictionaryEncoding : public TestEncodingBase<Type> {
     DictEncoder<Type> encoder(descr_.get(), &pool_);
 
     ASSERT_NO_THROW(encoder.Put(draws_, num_values_));
-    dict_buffer_ = AllocateBuffer(
-        default_allocator(), encoder.dict_encoded_size());
+    dict_buffer_ = AllocateBuffer(default_allocator(), encoder.dict_encoded_size());
 
     encoder.WriteDict(dict_buffer_->mutable_data());
 

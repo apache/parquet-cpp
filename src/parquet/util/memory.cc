@@ -22,8 +22,8 @@
 
 #include "parquet/exception.h"
 #include "parquet/types.h"
-#include "parquet/util/logging.h"
 #include "parquet/util/bit-util.h"
+#include "parquet/util/logging.h"
 
 namespace parquet {
 
@@ -82,7 +82,6 @@ template class Vector<double>;
 template class Vector<Int96>;
 template class Vector<ByteArray>;
 template class Vector<FixedLenByteArray>;
-
 
 const int ChunkedAllocator::INITIAL_CHUNK_SIZE;
 const int ChunkedAllocator::MAX_CHUNK_SIZE;
@@ -329,8 +328,7 @@ int64_t FileWrapper::Tell() {
   return position;
 }
 
-InputWrapper::InputWrapper(
-    const std::shared_ptr<::arrow::io::ReadableFileInterface> file)
+InputWrapper::InputWrapper(const std::shared_ptr<::arrow::io::ReadableFileInterface> file)
     : file_(file) {}
 
 ::arrow::io::FileInterface* InputWrapper::file_interface() {
@@ -471,17 +469,13 @@ std::unique_ptr<BufferOutputStream> MakeOutputStream(
 
 std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size) {
   auto result = std::make_shared<PoolBuffer>(allocator);
-  if (size > 0) {
-    PARQUET_THROW_NOT_OK(result->Resize(size));
-  }
+  if (size > 0) { PARQUET_THROW_NOT_OK(result->Resize(size)); }
   return result;
 }
 
 std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(MemoryPool* allocator, int64_t size) {
   std::unique_ptr<PoolBuffer> result(new PoolBuffer(allocator));
-  if (size > 0) {
-    PARQUET_THROW_NOT_OK(result->Resize(size));
-  }
+  if (size > 0) { PARQUET_THROW_NOT_OK(result->Resize(size)); }
   return result;
 }
 

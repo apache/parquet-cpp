@@ -87,7 +87,6 @@ class Vector {
   DISALLOW_COPY_AND_ASSIGN(Vector);
 };
 
-
 /// A ChunkedAllocator maintains a list of memory chunks from which it
 /// allocates memory in response to Allocate() calls; Chunks stay around for
 /// the lifetime of the allocator or until they are passed on to another
@@ -334,8 +333,8 @@ class InMemoryInputStream : public InputStream {
 // Implementation of an InputStream when only some of the bytes are in memory.
 class BufferedInputStream : public InputStream {
  public:
-  BufferedInputStream(MemoryPool* pool, int64_t buffer_size,
-      InputWrapper* source, int64_t start, int64_t end);
+  BufferedInputStream(MemoryPool* pool, int64_t buffer_size, InputWrapper* source,
+      int64_t start, int64_t end);
   virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
 

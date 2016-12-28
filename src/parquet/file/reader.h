@@ -83,7 +83,8 @@ class PARQUET_EXPORT ParquetFileReader {
   // interface implementations that were created for testing, and may not be robust for
   // all use cases.
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
-      bool memory_map = true, const ReaderProperties& props = default_reader_properties());
+      bool memory_map = true,
+      const ReaderProperties& props = default_reader_properties());
 
   static std::unique_ptr<ParquetFileReader> Open(
       const std::shared_ptr<::arrow::io::ReadableFileInterface>& source,

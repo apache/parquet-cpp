@@ -43,8 +43,7 @@ class PARQUET_EXPORT ColumnReader {
   virtual ~ColumnReader();
 
   static std::shared_ptr<ColumnReader> Make(const ColumnDescriptor* descr,
-      std::unique_ptr<PageReader> pager,
-      MemoryPool* allocator = default_allocator());
+      std::unique_ptr<PageReader> pager, MemoryPool* allocator = default_allocator());
 
   // Returns true if there are still values in this column.
   bool HasNext() {
@@ -222,13 +221,13 @@ inline int64_t TypedColumnReader<DType>::Skip(int64_t num_rows_to_skip) {
       int64_t batch_size = 1024;  // ReadBatch with a smaller memory footprint
       int64_t values_read = 0;
 
-      std::shared_ptr<PoolBuffer> vals = AllocateBuffer(this->allocator_,
-          batch_size * type_traits<DType::type_num>::value_byte_size);
-      std::shared_ptr<PoolBuffer> def_levels = AllocateBuffer(this->allocator_,
-          batch_size * sizeof(int16_t));
+      std::shared_ptr<PoolBuffer> vals = AllocateBuffer(
+          this->allocator_, batch_size * type_traits<DType::type_num>::value_byte_size);
+      std::shared_ptr<PoolBuffer> def_levels =
+          AllocateBuffer(this->allocator_, batch_size * sizeof(int16_t));
 
-      std::shared_ptr<PoolBuffer> rep_levels = AllocateBuffer(this->allocator_,
-          batch_size * sizeof(int16_t));
+      std::shared_ptr<PoolBuffer> rep_levels =
+          AllocateBuffer(this->allocator_, batch_size * sizeof(int16_t));
 
       do {
         batch_size = std::min(batch_size, rows_to_skip);

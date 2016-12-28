@@ -97,11 +97,9 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
     if (decompressor_ != NULL) {
       // Grow the uncompressed buffer if we need to.
       if (uncompressed_len > static_cast<int>(decompression_buffer_->size())) {
-        PARQUET_THROW_NOT_OK(
-            decompression_buffer_->Resize(uncompressed_len));
+        PARQUET_THROW_NOT_OK(decompression_buffer_->Resize(uncompressed_len));
       }
-      decompressor_->Decompress(
-          compressed_len, buffer, uncompressed_len,
+      decompressor_->Decompress(compressed_len, buffer, uncompressed_len,
           decompression_buffer_->mutable_data());
       buffer = decompression_buffer_->data();
     }
@@ -156,8 +154,8 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
   return std::shared_ptr<Page>(nullptr);
 }
 
-SerializedRowGroup::SerializedRowGroup(InputWrapper* source,
-    FileMetaData* file_metadata, int row_group_number, const ReaderProperties& props)
+SerializedRowGroup::SerializedRowGroup(InputWrapper* source, FileMetaData* file_metadata,
+    int row_group_number, const ReaderProperties& props)
     : source_(source), file_metadata_(file_metadata), properties_(props) {
   row_group_metadata_ = file_metadata->RowGroup(row_group_number);
 }
@@ -209,8 +207,7 @@ static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 std::unique_ptr<ParquetFileReader::Contents> SerializedFile::Open(
     const std::shared_ptr<InputWrapper>& source, const ReaderProperties& props) {
-  std::unique_ptr<ParquetFileReader::Contents> result(
-      new SerializedFile(source, props));
+  std::unique_ptr<ParquetFileReader::Contents> result(new SerializedFile(source, props));
 
   // Access private methods here, but otherwise unavailable
   SerializedFile* file = static_cast<SerializedFile*>(result.get());
@@ -266,8 +263,8 @@ void SerializedFile::ParseMetaData() {
   }
   source_->Seek(metadata_start);
 
-  std::shared_ptr<PoolBuffer> metadata_buffer = AllocateBuffer(properties_.allocator(),
-      metadata_len);
+  std::shared_ptr<PoolBuffer> metadata_buffer =
+      AllocateBuffer(properties_.allocator(), metadata_len);
   bytes_read = source_->Read(metadata_len, metadata_buffer->mutable_data());
   if (bytes_read != metadata_len) {
     throw ParquetException("Invalid parquet file. Could not read metadata bytes.");

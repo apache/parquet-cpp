@@ -44,7 +44,7 @@ class PARQUET_EXPORT ParquetAllocator : public MemoryPool {
   explicit ParquetAllocator(::arrow::MemoryPool* pool);
   virtual ~ParquetAllocator();
 
-  Status Allocate (int64_t size, uint8_t** out) override;
+  Status Allocate(int64_t size, uint8_t** out) override;
   void Free(uint8_t* buffer, int64_t size) override;
 
  private:

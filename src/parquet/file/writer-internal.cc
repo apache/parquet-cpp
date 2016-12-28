@@ -73,8 +73,8 @@ std::shared_ptr<Buffer> SerializedPageWriter::Compress(
   int64_t max_compressed_size =
       compressor_->MaxCompressedLen(buffer->size(), buffer->data());
 
-  std::shared_ptr<PoolBuffer> compression_buffer = AllocateBuffer(allocator_,
-      max_compressed_size);
+  std::shared_ptr<PoolBuffer> compression_buffer =
+      AllocateBuffer(allocator_, max_compressed_size);
 
   int64_t compressed_size = compressor_->Compress(buffer->size(), buffer->data(),
       max_compressed_size, compression_buffer->mutable_data());

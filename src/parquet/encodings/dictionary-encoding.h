@@ -46,7 +46,7 @@ class DictionaryDecoder : public Decoder<Type> {
       const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
       : Decoder<Type>(descr, Encoding::RLE_DICTIONARY),
         dictionary_(0, allocator),
-      byte_array_data_(AllocateBuffer(allocator, 0)) {}
+        byte_array_data_(AllocateBuffer(allocator, 0)) {}
 
   // Perform type-specific initiatialization
   void SetDict(Decoder<Type>* dictionary);
@@ -216,8 +216,8 @@ class DictEncoder : public Encoder<DType> {
   void Put(const T& value);
 
   std::shared_ptr<Buffer> FlushValues() override {
-    std::shared_ptr<PoolBuffer> buffer = AllocateBuffer(this->allocator_,
-        EstimatedDataEncodedSize());
+    std::shared_ptr<PoolBuffer> buffer =
+        AllocateBuffer(this->allocator_, EstimatedDataEncodedSize());
     int result_size = WriteIndices(buffer->mutable_data(), EstimatedDataEncodedSize());
     ClearIndices();
     PARQUET_THROW_NOT_OK(buffer->Resize(result_size));

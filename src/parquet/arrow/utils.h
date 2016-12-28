@@ -24,9 +24,7 @@
 #include "parquet/exception.h"
 
 namespace parquet {
-namespace arrow {
-
-}  // namespace arrow
+namespace arrow {}  // namespace arrow
 }  // namespace parquet
 
 #endif  // PARQUET_ARROW_UTILS_H

@@ -41,14 +41,13 @@ class PARQUET_EXPORT Scanner {
   explicit Scanner(std::shared_ptr<ColumnReader> reader,
       int64_t batch_size = DEFAULT_SCANNER_BATCH_SIZE,
       MemoryPool* allocator = default_allocator())
-    : batch_size_(batch_size),
-    level_offset_(0),
-    levels_buffered_(0),
-    value_buffer_(std::make_shared<PoolBuffer>(allocator)),
+      : batch_size_(batch_size),
+        level_offset_(0),
+        levels_buffered_(0),
+        value_buffer_(std::make_shared<PoolBuffer>(allocator)),
         value_offset_(0),
         values_buffered_(0),
         reader_(reader) {
-
     def_levels_.resize(descr()->max_definition_level() > 0 ? batch_size_ : 0);
     rep_levels_.resize(descr()->max_repetition_level() > 0 ? batch_size_ : 0);
   }

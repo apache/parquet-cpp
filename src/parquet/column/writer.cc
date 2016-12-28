@@ -62,15 +62,14 @@ void ColumnWriter::InitSinks() {
 
 void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, const int16_t* levels) {
   DCHECK(!closed_);
-  PARQUET_THROW_NOT_OK(
-      definition_levels_sink_->Write(reinterpret_cast<const uint8_t*>(levels),
-          sizeof(int16_t) * num_levels));
+  PARQUET_THROW_NOT_OK(definition_levels_sink_->Write(
+      reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels));
 }
 
 void ColumnWriter::WriteRepetitionLevels(int64_t num_levels, const int16_t* levels) {
   DCHECK(!closed_);
   PARQUET_THROW_NOT_OK(repetition_levels_sink_->Write(
-          reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels));
+      reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels));
 }
 
 std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
@@ -79,8 +78,8 @@ std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
   int64_t rle_size =
       LevelEncoder::MaxBufferSize(Encoding::RLE, max_level, num_buffered_values_) +
       sizeof(uint32_t);
-  std::shared_ptr<PoolBuffer> buffer_rle = AllocateBuffer(
-      properties_->allocator(), rle_size);
+  std::shared_ptr<PoolBuffer> buffer_rle =
+      AllocateBuffer(properties_->allocator(), rle_size);
   level_encoder_.Init(Encoding::RLE, max_level, num_buffered_values_,
       buffer_rle->mutable_data() + sizeof(uint32_t),
       buffer_rle->size() - sizeof(uint32_t));
@@ -113,8 +112,8 @@ void ColumnWriter::AddDataPage() {
       definition_levels->size() + repetition_levels->size() + values->size();
 
   // Concatenate data into a single buffer
-  std::shared_ptr<PoolBuffer> uncompressed_data = AllocateBuffer(allocator_,
-      uncompressed_size);
+  std::shared_ptr<PoolBuffer> uncompressed_data =
+      AllocateBuffer(allocator_, uncompressed_size);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
   memcpy(uncompressed_ptr, repetition_levels->data(), repetition_levels->size());
   uncompressed_ptr += repetition_levels->size();
@@ -226,8 +225,8 @@ void TypedColumnWriter<Type>::CheckDictionarySizeLimit() {
 template <typename Type>
 void TypedColumnWriter<Type>::WriteDictionaryPage() {
   auto dict_encoder = static_cast<DictEncoder<Type>*>(current_encoder_.get());
-  std::shared_ptr<PoolBuffer> buffer = AllocateBuffer(properties_->allocator(),
-      dict_encoder->dict_encoded_size());
+  std::shared_ptr<PoolBuffer> buffer =
+      AllocateBuffer(properties_->allocator(), dict_encoder->dict_encoded_size());
   dict_encoder->WriteDict(buffer->mutable_data());
   // TODO Get rid of this deep call
   dict_encoder->mem_pool()->FreeAll();

@@ -32,8 +32,8 @@
 #include "parquet/exception.h"
 #include "parquet/file/reader-internal.h"
 #include "parquet/types.h"
-#include "parquet/util/memory.h"
 #include "parquet/util/logging.h"
+#include "parquet/util/memory.h"
 
 using std::string;
 using std::vector;
@@ -78,8 +78,7 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
-    const std::shared_ptr<InputWrapper>& source,
-    const ReaderProperties& props) {
+    const std::shared_ptr<InputWrapper>& source, const ReaderProperties& props) {
   auto contents = SerializedFile::Open(source, props);
   std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
   result->Open(std::move(contents));
@@ -87,9 +86,7 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
-    const std::string& path, bool memory_map,
-    const ReaderProperties& props) {
-
+    const std::string& path, bool memory_map, const ReaderProperties& props) {
   std::shared_ptr<::arrow::io::ReadableFileInterface> source;
   if (memory_map) {
     std::shared_ptr<::arrow::io::ReadableFile> handle;
@@ -99,8 +96,7 @@ std::unique_ptr<ParquetFileReader> ParquetFileReader::OpenFile(
   } else {
     std::shared_ptr<::arrow::io::MemoryMappedFile> handle;
     PARQUET_THROW_NOT_OK(
-        ::arrow::io::MemoryMappedFile::Open(
-            path, ::arrow::io::FileMode::READ, &handle));
+        ::arrow::io::MemoryMappedFile::Open(path, ::arrow::io::FileMode::READ, &handle));
     source = handle;
   }
 

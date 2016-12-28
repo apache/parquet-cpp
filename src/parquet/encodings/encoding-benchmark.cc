@@ -110,11 +110,11 @@ static void DecodeDict(
     encoder.Put(values[i]);
   }
 
-  std::shared_ptr<PoolBuffer> dict_buffer = AllocateBuffer(allocator,
-      encoder.dict_encoded_size());
+  std::shared_ptr<PoolBuffer> dict_buffer =
+      AllocateBuffer(allocator, encoder.dict_encoded_size());
 
-  std::shared_ptr<PoolBuffer> indices = AllocateBuffer(allocator,
-      encoder.EstimatedDataEncodedSize());
+  std::shared_ptr<PoolBuffer> indices =
+      AllocateBuffer(allocator, encoder.EstimatedDataEncodedSize());
 
   encoder.WriteDict(dict_buffer->mutable_data());
   int actual_bytes = encoder.WriteIndices(indices->mutable_data(), indices->size());

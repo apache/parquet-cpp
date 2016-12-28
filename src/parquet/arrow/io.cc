@@ -20,8 +20,8 @@
 #include <cstdint>
 #include <memory>
 
-#include "parquet/api/io.h"
 #include "arrow/status.h"
+#include "parquet/api/io.h"
 
 using arrow::Status;
 using arrow::MemoryPool;
