@@ -33,9 +33,7 @@
 #include "parquet/file/writer.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
-#include "parquet/util/input.h"
-#include "parquet/util/mem-allocator.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
@@ -119,7 +117,7 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     TypedStats expected_stats(this->schema_.Column(0));
     expected_stats.Update(this->values_ptr_, num_values - null_count, null_count);
 
-    auto sink = std::make_shared<InMemoryOutputStream>();
+    auto sink = std::make_shared<BufferOutputStream>();
     auto gnode = std::static_pointer_cast<GroupNode>(this->node_);
     std::shared_ptr<WriterProperties> writer_properties =
         WriterProperties::Builder().enable_statistics("column")->build();
@@ -149,9 +147,9 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     row_group_writer->Close();
     file_writer->Close();
 
-    auto buffer = sink->GetBuffer();
-    std::unique_ptr<RandomAccessSource> source(new BufferReader(buffer));
-    auto file_reader = ParquetFileReader::Open(std::move(source));
+    auto buffer = sink->buffer();
+    auto source = std::make_shared<BufferReader>(buffer);
+    auto file_reader = ParquetFileReader::Open(source);
     auto rg_reader = file_reader->RowGroup(0);
     auto column_chunk = rg_reader->metadata()->ColumnChunk(0);
     std::shared_ptr<RowGroupStatistics> stats = column_chunk->statistics();
@@ -189,7 +187,7 @@ template <>
 std::vector<FLBA> TestRowGroupStatistics<FLBAType>::GetDeepCopy(
     const std::vector<FLBA>& values) {
   std::vector<FLBA> copy;
-  MemoryAllocator* allocator = default_allocator();
+  MemoryPool* allocator = default_allocator();
   for (const FLBA& flba : values) {
     uint8_t* ptr = allocator->Malloc(FLBA_LENGTH);
     memcpy(ptr, flba.ptr, FLBA_LENGTH);
@@ -202,7 +200,7 @@ template <>
 std::vector<ByteArray> TestRowGroupStatistics<ByteArrayType>::GetDeepCopy(
     const std::vector<ByteArray>& values) {
   std::vector<ByteArray> copy;
-  MemoryAllocator* allocator = default_allocator();
+  MemoryPool* allocator = default_allocator();
   for (const ByteArray& ba : values) {
     uint8_t* ptr = allocator->Malloc(ba.len);
     memcpy(ptr, ba.ptr, ba.len);
@@ -217,7 +215,7 @@ void TestRowGroupStatistics<TestType>::DeepFree(
 
 template <>
 void TestRowGroupStatistics<FLBAType>::DeepFree(std::vector<FLBA>& values) {
-  MemoryAllocator* allocator = default_allocator();
+  MemoryPool* allocator = default_allocator();
   for (FLBA& flba : values) {
     auto ptr = const_cast<uint8_t*>(flba.ptr);
     memset(ptr, 0, FLBA_LENGTH);
@@ -227,7 +225,7 @@ void TestRowGroupStatistics<FLBAType>::DeepFree(std::vector<FLBA>& values) {
 
 template <>
 void TestRowGroupStatistics<ByteArrayType>::DeepFree(std::vector<ByteArray>& values) {
-  MemoryAllocator* allocator = default_allocator();
+  MemoryPool* allocator = default_allocator();
   for (ByteArray& ba : values) {
     auto ptr = const_cast<uint8_t*>(ba.ptr);
     memset(ptr, 0, ba.len);

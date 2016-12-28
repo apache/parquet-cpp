@@ -27,7 +27,7 @@
 #include "parquet/compression/codec.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
 namespace parquet {
@@ -137,7 +137,7 @@ class PARQUET_EXPORT FileMetaData {
 
   const Version& writer_version() const;
 
-  void WriteTo(OutputStream* dst);
+  void WriteTo(OutputWrapper* dst);
 
   // Return const-pointer to make it clear that this object is not to be copied
   const SchemaDescriptor* schema() const;

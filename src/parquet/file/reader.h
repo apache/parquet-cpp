@@ -30,12 +30,12 @@
 #include "parquet/column/statistics.h"
 #include "parquet/file/metadata.h"
 #include "parquet/schema/descriptor.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
 namespace parquet {
 
 class ColumnReader;
-class RandomAccessSource;
 
 class PARQUET_EXPORT RowGroupReader {
  public:
@@ -83,11 +83,15 @@ class PARQUET_EXPORT ParquetFileReader {
   // interface implementations that were created for testing, and may not be robust for
   // all use cases.
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
-      bool memory_map = true, ReaderProperties props = default_reader_properties());
+      bool memory_map = true, const ReaderProperties& props = default_reader_properties());
 
   static std::unique_ptr<ParquetFileReader> Open(
-      std::unique_ptr<RandomAccessSource> source,
-      ReaderProperties props = default_reader_properties());
+      const std::shared_ptr<::arrow::io::ReadableFileInterface>& source,
+      const ReaderProperties& props = default_reader_properties());
+
+  static std::unique_ptr<ParquetFileReader> Open(
+      const std::shared_ptr<InputWrapper>& source,
+      const ReaderProperties& props = default_reader_properties());
 
   void Open(std::unique_ptr<Contents> contents);
   void Close();

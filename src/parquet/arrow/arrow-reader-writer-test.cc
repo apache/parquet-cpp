@@ -204,8 +204,8 @@ class TestParquetIO : public ::testing::Test {
 
   std::unique_ptr<ParquetFileReader> ReaderFromSink() {
     std::shared_ptr<ParquetBuffer> buffer = sink_->GetBuffer();
-    std::unique_ptr<RandomAccessSource> source(new BufferReader(buffer));
-    return ParquetFileReader::Open(std::move(source));
+    auto source = std::shared_ptr<BufferReader>(buffer);
+    return ParquetFileReader::Open(source);
   }
 
   void ReadSingleColumnFile(
@@ -359,7 +359,8 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
 
   std::shared_ptr<ParquetBuffer> pbuffer =
       std::make_shared<ParquetBuffer>(buffer->data(), buffer->size());
-  std::unique_ptr<RandomAccessSource> source(new BufferReader(pbuffer));
+
+  auto source = std::make_shared<BufferReader>(pbuffer);
   std::shared_ptr<::arrow::Table> out;
   this->ReadTableFromFile(ParquetFileReader::Open(std::move(source)), &out);
   ASSERT_EQ(1, out->num_columns());

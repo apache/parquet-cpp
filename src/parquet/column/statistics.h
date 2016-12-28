@@ -24,8 +24,7 @@
 
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
-#include "parquet/util/buffer.h"
-#include "parquet/util/mem-allocator.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
 namespace parquet {
@@ -135,7 +134,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   using T = typename DType::c_type;
 
   TypedRowGroupStatistics(
-      const ColumnDescriptor* schema, MemoryAllocator* allocator = default_allocator());
+      const ColumnDescriptor* schema, MemoryPool* allocator = default_allocator());
 
   TypedRowGroupStatistics(const T& min, const T& max, int64_t num_values,
       int64_t null_count, int64_t distinct_count);
@@ -143,7 +142,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   TypedRowGroupStatistics(const ColumnDescriptor* schema, const std::string& encoded_min,
       const std::string& encoded_max, int64_t num_values, int64_t null_count,
       int64_t distinct_count, bool has_min_max,
-      MemoryAllocator* allocator = default_allocator());
+      MemoryPool* allocator = default_allocator());
 
   bool HasMinMax() const override;
   void Reset() override;
@@ -162,38 +161,38 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   bool has_min_max_ = false;
   T min_;
   T max_;
-  MemoryAllocator* allocator_;
+  MemoryPool* allocator_;
 
   void PlainEncode(const T& src, std::string* dst);
   void PlainDecode(const std::string& src, T* dst);
-  void Copy(const T& src, T* dst, OwnedMutableBuffer& buffer);
+  void Copy(const T& src, T* dst, PoolBuffer* buffer);
 
-  OwnedMutableBuffer min_buffer_, max_buffer_;
+  std::shared_ptr<PoolBuffer> min_buffer_, max_buffer_;
 };
 
 template <typename DType>
 inline void TypedRowGroupStatistics<DType>::Copy(
-    const T& src, T* dst, OwnedMutableBuffer&) {
+    const T& src, T* dst, PoolBuffer*) {
   *dst = src;
 }
 
 template <>
 inline void TypedRowGroupStatistics<FLBAType>::Copy(
-    const FLBA& src, FLBA* dst, OwnedMutableBuffer& buffer) {
+    const FLBA& src, FLBA* dst, PoolBuffer* buffer) {
   if (dst->ptr == src.ptr) return;
   uint32_t len = descr_->type_length();
-  buffer.Resize(len);
-  std::memcpy(&buffer[0], src.ptr, len);
-  *dst = FLBA(buffer.data());
+  PARQUET_THROW_NOT_OK(buffer->Resize(len));
+  std::memcpy(buffer->mutable_data(), src.ptr, len);
+  *dst = FLBA(buffer->data());
 }
 
 template <>
 inline void TypedRowGroupStatistics<ByteArrayType>::Copy(
-    const ByteArray& src, ByteArray* dst, OwnedMutableBuffer& buffer) {
+    const ByteArray& src, ByteArray* dst, PoolBuffer* buffer) {
   if (dst->ptr == src.ptr) return;
-  buffer.Resize(src.len);
-  std::memcpy(&buffer[0], src.ptr, src.len);
-  *dst = ByteArray(src.len, buffer.data());
+  PARQUET_THROW_NOT_OK(buffer->Resize(src.len));
+  std::memcpy(buffer->mutable_data(), src.ptr, src.len);
+  *dst = ByteArray(src.len, buffer->data());
 }
 
 template <>

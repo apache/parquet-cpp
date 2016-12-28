@@ -18,7 +18,7 @@
 #include "parquet/file/writer.h"
 
 #include "parquet/file/writer-internal.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 
 using parquet::schema::GroupNode;
 
@@ -51,13 +51,20 @@ ParquetFileWriter::~ParquetFileWriter() {
 }
 
 std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
-    std::shared_ptr<OutputStream> sink, const std::shared_ptr<GroupNode>& schema,
+    std::shared_ptr<::arrow::io::OutputStream> sink,
+    const std::shared_ptr<GroupNode>& schema,
+    const std::shared_ptr<WriterProperties>& properties) {
+  auto wrapper = std::make_shared<OutputWrapper>(sink);
+  return Open(wrapper, schema, properties);
+}
+
+std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
+    std::shared_ptr<OutputWrapper> sink,
+    const std::shared_ptr<schema::GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties) {
   auto contents = FileSerializer::Open(sink, schema, properties);
-
   std::unique_ptr<ParquetFileWriter> result(new ParquetFileWriter());
   result->Open(std::move(contents));
-
   return result;
 }
 

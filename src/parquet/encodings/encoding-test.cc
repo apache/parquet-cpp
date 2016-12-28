@@ -28,8 +28,7 @@
 #include "parquet/schema/types.h"
 #include "parquet/types.h"
 #include "parquet/util/bit-util.h"
-#include "parquet/util/buffer.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/test-common.h"
 
 using std::string;
@@ -178,8 +177,8 @@ class TestEncodingBase : public ::testing::Test {
   }
 
  protected:
-  MemPool pool_;
-  MemoryAllocator* allocator_;
+  ChunkedAllocator pool_;
+  MemoryPool* allocator_;
 
   int num_values_;
   int type_length_;
@@ -250,10 +249,10 @@ class TestDictionaryEncoding : public TestEncodingBase<Type> {
   void CheckRoundtrip() {
     DictEncoder<Type> encoder(descr_.get(), &pool_);
 
-    dict_buffer_ = std::make_shared<OwnedMutableBuffer>();
-
     ASSERT_NO_THROW(encoder.Put(draws_, num_values_));
-    dict_buffer_->Resize(encoder.dict_encoded_size());
+    dict_buffer_ = AllocateBuffer(
+        default_allocator(), encoder.dict_encoded_size());
+
     encoder.WriteDict(dict_buffer_->mutable_data());
 
     std::shared_ptr<Buffer> indices = encoder.FlushValues();
@@ -277,7 +276,7 @@ class TestDictionaryEncoding : public TestEncodingBase<Type> {
 
  protected:
   USING_BASE_MEMBERS();
-  std::shared_ptr<OwnedMutableBuffer> dict_buffer_;
+  std::shared_ptr<PoolBuffer> dict_buffer_;
 };
 
 TYPED_TEST_CASE(TestDictionaryEncoding, DictEncodedTypes);

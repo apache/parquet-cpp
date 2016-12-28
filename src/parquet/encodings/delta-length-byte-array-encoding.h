@@ -30,7 +30,7 @@ namespace parquet {
 class DeltaLengthByteArrayDecoder : public Decoder<ByteArrayType> {
  public:
   explicit DeltaLengthByteArrayDecoder(
-      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
+      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
       : Decoder<ByteArrayType>(descr, Encoding::DELTA_LENGTH_BYTE_ARRAY),
         len_decoder_(nullptr, allocator) {}
 

@@ -23,12 +23,11 @@
 
 #include "parquet/exception.h"
 #include "parquet/types.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
-class Buffer;
 class ColumnDescriptor;
-class OutputStream;
 
 // Base class for value encoders. Since encoders may or not have state (e.g.,
 // dictionary encoding) we use a class instance to maintain any state.
@@ -49,13 +48,13 @@ class Encoder {
 
  protected:
   explicit Encoder(const ColumnDescriptor* descr, const Encoding::type& encoding,
-      MemoryAllocator* allocator)
+      MemoryPool* allocator)
       : descr_(descr), encoding_(encoding), allocator_(allocator) {}
 
   // For accessing type-specific metadata, like FIXED_LEN_BYTE_ARRAY
   const ColumnDescriptor* descr_;
   const Encoding::type encoding_;
-  MemoryAllocator* allocator_;
+  MemoryPool* allocator_;
 };
 
 }  // namespace parquet

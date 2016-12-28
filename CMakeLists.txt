@@ -567,6 +567,64 @@ endif()
 add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETINET_IN_H -DHAVE_NETDB_H)
 add_definitions(-fPIC)
 
+set(ARROW_VERSION "4733ee876e1fddb8032fce1dc9e486d68904fbea")
+
+## Apache Arrow
+find_package(Arrow)
+if (NOT ARROW_FOUND)
+  set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep/src/arrow_ep-install")
+  set(ARROW_HOME "${ARROW_PREFIX}")
+  set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
+  set(ARROW_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow_io${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(ARROW_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow.a")
+  set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow_io.a")
+  set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
+    -DARROW_BUILD_TESTS=OFF
+    -DARROW_HDFS=ON)
+
+  if (CMAKE_VERSION VERSION_GREATER "3.2")
+    # BUILD_BYPRODUCTS is a 3.2+ feature
+    ExternalProject_Add(arrow_ep
+      GIT_REPOSITORY https://github.com/apache/arrow.git
+      GIT_TAG ${ARROW_VERSION}
+      BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_IO_SHARED_LIB}" "${ARROW_IO_STATIC_LIB}" "${ARROW_STATIC_LIB}"
+      # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
+      # to specify that the CMakeLists.txt of Arrow is located in cpp/
+      #
+      # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
+      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+      CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+  else()
+    ExternalProject_Add(arrow_ep
+      GIT_REPOSITORY https://github.com/apache/arrow.git
+      GIT_TAG ${ARROW_VERSION}
+      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+      CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+  endif()
+  set(ARROW_VENDORED 1)
+else()
+  set(ARROW_VENDORED 0)
+endif()
+
+include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
+add_library(arrow SHARED IMPORTED)
+set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
+add_library(arrow_io SHARED IMPORTED)
+set_target_properties(arrow_io PROPERTIES IMPORTED_LOCATION ${ARROW_IO_SHARED_LIB})
+add_library(arrow_static STATIC IMPORTED)
+set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
+add_library(arrow_io_static STATIC IMPORTED)
+set_target_properties(arrow_io_static PROPERTIES IMPORTED_LOCATION ${ARROW_IO_STATIC_LIB})
+
+if (ARROW_VENDORED)
+  add_dependencies(arrow arrow_ep)
+  add_dependencies(arrow_io arrow_ep)
+  add_dependencies(arrow_static arrow_ep)
+  add_dependencies(arrow_io_static arrow_ep)
+endif()
+
 # where to put generated archives (.a files)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 set(ARCHIVE_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
@@ -767,15 +825,13 @@ set(LIBPARQUET_SRCS
   src/parquet/schema/printer.cc
   src/parquet/schema/types.cc
 
-  src/parquet/util/buffer.cc
   src/parquet/util/cpu-info.cc
-  src/parquet/util/input.cc
-  src/parquet/util/mem-allocator.cc
-  src/parquet/util/mem-pool.cc
-  src/parquet/util/output.cc
+  src/parquet/util/memory.cc
 )
 
 set(LIBPARQUET_LINK_LIBS
+  arrow
+  arrow_io
 )
 
 set(LIBPARQUET_PRIVATE_LINK_LIBS
@@ -854,67 +910,8 @@ add_subdirectory(benchmarks)
 add_subdirectory(examples)
 add_subdirectory(tools)
 
-# Arrow
+# Arrow adapter
 if (PARQUET_ARROW)
-
-  set(ARROW_VERSION "4733ee876e1fddb8032fce1dc9e486d68904fbea")
-
-  find_package(Arrow)
-
-  if (NOT ARROW_FOUND)
-    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep/src/arrow_ep-install")
-    set(ARROW_HOME "${ARROW_PREFIX}")
-    set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
-    set(ARROW_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow_io${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(ARROW_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow.a")
-    set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow_io.a")
-    set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                         -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
-                         -DARROW_BUILD_TESTS=OFF
-                         -DARROW_HDFS=ON)
-
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(arrow_ep
-        GIT_REPOSITORY https://github.com/apache/arrow.git
-        GIT_TAG ${ARROW_VERSION}
-        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_IO_SHARED_LIB}" "${ARROW_IO_STATIC_LIB}" "${ARROW_STATIC_LIB}"
-        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-        # to specify that the CMakeLists.txt of Arrow is located in cpp/
-        #
-        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
-    else()
-        ExternalProject_Add(arrow_ep
-        GIT_REPOSITORY https://github.com/apache/arrow.git
-        GIT_TAG ${ARROW_VERSION}
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
-    endif()
-    set(ARROW_VENDORED 1)
-  else()
-    set(ARROW_VENDORED 0)
-  endif()
-
-  include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
-  add_library(arrow SHARED IMPORTED)
-  set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
-  add_library(arrow_io SHARED IMPORTED)
-  set_target_properties(arrow_io PROPERTIES IMPORTED_LOCATION ${ARROW_IO_SHARED_LIB})
-  add_library(arrow_static STATIC IMPORTED)
-  set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
-  add_library(arrow_io_static STATIC IMPORTED)
-  set_target_properties(arrow_io_static PROPERTIES IMPORTED_LOCATION ${ARROW_IO_STATIC_LIB})
-
-  if (ARROW_VENDORED)
-    add_dependencies(arrow arrow_ep)
-    add_dependencies(arrow_io arrow_ep)
-    add_dependencies(arrow_static arrow_ep)
-    add_dependencies(arrow_io_static arrow_ep)
-  endif()
-
   add_subdirectory(src/parquet/arrow)
 endif()
 

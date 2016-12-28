@@ -34,7 +34,7 @@ class DeltaBitPackDecoder : public Decoder<DType> {
   typedef typename DType::c_type T;
 
   explicit DeltaBitPackDecoder(
-      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
+      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
       : Decoder<DType>(descr, Encoding::DELTA_BINARY_PACKED),
         delta_bit_widths_(0, allocator) {
     if (DType::type_num != Type::INT32 && DType::type_num != Type::INT64) {

@@ -40,7 +40,6 @@ using arrow::Status;
 using arrow::Table;
 
 // Help reduce verbosity
-using ParquetRAS = parquet::RandomAccessSource;
 using ParquetReader = parquet::ParquetFileReader;
 
 namespace parquet {
@@ -194,12 +193,9 @@ FileReader::~FileReader() {}
 // Static ctor
 Status OpenFile(const std::shared_ptr<::arrow::io::ReadableFileInterface>& file,
     ParquetAllocator* allocator, std::unique_ptr<FileReader>* reader) {
-  std::unique_ptr<ParquetReadSource> source(new ParquetReadSource(allocator));
-  RETURN_NOT_OK(source->Open(file));
-
   // TODO(wesm): reader properties
   std::unique_ptr<ParquetReader> pq_reader;
-  PARQUET_CATCH_NOT_OK(pq_reader = ParquetReader::Open(std::move(source)));
+  PARQUET_CATCH_NOT_OK(pq_reader = ParquetReader::Open(file));
 
   // Use the same memory pool as the ParquetAllocator
   reader->reset(new FileReader(allocator->pool(), std::move(pq_reader)));

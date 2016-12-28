@@ -25,8 +25,7 @@
 #include "parquet/exception.h"
 #include "parquet/schema/types.h"
 #include "parquet/types.h"
-#include "parquet/util/input.h"
-#include "parquet/util/mem-allocator.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
 namespace parquet {
@@ -40,16 +39,16 @@ static bool DEFAULT_USE_BUFFERED_STREAM = false;
 
 class PARQUET_EXPORT ReaderProperties {
  public:
-  explicit ReaderProperties(MemoryAllocator* allocator = default_allocator())
+  explicit ReaderProperties(MemoryPool* allocator = default_allocator())
       : allocator_(allocator) {
     buffered_stream_enabled_ = DEFAULT_USE_BUFFERED_STREAM;
     buffer_size_ = DEFAULT_BUFFER_SIZE;
   }
 
-  MemoryAllocator* allocator() { return allocator_; }
+  MemoryPool* allocator() const { return allocator_; }
 
   std::unique_ptr<InputStream> GetStream(
-      RandomAccessSource* source, int64_t start, int64_t num_bytes) {
+      InputWrapper* source, int64_t start, int64_t num_bytes) {
     std::unique_ptr<InputStream> stream;
     if (buffered_stream_enabled_) {
       stream.reset(
@@ -71,7 +70,7 @@ class PARQUET_EXPORT ReaderProperties {
   int64_t buffer_size() const { return buffer_size_; }
 
  private:
-  MemoryAllocator* allocator_;
+  MemoryPool* allocator_;
   int64_t buffer_size_;
   bool buffered_stream_enabled_;
 };
@@ -119,7 +118,7 @@ class PARQUET_EXPORT WriterProperties {
           created_by_(DEFAULT_CREATED_BY) {}
     virtual ~Builder() {}
 
-    Builder* allocator(MemoryAllocator* allocator) {
+    Builder* allocator(MemoryPool* allocator) {
       allocator_ = allocator;
       return this;
     }
@@ -288,7 +287,7 @@ class PARQUET_EXPORT WriterProperties {
     }
 
    private:
-    MemoryAllocator* allocator_;
+    MemoryPool* allocator_;
     int64_t dictionary_pagesize_limit_;
     int64_t write_batch_size_;
     int64_t pagesize_;
@@ -303,7 +302,7 @@ class PARQUET_EXPORT WriterProperties {
     std::unordered_map<std::string, bool> statistics_enabled_;
   };
 
-  inline MemoryAllocator* allocator() const { return allocator_; }
+  inline MemoryPool* allocator() const { return allocator_; }
 
   inline int64_t dictionary_pagesize_limit() const { return dictionary_pagesize_limit_; }
 
@@ -355,7 +354,7 @@ class PARQUET_EXPORT WriterProperties {
   }
 
  private:
-  explicit WriterProperties(MemoryAllocator* allocator, int64_t dictionary_pagesize_limit,
+  explicit WriterProperties(MemoryPool* allocator, int64_t dictionary_pagesize_limit,
       int64_t write_batch_size, int64_t pagesize, ParquetVersion::type version,
       const std::string& created_by, const ColumnProperties& default_column_properties,
       const std::unordered_map<std::string, ColumnProperties>& column_properties)
@@ -368,7 +367,7 @@ class PARQUET_EXPORT WriterProperties {
         default_column_properties_(default_column_properties),
         column_properties_(column_properties) {}
 
-  MemoryAllocator* allocator_;
+  MemoryPool* allocator_;
   int64_t dictionary_pagesize_limit_;
   int64_t write_batch_size_;
   int64_t pagesize_;

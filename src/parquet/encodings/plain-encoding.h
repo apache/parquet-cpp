@@ -25,8 +25,7 @@
 #include "parquet/encodings/encoder.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/util/bit-stream-utils.inline.h"
-#include "parquet/util/buffer.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
@@ -162,85 +161,92 @@ class PlainEncoder : public Encoder<DType> {
   typedef typename DType::c_type T;
 
   explicit PlainEncoder(
-      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
-      : Encoder<DType>(descr, Encoding::PLAIN, allocator),
-        values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {}
+      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
+      : Encoder<DType>(descr, Encoding::PLAIN, allocator) {
+    values_sink_ = MakeOutputStream(allocator);
+  }
 
-  int64_t EstimatedDataEncodedSize() override { return values_sink_->Tell(); }
+  int64_t EstimatedDataEncodedSize() override {
+    int64_t position = 0;
+    PARQUET_THROW_NOT_OK(values_sink_->Tell(&position));
+    return position;
+  }
 
   std::shared_ptr<Buffer> FlushValues() override;
   void Put(const T* src, int num_values) override;
 
  protected:
-  std::shared_ptr<InMemoryOutputStream> values_sink_;
+  std::unique_ptr<BufferOutputStream> values_sink_;
 };
 
 template <>
 class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
  public:
   explicit PlainEncoder(
-      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
+      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
       : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator),
-        bits_available_(IN_MEMORY_DEFAULT_CAPACITY * 8),
-        bits_buffer_(IN_MEMORY_DEFAULT_CAPACITY, allocator),
-        values_sink_(new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, allocator)) {
-    bit_writer_.reset(new BitWriter(bits_buffer_.mutable_data(), bits_buffer_.size()));
+        bits_available_(kInMemoryDefaultCapacity * 8),
+      bits_buffer_(AllocateBuffer(allocator, kInMemoryDefaultCapacity)),
+      values_sink_(MakeOutputStream(allocator)) {
+    bit_writer_.reset(new BitWriter(bits_buffer_->mutable_data(), bits_buffer_->size()));
   }
 
   int64_t EstimatedDataEncodedSize() override {
-    return values_sink_->Tell() + bit_writer_->bytes_written();
+    int64_t position = 0;
+    PARQUET_THROW_NOT_OK(values_sink_->Tell(&position));
+    return position + bit_writer_->bytes_written();
   }
 
   std::shared_ptr<Buffer> FlushValues() override {
     if (bits_available_ > 0) {
       bit_writer_->Flush();
-      values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written());
+      PARQUET_THROW_NOT_OK(
+          values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()));
       bit_writer_->Clear();
-      bits_available_ = bits_buffer_.size() * 8;
+      bits_available_ = bits_buffer_->size() * 8;
     }
 
-    std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
-    values_sink_.reset(
-        new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, this->allocator_));
+    std::shared_ptr<Buffer> buffer = values_sink_->buffer();
+    values_sink_ = MakeOutputStream(this->allocator_);
     return buffer;
   }
 
-#define PLAINDECODER_BOOLEAN_PUT(input_type, function_attributes)                 \
-  void Put(input_type src, int num_values) function_attributes {                  \
-    int bit_offset = 0;                                                           \
-    if (bits_available_ > 0) {                                                    \
-      int bits_to_write = std::min(bits_available_, num_values);                  \
-      for (int i = 0; i < bits_to_write; i++) {                                   \
-        bit_writer_->PutValue(src[i], 1);                                         \
-      }                                                                           \
-      bits_available_ -= bits_to_write;                                           \
-      bit_offset = bits_to_write;                                                 \
-                                                                                  \
-      if (bits_available_ == 0) {                                                 \
-        bit_writer_->Flush();                                                     \
-        values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()); \
-        bit_writer_->Clear();                                                     \
-      }                                                                           \
-    }                                                                             \
-                                                                                  \
-    int bits_remaining = num_values - bit_offset;                                 \
-    while (bit_offset < num_values) {                                             \
-      bits_available_ = bits_buffer_.size() * 8;                                  \
-                                                                                  \
-      int bits_to_write = std::min(bits_available_, bits_remaining);              \
-      for (int i = bit_offset; i < bit_offset + bits_to_write; i++) {             \
-        bit_writer_->PutValue(src[i], 1);                                         \
-      }                                                                           \
-      bit_offset += bits_to_write;                                                \
-      bits_available_ -= bits_to_write;                                           \
-      bits_remaining -= bits_to_write;                                            \
-                                                                                  \
-      if (bits_available_ == 0) {                                                 \
-        bit_writer_->Flush();                                                     \
-        values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written()); \
-        bit_writer_->Clear();                                                     \
-      }                                                                           \
-    }                                                                             \
+#define PLAINDECODER_BOOLEAN_PUT(input_type, function_attributes)       \
+  void Put(input_type src, int num_values) function_attributes {        \
+    int bit_offset = 0;                                                 \
+    if (bits_available_ > 0) {                                          \
+      int bits_to_write = std::min(bits_available_, num_values);        \
+      for (int i = 0; i < bits_to_write; i++) {                         \
+        bit_writer_->PutValue(src[i], 1);                               \
+      }                                                                 \
+      bits_available_ -= bits_to_write;                                 \
+      bit_offset = bits_to_write;                                       \
+                                                                        \
+      if (bits_available_ == 0) {                                       \
+        bit_writer_->Flush();                                           \
+        PARQUET_THROW_NOT_OK(values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written())); \
+        bit_writer_->Clear();                                           \
+      }                                                                 \
+    }                                                                   \
+                                                                        \
+    int bits_remaining = num_values - bit_offset;                       \
+    while (bit_offset < num_values) {                                   \
+      bits_available_ = bits_buffer_->size() * 8;                       \
+                                                                        \
+      int bits_to_write = std::min(bits_available_, bits_remaining);    \
+      for (int i = bit_offset; i < bit_offset + bits_to_write; i++) {   \
+        bit_writer_->PutValue(src[i], 1);                               \
+      }                                                                 \
+      bit_offset += bits_to_write;                                      \
+      bits_available_ -= bits_to_write;                                 \
+      bits_remaining -= bits_to_write;                                  \
+                                                                        \
+      if (bits_available_ == 0) {                                       \
+        bit_writer_->Flush();                                           \
+        PARQUET_THROW_NOT_OK(values_sink_->Write(bit_writer_->buffer(), bit_writer_->bytes_written())); \
+        bit_writer_->Clear();                                           \
+      }                                                                 \
+    }                                                                   \
   }
 
   PLAINDECODER_BOOLEAN_PUT(const bool*, override)
@@ -249,30 +255,33 @@ class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
  protected:
   int bits_available_;
   std::unique_ptr<BitWriter> bit_writer_;
-  OwnedMutableBuffer bits_buffer_;
-  std::shared_ptr<InMemoryOutputStream> values_sink_;
+  std::shared_ptr<PoolBuffer> bits_buffer_;
+  std::unique_ptr<BufferOutputStream> values_sink_;
 };
 
 template <typename DType>
 inline std::shared_ptr<Buffer> PlainEncoder<DType>::FlushValues() {
-  std::shared_ptr<Buffer> buffer = values_sink_->GetBuffer();
-  values_sink_.reset(
-      new InMemoryOutputStream(IN_MEMORY_DEFAULT_CAPACITY, this->allocator_));
+  std::shared_ptr<Buffer> buffer = values_sink_->buffer();
+  values_sink_ = MakeOutputStream(this->allocator_);
   return buffer;
 }
 
 template <typename DType>
 inline void PlainEncoder<DType>::Put(const T* buffer, int num_values) {
-  values_sink_->Write(reinterpret_cast<const uint8_t*>(buffer), num_values * sizeof(T));
+  PARQUET_THROW_NOT_OK(
+      values_sink_->Write(reinterpret_cast<const uint8_t*>(buffer),
+          num_values * sizeof(T)));
 }
 
 template <>
 inline void PlainEncoder<ByteArrayType>::Put(const ByteArray* src, int num_values) {
   for (int i = 0; i < num_values; ++i) {
     // Write the result to the output stream
-    values_sink_->Write(reinterpret_cast<const uint8_t*>(&src[i].len), sizeof(uint32_t));
+    PARQUET_THROW_NOT_OK(
+        values_sink_->Write(reinterpret_cast<const uint8_t*>(&src[i].len), sizeof(uint32_t)));
     if (src[i].len > 0) { DCHECK(nullptr != src[i].ptr) << "Value ptr cannot be NULL"; }
-    values_sink_->Write(reinterpret_cast<const uint8_t*>(src[i].ptr), src[i].len);
+    PARQUET_THROW_NOT_OK(
+        values_sink_->Write(reinterpret_cast<const uint8_t*>(src[i].ptr), src[i].len));
   }
 }
 
@@ -283,8 +292,8 @@ inline void PlainEncoder<FLBAType>::Put(const FixedLenByteArray* src, int num_va
     if (descr_->type_length() > 0) {
       DCHECK(nullptr != src[i].ptr) << "Value ptr cannot be NULL";
     }
-    values_sink_->Write(
-        reinterpret_cast<const uint8_t*>(src[i].ptr), descr_->type_length());
+    PARQUET_THROW_NOT_OK(values_sink_->Write(
+            reinterpret_cast<const uint8_t*>(src[i].ptr), descr_->type_length()));
   }
 }
 }  // namespace parquet

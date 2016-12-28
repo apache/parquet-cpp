@@ -33,8 +33,7 @@
 #include "parquet/thrift/parquet_types.h"
 #include "parquet/thrift/util.h"
 #include "parquet/types.h"
-#include "parquet/util/input.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/test-common.h"
 
 namespace parquet {
@@ -238,7 +237,7 @@ class TestParquetFileReader : public ::testing::Test {
     reader_.reset(new ParquetFileReader());
 
     ASSERT_THROW(
-        reader_->Open(SerializedFile::Open(std::move(reader))), ParquetException);
+        reader_->Open(SerializedFile::Open(reader)), ParquetException);
   }
 
  protected:

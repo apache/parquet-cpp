@@ -28,9 +28,7 @@
 #include "parquet/file/metadata.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
-#include "parquet/util/mem-allocator.h"
-#include "parquet/util/mem-pool.h"
-#include "parquet/util/output.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
 namespace parquet {
@@ -110,8 +108,8 @@ class PARQUET_EXPORT ColumnWriter {
 
   LevelEncoder level_encoder_;
 
-  MemoryAllocator* allocator_;
-  MemPool pool_;
+  MemoryPool* allocator_;
+  ChunkedAllocator pool_;
 
   // The total number of values stored in the data page. This is the maximum of
   // the number of encoded definition levels or encoded values. For
@@ -137,8 +135,8 @@ class PARQUET_EXPORT ColumnWriter {
   // Flag to infer if dictionary encoding has fallen back to PLAIN
   bool fallback_;
 
-  std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
-  std::unique_ptr<InMemoryOutputStream> repetition_levels_sink_;
+  std::unique_ptr<BufferOutputStream> definition_levels_sink_;
+  std::unique_ptr<BufferOutputStream> repetition_levels_sink_;
 
   std::vector<CompressedDataPage> data_pages_;
 

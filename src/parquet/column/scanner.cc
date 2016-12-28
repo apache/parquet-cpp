@@ -21,11 +21,12 @@
 #include <memory>
 
 #include "parquet/column/reader.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
 std::shared_ptr<Scanner> Scanner::Make(std::shared_ptr<ColumnReader> col_reader,
-    int64_t batch_size, MemoryAllocator* allocator) {
+    int64_t batch_size, MemoryPool* allocator) {
   switch (col_reader->type()) {
     case Type::BOOLEAN:
       return std::make_shared<BoolScanner>(col_reader, batch_size, allocator);

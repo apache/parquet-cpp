@@ -31,7 +31,7 @@
 #include "parquet/exception.h"
 #include "parquet/schema/descriptor.h"
 #include "parquet/types.h"
-#include "parquet/util/mem-allocator.h"
+#include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
 namespace parquet {
@@ -39,12 +39,12 @@ namespace parquet {
 class PARQUET_EXPORT ColumnReader {
  public:
   ColumnReader(const ColumnDescriptor*, std::unique_ptr<PageReader>,
-      MemoryAllocator* allocator = default_allocator());
+      MemoryPool* allocator = default_allocator());
   virtual ~ColumnReader();
 
   static std::shared_ptr<ColumnReader> Make(const ColumnDescriptor* descr,
       std::unique_ptr<PageReader> pager,
-      MemoryAllocator* allocator = default_allocator());
+      MemoryPool* allocator = default_allocator());
 
   // Returns true if there are still values in this column.
   bool HasNext() {
@@ -95,7 +95,7 @@ class PARQUET_EXPORT ColumnReader {
   // into memory
   int num_decoded_values_;
 
-  MemoryAllocator* allocator_;
+  MemoryPool* allocator_;
 };
 
 // API to read values from a single column. This is the main client facing API.
@@ -105,7 +105,7 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   typedef typename DType::c_type T;
 
   TypedColumnReader(const ColumnDescriptor* schema, std::unique_ptr<PageReader> pager,
-      MemoryAllocator* allocator = default_allocator())
+      MemoryPool* allocator = default_allocator())
       : ColumnReader(schema, std::move(pager), allocator), current_decoder_(NULL) {}
   virtual ~TypedColumnReader() {}
 
@@ -221,12 +221,15 @@ inline int64_t TypedColumnReader<DType>::Skip(int64_t num_rows_to_skip) {
       // Jump to the right offset in the Page
       int64_t batch_size = 1024;  // ReadBatch with a smaller memory footprint
       int64_t values_read = 0;
-      auto vals = std::make_shared<OwnedMutableBuffer>(
-          batch_size * type_traits<DType::type_num>::value_byte_size, this->allocator_);
-      auto def_levels = std::make_shared<OwnedMutableBuffer>(
-          batch_size * sizeof(int16_t), this->allocator_);
-      auto rep_levels = std::make_shared<OwnedMutableBuffer>(
-          batch_size * sizeof(int16_t), this->allocator_);
+
+      std::shared_ptr<PoolBuffer> vals = AllocateBuffer(this->allocator_,
+          batch_size * type_traits<DType::type_num>::value_byte_size);
+      std::shared_ptr<PoolBuffer> def_levels = AllocateBuffer(this->allocator_,
+          batch_size * sizeof(int16_t));
+
+      std::shared_ptr<PoolBuffer> rep_levels = AllocateBuffer(this->allocator_,
+          batch_size * sizeof(int16_t));
+
       do {
         batch_size = std::min(batch_size, rows_to_skip);
         values_read =

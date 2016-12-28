@@ -21,7 +21,7 @@
 #include "parquet/column/writer.h"
 #include "parquet/file/reader-internal.h"
 #include "parquet/file/writer-internal.h"
-#include "parquet/util/input.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 

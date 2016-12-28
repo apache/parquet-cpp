@@ -32,8 +32,7 @@
 #include "parquet/schema/types.h"
 #include "parquet/thrift/util.h"
 #include "parquet/types.h"
-#include "parquet/util/buffer.h"
-#include "parquet/util/input.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
@@ -42,9 +41,9 @@ namespace parquet {
 // assembled in a serialized stream for storing in a Parquet files
 
 SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
-    int64_t total_num_rows, Compression::type codec_type, MemoryAllocator* allocator)
+    int64_t total_num_rows, Compression::type codec_type, MemoryPool* allocator)
     : stream_(std::move(stream)),
-      decompression_buffer_(0, allocator),
+      decompression_buffer_(AllocateBuffer(allocator, 0)),
       seen_num_rows_(0),
       total_num_rows_(total_num_rows) {
   max_page_header_size_ = DEFAULT_MAX_PAGE_HEADER_SIZE;
@@ -97,12 +96,14 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
     // Uncompress it if we need to
     if (decompressor_ != NULL) {
       // Grow the uncompressed buffer if we need to.
-      if (uncompressed_len > static_cast<int>(decompression_buffer_.size())) {
-        decompression_buffer_.Resize(uncompressed_len);
+      if (uncompressed_len > static_cast<int>(decompression_buffer_->size())) {
+        PARQUET_THROW_NOT_OK(
+            decompression_buffer_->Resize(uncompressed_len));
       }
       decompressor_->Decompress(
-          compressed_len, buffer, uncompressed_len, &decompression_buffer_[0]);
-      buffer = &decompression_buffer_[0];
+          compressed_len, buffer, uncompressed_len,
+          decompression_buffer_->mutable_data());
+      buffer = decompression_buffer_->data();
     }
 
     auto page_buffer = std::make_shared<Buffer>(buffer, uncompressed_len);
@@ -155,7 +156,7 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
   return std::shared_ptr<Page>(nullptr);
 }
 
-SerializedRowGroup::SerializedRowGroup(RandomAccessSource* source,
+SerializedRowGroup::SerializedRowGroup(InputWrapper* source,
     FileMetaData* file_metadata, int row_group_number, const ReaderProperties& props)
     : source_(source), file_metadata_(file_metadata), properties_(props) {
   row_group_metadata_ = file_metadata->RowGroup(row_group_number);
@@ -207,9 +208,9 @@ static constexpr uint32_t FOOTER_SIZE = 8;
 static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 std::unique_ptr<ParquetFileReader::Contents> SerializedFile::Open(
-    std::unique_ptr<RandomAccessSource> source, ReaderProperties props) {
+    const std::shared_ptr<InputWrapper>& source, const ReaderProperties& props) {
   std::unique_ptr<ParquetFileReader::Contents> result(
-      new SerializedFile(std::move(source), props));
+      new SerializedFile(source, props));
 
   // Access private methods here, but otherwise unavailable
   SerializedFile* file = static_cast<SerializedFile*>(result.get());
@@ -238,40 +239,41 @@ const FileMetaData* SerializedFile::metadata() const {
   return file_metadata_.get();
 }
 
-SerializedFile::SerializedFile(std::unique_ptr<RandomAccessSource> source,
-    ReaderProperties props = default_reader_properties())
-    : source_(std::move(source)), properties_(props) {}
+SerializedFile::SerializedFile(const std::shared_ptr<InputWrapper>& source,
+    const ReaderProperties& props = default_reader_properties())
+    : source_(source), properties_(props) {}
 
 void SerializedFile::ParseMetaData() {
-  int64_t filesize = source_->Size();
+  int64_t file_size = source_->Size();
 
-  if (filesize < FOOTER_SIZE) {
+  if (file_size < FOOTER_SIZE) {
     throw ParquetException("Corrupted file, smaller than file footer");
   }
 
   uint8_t footer_buffer[FOOTER_SIZE];
-  source_->Seek(filesize - FOOTER_SIZE);
+  source_->Seek(file_size - FOOTER_SIZE);
   int64_t bytes_read = source_->Read(FOOTER_SIZE, footer_buffer);
   if (bytes_read != FOOTER_SIZE || memcmp(footer_buffer + 4, PARQUET_MAGIC, 4) != 0) {
     throw ParquetException("Invalid parquet file. Corrupt footer.");
   }
 
   uint32_t metadata_len = *reinterpret_cast<uint32_t*>(footer_buffer);
-  int64_t metadata_start = filesize - FOOTER_SIZE - metadata_len;
-  if (FOOTER_SIZE + metadata_len > filesize) {
+  int64_t metadata_start = file_size - FOOTER_SIZE - metadata_len;
+  if (FOOTER_SIZE + metadata_len > file_size) {
     throw ParquetException(
         "Invalid parquet file. File is less than "
         "file metadata size.");
   }
   source_->Seek(metadata_start);
 
-  OwnedMutableBuffer metadata_buffer(metadata_len, properties_.allocator());
-  bytes_read = source_->Read(metadata_len, &metadata_buffer[0]);
+  std::shared_ptr<PoolBuffer> metadata_buffer = AllocateBuffer(properties_.allocator(),
+      metadata_len);
+  bytes_read = source_->Read(metadata_len, metadata_buffer->mutable_data());
   if (bytes_read != metadata_len) {
     throw ParquetException("Invalid parquet file. Could not read metadata bytes.");
   }
 
-  file_metadata_ = FileMetaData::Make(&metadata_buffer[0], &metadata_len);
+  file_metadata_ = FileMetaData::Make(metadata_buffer->data(), &metadata_len);
 }
 
 }  // namespace parquet
