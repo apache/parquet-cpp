@@ -35,7 +35,7 @@ namespace parquet {
 // and the page metadata.
 class SerializedPageWriter : public PageWriter {
  public:
-  SerializedPageWriter(OutputWrapper* sink, Compression::type codec,
+  SerializedPageWriter(OutputStream* sink, Compression::type codec,
       ColumnChunkMetaDataBuilder* metadata, MemoryPool* allocator = default_allocator());
 
   virtual ~SerializedPageWriter() {}
@@ -52,7 +52,7 @@ class SerializedPageWriter : public PageWriter {
   void Close(bool has_dictionary, bool fallback) override;
 
  private:
-  OutputWrapper* sink_;
+  OutputStream* sink_;
   ColumnChunkMetaDataBuilder* metadata_;
   MemoryPool* allocator_;
   int64_t num_values_;
@@ -68,7 +68,7 @@ class SerializedPageWriter : public PageWriter {
 // RowGroupWriter::Contents implementation for the Parquet file specification
 class RowGroupSerializer : public RowGroupWriter::Contents {
  public:
-  RowGroupSerializer(int64_t num_rows, OutputWrapper* sink,
+  RowGroupSerializer(int64_t num_rows, OutputStream* sink,
       RowGroupMetaDataBuilder* metadata, const WriterProperties* properties)
       : num_rows_(num_rows),
         sink_(sink),
@@ -88,7 +88,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
  private:
   int64_t num_rows_;
-  OutputWrapper* sink_;
+  OutputStream* sink_;
   RowGroupMetaDataBuilder* metadata_;
   const WriterProperties* properties_;
   int64_t total_bytes_written_;
@@ -103,7 +103,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 class FileSerializer : public ParquetFileWriter::Contents {
  public:
   static std::unique_ptr<ParquetFileWriter::Contents> Open(
-      std::shared_ptr<OutputWrapper> sink,
+      std::shared_ptr<OutputStream> sink,
       const std::shared_ptr<schema::GroupNode>& schema,
       const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 
@@ -120,11 +120,11 @@ class FileSerializer : public ParquetFileWriter::Contents {
   virtual ~FileSerializer();
 
  private:
-  explicit FileSerializer(std::shared_ptr<OutputWrapper> sink,
+  explicit FileSerializer(std::shared_ptr<OutputStream> sink,
       const std::shared_ptr<schema::GroupNode>& schema,
       const std::shared_ptr<WriterProperties>& properties);
 
-  std::shared_ptr<OutputWrapper> sink_;
+  std::shared_ptr<OutputStream> sink_;
   bool is_open_;
   const std::shared_ptr<WriterProperties> properties_;
   int num_row_groups_;

@@ -91,7 +91,7 @@ class PARQUET_EXPORT ParquetFileReader {
       const ReaderProperties& props = default_reader_properties());
 
   static std::unique_ptr<ParquetFileReader> Open(
-      const std::shared_ptr<InputWrapper>& source,
+      const std::shared_ptr<RandomAccessSource>& source,
       const ReaderProperties& props = default_reader_properties());
 
   void Open(std::unique_ptr<Contents> contents);

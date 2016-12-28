@@ -317,69 +317,65 @@ bool ChunkedAllocator::CheckIntegrity(bool current_chunk_empty) {
 // Arrow IO wrappers
 
 // Close the output stream
-void FileWrapper::Close() {
+void ArrowFileMethods::Close() {
   PARQUET_THROW_NOT_OK(file_interface()->Close());
 }
 
 // Return the current position in the output stream relative to the start
-int64_t FileWrapper::Tell() {
+int64_t ArrowFileMethods::Tell() {
   int64_t position = 0;
   PARQUET_THROW_NOT_OK(file_interface()->Tell(&position));
   return position;
 }
 
-InputWrapper::InputWrapper(const std::shared_ptr<::arrow::io::ReadableFileInterface> file)
+ArrowInputFile::ArrowInputFile(
+    const std::shared_ptr<::arrow::io::ReadableFileInterface> file)
     : file_(file) {}
 
-::arrow::io::FileInterface* InputWrapper::file_interface() {
+::arrow::io::FileInterface* ArrowInputFile::file_interface() {
   return file_.get();
 }
 
-int64_t InputWrapper::Size() {
+int64_t ArrowInputFile::Size() const {
   int64_t size;
   PARQUET_THROW_NOT_OK(file_->GetSize(&size));
   return size;
 }
 
-void InputWrapper::Seek(int64_t position) {
+void ArrowInputFile::Seek(int64_t position) {
   PARQUET_THROW_NOT_OK(file_->Seek(position));
 }
 
 // Returns bytes read
-int64_t InputWrapper::Read(int64_t nbytes, uint8_t* out) {
+int64_t ArrowInputFile::Read(int64_t nbytes, uint8_t* out) {
   int64_t bytes_read = 0;
   PARQUET_THROW_NOT_OK(file_->Read(nbytes, &bytes_read, out));
   return bytes_read;
 }
 
-std::shared_ptr<Buffer> InputWrapper::Read(int64_t nbytes) {
+std::shared_ptr<Buffer> ArrowInputFile::Read(int64_t nbytes) {
   std::shared_ptr<Buffer> out;
   PARQUET_THROW_NOT_OK(file_->Read(nbytes, &out));
   return out;
 }
 
-// Returns bytes read
-int64_t InputWrapper::ReadAt(int64_t position, int64_t nbytes, uint8_t* out) {
-  int64_t bytes_read = 0;
-  PARQUET_THROW_NOT_OK(file_->ReadAt(position, nbytes, &bytes_read, out));
-  return bytes_read;
-}
-
-std::shared_ptr<Buffer> InputWrapper::ReadAt(int64_t position, int64_t nbytes) {
+std::shared_ptr<Buffer> ArrowInputFile::ReadAt(
+    int64_t position, int64_t nbytes) {
   std::shared_ptr<Buffer> out;
   PARQUET_THROW_NOT_OK(file_->ReadAt(position, nbytes, &out));
   return out;
 }
 
-OutputWrapper::OutputWrapper(const std::shared_ptr<::arrow::io::OutputStream> file)
+ArrowOutputStream::ArrowOutputStream(
+    const std::shared_ptr<::arrow::io::OutputStream> file)
     : file_(file) {}
 
-::arrow::io::FileInterface* OutputWrapper::file_interface() {
+::arrow::io::FileInterface* ArrowOutputStream::file_interface() {
   return file_.get();
 }
 
 // Copy bytes into the output stream
-void OutputWrapper::Write(const uint8_t* data, int64_t length) {
+void ArrowOutputStream::Write(const uint8_t* data, int64_t length) {
   PARQUET_THROW_NOT_OK(file_->Write(data, length));
 }
 
@@ -392,7 +388,7 @@ InMemoryInputStream::InMemoryInputStream(const std::shared_ptr<Buffer>& buffer)
 }
 
 InMemoryInputStream::InMemoryInputStream(
-    InputWrapper* source, int64_t start, int64_t num_bytes)
+    RandomAccessSource* source, int64_t start, int64_t num_bytes)
     : offset_(0) {
   buffer_ = source->ReadAt(start, num_bytes);
   if (buffer_->size() < num_bytes) {
@@ -420,7 +416,7 @@ void InMemoryInputStream::Advance(int64_t num_bytes) {
 // BufferedInputStream
 
 BufferedInputStream::BufferedInputStream(MemoryPool* pool, int64_t buffer_size,
-    InputWrapper* source, int64_t start, int64_t num_bytes)
+    RandomAccessSource* source, int64_t start, int64_t num_bytes)
     : source_(source), stream_offset_(start), stream_end_(start + num_bytes) {
   buffer_ = AllocateBuffer(pool, buffer_size);
   buffer_size_ = buffer_->size();

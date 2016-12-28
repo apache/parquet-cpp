@@ -48,7 +48,7 @@ class PARQUET_EXPORT ReaderProperties {
   MemoryPool* allocator() const { return allocator_; }
 
   std::unique_ptr<InputStream> GetStream(
-      InputWrapper* source, int64_t start, int64_t num_bytes) {
+      RandomAccessSource* source, int64_t start, int64_t num_bytes) {
     std::unique_ptr<InputStream> stream;
     if (buffered_stream_enabled_) {
       stream.reset(

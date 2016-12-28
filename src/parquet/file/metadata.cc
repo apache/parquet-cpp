@@ -295,7 +295,7 @@ class FileMetaData::FileMetaDataImpl {
 
   const FileMetaData::Version& writer_version() const { return writer_version_; }
 
-  void WriteTo(OutputWrapper* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
+  void WriteTo(OutputStream* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
 
   std::unique_ptr<RowGroupMetaData> RowGroup(int i) {
     if (!(i < num_row_groups())) {
@@ -377,7 +377,7 @@ const SchemaDescriptor* FileMetaData::schema() const {
   return impl_->schema();
 }
 
-void FileMetaData::WriteTo(OutputWrapper* dst) {
+void FileMetaData::WriteTo(OutputStream* dst) {
   return impl_->WriteTo(dst);
 }
 

@@ -176,14 +176,14 @@ class TestLocalFile : public ::testing::Test {
 
     fileno = handle->file_descriptor();
 
-    file = std::make_shared<InputWrapper>(handle);
+    file = std::make_shared<ArrowInputFile>(handle);
   }
 
   void TearDown() {}
 
  protected:
   int fileno;
-  std::shared_ptr<InputWrapper> file;
+  std::shared_ptr<ArrowInputFile> file;
 };
 
 TEST_F(TestLocalFile, FileClosedOnDestruction) {

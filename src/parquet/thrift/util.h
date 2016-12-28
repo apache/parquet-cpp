@@ -118,7 +118,7 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
 // The arguments are the object to be serialized and
 // the expected size of the serialized object
 template <class T>
-inline void SerializeThriftMsg(T* obj, uint32_t len, OutputWrapper* out) {
+inline void SerializeThriftMsg(T* obj, uint32_t len, OutputStream* out) {
   boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> mem_buffer(
       new apache::thrift::transport::TMemoryBuffer(len));
   apache::thrift::protocol::TCompactProtocolFactoryT<
