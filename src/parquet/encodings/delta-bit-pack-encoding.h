@@ -24,7 +24,7 @@
 
 #include "parquet/encodings/decoder.h"
 #include "parquet/util/bit-stream-utils.inline.h"
-#include "parquet/util/buffer.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
