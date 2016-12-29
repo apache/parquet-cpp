@@ -12,10 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License. See accompanying LICENSE file.
 
-# Build an isolated thirdparty
-cp -r $TRAVIS_BUILD_DIR/thirdparty .
-./thirdparty/download_thirdparty.sh
-
 if [ $TRAVIS_OS_NAME == "osx" ]; then
   brew update > /dev/null
   brew install thrift
@@ -26,4 +22,3 @@ else
 fi
 
 export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
-source $TRAVIS_BUILD_DIR/setup_build_env.sh

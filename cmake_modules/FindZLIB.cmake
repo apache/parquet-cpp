@@ -44,12 +44,13 @@ if ( _zlib_roots )
     find_path( ZLIB_INCLUDE_DIR NAMES zlib.h
         PATHS ${_zlib_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "include" )
-    find_library( ZLIB_LIBRARIES NAMES z
+    find_library( ZLIB_LIBRARIES NAMES libz.a
         PATHS ${_zlib_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "lib" )
 else ()
     find_path( ZLIB_INCLUDE_DIR NAMES zlib.h )
-    find_library( ZLIB_LIBRARIES NAMES z )
+    # Only look for the static library
+    find_library( ZLIB_LIBRARIES NAMES libz.a )
 endif ()
 
 

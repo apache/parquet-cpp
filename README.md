@@ -39,48 +39,14 @@
 - googletest 1.7.0 (cannot be installed with package managers)
 - Google Benchmark (only required if building benchmarks)
 
-You can install these dependencies using a package manager or using the
-`thirdparty/` scripts in this repository.
+You can either install these dependencies via your package manager, otherwise
+they will be build automatically as part of the build.
 
-Mac already has zlib; on Homebrew, you can run:
-
-```shell
- brew install snappy thrift
-```
-
-For Linux, just run
-
-```shell
-source setup_build_env.sh
-```
-
-By default, it will create a build directory `build/`. You can override the
-build directory by setting the BUILD_DIR env variable to another location.
-
-To manually build the thirdparty libraries in-tree, run:
-
-```shell
-./thirdparty/download_thirdparty.sh
-./thirdparty/build_thirdparty.sh
-source thirdparty/set_thirdparty_env.sh
-```
-
-After building the thirdparty libraries, for future development iteration you
-can set the dependency environment variables (detailed below) by running
-
-```shell
-source $BUILD_DIR/thirdparty/set_thirdparty_env.sh
-```
-
-The unit tests depend on `googletest` which cannot be installed with Homebrew
-or normal package managers. If you wish to use system dependencies, we
-recommend that you build googletest in-tree by running:
+Note that thrift will not be build inside the project on macOS. Instead you
+should install it via homebrew:
 
 ```
-./thirdparty/download_thirdparty.sh
-./thirdparty/build_thirdparty.sh gtest
-source thirdparty/versions.sh
-export GTEST_HOME=`pwd`/thirdparty/$GTEST_BASEDIR
+brew install thrift
 ```
 
 ## Build
