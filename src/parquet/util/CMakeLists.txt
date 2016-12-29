@@ -20,17 +20,13 @@ install(FILES
   bit-stream-utils.h
   bit-stream-utils.inline.h
   bit-util.h
-  buffer.h
   buffer-builder.h
   compiler-util.h
   cpu-info.h
   hash-util.h
-  input.h
   logging.h
   macros.h
-  mem-allocator.h
-  mem-pool.h
-  output.h
+  memory.h
   rle-encoding.h
   stopwatch.h
   sse-util.h
