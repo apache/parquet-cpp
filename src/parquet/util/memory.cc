@@ -19,6 +19,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <string>
 
 #include "parquet/exception.h"
 #include "parquet/types.h"

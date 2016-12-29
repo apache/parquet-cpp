@@ -23,6 +23,7 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include "arrow/buffer.h"
@@ -294,7 +295,7 @@ class PARQUET_EXPORT ArrowFileMethods : virtual public FileInterface {
 
 class PARQUET_EXPORT ArrowInputFile : public ArrowFileMethods, public RandomAccessSource {
  public:
-  ArrowInputFile(const std::shared_ptr<::arrow::io::ReadableFileInterface> file);
+  explicit ArrowInputFile(const std::shared_ptr<::arrow::io::ReadableFileInterface> file);
 
   int64_t Size() const override;
 
@@ -320,7 +321,7 @@ class PARQUET_EXPORT ArrowInputFile : public ArrowFileMethods, public RandomAcce
 
 class PARQUET_EXPORT ArrowOutputStream : public ArrowFileMethods, public OutputStream {
  public:
-  ArrowOutputStream(const std::shared_ptr<::arrow::io::OutputStream> file);
+  explicit ArrowOutputStream(const std::shared_ptr<::arrow::io::OutputStream> file);
 
   // Copy bytes into the output stream
   void Write(const uint8_t* data, int64_t length) override;
