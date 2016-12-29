@@ -108,8 +108,9 @@ function run_test() {
   rm -f $XMLFILE
 
   $TEST_EXECUTABLE "$@" 2>&1 \
+    | c++filt \
     | $ROOT/build-support/stacktrace_addr2line.pl $TEST_EXECUTABLE \
-    | $pipe_cmd > $LOGFILE
+    | $pipe_cmd 2>&1 | tee $LOGFILE
   STATUS=$?
 
   # TSAN doesn't always exit with a non-zero exit code due to a bug:
@@ -126,17 +127,6 @@ function run_test() {
     STATUS=1
     rm -f $XMLFILE
   fi
-}
-
-function run_test_unlogged() {
-  # Run gtest style tests with sanitizers if they are setup appropriately.
-
-  # gtest won't overwrite old junit test files, resulting in a build failure
-  # even when retries are successful.
-  rm -f $XMLFILE
-
-  $TEST_EXECUTABLE "$@"
-  STATUS=$?
 }
 
 function post_process_tests() {
@@ -196,13 +186,10 @@ for ATTEMPT_NUMBER in $(seq 1 $TEST_EXECUTION_ATTEMPTS) ; do
       fi
     done
   fi
-  # echo "Running $TEST_NAME, redirecting output into $LOGFILE" \
-  #   "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
-  echo "Running $TEST_NAME" \
+  echo "Running $TEST_NAME, redirecting output into $LOGFILE" \
        "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
   if [ $RUN_TYPE = "test" ]; then
-    # run_test $*
-    run_test_unlogged $*
+    run_test $*
   else
     run_other $*
   fi
