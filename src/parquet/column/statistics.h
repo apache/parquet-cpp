@@ -134,7 +134,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   using T = typename DType::c_type;
 
   TypedRowGroupStatistics(
-      const ColumnDescriptor* schema, MemoryPool* allocator = default_allocator());
+      const ColumnDescriptor* schema, MemoryAllocator* allocator = default_allocator());
 
   TypedRowGroupStatistics(const T& min, const T& max, int64_t num_values,
       int64_t null_count, int64_t distinct_count);
@@ -142,7 +142,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   TypedRowGroupStatistics(const ColumnDescriptor* schema, const std::string& encoded_min,
       const std::string& encoded_max, int64_t num_values, int64_t null_count,
       int64_t distinct_count, bool has_min_max,
-      MemoryPool* allocator = default_allocator());
+      MemoryAllocator* allocator = default_allocator());
 
   bool HasMinMax() const override;
   void Reset() override;
@@ -161,7 +161,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   bool has_min_max_ = false;
   T min_;
   T max_;
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
 
   void PlainEncode(const T& src, std::string* dst);
   void PlainDecode(const std::string& src, T* dst);

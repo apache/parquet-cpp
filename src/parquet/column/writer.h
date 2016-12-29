@@ -108,7 +108,7 @@ class PARQUET_EXPORT ColumnWriter {
 
   LevelEncoder level_encoder_;
 
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
   ChunkedAllocator pool_;
 
   // The total number of values stored in the data page. This is the maximum of

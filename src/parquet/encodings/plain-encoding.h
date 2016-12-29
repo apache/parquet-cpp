@@ -161,7 +161,7 @@ class PlainEncoder : public Encoder<DType> {
   typedef typename DType::c_type T;
 
   explicit PlainEncoder(
-      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
+      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
       : Encoder<DType>(descr, Encoding::PLAIN, allocator) {
     values_sink_.reset(new InMemoryOutputStream(allocator));
   }
@@ -179,7 +179,7 @@ template <>
 class PlainEncoder<BooleanType> : public Encoder<BooleanType> {
  public:
   explicit PlainEncoder(
-      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
+      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
       : Encoder<BooleanType>(descr, Encoding::PLAIN, allocator),
         bits_available_(kInMemoryDefaultCapacity * 8),
         bits_buffer_(AllocateBuffer(allocator, kInMemoryDefaultCapacity)),

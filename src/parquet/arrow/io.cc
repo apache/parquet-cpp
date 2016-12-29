@@ -24,7 +24,6 @@
 #include "parquet/api/io.h"
 
 using arrow::Status;
-using arrow::MemoryPool;
 
 namespace parquet {
 namespace arrow {
@@ -34,7 +33,7 @@ namespace arrow {
 
 ParquetAllocator::ParquetAllocator() : pool_(::arrow::default_memory_pool()) {}
 
-ParquetAllocator::ParquetAllocator(MemoryPool* pool) : pool_(pool) {}
+ParquetAllocator::ParquetAllocator(::arrow::MemoryPool* pool) : pool_(pool) {}
 
 ParquetAllocator::~ParquetAllocator() {}
 

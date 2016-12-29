@@ -102,7 +102,7 @@ static void DecodeDict(
   int num_values = values.size();
 
   ChunkedAllocator pool;
-  MemoryPool* allocator = default_allocator();
+  MemoryAllocator* allocator = default_allocator();
   std::shared_ptr<ColumnDescriptor> descr = Int64Schema(Repetition::REQUIRED);
 
   DictEncoder<Type> encoder(descr.get(), &pool, allocator);

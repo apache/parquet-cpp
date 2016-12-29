@@ -178,7 +178,7 @@ class TestEncodingBase : public ::testing::Test {
 
  protected:
   ChunkedAllocator pool_;
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
 
   int num_values_;
   int type_length_;

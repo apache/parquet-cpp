@@ -66,11 +66,11 @@ using Buffer = ::arrow::Buffer;
 using MutableBuffer = ::arrow::MutableBuffer;
 using ResizableBuffer = ::arrow::ResizableBuffer;
 using PoolBuffer = ::arrow::PoolBuffer;
-using MemoryPool = ::arrow::MemoryPool;
+using MemoryAllocator = ::arrow::MemoryPool;
 
-PARQUET_EXPORT MemoryPool* default_allocator();
+PARQUET_EXPORT MemoryAllocator* default_allocator();
 
-class PARQUET_EXPORT TrackingAllocator : public MemoryPool {
+class PARQUET_EXPORT TrackingAllocator : public MemoryAllocator {
  public:
   TrackingAllocator() : total_memory_(0), max_memory_(0) {}
 
@@ -90,7 +90,7 @@ class PARQUET_EXPORT TrackingAllocator : public MemoryPool {
 template <class T>
 class Vector {
  public:
-  explicit Vector(int64_t size, MemoryPool* allocator);
+  explicit Vector(int64_t size, MemoryAllocator* allocator);
   void Resize(int64_t new_size);
   void Reserve(int64_t new_capacity);
   void Assign(int64_t size, const T val);
@@ -149,7 +149,7 @@ class Vector {
 
 class ChunkedAllocator {
  public:
-  explicit ChunkedAllocator(MemoryPool* allocator = default_allocator());
+  explicit ChunkedAllocator(MemoryAllocator* allocator = default_allocator());
 
   /// Frees all chunks of memory and subtracts the total allocated bytes
   /// from the registered limits.
@@ -227,7 +227,7 @@ class ChunkedAllocator {
 
   std::vector<ChunkInfo> chunks_;
 
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
 
   /// Find or allocated a chunk with at least min_size spare capacity and update
   /// current_chunk_idx_. Also updates chunks_, chunk_sizes_ and allocated_bytes_
@@ -339,7 +339,7 @@ class PARQUET_EXPORT ArrowOutputStream : public ArrowFileMethods, public OutputS
 
 class PARQUET_EXPORT InMemoryOutputStream : public OutputStream {
  public:
-  explicit InMemoryOutputStream(MemoryPool* allocator = default_allocator(),
+  explicit InMemoryOutputStream(MemoryAllocator* allocator = default_allocator(),
       int64_t initial_capacity = kInMemoryDefaultCapacity);
 
   virtual ~InMemoryOutputStream();
@@ -413,8 +413,8 @@ class InMemoryInputStream : public InputStream {
 // Implementation of an InputStream when only some of the bytes are in memory.
 class BufferedInputStream : public InputStream {
  public:
-  BufferedInputStream(MemoryPool* pool, int64_t buffer_size, RandomAccessSource* source,
-      int64_t start, int64_t end);
+  BufferedInputStream(MemoryAllocator* pool, int64_t buffer_size,
+      RandomAccessSource* source, int64_t start, int64_t end);
   virtual const uint8_t* Peek(int64_t num_to_peek, int64_t* num_bytes);
   virtual const uint8_t* Read(int64_t num_to_read, int64_t* num_bytes);
 
@@ -429,9 +429,10 @@ class BufferedInputStream : public InputStream {
   int64_t buffer_size_;
 };
 
-std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size = 0);
+std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryAllocator* allocator, int64_t size = 0);
 
-std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(MemoryPool* allocator, int64_t size = 0);
+std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(
+    MemoryAllocator* allocator, int64_t size = 0);
 
 }  // namespace parquet
 

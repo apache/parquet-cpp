@@ -187,7 +187,7 @@ template <>
 std::vector<FLBA> TestRowGroupStatistics<FLBAType>::GetDeepCopy(
     const std::vector<FLBA>& values) {
   std::vector<FLBA> copy;
-  MemoryPool* allocator = default_allocator();
+  MemoryAllocator* allocator = default_allocator();
   for (const FLBA& flba : values) {
     uint8_t* ptr;
     PARQUET_THROW_NOT_OK(allocator->Allocate(FLBA_LENGTH, &ptr));
@@ -201,7 +201,7 @@ template <>
 std::vector<ByteArray> TestRowGroupStatistics<ByteArrayType>::GetDeepCopy(
     const std::vector<ByteArray>& values) {
   std::vector<ByteArray> copy;
-  MemoryPool* allocator = default_allocator();
+  MemoryAllocator* allocator = default_allocator();
   for (const ByteArray& ba : values) {
     uint8_t* ptr;
     PARQUET_THROW_NOT_OK(allocator->Allocate(ba.len, &ptr));
@@ -217,7 +217,7 @@ void TestRowGroupStatistics<TestType>::DeepFree(
 
 template <>
 void TestRowGroupStatistics<FLBAType>::DeepFree(std::vector<FLBA>& values) {
-  MemoryPool* allocator = default_allocator();
+  MemoryAllocator* allocator = default_allocator();
   for (FLBA& flba : values) {
     auto ptr = const_cast<uint8_t*>(flba.ptr);
     memset(ptr, 0, FLBA_LENGTH);
@@ -227,7 +227,7 @@ void TestRowGroupStatistics<FLBAType>::DeepFree(std::vector<FLBA>& values) {
 
 template <>
 void TestRowGroupStatistics<ByteArrayType>::DeepFree(std::vector<ByteArray>& values) {
-  MemoryPool* allocator = default_allocator();
+  MemoryAllocator* allocator = default_allocator();
   for (ByteArray& ba : values) {
     auto ptr = const_cast<uint8_t*>(ba.ptr);
     memset(ptr, 0, ba.len);

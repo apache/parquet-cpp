@@ -36,7 +36,8 @@ namespace parquet {
 class SerializedPageWriter : public PageWriter {
  public:
   SerializedPageWriter(OutputStream* sink, Compression::type codec,
-      ColumnChunkMetaDataBuilder* metadata, MemoryPool* allocator = default_allocator());
+      ColumnChunkMetaDataBuilder* metadata,
+      MemoryAllocator* allocator = default_allocator());
 
   virtual ~SerializedPageWriter() {}
 
@@ -54,7 +55,7 @@ class SerializedPageWriter : public PageWriter {
  private:
   OutputStream* sink_;
   ColumnChunkMetaDataBuilder* metadata_;
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
   int64_t num_values_;
   int64_t dictionary_page_offset_;
   int64_t data_page_offset_;

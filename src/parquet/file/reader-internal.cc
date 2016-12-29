@@ -41,7 +41,7 @@ namespace parquet {
 // assembled in a serialized stream for storing in a Parquet files
 
 SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
-    int64_t total_num_rows, Compression::type codec_type, MemoryPool* allocator)
+    int64_t total_num_rows, Compression::type codec_type, MemoryAllocator* allocator)
     : stream_(std::move(stream)),
       decompression_buffer_(AllocateBuffer(allocator, 0)),
       seen_num_rows_(0),

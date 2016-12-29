@@ -39,11 +39,12 @@ namespace parquet {
 class PARQUET_EXPORT ColumnReader {
  public:
   ColumnReader(const ColumnDescriptor*, std::unique_ptr<PageReader>,
-      MemoryPool* allocator = default_allocator());
+      MemoryAllocator* allocator = default_allocator());
   virtual ~ColumnReader();
 
   static std::shared_ptr<ColumnReader> Make(const ColumnDescriptor* descr,
-      std::unique_ptr<PageReader> pager, MemoryPool* allocator = default_allocator());
+      std::unique_ptr<PageReader> pager,
+      MemoryAllocator* allocator = default_allocator());
 
   // Returns true if there are still values in this column.
   bool HasNext() {
@@ -94,7 +95,7 @@ class PARQUET_EXPORT ColumnReader {
   // into memory
   int num_decoded_values_;
 
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
 };
 
 // API to read values from a single column. This is the main client facing API.
@@ -104,7 +105,7 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   typedef typename DType::c_type T;
 
   TypedColumnReader(const ColumnDescriptor* schema, std::unique_ptr<PageReader> pager,
-      MemoryPool* allocator = default_allocator())
+      MemoryAllocator* allocator = default_allocator())
       : ColumnReader(schema, std::move(pager), allocator), current_decoder_(NULL) {}
   virtual ~TypedColumnReader() {}
 

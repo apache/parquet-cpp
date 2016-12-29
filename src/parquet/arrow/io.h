@@ -37,7 +37,7 @@ namespace arrow {
 // existing Arrow memory pool. This way we can direct all allocations to a
 // single place rather than tracking allocations in different locations (for
 // example: without utilizing parquet-cpp's default allocator)
-class PARQUET_EXPORT ParquetAllocator : public MemoryPool {
+class PARQUET_EXPORT ParquetAllocator : public ::arrow::MemoryPool {
  public:
   // Uses the default memory pool
   ParquetAllocator();

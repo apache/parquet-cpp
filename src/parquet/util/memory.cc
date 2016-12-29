@@ -57,13 +57,13 @@ void TrackingAllocator::Free(uint8_t* p, int64_t size) {
   }
 }
 
-MemoryPool* default_allocator() {
+MemoryAllocator* default_allocator() {
   static TrackingAllocator allocator;
   return &allocator;
 }
 
 template <class T>
-Vector<T>::Vector(int64_t size, MemoryPool* allocator)
+Vector<T>::Vector(int64_t size, MemoryAllocator* allocator)
     : buffer_(AllocateUniqueBuffer(allocator, size * sizeof(T))),
       size_(size),
       capacity_(size) {
@@ -117,7 +117,7 @@ template class Vector<FixedLenByteArray>;
 const int ChunkedAllocator::INITIAL_CHUNK_SIZE;
 const int ChunkedAllocator::MAX_CHUNK_SIZE;
 
-ChunkedAllocator::ChunkedAllocator(MemoryPool* allocator)
+ChunkedAllocator::ChunkedAllocator(MemoryAllocator* allocator)
     : current_chunk_idx_(-1),
       next_chunk_size_(INITIAL_CHUNK_SIZE),
       total_allocated_bytes_(0),
@@ -446,7 +446,7 @@ void InMemoryInputStream::Advance(int64_t num_bytes) {
 // In-memory output stream
 
 InMemoryOutputStream::InMemoryOutputStream(
-    MemoryPool* allocator, int64_t initial_capacity)
+    MemoryAllocator* allocator, int64_t initial_capacity)
     : size_(0), capacity_(initial_capacity) {
   if (initial_capacity == 0) { initial_capacity = kInMemoryDefaultCapacity; }
   buffer_ = AllocateBuffer(allocator, initial_capacity);
@@ -485,7 +485,7 @@ std::shared_ptr<Buffer> InMemoryOutputStream::GetBuffer() {
 // ----------------------------------------------------------------------
 // BufferedInputStream
 
-BufferedInputStream::BufferedInputStream(MemoryPool* pool, int64_t buffer_size,
+BufferedInputStream::BufferedInputStream(MemoryAllocator* pool, int64_t buffer_size,
     RandomAccessSource* source, int64_t start, int64_t num_bytes)
     : source_(source), stream_offset_(start), stream_end_(start + num_bytes) {
   buffer_ = AllocateBuffer(pool, buffer_size);
@@ -527,13 +527,14 @@ void BufferedInputStream::Advance(int64_t num_bytes) {
   buffer_offset_ += num_bytes;
 }
 
-std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size) {
+std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryAllocator* allocator, int64_t size) {
   auto result = std::make_shared<PoolBuffer>(allocator);
   if (size > 0) { PARQUET_THROW_NOT_OK(result->Resize(size)); }
   return result;
 }
 
-std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(MemoryPool* allocator, int64_t size) {
+std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(
+    MemoryAllocator* allocator, int64_t size) {
   std::unique_ptr<PoolBuffer> result(new PoolBuffer(allocator));
   if (size > 0) { PARQUET_THROW_NOT_OK(result->Resize(size)); }
   return result;

@@ -34,7 +34,7 @@ static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 // SerializedPageWriter
 
 SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type codec,
-    ColumnChunkMetaDataBuilder* metadata, MemoryPool* allocator)
+    ColumnChunkMetaDataBuilder* metadata, MemoryAllocator* allocator)
     : sink_(sink),
       metadata_(metadata),
       allocator_(allocator),

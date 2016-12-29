@@ -48,13 +48,13 @@ class Encoder {
 
  protected:
   explicit Encoder(const ColumnDescriptor* descr, const Encoding::type& encoding,
-      MemoryPool* allocator)
+      MemoryAllocator* allocator)
       : descr_(descr), encoding_(encoding), allocator_(allocator) {}
 
   // For accessing type-specific metadata, like FIXED_LEN_BYTE_ARRAY
   const ColumnDescriptor* descr_;
   const Encoding::type encoding_;
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
 };
 
 }  // namespace parquet

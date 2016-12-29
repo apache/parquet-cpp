@@ -35,7 +35,7 @@ ReaderProperties default_reader_properties() {
 }
 
 ColumnReader::ColumnReader(const ColumnDescriptor* descr,
-    std::unique_ptr<PageReader> pager, MemoryPool* allocator)
+    std::unique_ptr<PageReader> pager, MemoryAllocator* allocator)
     : descr_(descr),
       pager_(std::move(pager)),
       num_buffered_values_(0),
@@ -197,7 +197,7 @@ int64_t ColumnReader::ReadRepetitionLevels(int64_t batch_size, int16_t* levels) 
 // Dynamic column reader constructor
 
 std::shared_ptr<ColumnReader> ColumnReader::Make(const ColumnDescriptor* descr,
-    std::unique_ptr<PageReader> pager, MemoryPool* allocator) {
+    std::unique_ptr<PageReader> pager, MemoryAllocator* allocator) {
   switch (descr->physical_type()) {
     case Type::BOOLEAN:
       return std::make_shared<BoolReader>(descr, std::move(pager), allocator);

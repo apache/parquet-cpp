@@ -24,7 +24,6 @@
 
 #include "parquet/arrow/io.h"
 #include "parquet/arrow/schema.h"
-#include "parquet/arrow/utils.h"
 
 #include "arrow/api.h"
 

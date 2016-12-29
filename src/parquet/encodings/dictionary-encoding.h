@@ -43,7 +43,7 @@ class DictionaryDecoder : public Decoder<Type> {
   // dictionary is not guaranteed to persist in memory after this call so the
   // dictionary decoder needs to copy the data out if necessary.
   explicit DictionaryDecoder(
-      const ColumnDescriptor* descr, MemoryPool* allocator = default_allocator())
+      const ColumnDescriptor* descr, MemoryAllocator* allocator = default_allocator())
       : Decoder<Type>(descr, Encoding::RLE_DICTIONARY),
         dictionary_(0, allocator),
         byte_array_data_(AllocateBuffer(allocator, 0)) {}
@@ -160,7 +160,7 @@ class DictEncoder : public Encoder<DType> {
   typedef typename DType::c_type T;
 
   explicit DictEncoder(const ColumnDescriptor* desc, ChunkedAllocator* pool = nullptr,
-      MemoryPool* allocator = default_allocator())
+      MemoryAllocator* allocator = default_allocator())
       : Encoder<DType>(desc, Encoding::PLAIN_DICTIONARY, allocator),
         allocator_(allocator),
         pool_(pool),
@@ -240,7 +240,7 @@ class DictEncoder : public Encoder<DType> {
   int num_entries() const { return uniques_.size(); }
 
  private:
-  MemoryPool* allocator_;
+  MemoryAllocator* allocator_;
 
   // For ByteArray / FixedLenByteArray data. Not owned
   ChunkedAllocator* pool_;
