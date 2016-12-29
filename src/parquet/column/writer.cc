@@ -56,20 +56,20 @@ ColumnWriter::ColumnWriter(ColumnChunkMetaDataBuilder* metadata,
 }
 
 void ColumnWriter::InitSinks() {
-  definition_levels_sink_ = MakeOutputStream(properties_->allocator());
-  repetition_levels_sink_ = MakeOutputStream(properties_->allocator());
+  definition_levels_sink_.reset(new InMemoryOutputStream(properties_->allocator()));
+  repetition_levels_sink_.reset(new InMemoryOutputStream(properties_->allocator()));
 }
 
 void ColumnWriter::WriteDefinitionLevels(int64_t num_levels, const int16_t* levels) {
   DCHECK(!closed_);
-  PARQUET_THROW_NOT_OK(definition_levels_sink_->Write(
-      reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels));
+  definition_levels_sink_->Write(
+      reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels);
 }
 
 void ColumnWriter::WriteRepetitionLevels(int64_t num_levels, const int16_t* levels) {
   DCHECK(!closed_);
-  PARQUET_THROW_NOT_OK(repetition_levels_sink_->Write(
-      reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels));
+  repetition_levels_sink_->Write(
+      reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels);
 }
 
 std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
@@ -94,8 +94,8 @@ std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
 }
 
 void ColumnWriter::AddDataPage() {
-  std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->buffer();
-  std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->buffer();
+  std::shared_ptr<Buffer> definition_levels = definition_levels_sink_->GetBuffer();
+  std::shared_ptr<Buffer> repetition_levels = repetition_levels_sink_->GetBuffer();
   std::shared_ptr<Buffer> values = GetValuesBuffer();
 
   if (descr_->max_definition_level() > 0) {

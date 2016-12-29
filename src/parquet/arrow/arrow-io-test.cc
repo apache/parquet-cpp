@@ -46,7 +46,7 @@ TEST(TestParquetAllocator, DefaultCtor) {
   const int buffer_size = 10;
 
   uint8_t* buffer = nullptr;
-  ASSERT_NO_THROW(buffer = allocator.Malloc(buffer_size););
+  ASSERT_OK(allocator.Allocate(buffer_size, &buffer));
 
   // valgrind will complain if we write into nullptr
   memset(buffer, 0, buffer_size);
@@ -87,7 +87,7 @@ TEST(TestParquetAllocator, CustomPool) {
   const int buffer_size = 10;
 
   uint8_t* buffer = nullptr;
-  ASSERT_NO_THROW(buffer = allocator.Malloc(buffer_size););
+  ASSERT_OK(allocator.Allocate(buffer_size, &buffer));
 
   ASSERT_EQ(buffer_size, pool.bytes_allocated());
 
@@ -109,9 +109,7 @@ TEST(TestParquetReadSource, Basics) {
   ParquetAllocator allocator(default_memory_pool());
 
   auto file = std::make_shared<ArrowBufferReader>(data_buffer, data.size());
-  auto source = std::make_shared<ParquetReadSource>(&allocator);
-
-  ASSERT_OK(source->Open(file));
+  auto source = std::make_shared<ArrowInputFile>(file);
 
   ASSERT_EQ(0, source->Tell());
   ASSERT_NO_THROW(source->Seek(5));

@@ -34,43 +34,43 @@ class TestBuffer : public ::testing::Test {};
 TEST(TestAllocator, AllocateFree) {
   TrackingAllocator allocator;
 
-  uint8_t* data = allocator.Malloc(100);
+  uint8_t* data;
+
+  ASSERT_TRUE(allocator.Allocate(100, &data).ok());
   ASSERT_TRUE(nullptr != data);
   data[99] = 55;
   allocator.Free(data, 100);
 
-  data = allocator.Malloc(0);
+  ASSERT_TRUE(allocator.Allocate(0, &data).ok());
   ASSERT_EQ(nullptr, data);
   allocator.Free(data, 0);
 
-  data = allocator.Malloc(1);
-  ASSERT_THROW(allocator.Free(data, 2), ParquetException);
-  ASSERT_NO_THROW(allocator.Free(data, 1));
-
   int64_t to_alloc = std::numeric_limits<int64_t>::max();
-  ASSERT_THROW(allocator.Malloc(to_alloc), ParquetException);
+  ASSERT_FALSE(allocator.Allocate(to_alloc, &data).ok());
 }
 
 TEST(TestAllocator, TotalMax) {
   TrackingAllocator allocator;
-  ASSERT_EQ(0, allocator.TotalMemory());
-  ASSERT_EQ(0, allocator.MaxMemory());
+  ASSERT_EQ(0, allocator.bytes_allocated());
+  ASSERT_EQ(0, allocator.max_memory());
 
-  uint8_t* data = allocator.Malloc(100);
-  ASSERT_EQ(100, allocator.TotalMemory());
-  ASSERT_EQ(100, allocator.MaxMemory());
+  uint8_t* data;
+  uint8_t* data2;
+  ASSERT_TRUE(allocator.Allocate(100, &data).ok());
+  ASSERT_EQ(100, allocator.bytes_allocated());
+  ASSERT_EQ(100, allocator.max_memory());
 
-  uint8_t* data2 = allocator.Malloc(10);
-  ASSERT_EQ(110, allocator.TotalMemory());
-  ASSERT_EQ(110, allocator.MaxMemory());
+  ASSERT_TRUE(allocator.Allocate(10, &data2).ok());
+  ASSERT_EQ(110, allocator.bytes_allocated());
+  ASSERT_EQ(110, allocator.max_memory());
 
   allocator.Free(data, 100);
-  ASSERT_EQ(10, allocator.TotalMemory());
-  ASSERT_EQ(110, allocator.MaxMemory());
+  ASSERT_EQ(10, allocator.bytes_allocated());
+  ASSERT_EQ(110, allocator.max_memory());
 
   allocator.Free(data2, 10);
-  ASSERT_EQ(0, allocator.TotalMemory());
-  ASSERT_EQ(110, allocator.MaxMemory());
+  ASSERT_EQ(0, allocator.bytes_allocated());
+  ASSERT_EQ(110, allocator.max_memory());
 }
 
 // Utility class to call private functions on MemPool.
@@ -294,16 +294,18 @@ TEST(TestBufferedInputStream, Basics) {
   int64_t stream_offset = 10;
   int64_t stream_size = source_size - stream_offset;
   int64_t chunk_size = 50;
-  auto buf = std::make_shared<OwnedMutableBuffer>(source_size);
+  std::shared_ptr<PoolBuffer> buf = AllocateBuffer(default_allocator(), source_size);
   ASSERT_EQ(source_size, buf->size());
   for (int i = 0; i < source_size; i++) {
     buf->mutable_data()[i] = i;
   }
 
-  std::unique_ptr<BufferReader> source(new BufferReader(buf));
-  std::unique_ptr<MemoryPool> allocator(new MemoryPool());
+  auto wrapper =
+      std::make_shared<ArrowInputFile>(std::make_shared<::arrow::io::BufferReader>(buf));
+
+  TrackingAllocator allocator;
   std::unique_ptr<BufferedInputStream> stream(new BufferedInputStream(
-      allocator.get(), chunk_size, source.get(), stream_offset, stream_size));
+      &allocator, chunk_size, wrapper.get(), stream_offset, stream_size));
 
   const uint8_t* output;
   int64_t bytes_read;

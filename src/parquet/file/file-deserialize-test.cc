@@ -38,6 +38,8 @@
 
 namespace parquet {
 
+using ::arrow::io::BufferReader;
+
 // Adds page statistics occupying a certain amount of bytes (for testing very
 // large page headers)
 static inline void AddDummyStats(int stat_size, format::DataPageHeader& data_page) {
@@ -233,10 +235,12 @@ TEST_F(TestPageSerde, LZONotSupported) {
 class TestParquetFileReader : public ::testing::Test {
  public:
   void AssertInvalidFileThrows(const std::shared_ptr<Buffer>& buffer) {
-    std::unique_ptr<BufferReader> reader(new BufferReader(buffer));
     reader_.reset(new ParquetFileReader());
 
-    ASSERT_THROW(reader_->Open(SerializedFile::Open(reader)), ParquetException);
+    auto reader = std::make_shared<BufferReader>(buffer);
+    auto wrapper = std::make_shared<ArrowInputFile>(reader);
+
+    ASSERT_THROW(reader_->Open(SerializedFile::Open(wrapper)), ParquetException);
   }
 
  protected:

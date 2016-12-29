@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+#include <gtest/gtest.h>
+
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 
@@ -46,12 +48,6 @@ static int FLBA_LENGTH = 12;
 
 bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
   return 0 == memcmp(a.ptr, b.ptr, FLBA_LENGTH);
-}
-
-static std::shared_ptr<ArrowOutputStream> NewOutputStream() {
-  auto stream = std::make_shared<BufferOutputStream>(AllocateBuffer(
-          default_allocator(), 0));
-  return std::make_shared<ArrowOutputStream>(stream);
 }
 
 namespace test {
@@ -268,7 +264,7 @@ class DictionaryPageBuilder {
   int32_t num_values() const { return num_dict_values_; }
 
  private:
-  MemPool pool_;
+  ChunkedAllocator pool_;
   shared_ptr<DictEncoder<TYPE>> encoder_;
   int32_t num_dict_values_;
   bool have_values_;

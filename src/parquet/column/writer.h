@@ -135,8 +135,8 @@ class PARQUET_EXPORT ColumnWriter {
   // Flag to infer if dictionary encoding has fallen back to PLAIN
   bool fallback_;
 
-  std::unique_ptr<BufferOutputStream> definition_levels_sink_;
-  std::unique_ptr<BufferOutputStream> repetition_levels_sink_;
+  std::unique_ptr<InMemoryOutputStream> definition_levels_sink_;
+  std::unique_ptr<InMemoryOutputStream> repetition_levels_sink_;
 
   std::vector<CompressedDataPage> data_pages_;
 

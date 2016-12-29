@@ -27,6 +27,7 @@
 
 #include "arrow/io/interfaces.h"
 #include "arrow/memory_pool.h"
+#include "arrow/status.h"
 
 namespace parquet {
 
@@ -44,8 +45,12 @@ class PARQUET_EXPORT ParquetAllocator : public MemoryPool {
   explicit ParquetAllocator(::arrow::MemoryPool* pool);
   virtual ~ParquetAllocator();
 
-  Status Allocate(int64_t size, uint8_t** out) override;
+  ::arrow::Status Allocate(int64_t size, uint8_t** out) override;
   void Free(uint8_t* buffer, int64_t size) override;
+
+  int64_t bytes_allocated() const override;
+
+  ::arrow::MemoryPool* pool() const { return pool_; }
 
  private:
   ::arrow::MemoryPool* pool_;

@@ -117,7 +117,7 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     TypedStats expected_stats(this->schema_.Column(0));
     expected_stats.Update(this->values_ptr_, num_values - null_count, null_count);
 
-    auto sink = std::make_shared<BufferOutputStream>();
+    auto sink = std::make_shared<InMemoryOutputStream>();
     auto gnode = std::static_pointer_cast<GroupNode>(this->node_);
     std::shared_ptr<WriterProperties> writer_properties =
         WriterProperties::Builder().enable_statistics("column")->build();
@@ -147,8 +147,8 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     row_group_writer->Close();
     file_writer->Close();
 
-    auto buffer = sink->buffer();
-    auto source = std::make_shared<BufferReader>(buffer);
+    auto buffer = sink->GetBuffer();
+    auto source = std::make_shared<::arrow::io::BufferReader>(buffer);
     auto file_reader = ParquetFileReader::Open(source);
     auto rg_reader = file_reader->RowGroup(0);
     auto column_chunk = rg_reader->metadata()->ColumnChunk(0);
@@ -189,7 +189,8 @@ std::vector<FLBA> TestRowGroupStatistics<FLBAType>::GetDeepCopy(
   std::vector<FLBA> copy;
   MemoryPool* allocator = default_allocator();
   for (const FLBA& flba : values) {
-    uint8_t* ptr = allocator->Malloc(FLBA_LENGTH);
+    uint8_t* ptr;
+    PARQUET_THROW_NOT_OK(allocator->Allocate(FLBA_LENGTH, &ptr));
     memcpy(ptr, flba.ptr, FLBA_LENGTH);
     copy.emplace_back(ptr);
   }
@@ -202,7 +203,8 @@ std::vector<ByteArray> TestRowGroupStatistics<ByteArrayType>::GetDeepCopy(
   std::vector<ByteArray> copy;
   MemoryPool* allocator = default_allocator();
   for (const ByteArray& ba : values) {
-    uint8_t* ptr = allocator->Malloc(ba.len);
+    uint8_t* ptr;
+    PARQUET_THROW_NOT_OK(allocator->Allocate(ba.len, &ptr));
     memcpy(ptr, ba.ptr, ba.len);
     copy.emplace_back(ba.len, ptr);
   }

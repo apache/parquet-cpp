@@ -27,8 +27,37 @@
 
 namespace parquet {
 
+::arrow::Status TrackingAllocator::Allocate(int64_t size, uint8_t** out) {
+  if (0 == size) {
+    *out = nullptr;
+    return ::arrow::Status::OK();
+  }
+
+  uint8_t* p = static_cast<uint8_t*>(std::malloc(size));
+  if (!p) { return ::arrow::Status::OutOfMemory("memory allocation failed"); }
+  {
+    std::lock_guard<std::mutex> lock(stats_mutex_);
+    total_memory_ += size;
+    if (total_memory_ > max_memory_) { max_memory_ = total_memory_; }
+  }
+  *out = p;
+  return ::arrow::Status::OK();
+}
+
+void TrackingAllocator::Free(uint8_t* p, int64_t size) {
+  if (nullptr != p && size > 0) {
+    {
+      std::lock_guard<std::mutex> lock(stats_mutex_);
+      DCHECK_GE(total_memory_, size) << "Attempting to free too much memory";
+      total_memory_ -= size;
+    }
+    std::free(p);
+  }
+}
+
 MemoryPool* default_allocator() {
-  return arrow::default_memory_pool();
+  static TrackingAllocator allocator;
+  return &allocator;
 }
 
 template <class T>
@@ -359,8 +388,7 @@ std::shared_ptr<Buffer> ArrowInputFile::Read(int64_t nbytes) {
   return out;
 }
 
-std::shared_ptr<Buffer> ArrowInputFile::ReadAt(
-    int64_t position, int64_t nbytes) {
+std::shared_ptr<Buffer> ArrowInputFile::ReadAt(int64_t position, int64_t nbytes) {
   std::shared_ptr<Buffer> out;
   PARQUET_THROW_NOT_OK(file_->ReadAt(position, nbytes, &out));
   return out;
@@ -413,6 +441,46 @@ void InMemoryInputStream::Advance(int64_t num_bytes) {
 }
 
 // ----------------------------------------------------------------------
+// In-memory output stream
+
+InMemoryOutputStream::InMemoryOutputStream(
+    MemoryPool* allocator, int64_t initial_capacity)
+    : size_(0), capacity_(initial_capacity) {
+  if (initial_capacity == 0) { initial_capacity = kInMemoryDefaultCapacity; }
+  buffer_ = AllocateBuffer(allocator, initial_capacity);
+}
+
+InMemoryOutputStream::~InMemoryOutputStream() {}
+
+uint8_t* InMemoryOutputStream::Head() {
+  return buffer_->mutable_data() + size_;
+}
+
+void InMemoryOutputStream::Write(const uint8_t* data, int64_t length) {
+  if (size_ + length > capacity_) {
+    int64_t new_capacity = capacity_ * 2;
+    while (new_capacity < size_ + length) {
+      new_capacity *= 2;
+    }
+    PARQUET_THROW_NOT_OK(buffer_->Resize(new_capacity));
+    capacity_ = new_capacity;
+  }
+  memcpy(Head(), data, length);
+  size_ += length;
+}
+
+int64_t InMemoryOutputStream::Tell() {
+  return size_;
+}
+
+std::shared_ptr<Buffer> InMemoryOutputStream::GetBuffer() {
+  PARQUET_THROW_NOT_OK(buffer_->Resize(size_));
+  std::shared_ptr<Buffer> result = buffer_;
+  buffer_ = nullptr;
+  return result;
+}
+
+// ----------------------------------------------------------------------
 // BufferedInputStream
 
 BufferedInputStream::BufferedInputStream(MemoryPool* pool, int64_t buffer_size,
@@ -455,12 +523,6 @@ const uint8_t* BufferedInputStream::Read(int64_t num_to_read, int64_t* num_bytes
 void BufferedInputStream::Advance(int64_t num_bytes) {
   stream_offset_ += num_bytes;
   buffer_offset_ += num_bytes;
-}
-
-std::unique_ptr<BufferOutputStream> MakeOutputStream(
-    MemoryPool* allocator, int64_t size) {
-  return std::unique_ptr<BufferOutputStream>(
-      new BufferOutputStream(AllocateBuffer(allocator, size)));
 }
 
 std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size) {

@@ -198,7 +198,7 @@ Status OpenFile(const std::shared_ptr<::arrow::io::ReadableFileInterface>& file,
   PARQUET_CATCH_NOT_OK(pq_reader = ParquetReader::Open(file));
 
   // Use the same memory pool as the ParquetAllocator
-  reader->reset(new FileReader(allocator->pool(), std::move(pq_reader)));
+  reader->reset(new FileReader(allocator, std::move(pq_reader)));
   return Status::OK();
 }
 

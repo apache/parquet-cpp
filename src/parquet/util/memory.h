@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "arrow/buffer.h"
@@ -46,14 +47,14 @@
     (s);                         \
   } catch (const ::parquet::ParquetException& e) {}
 
-#define PARQUET_THROW_NOT_OK(s)               \
-  do {                                        \
-    ::arrow::Status _s = (s);                 \
-    if (!_s.ok()) {                           \
-      std::stringstream ss;                   \
-      ss << "Arrow error: " << _s.ToString(); \
-      ParquetException::Throw(ss.str());      \
-    }                                         \
+#define PARQUET_THROW_NOT_OK(s)                     \
+  do {                                              \
+    ::arrow::Status _s = (s);                       \
+    if (!_s.ok()) {                                 \
+      std::stringstream ss;                         \
+      ss << "Arrow error: " << _s.ToString();       \
+      ::parquet::ParquetException::Throw(ss.str()); \
+    }                                               \
   } while (0);
 
 namespace parquet {
@@ -62,11 +63,28 @@ static constexpr int64_t kInMemoryDefaultCapacity = 1024;
 
 using Buffer = ::arrow::Buffer;
 using MutableBuffer = ::arrow::MutableBuffer;
+using ResizableBuffer = ::arrow::ResizableBuffer;
 using PoolBuffer = ::arrow::PoolBuffer;
 using MemoryPool = ::arrow::MemoryPool;
-using BufferOutputStream = ::arrow::io::BufferOutputStream;
 
 PARQUET_EXPORT MemoryPool* default_allocator();
+
+class PARQUET_EXPORT TrackingAllocator : public MemoryPool {
+ public:
+  TrackingAllocator() : total_memory_(0), max_memory_(0) {}
+
+  ::arrow::Status Allocate(int64_t size, uint8_t** out) override;
+  void Free(uint8_t* p, int64_t size) override;
+
+  int64_t bytes_allocated() const override { return total_memory_; }
+
+  int64_t max_memory() { return max_memory_; }
+
+ private:
+  std::mutex stats_mutex_;
+  int64_t total_memory_;
+  int64_t max_memory_;
+};
 
 template <class T>
 class Vector {
@@ -259,6 +277,8 @@ class PARQUET_EXPORT RandomAccessSource : virtual public FileInterface {
 
 class PARQUET_EXPORT OutputStream : virtual public FileInterface {
  public:
+  virtual ~OutputStream() {}
+
   // Copy bytes into the output stream
   virtual void Write(const uint8_t* data, int64_t length) = 0;
 };
@@ -272,8 +292,7 @@ class PARQUET_EXPORT ArrowFileMethods : virtual public FileInterface {
   virtual ::arrow::io::FileInterface* file_interface() = 0;
 };
 
-class PARQUET_EXPORT ArrowInputFile : public ArrowFileMethods,
-                                      public RandomAccessSource {
+class PARQUET_EXPORT ArrowInputFile : public ArrowFileMethods, public RandomAccessSource {
  public:
   ArrowInputFile(const std::shared_ptr<::arrow::io::ReadableFileInterface> file);
 
@@ -299,8 +318,7 @@ class PARQUET_EXPORT ArrowInputFile : public ArrowFileMethods,
   std::shared_ptr<::arrow::io::ReadableFileInterface> file_;
 };
 
-class PARQUET_EXPORT ArrowOutputStream : public ArrowFileMethods,
-                                         public OutputStream {
+class PARQUET_EXPORT ArrowOutputStream : public ArrowFileMethods, public OutputStream {
  public:
   ArrowOutputStream(const std::shared_ptr<::arrow::io::OutputStream> file);
 
@@ -316,6 +334,34 @@ class PARQUET_EXPORT ArrowOutputStream : public ArrowFileMethods,
  private:
   ::arrow::io::FileInterface* file_interface() override;
   std::shared_ptr<::arrow::io::OutputStream> file_;
+};
+
+class PARQUET_EXPORT InMemoryOutputStream : public OutputStream {
+ public:
+  explicit InMemoryOutputStream(MemoryPool* allocator = default_allocator(),
+      int64_t initial_capacity = kInMemoryDefaultCapacity);
+
+  virtual ~InMemoryOutputStream();
+
+  // Close is currently a no-op with the in-memory stream
+  virtual void Close() {}
+
+  virtual int64_t Tell();
+
+  virtual void Write(const uint8_t* data, int64_t length);
+
+  // Return complete stream as Buffer
+  std::shared_ptr<Buffer> GetBuffer();
+
+ private:
+  // Mutable pointer to the current write position in the stream
+  uint8_t* Head();
+
+  std::shared_ptr<ResizableBuffer> buffer_;
+  int64_t size_;
+  int64_t capacity_;
+
+  DISALLOW_COPY_AND_ASSIGN(InMemoryOutputStream);
 };
 
 // ----------------------------------------------------------------------
@@ -381,9 +427,6 @@ class BufferedInputStream : public InputStream {
   int64_t buffer_offset_;
   int64_t buffer_size_;
 };
-
-std::unique_ptr<BufferOutputStream> MakeOutputStream(
-    MemoryPool* allocator, int64_t size = kInMemoryDefaultCapacity);
 
 std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size = 0);
 

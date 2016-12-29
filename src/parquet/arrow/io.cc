@@ -39,12 +39,16 @@ ParquetAllocator::ParquetAllocator(MemoryPool* pool) : pool_(pool) {}
 ParquetAllocator::~ParquetAllocator() {}
 
 Status ParquetAllocator::Allocate(int64_t size, uint8_t** out) {
-  return pool_->Allocate(size, &out));
+  return pool_->Allocate(size, out);
 }
 
 void ParquetAllocator::Free(uint8_t* buffer, int64_t size) {
   // Does not report Status
   pool_->Free(buffer, size);
+}
+
+int64_t ParquetAllocator::bytes_allocated() const {
+  return pool_->bytes_allocated();
 }
 
 }  // namespace arrow
