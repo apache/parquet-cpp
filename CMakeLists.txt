@@ -133,6 +133,17 @@ function(ADD_PARQUET_BENCHMARK REL_BENCHMARK_NAME)
     # This benchmark has a corresponding .cc file, set it up as an executable.
     set(BENCHMARK_PATH "${EXECUTABLE_OUTPUT_PATH}/${BENCHMARK_NAME}")
     add_executable(${BENCHMARK_NAME} "${REL_BENCHMARK_NAME}.cc")
+
+    if(APPLE)
+      # On OS X / Thrift >= 0.9.2, tr1/tuple.h is not in libc++
+      SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+        -DGTEST_USE_OWN_TR1_TUPLE=1)
+    else()
+      # Linux, for Thrift >= 0.9.2
+      SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+        -DGTEST_USE_OWN_TR1_TUPLE=0)
+    endif()
+
     target_link_libraries(${BENCHMARK_NAME} ${PARQUET_BENCHMARK_LINK_LIBS})
     add_dependencies(runbenchmark ${BENCHMARK_NAME})
     set(NO_COLOR "--color_print=false")
