@@ -128,6 +128,17 @@ function run_test() {
   fi
 }
 
+function run_test_unlogged() {
+  # Run gtest style tests with sanitizers if they are setup appropriately.
+
+  # gtest won't overwrite old junit test files, resulting in a build failure
+  # even when retries are successful.
+  rm -f $XMLFILE
+
+  $TEST_EXECUTABLE "$@"
+  STATUS=$?
+}
+
 function post_process_tests() {
   # If we have a LeakSanitizer report, and XML reporting is configured, add a new test
   # case result to the XML file for the leak report. Otherwise Jenkins won't show
@@ -185,10 +196,13 @@ for ATTEMPT_NUMBER in $(seq 1 $TEST_EXECUTION_ATTEMPTS) ; do
       fi
     done
   fi
-  echo "Running $TEST_NAME, redirecting output into $LOGFILE" \
-    "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
+  # echo "Running $TEST_NAME, redirecting output into $LOGFILE" \
+  #   "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
+  echo "Running $TEST_NAME" \
+       "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
   if [ $RUN_TYPE = "test" ]; then
-    run_test $*
+    # run_test $*
+    run_test_unlogged $*
   else
     run_other $*
   fi
