@@ -19,6 +19,7 @@
 
 #include "parquet/column/reader.h"
 #include "parquet/column/writer.h"
+#include "parquet/column/test-util.h"
 #include "parquet/file/reader-internal.h"
 #include "parquet/file/writer-internal.h"
 #include "parquet/util/memory.h"
@@ -28,6 +29,8 @@ namespace parquet {
 using schema::PrimitiveNode;
 
 namespace benchmark {
+
+using ::arrow::io::BufferOutputStream;
 
 std::unique_ptr<Int64Writer> BuildWriter(int64_t output_size, OutputStream* dst,
     ColumnChunkMetaDataBuilder* metadata, ColumnDescriptor* schema,
@@ -67,9 +70,9 @@ static void BM_WriteInt64Column(::benchmark::State& state) {
       properties, schema.get(), reinterpret_cast<uint8_t*>(&thrift_metadata));
 
   while (state.KeepRunning()) {
-    InMemoryOutputStream dst;
+    auto wrapper = NewOutputStream();
     std::unique_ptr<Int64Writer> writer = BuildWriter(
-        state.range_x(), &dst, metadata.get(), schema.get(), properties.get());
+        state.range_x(), wrapper.get(), metadata.get(), schema.get(), properties.get());
     writer->WriteBatch(
         values.size(), definition_levels.data(), repetition_levels.data(), values.data());
     writer->Close();
@@ -102,14 +105,15 @@ static void BM_ReadInt64Column(::benchmark::State& state) {
   auto metadata = ColumnChunkMetaDataBuilder::Make(
       properties, schema.get(), reinterpret_cast<uint8_t*>(&thrift_metadata));
 
-  InMemoryOutputStream dst;
-  std::unique_ptr<Int64Writer> writer =
-      BuildWriter(state.range_x(), &dst, metadata.get(), schema.get(), properties.get());
+  auto wrapper = NewOutputStream();
+
+  std::unique_ptr<Int64Writer> writer = BuildWriter(
+      state.range_x(), wrapper.get(), metadata.get(), schema.get(), properties.get());
   writer->WriteBatch(
       values.size(), definition_levels.data(), repetition_levels.data(), values.data());
   writer->Close();
 
-  std::shared_ptr<Buffer> src = dst.GetBuffer();
+  std::shared_ptr<Buffer> src = stream->buffer();
   std::vector<int64_t> values_out(state.range_y());
   std::vector<int16_t> definition_levels_out(state.range_y());
   std::vector<int16_t> repetition_levels_out(state.range_y());

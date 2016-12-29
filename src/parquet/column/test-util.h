@@ -48,6 +48,12 @@ bool operator==(const FixedLenByteArray& a, const FixedLenByteArray& b) {
   return 0 == memcmp(a.ptr, b.ptr, FLBA_LENGTH);
 }
 
+static std::shared_ptr<ArrowOutputStream> NewOutputStream() {
+  auto stream = std::make_shared<BufferOutputStream>(AllocateBuffer(
+          default_allocator(), 0));
+  return std::make_shared<ArrowOutputStream>(stream);
+}
+
 namespace test {
 
 template <typename T>

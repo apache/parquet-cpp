@@ -385,9 +385,9 @@ class BufferedInputStream : public InputStream {
 std::unique_ptr<BufferOutputStream> MakeOutputStream(
     MemoryPool* allocator, int64_t size = kInMemoryDefaultCapacity);
 
-std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size);
+std::shared_ptr<PoolBuffer> AllocateBuffer(MemoryPool* allocator, int64_t size = 0);
 
-std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(MemoryPool* allocator, int64_t size);
+std::unique_ptr<PoolBuffer> AllocateUniqueBuffer(MemoryPool* allocator, int64_t size = 0);
 
 }  // namespace parquet
 
