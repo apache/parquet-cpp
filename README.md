@@ -33,6 +33,7 @@
 
 ## Third Party Dependencies
 
+- Apache Arrow (memory management, built-in IO, optional Array adapters)
 - snappy
 - zlib
 - thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
