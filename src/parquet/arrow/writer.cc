@@ -22,7 +22,6 @@
 
 #include "parquet/util/logging.h"
 
-#include "parquet/arrow/io.h"
 #include "parquet/arrow/schema.h"
 
 #include "arrow/api.h"

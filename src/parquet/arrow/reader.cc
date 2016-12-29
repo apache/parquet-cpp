@@ -23,7 +23,6 @@
 #include <string>
 #include <vector>
 
-#include "parquet/arrow/io.h"
 #include "parquet/arrow/schema.h"
 
 #include "arrow/api.h"
@@ -191,12 +190,10 @@ FileReader::~FileReader() {}
 
 // Static ctor
 Status OpenFile(const std::shared_ptr<::arrow::io::ReadableFileInterface>& file,
-    ParquetAllocator* allocator, std::unique_ptr<FileReader>* reader) {
+    MemoryPool* allocator, std::unique_ptr<FileReader>* reader) {
   // TODO(wesm): reader properties
   std::unique_ptr<ParquetReader> pq_reader;
   PARQUET_CATCH_NOT_OK(pq_reader = ParquetReader::Open(file));
-
-  // Use the same memory pool as the ParquetAllocator
   reader->reset(new FileReader(allocator, std::move(pq_reader)));
   return Status::OK();
 }

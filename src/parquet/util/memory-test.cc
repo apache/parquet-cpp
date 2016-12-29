@@ -352,4 +352,34 @@ TEST(TestBufferedInputStream, Basics) {
   }
 }
 
+TEST(TestArrowInputFile, Basics) {
+  std::string data = "this is the data";
+  auto data_buffer = reinterpret_cast<const uint8_t*>(data.c_str());
+
+  auto file = std::make_shared<::arrow::io::BufferReader>(data_buffer, data.size());
+  auto source = std::make_shared<ArrowInputFile>(file);
+
+  ASSERT_EQ(0, source->Tell());
+  ASSERT_NO_THROW(source->Seek(5));
+  ASSERT_EQ(5, source->Tell());
+  ASSERT_NO_THROW(source->Seek(0));
+
+  // Seek out of bounds
+  ASSERT_THROW(source->Seek(100), ParquetException);
+
+  uint8_t buffer[50];
+
+  ASSERT_NO_THROW(source->Read(4, buffer));
+  ASSERT_EQ(0, std::memcmp(buffer, "this", 4));
+  ASSERT_EQ(4, source->Tell());
+
+  std::shared_ptr<Buffer> pq_buffer;
+
+  ASSERT_NO_THROW(pq_buffer = source->Read(7));
+
+  auto expected_buffer = std::make_shared<Buffer>(data_buffer + 4, 7);
+
+  ASSERT_TRUE(expected_buffer->Equals(*pq_buffer.get()));
+}
+
 }  // namespace parquet
