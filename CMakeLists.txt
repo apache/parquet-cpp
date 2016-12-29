@@ -513,7 +513,9 @@ add_library(parquet_objlib OBJECT
 
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
-add_dependencies(parquet_objlib ${LIBPARQUET_PRIVATE_LINK_LIBS})
+add_dependencies(parquet_objlib
+  ${LIBPARQUET_LINK_LIBS}
+  ${LIBPARQUET_PRIVATE_LINK_LIBS})
 
 set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
