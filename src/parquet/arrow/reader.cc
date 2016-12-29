@@ -348,18 +348,18 @@ Status FlatColumnReader::Impl::TypedReadBatch(
   RETURN_NOT_OK(InitDataBuffer<ArrowType>(batch_size));
   valid_bits_idx_ = 0;
   if (descr_->max_definition_level() > 0) {
-    valid_bits_buffer_ = std::make_shared<PoolBuffer>(pool_);
     int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size) / 8;
-    valid_bits_buffer_->Resize(valid_bits_size);
+    valid_bits_buffer_ = std::make_shared<PoolBuffer>(pool_);
+    RETURN_NOT_OK(valid_bits_buffer_->Resize(valid_bits_size));
     valid_bits_ptr_ = valid_bits_buffer_->mutable_data();
     memset(valid_bits_ptr_, 0, valid_bits_size);
     null_count_ = 0;
   }
 
   while ((values_to_read > 0) && column_reader_) {
-    values_buffer_.Resize(values_to_read * sizeof(ParquetCType));
+    RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(ParquetCType)));
     if (descr_->max_definition_level() > 0) {
-      def_levels_buffer_.Resize(values_to_read * sizeof(int16_t));
+      RETURN_NOT_OK(def_levels_buffer_.Resize(values_to_read * sizeof(int16_t)));
     }
     auto reader = dynamic_cast<TypedColumnReader<ParquetType>*>(column_reader_.get());
     int64_t values_read;
@@ -423,16 +423,16 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
   if (descr_->max_definition_level() > 0) {
     valid_bits_buffer_ = std::make_shared<PoolBuffer>(pool_);
     int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size) / 8;
-    valid_bits_buffer_->Resize(valid_bits_size);
+    RETURN_NOT_OK(valid_bits_buffer_->Resize(valid_bits_size));
     valid_bits_ptr_ = valid_bits_buffer_->mutable_data();
     memset(valid_bits_ptr_, 0, valid_bits_size);
     null_count_ = 0;
   }
 
   while ((values_to_read > 0) && column_reader_) {
-    values_buffer_.Resize(values_to_read * sizeof(bool));
+    RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(bool)));
     if (descr_->max_definition_level() > 0) {
-      def_levels_buffer_.Resize(values_to_read * sizeof(int16_t));
+      RETURN_NOT_OK(def_levels_buffer_.Resize(values_to_read * sizeof(int16_t)));
     }
     auto reader = dynamic_cast<TypedColumnReader<BooleanType>*>(column_reader_.get());
     int64_t values_read;
@@ -495,9 +495,9 @@ Status FlatColumnReader::Impl::ReadByteArrayBatch(
   int values_to_read = batch_size;
   BuilderType builder(pool_, field_->type);
   while ((values_to_read > 0) && column_reader_) {
-    values_buffer_.Resize(values_to_read * sizeof(ByteArray));
+    RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(ByteArray)));
     if (descr_->max_definition_level() > 0) {
-      def_levels_buffer_.Resize(values_to_read * sizeof(int16_t));
+      RETURN_NOT_OK(def_levels_buffer_.Resize(values_to_read * sizeof(int16_t)));
     }
     auto reader = dynamic_cast<TypedColumnReader<ByteArrayType>*>(column_reader_.get());
     int64_t values_read;
