@@ -33,14 +33,15 @@
 
 ## Third Party Dependencies
 
+- Apache Arrow (memory management, built-in IO, optional Array adapters)
 - snappy
 - zlib
-- thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
+- Thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 - googletest 1.7.0 (cannot be installed with package managers)
 - Google Benchmark (only required if building benchmarks)
 
-You can either install these dependencies via your package manager, otherwise
-they will be build automatically as part of the build.
+You can either install these dependencies separately, otherwise they will be
+built automatically as part of the build.
 
 Note that thrift will not be build inside the project on macOS. Instead you
 should install it via homebrew:
@@ -53,10 +54,17 @@ brew install thrift
 
 - `cmake .`
 
-  - You can customize dependent library locations through various environment variables:
-    - THRIFT_HOME customizes the thrift installed location.
-    - SNAPPY_HOME customizes the snappy installed location.
+  - You can customize build dependency locations through various environment variables:
+    - ARROW_HOME customizes the Apache Arrow installed location.
+    - THRIFT_HOME customizes the Apache Thrift (C++ libraries and compiler
+      installed location.
+    - SNAPPY_HOME customizes the Snappy installed location.
     - ZLIB_HOME customizes the zlib installed location.
+    - BROTLI_HOME customizes the Brotli installed location.
+    - GTEST_HOME customizes the googletest installed location (if you are
+      building the unit tests).
+    - GBENCHMARK_HOME customizes the Google Benchmark installed location (if
+      you are building the benchmarks).
 
 - `make`
 
@@ -70,6 +78,13 @@ For release-level builds (enable optimizations and disable debugging), pass
 `-DCMAKE_BUILD_TYPE=Release` to `cmake`.
 
 Incremental builds can be done afterwords with just `make`.
+
+## Using with Apache Arrow
+
+Arrow provides some of the memory management and IO interfaces that we use in
+parquet-cpp. By default, Parquet links to Arrow's shared libraries. If you wish
+to statically-link the Arrow symbols instead, pass
+`-DPARQUET_ARROW_LINKAGE=static`.
 
 ## Testing
 
@@ -86,9 +101,6 @@ to the `data` directory in the source checkout, for example:
 ```
 export PARQUET_TEST_DATA=`pwd`/data
 ```
-
-If you run `source setup_build_env.sh` it will set this variable automatically,
-but you may also wish to put it in your `.bashrc` or somewhere else.
 
 See `ctest --help` for configuration details about ctest. On GNU/Linux systems,
 you can use valgrind with ctest to look for memory leaks:

@@ -108,8 +108,9 @@ function run_test() {
   rm -f $XMLFILE
 
   $TEST_EXECUTABLE "$@" 2>&1 \
+    | c++filt \
     | $ROOT/build-support/stacktrace_addr2line.pl $TEST_EXECUTABLE \
-    | $pipe_cmd > $LOGFILE
+    | $pipe_cmd 2>&1 | tee $LOGFILE
   STATUS=$?
 
   # TSAN doesn't always exit with a non-zero exit code due to a bug:
@@ -186,7 +187,7 @@ for ATTEMPT_NUMBER in $(seq 1 $TEST_EXECUTION_ATTEMPTS) ; do
     done
   fi
   echo "Running $TEST_NAME, redirecting output into $LOGFILE" \
-    "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
+       "(attempt ${ATTEMPT_NUMBER}/$TEST_EXECUTION_ATTEMPTS)"
   if [ $RUN_TYPE = "test" ]; then
     run_test $*
   else

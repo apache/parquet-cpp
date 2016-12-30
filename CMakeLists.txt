@@ -52,13 +52,6 @@ if(APPLE)
   set(CMAKE_MACOSX_RPATH 1)
 endif()
 
-option(PARQUET_BUILD_SHARED
-    "Build the shared version of libparquet"
-    ON)
-option(PARQUET_BUILD_STATIC
-    "Build the static version of libparquet"
-    ON)
-
 # if no build build type is specified, default to debug builds
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
@@ -69,6 +62,14 @@ string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
 
 # Top level cmake file, set options
 if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+  option(PARQUET_BUILD_SHARED
+    "Build the shared version of libparquet"
+    ON)
+  option(PARQUET_BUILD_STATIC
+    "Build the static version of libparquet. Always ON if building unit tests"
+    ON)
+  set(PARQUET_ARROW_LINKAGE "shared" CACHE STRING
+    "Libraries to link for Apache Arrow. static|shared (default shared)")
   option(PARQUET_USE_SSE
     "Build with SSE4 optimizations"
     OFF)
@@ -87,6 +88,13 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_ARROW
     "Build the Arrow support"
     OFF)
+  option(PARQUET_ZLIB_VENDORED
+    "Build our own zlib (some libz.a aren't configured for static linking)"
+    ON)
+endif()
+
+if (PARQUET_BUILD_TESTS OR PARQUET_BUILD_EXECUTABLES OR PARQUET_BUILD_BENCHMARKS)
+  set(PARQUET_BUILD_STATIC ON)
 endif()
 
 # If build in-source, create the latest symlink. If build out-of-source, which is
@@ -105,6 +113,17 @@ EXECUTE_PROCESS(COMMAND ln ${MORE_ARGS} -sf ${BUILD_OUTPUT_ROOT_DIRECTORY}
 else()
   set(BUILD_OUTPUT_ROOT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${BUILD_SUBDIR_NAME}")
 endif()
+
+# where to put generated archives (.a files)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+set(ARCHIVE_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+
+# where to put generated libraries (.so files)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+set(LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+
+# where to put generated binaries
+set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
 ############################################################
 # Benchmarking
@@ -133,6 +152,17 @@ function(ADD_PARQUET_BENCHMARK REL_BENCHMARK_NAME)
     # This benchmark has a corresponding .cc file, set it up as an executable.
     set(BENCHMARK_PATH "${EXECUTABLE_OUTPUT_PATH}/${BENCHMARK_NAME}")
     add_executable(${BENCHMARK_NAME} "${REL_BENCHMARK_NAME}.cc")
+
+    if(APPLE)
+      # On OS X / Thrift >= 0.9.2, tr1/tuple.h is not in libc++
+      SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+        -DGTEST_USE_OWN_TR1_TUPLE=1)
+    else()
+      # Linux, for Thrift >= 0.9.2
+      SET_TARGET_PROPERTIES(${TEST_NAME} PROPERTIES COMPILE_FLAGS
+        -DGTEST_USE_OWN_TR1_TUPLE=0)
+    endif()
+
     target_link_libraries(${BENCHMARK_NAME} ${PARQUET_BENCHMARK_LINK_LIBS})
     add_dependencies(runbenchmark ${BENCHMARK_NAME})
     set(NO_COLOR "--color_print=false")
@@ -194,12 +224,7 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
       set(TEST_LINK_LIBS ${PARQUET_TEST_SHARED_LINK_LIBS})
     endif()
   else()
-    if(NOT PARQUET_BUILD_STATIC)
-      # Skip this test if we are not building the static library
-      return()
-    else()
-      set(TEST_LINK_LIBS ${PARQUET_TEST_LINK_LIBS})
-    endif()
+    set(TEST_LINK_LIBS ${PARQUET_TEST_LINK_LIBS})
   endif()
 
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
@@ -268,315 +293,11 @@ enable_testing()
 # Dependencies
 ############################################################
 
-set(GTEST_VERSION "1.7.0")
-set(GBENCHMARK_VERSION "1.0.0")
-set(SNAPPY_VERSION "1.1.3")
-set(THRIFT_VERSION "0.9.1")
-
-# find boost headers and libs
-set(Boost_DEBUG TRUE)
-set(Boost_USE_MULTITHREADED ON)
-find_package(Boost REQUIRED)
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-set(LIBS ${LIBS} ${Boost_LIBRARIES})
-message(STATUS "Boost include dir: " ${Boost_INCLUDE_DIRS})
-message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
-
-# find thrift headers and libs
-find_package(Thrift)
-
-if (NOT THRIFT_FOUND)
-  if (APPLE)
-      message(FATAL_ERROR "thrift compilation under OSX is not currently supported.")
-  endif()
-
-  set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
-  set(THRIFT_HOME "${THRIFT_PREFIX}")
-  set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
-  set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
-  set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
-  set(THRIFT_VENDORED 1)
-
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
-      BUILD_IN_SOURCE 1
-      # This is needed for 0.9.1 and can be removed for 0.9.3 again
-      BUILD_COMMAND make clean
-      INSTALL_COMMAND make install
-      INSTALL_DIR ${THRIFT_PREFIX}
-      URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
-      )
-  else()
-    ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
-      BUILD_IN_SOURCE 1
-      # This is needed for 0.9.1 and can be removed for 0.9.3 again
-      BUILD_COMMAND make clean
-      INSTALL_COMMAND make install
-      INSTALL_DIR ${THRIFT_PREFIX}
-      URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      )
-  endif()
-    set(THRIFT_VENDORED 1)
-else()
-    set(THRIFT_VENDORED 0)
-endif()
-
-include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
-message(STATUS "Thrift include dir: ${THRIFT_INCLUDE_DIR}")
-message(STATUS "Thrift static library: ${THRIFT_STATIC_LIB}")
-message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
-add_library(thriftstatic STATIC IMPORTED)
-set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
-
-if (THRIFT_VENDORED)
-  add_dependencies(thriftstatic thrift_ep)
-endif()
-
-## Snappy
-find_package(Snappy)
-if (NOT SNAPPY_FOUND)
-  set(SNAPPY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/snappy_ep/src/snappy_ep-install")
-  set(SNAPPY_HOME "${SNAPPY_PREFIX}")
-  set(SNAPPY_INCLUDE_DIR "${SNAPPY_PREFIX}/include")
-  set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/libsnappy.a")
-  set(SNAPPY_VENDORED 1)
-
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}"
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      INSTALL_DIR ${SNAPPY_PREFIX}
-      URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz"
-      BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}"
-      )
-  else()
-    ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}"
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      INSTALL_DIR ${SNAPPY_PREFIX}
-      URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz"
-      )
-  endif()
-else()
-    set(SNAPPY_VENDORED 0)
-endif()
-
-include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
-add_library(snappystatic STATIC IMPORTED)
-set_target_properties(snappystatic PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
-
-if (SNAPPY_VENDORED)
-  add_dependencies(snappystatic snappy_ep)
-endif()
-
-## Brotli
-find_package(Brotli)
-if (NOT BROTLI_FOUND)
-  set(BROTLI_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/brotli_ep/src/brotli_ep-install")
-  set(BROTLI_HOME "${BROTLI_PREFIX}")
-  set(BROTLI_INCLUDE_DIR "${BROTLI_PREFIX}/include")
-  set(BROTLI_LIBRARY_ENC "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlienc.a")
-  set(BROTLI_LIBRARY_DEC "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlidec.a")
-  set(BROTLI_LIBRARY_COMMON "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlicommon.a")
-  set(BROTLI_VENDORED 1)
-  set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                        -DCMAKE_INSTALL_PREFIX=${BROTLI_PREFIX}
-                        -DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}
-                        -DBUILD_SHARED_LIBS=OFF)
-
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(brotli_ep
-      GIT_REPOSITORY https://github.com/google/brotli.git
-      GIT_TAG 5db62dcc9d386579609540cdf8869e95ad334bbd
-      BUILD_BYPRODUCTS "${BROTLI_LIBRARY_ENC}" "${BROTLI_LIBRARY_DEC}" "${BROTLI_LIBRARY_COMMON}"
-      CMAKE_ARGS ${BROTLI_CMAKE_ARGS})
-  else()
-    ExternalProject_Add(brotli_ep
-      GIT_REPOSITORY https://github.com/google/brotli.git
-      GIT_TAG 5db62dcc9d386579609540cdf8869e95ad334bbd
-      CMAKE_ARGS ${BROTLI_CMAKE_ARGS})
-  endif()
-else()
-  set(BROTLI_VENDORED 0)
-endif()
-
-include_directories(SYSTEM ${BROTLI_INCLUDE_DIR})
-add_library(brotlistatic_enc STATIC IMPORTED)
-set_target_properties(brotlistatic_enc PROPERTIES IMPORTED_LOCATION ${BROTLI_LIBRARY_ENC})
-add_library(brotlistatic_dec STATIC IMPORTED)
-set_target_properties(brotlistatic_dec PROPERTIES IMPORTED_LOCATION ${BROTLI_LIBRARY_DEC})
-add_library(brotlistatic_common STATIC IMPORTED)
-set_target_properties(brotlistatic_common PROPERTIES IMPORTED_LOCATION ${BROTLI_LIBRARY_COMMON})
-
-if (BROTLI_VENDORED)
-  add_dependencies(brotlistatic_enc brotli_ep)
-  add_dependencies(brotlistatic_dec brotli_ep)
-  add_dependencies(brotlistatic_common brotli_ep)
-endif()
-
-## ZLIB
-# For now: Always build zlib so that the shared lib has -fPIC
-# find_package(ZLIB)
-
-if (NOT ZLIB_FOUND)
-  set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
-  set(ZLIB_HOME "${ZLIB_PREFIX}")
-  set(ZLIB_INCLUDE_DIR "${ZLIB_PREFIX}/include")
-  set(ZLIB_STATIC_LIB "${ZLIB_PREFIX}/lib/libz.a")
-  set(ZLIB_VENDORED 1)
-  set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                      -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
-                      -DCMAKE_C_FLAGS=-fPIC
-                      -DBUILD_SHARED_LIBS=OFF)
-
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/zlib-1.2.8.tar.gz"
-      BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
-      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-  else()
-    ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/zlib-1.2.8.tar.gz"
-      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-  endif()
-else()
-    set(ZLIB_VENDORED 0)
-endif()
-
-include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
-add_library(zlibstatic STATIC IMPORTED)
-set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
-
-if (ZLIB_VENDORED)
-  add_dependencies(zlibstatic zlib_ep)
-endif()
-
-## GTest
-if(PARQUET_BUILD_TESTS)
-  add_custom_target(unittest ctest -L unittest)
-
-  if("$ENV{GTEST_HOME}" STREQUAL "")
-    if(APPLE)
-      set(GTEST_CMAKE_CXX_FLAGS "-fPIC -std=c++11 -stdlib=libc++ -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes")
-    else()
-      set(GTEST_CMAKE_CXX_FLAGS "-fPIC")
-    endif()
-
-    set(GTEST_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/googletest_ep-prefix/src/googletest_ep")
-    set(GTEST_INCLUDE_DIR "${GTEST_PREFIX}/include")
-    set(GTEST_STATIC_LIB "${GTEST_PREFIX}/${CMAKE_CFG_INTDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX}")
-    set(GTEST_VENDORED 1)
-
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(googletest_ep
-        URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-        CMAKE_ARGS -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS} -Dgtest_force_shared_crt=ON
-        # googletest doesn't define install rules, so just build in the
-        # source dir and don't try to install.  See its README for
-        # details.
-        BUILD_IN_SOURCE 1
-        BUILD_BYPRODUCTS "${GTEST_STATIC_LIB}"
-        INSTALL_COMMAND "")
-    else()
-      ExternalProject_Add(googletest_ep
-        URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-        CMAKE_ARGS -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS} -Dgtest_force_shared_crt=ON
-        # googletest doesn't define install rules, so just build in the
-        # source dir and don't try to install.  See its README for
-        # details.
-        BUILD_IN_SOURCE 1
-        INSTALL_COMMAND "")
-    endif()
-  else()
-    find_package(GTest REQUIRED)
-    set(GTEST_VENDORED 0)
-  endif()
-
-  message(STATUS "GTest include dir: ${GTEST_INCLUDE_DIR}")
-  message(STATUS "GTest static library: ${GTEST_STATIC_LIB}")
-  include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
-  add_library(gtest STATIC IMPORTED)
-  set_target_properties(gtest PROPERTIES IMPORTED_LOCATION ${GTEST_STATIC_LIB})
-
-  if(GTEST_VENDORED)
-    add_dependencies(gtest googletest_ep)
-  endif()
-endif()
-
-## Google Benchmark
-if ("$ENV{GBENCHMARK_HOME}" STREQUAL "")
-  set(GBENCHMARK_HOME ${THIRDPARTY_DIR}/installed)
-endif()
-
-if(PARQUET_BUILD_BENCHMARKS)
-  add_custom_target(runbenchmark ctest -L benchmark)
-
-  if("$ENV{GBENCHMARK_HOME}" STREQUAL "")
-    if(APPLE)
-      set(GBENCHMARK_CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++")
-    else()
-      set(GBENCHMARK_CMAKE_CXX_FLAGS "--std=c++11")
-    endif()
-
-    set(GBENCHMARK_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/gbenchmark_ep/src/gbenchmark_ep-install")
-    set(GBENCHMARK_INCLUDE_DIR "${GBENCHMARK_PREFIX}/include")
-    set(GBENCHMARK_STATIC_LIB "${GBENCHMARK_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}benchmark${CMAKE_STATIC_LIBRARY_SUFFIX}")
-    set(GBENCHMARK_VENDORED 1)
-    set(GBENCHMARK_CMAKE_ARGS
-          "-DCMAKE_BUILD_TYPE=Release"
-          "-DCMAKE_INSTALL_PREFIX:PATH=${GBENCHMARK_PREFIX}"
-          "-DCMAKE_CXX_FLAGS=-fPIC ${GBENCHMARK_CMAKE_CXX_FLAGS}")
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(gbenchmark_ep
-        URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
-        BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}"
-        CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
-    else()
-      ExternalProject_Add(gbenchmark_ep
-        URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
-        CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
-    endif()
-  else()
-    find_package(GBenchmark REQUIRED)
-    set(GBENCHMARK_VENDORED 0)
-  endif()
-
-  message(STATUS "GBenchmark include dir: ${GBENCHMARK_INCLUDE_DIR}")
-  message(STATUS "GBenchmark static library: ${GBENCHMARK_STATIC_LIB}")
-  include_directories(SYSTEM ${GBENCHMARK_INCLUDE_DIR})
-  add_library(gbenchmark STATIC IMPORTED)
-  set_target_properties(gbenchmark PROPERTIES IMPORTED_LOCATION ${GBENCHMARK_STATIC_LIB})
-
-  if(GBENCHMARK_VENDORED)
-    add_dependencies(gbenchmark gbenchmark_ep)
-  endif()
-endif()
+include(ThirdpartyToolchain)
 
 # Thrift requires these definitions for some types that we use
 add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETINET_IN_H -DHAVE_NETDB_H)
 add_definitions(-fPIC)
-
-# where to put generated archives (.a files)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
-set(ARCHIVE_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
-
-# where to put generated libraries (.so files)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
-set(LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
-
-# where to put generated binaries
-set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
 #############################################################
 # Compiler flags and release types
@@ -692,31 +413,6 @@ if (${CLANG_TIDY_FOUND})
 endif()
 
 #############################################################
-# Test linking
-
-set(PARQUET_MIN_TEST_LIBS
-  parquet_test_main)
-
-set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
-  parquet_static)
-
-set(PARQUET_TEST_SHARED_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
-  parquet_shared)
-
-#############################################################
-# Benchmark linking
-
-if (PARQUET_BUILD_STATIC)
-    set(PARQUET_BENCHMARK_LINK_LIBS
-      parquet_benchmark_main
-      parquet_static)
-else()
-    set(PARQUET_BENCHMARK_LINK_LIBS
-      parquet_benchmark_main
-      parquet_shared)
-endif()
-
-#############################################################
 # Code coverage
 
 # Adapted from Apache Kudu (incubating)
@@ -735,6 +431,45 @@ if ("${PARQUET_GENERATE_COVERAGE}")
   if(NOT PARQUET_BUILD_STATIC)
     message(SEND_ERROR "Coverage requires the static lib to be built")
   endif()
+endif()
+
+#############################################################
+# Apache Arrow linkage
+
+if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
+  set(ARROW_LINK_LIBS
+    arrow
+    arrow_io)
+else()
+  set(ARROW_LINK_LIBS
+    arrow_static
+    arrow_io_static)
+endif()
+
+#############################################################
+# Test linking
+
+set(PARQUET_MIN_TEST_LIBS
+  parquet_test_main)
+
+set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
+  ${ARROW_LINK_LIBS}
+  parquet_static)
+
+set(PARQUET_TEST_SHARED_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
+  parquet_shared)
+
+#############################################################
+# Benchmark linking
+
+if (PARQUET_BUILD_STATIC)
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_static)
+else()
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_shared)
 endif()
 
 ############################################################
@@ -767,18 +502,14 @@ set(LIBPARQUET_SRCS
   src/parquet/schema/printer.cc
   src/parquet/schema/types.cc
 
-  src/parquet/util/buffer.cc
   src/parquet/util/cpu-info.cc
-  src/parquet/util/input.cc
-  src/parquet/util/mem-allocator.cc
-  src/parquet/util/mem-pool.cc
-  src/parquet/util/output.cc
+  src/parquet/util/memory.cc
 )
 
 set(LIBPARQUET_LINK_LIBS
 )
 
-set(LIBPARQUET_PRIVATE_LINK_LIBS
+set(BUNDLED_STATIC_LIBS
   parquet_thrift
   brotlistatic_dec
   brotlistatic_enc
@@ -788,13 +519,21 @@ set(LIBPARQUET_PRIVATE_LINK_LIBS
   zlibstatic
 )
 
+# Shared library linked libs
+set(LIBPARQUET_PRIVATE_LINK_LIBS
+  ${ARROW_LINK_LIBS}
+  ${BUNDLED_STATIC_LIBS}
+)
+
 add_library(parquet_objlib OBJECT
   ${LIBPARQUET_SRCS}
 )
 
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
-add_dependencies(parquet_objlib ${LIBPARQUET_PRIVATE_LINK_LIBS})
+add_dependencies(parquet_objlib
+  ${LIBPARQUET_LINK_LIBS}
+  ${LIBPARQUET_PRIVATE_LINK_LIBS})
 
 set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -854,67 +593,8 @@ add_subdirectory(benchmarks)
 add_subdirectory(examples)
 add_subdirectory(tools)
 
-# Arrow
+# Arrow adapter
 if (PARQUET_ARROW)
-
-  set(ARROW_VERSION "4733ee876e1fddb8032fce1dc9e486d68904fbea")
-
-  find_package(Arrow)
-
-  if (NOT ARROW_FOUND)
-    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep/src/arrow_ep-install")
-    set(ARROW_HOME "${ARROW_PREFIX}")
-    set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
-    set(ARROW_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow_io${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(ARROW_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow.a")
-    set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow_io.a")
-    set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                         -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
-                         -DARROW_BUILD_TESTS=OFF
-                         -DARROW_HDFS=ON)
-
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(arrow_ep
-        GIT_REPOSITORY https://github.com/apache/arrow.git
-        GIT_TAG ${ARROW_VERSION}
-        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_IO_SHARED_LIB}" "${ARROW_IO_STATIC_LIB}" "${ARROW_STATIC_LIB}"
-        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-        # to specify that the CMakeLists.txt of Arrow is located in cpp/
-        #
-        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
-    else()
-        ExternalProject_Add(arrow_ep
-        GIT_REPOSITORY https://github.com/apache/arrow.git
-        GIT_TAG ${ARROW_VERSION}
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
-    endif()
-    set(ARROW_VENDORED 1)
-  else()
-    set(ARROW_VENDORED 0)
-  endif()
-
-  include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
-  add_library(arrow SHARED IMPORTED)
-  set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
-  add_library(arrow_io SHARED IMPORTED)
-  set_target_properties(arrow_io PROPERTIES IMPORTED_LOCATION ${ARROW_IO_SHARED_LIB})
-  add_library(arrow_static STATIC IMPORTED)
-  set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
-  add_library(arrow_io_static STATIC IMPORTED)
-  set_target_properties(arrow_io_static PROPERTIES IMPORTED_LOCATION ${ARROW_IO_STATIC_LIB})
-
-  if (ARROW_VENDORED)
-    add_dependencies(arrow arrow_ep)
-    add_dependencies(arrow_io arrow_ep)
-    add_dependencies(arrow_static arrow_ep)
-    add_dependencies(arrow_io_static arrow_ep)
-  endif()
-
   add_subdirectory(src/parquet/arrow)
 endif()
 
