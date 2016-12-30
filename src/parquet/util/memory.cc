@@ -360,7 +360,7 @@ int64_t ArrowFileMethods::Tell() {
 }
 
 ArrowInputFile::ArrowInputFile(
-    const std::shared_ptr<::arrow::io::ReadableFileInterface> file)
+    const std::shared_ptr<::arrow::io::ReadableFileInterface>& file)
     : file_(file) {}
 
 ::arrow::io::FileInterface* ArrowInputFile::file_interface() {

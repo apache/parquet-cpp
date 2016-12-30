@@ -206,8 +206,9 @@ static constexpr uint32_t FOOTER_SIZE = 8;
 static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 std::unique_ptr<ParquetFileReader::Contents> SerializedFile::Open(
-    const std::shared_ptr<RandomAccessSource>& source, const ReaderProperties& props) {
-  std::unique_ptr<ParquetFileReader::Contents> result(new SerializedFile(source, props));
+    std::unique_ptr<RandomAccessSource> source, const ReaderProperties& props) {
+  std::unique_ptr<ParquetFileReader::Contents> result(
+      new SerializedFile(std::move(source), props));
 
   // Access private methods here, but otherwise unavailable
   SerializedFile* file = static_cast<SerializedFile*>(result.get());
@@ -236,9 +237,9 @@ const FileMetaData* SerializedFile::metadata() const {
   return file_metadata_.get();
 }
 
-SerializedFile::SerializedFile(const std::shared_ptr<RandomAccessSource>& source,
+SerializedFile::SerializedFile(std::unique_ptr<RandomAccessSource> source,
     const ReaderProperties& props = default_reader_properties())
-    : source_(source), properties_(props) {}
+    : source_(std::move(source)), properties_(props) {}
 
 void SerializedFile::ParseMetaData() {
   int64_t file_size = source_->Size();

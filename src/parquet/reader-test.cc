@@ -171,24 +171,21 @@ class TestLocalFile : public ::testing::Test {
     ss << dir_string << "/"
        << "alltypes_plain.parquet";
 
-    std::shared_ptr<::arrow::io::ReadableFile> handle;
     PARQUET_THROW_NOT_OK(ReadableFile::Open(ss.str(), &handle));
-
     fileno = handle->file_descriptor();
-
-    file = std::make_shared<ArrowInputFile>(handle);
   }
 
   void TearDown() {}
 
  protected:
   int fileno;
-  std::shared_ptr<ArrowInputFile> file;
+  std::shared_ptr<::arrow::io::ReadableFile> handle;
 };
 
 TEST_F(TestLocalFile, FileClosedOnDestruction) {
   {
-    auto contents = SerializedFile::Open(file);
+    auto contents = SerializedFile::Open(
+        std::unique_ptr<RandomAccessSource>(new ArrowInputFile(handle)));
     std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
     result->Open(std::move(contents));
   }

@@ -238,9 +238,10 @@ class TestParquetFileReader : public ::testing::Test {
     reader_.reset(new ParquetFileReader());
 
     auto reader = std::make_shared<BufferReader>(buffer);
-    auto wrapper = std::make_shared<ArrowInputFile>(reader);
+    auto wrapper = std::unique_ptr<ArrowInputFile>(new ArrowInputFile(reader));
 
-    ASSERT_THROW(reader_->Open(SerializedFile::Open(wrapper)), ParquetException);
+    ASSERT_THROW(
+        reader_->Open(SerializedFile::Open(std::move(wrapper))), ParquetException);
   }
 
  protected:

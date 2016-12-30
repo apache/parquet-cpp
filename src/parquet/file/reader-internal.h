@@ -103,7 +103,7 @@ class SerializedFile : public ParquetFileReader::Contents {
   // This class does _not_ take ownership of the data source. You must manage its
   // lifetime separately
   static std::unique_ptr<ParquetFileReader::Contents> Open(
-      const std::shared_ptr<RandomAccessSource>& source,
+      std::unique_ptr<RandomAccessSource> source,
       const ReaderProperties& props = default_reader_properties());
   virtual void Close();
   virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
@@ -113,9 +113,9 @@ class SerializedFile : public ParquetFileReader::Contents {
  private:
   // This class takes ownership of the provided data source
   explicit SerializedFile(
-      const std::shared_ptr<RandomAccessSource>& source, const ReaderProperties& props);
+      std::unique_ptr<RandomAccessSource> source, const ReaderProperties& props);
 
-  std::shared_ptr<RandomAccessSource> source_;
+  std::unique_ptr<RandomAccessSource> source_;
   std::unique_ptr<FileMetaData> file_metadata_;
   ReaderProperties properties_;
 

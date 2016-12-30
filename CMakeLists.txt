@@ -52,13 +52,6 @@ if(APPLE)
   set(CMAKE_MACOSX_RPATH 1)
 endif()
 
-option(PARQUET_BUILD_SHARED
-    "Build the shared version of libparquet"
-    ON)
-option(PARQUET_BUILD_STATIC
-    "Build the static version of libparquet"
-    ON)
-
 # if no build build type is specified, default to debug builds
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
@@ -69,6 +62,12 @@ string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
 
 # Top level cmake file, set options
 if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+  option(PARQUET_BUILD_SHARED
+    "Build the shared version of libparquet"
+    ON)
+  option(PARQUET_BUILD_STATIC
+    "Build the static version of libparquet. Always ON if building unit tests"
+    ON)
   option(PARQUET_USE_SSE
     "Build with SSE4 optimizations"
     OFF)
@@ -90,6 +89,10 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_ZLIB_VENDORED
     "Build our own zlib (some libz.a aren't configured for static linking)"
     ON)
+endif()
+
+if (PARQUET_BUILD_TESTS OR PARQUET_BUILD_EXECUTABLES OR PARQUET_BUILD_BENCHMARKS)
+  set(PARQUET_BUILD_STATIC ON)
 endif()
 
 # If build in-source, create the latest symlink. If build out-of-source, which is
@@ -219,12 +222,7 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
       set(TEST_LINK_LIBS ${PARQUET_TEST_SHARED_LINK_LIBS})
     endif()
   else()
-    if(NOT PARQUET_BUILD_STATIC)
-      # Skip this test if we are not building the static library
-      return()
-    else()
-      set(TEST_LINK_LIBS ${PARQUET_TEST_LINK_LIBS})
-    endif()
+    set(TEST_LINK_LIBS ${PARQUET_TEST_LINK_LIBS})
   endif()
 
   get_filename_component(TEST_NAME ${REL_TEST_NAME} NAME_WE)
@@ -419,6 +417,8 @@ set(PARQUET_MIN_TEST_LIBS
   parquet_test_main)
 
 set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
+  arrow_static
+  arrow_io_static
   parquet_static)
 
 set(PARQUET_TEST_SHARED_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
@@ -493,11 +493,9 @@ set(LIBPARQUET_SRCS
 )
 
 set(LIBPARQUET_LINK_LIBS
-  arrow
-  arrow_io
 )
 
-set(LIBPARQUET_PRIVATE_LINK_LIBS
+set(BUNDLED_STATIC_LIBS
   parquet_thrift
   brotlistatic_dec
   brotlistatic_enc
@@ -505,6 +503,20 @@ set(LIBPARQUET_PRIVATE_LINK_LIBS
   snappystatic
   thriftstatic
   zlibstatic
+)
+
+# Static library linked libs
+set(LIBPARQUET_STATIC_PRIVATE_LINK_LIBS
+  arrow_static
+  arrow_io_static
+  ${BUNDLED_STATIC_LIBS}
+)
+
+# Shared library linked libs
+set(LIBPARQUET_PRIVATE_LINK_LIBS
+  arrow
+  arrow_io
+  ${BUNDLED_STATIC_LIBS}
 )
 
 add_library(parquet_objlib OBJECT
@@ -553,8 +565,8 @@ if (PARQUET_BUILD_STATIC)
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
     target_link_libraries(parquet_static
-      LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
-      LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+      LINK_PUBLIC ${LIBPARQUET_STATIC_LINK_LIBS}
+      LINK_PRIVATE ${LIBPARQUET_STATIC_PRIVATE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)

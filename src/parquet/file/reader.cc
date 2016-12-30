@@ -73,13 +73,13 @@ ParquetFileReader::~ParquetFileReader() {
 std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
     const std::shared_ptr<::arrow::io::ReadableFileInterface>& source,
     const ReaderProperties& props) {
-  auto io_wrapper = std::make_shared<ArrowInputFile>(source);
-  return Open(io_wrapper, props);
+  std::unique_ptr<RandomAccessSource> io_wrapper(new ArrowInputFile(source));
+  return Open(std::move(io_wrapper), props);
 }
 
 std::unique_ptr<ParquetFileReader> ParquetFileReader::Open(
-    const std::shared_ptr<RandomAccessSource>& source, const ReaderProperties& props) {
-  auto contents = SerializedFile::Open(source, props);
+    std::unique_ptr<RandomAccessSource> source, const ReaderProperties& props) {
+  auto contents = SerializedFile::Open(std::move(source), props);
   std::unique_ptr<ParquetFileReader> result(new ParquetFileReader());
   result->Open(std::move(contents));
   return result;

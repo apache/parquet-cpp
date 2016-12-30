@@ -295,7 +295,8 @@ class PARQUET_EXPORT ArrowFileMethods : virtual public FileInterface {
 
 class PARQUET_EXPORT ArrowInputFile : public ArrowFileMethods, public RandomAccessSource {
  public:
-  explicit ArrowInputFile(const std::shared_ptr<::arrow::io::ReadableFileInterface> file);
+  explicit ArrowInputFile(
+      const std::shared_ptr<::arrow::io::ReadableFileInterface>& file);
 
   int64_t Size() const override;
 
