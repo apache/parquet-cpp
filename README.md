@@ -79,6 +79,13 @@ For release-level builds (enable optimizations and disable debugging), pass
 
 Incremental builds can be done afterwords with just `make`.
 
+## Using with Apache Arrow
+
+Arrow provides some of the memory management and IO interfaces that we use in
+parquet-cpp. By default, Parquet links to Arrow's shared libraries. If you wish
+to statically-link the Arrow symbols instead, pass
+`-DPARQUET_ARROW_LINKAGE=static`.
+
 ## Testing
 
 This library uses Google's `googletest` unit test framework. After building

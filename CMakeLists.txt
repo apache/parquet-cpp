@@ -68,6 +68,8 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_STATIC
     "Build the static version of libparquet. Always ON if building unit tests"
     ON)
+  set(PARQUET_ARROW_LINKAGE "shared" CACHE STRING
+    "Libraries to link for Apache Arrow. static|shared (default shared)")
   option(PARQUET_USE_SSE
     "Build with SSE4 optimizations"
     OFF)
@@ -411,33 +413,6 @@ if (${CLANG_TIDY_FOUND})
 endif()
 
 #############################################################
-# Test linking
-
-set(PARQUET_MIN_TEST_LIBS
-  parquet_test_main)
-
-set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
-  arrow_static
-  arrow_io_static
-  parquet_static)
-
-set(PARQUET_TEST_SHARED_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
-  parquet_shared)
-
-#############################################################
-# Benchmark linking
-
-if (PARQUET_BUILD_STATIC)
-    set(PARQUET_BENCHMARK_LINK_LIBS
-      parquet_benchmark_main
-      parquet_static)
-else()
-    set(PARQUET_BENCHMARK_LINK_LIBS
-      parquet_benchmark_main
-      parquet_shared)
-endif()
-
-#############################################################
 # Code coverage
 
 # Adapted from Apache Kudu (incubating)
@@ -456,6 +431,45 @@ if ("${PARQUET_GENERATE_COVERAGE}")
   if(NOT PARQUET_BUILD_STATIC)
     message(SEND_ERROR "Coverage requires the static lib to be built")
   endif()
+endif()
+
+#############################################################
+# Apache Arrow linkage
+
+if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
+  set(ARROW_LINK_LIBS
+    arrow
+    arrow_io)
+else()
+  set(ARROW_LINK_LIBS
+    arrow_static
+    arrow_io_static)
+endif()
+
+#############################################################
+# Test linking
+
+set(PARQUET_MIN_TEST_LIBS
+  parquet_test_main)
+
+set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
+  ${ARROW_LINK_LIBS}
+  parquet_static)
+
+set(PARQUET_TEST_SHARED_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
+  parquet_shared)
+
+#############################################################
+# Benchmark linking
+
+if (PARQUET_BUILD_STATIC)
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_static)
+else()
+    set(PARQUET_BENCHMARK_LINK_LIBS
+      parquet_benchmark_main
+      parquet_shared)
 endif()
 
 ############################################################
@@ -505,17 +519,9 @@ set(BUNDLED_STATIC_LIBS
   zlibstatic
 )
 
-# Static library linked libs
-set(LIBPARQUET_STATIC_PRIVATE_LINK_LIBS
-  arrow_static
-  arrow_io_static
-  ${BUNDLED_STATIC_LIBS}
-)
-
 # Shared library linked libs
 set(LIBPARQUET_PRIVATE_LINK_LIBS
-  arrow
-  arrow_io
+  ${ARROW_LINK_LIBS}
   ${BUNDLED_STATIC_LIBS}
 )
 
@@ -565,8 +571,8 @@ if (PARQUET_BUILD_STATIC)
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
     target_link_libraries(parquet_static
-      LINK_PUBLIC ${LIBPARQUET_STATIC_LINK_LIBS}
-      LINK_PRIVATE ${LIBPARQUET_STATIC_PRIVATE_LINK_LIBS})
+      LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
+      LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)
