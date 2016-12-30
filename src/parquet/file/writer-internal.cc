@@ -186,7 +186,7 @@ void RowGroupSerializer::Close() {
 // FileSerializer
 
 std::unique_ptr<ParquetFileWriter::Contents> FileSerializer::Open(
-    std::shared_ptr<OutputStream> sink, const std::shared_ptr<GroupNode>& schema,
+    const std::shared_ptr<OutputStream>& sink, const std::shared_ptr<GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties) {
   std::unique_ptr<ParquetFileWriter::Contents> result(
       new FileSerializer(sink, schema, properties));
@@ -252,7 +252,7 @@ void FileSerializer::WriteMetaData() {
   sink_->Write(PARQUET_MAGIC, 4);
 }
 
-FileSerializer::FileSerializer(std::shared_ptr<OutputStream> sink,
+FileSerializer::FileSerializer(const std::shared_ptr<OutputStream>& sink,
     const std::shared_ptr<GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties)
     : sink_(sink),
