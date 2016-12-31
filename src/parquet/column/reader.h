@@ -129,6 +129,21 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   int64_t ReadBatch(int batch_size, int16_t* def_levels, int16_t* rep_levels, T* values,
       int64_t* values_read);
 
+  // Read a batch of repetition levels, definition levels, and values from the
+  // column and leave spaces for null entries in the values buffer.
+  //
+  // In comparision to ReadBatch the length of repetition and definition levels
+  // is the same as of the number of values read.
+  //
+  // To fully exhaust a row group, you must read batches until the number of
+  // values read reaches the number of stored values according to the metadata.
+  //
+  // This API is the same for both V1 and V2 of the DataPage
+  //
+  // @returns: actual number of levels read
+  int64_t ReadBatchSpaced(int batch_size, int16_t* def_levels, int16_t* rep_levels,
+      T* values, int* null_count);
+
   // Skip reading levels
   // Returns the number of levels skipped
   int64_t Skip(int64_t num_rows_to_skip);
@@ -145,6 +160,14 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // @returns: the number of values read into the out buffer
   int64_t ReadValues(int64_t batch_size, T* out);
 
+  // Read up to batch_size values from the current data page into the
+  // pre-allocated memory T*, leaving spaces for null entries according
+  // to the def_levels.
+  //
+  // @returns: the number of values read into the out buffer
+  int64_t ReadValuesSpaced(
+      int64_t batch_size, int16_t* def_levels, T* out, int* null_count);
+
   // Map of encoding type to the respective decoder object. For example, a
   // column chunk's data pages may include both dictionary-encoded and
   // plain-encoded data.
@@ -159,6 +182,13 @@ template <typename DType>
 inline int64_t TypedColumnReader<DType>::ReadValues(int64_t batch_size, T* out) {
   int64_t num_decoded = current_decoder_->Decode(out, batch_size);
   return num_decoded;
+}
+
+template <typename DType>
+inline int64_t TypedColumnReader<DType>::ReadValuesSpaced(
+    int64_t batch_size, int16_t* def_levels, T* out, int* null_count) {
+  return current_decoder_->DecodeSpaced(
+      out, def_levels, descr_->max_definition_level(), batch_size, null_count);
 }
 
 template <typename DType>
@@ -204,6 +234,40 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
   int64_t total_values = std::max(num_def_levels, *values_read);
   num_decoded_values_ += total_values;
 
+  return total_values;
+}
+
+template <typename DType>
+inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
+    int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count) {
+  // HasNext invokes ReadNewPage
+  if (!HasNext()) { return 0; }
+
+  int64_t total_values;
+  // TODO(wesm): keep reading data pages until batch_size is reached, or the
+  // row group is finished
+  batch_size = std::min(batch_size, num_buffered_values_ - num_decoded_values_);
+
+  // If the field is required and non-repeated, there are no definition levels
+  if (descr_->max_definition_level() > 0) {
+    int64_t num_def_levels = ReadDefinitionLevels(batch_size, def_levels);
+
+    // Not present for non-repeated fields
+    if (descr_->max_repetition_level() > 0) {
+      int64_t num_rep_levels = ReadRepetitionLevels(batch_size, rep_levels);
+      if (num_def_levels != num_rep_levels) {
+        throw ParquetException("Number of decoded rep / def levels did not match");
+      }
+    }
+
+    total_values = ReadValuesSpaced(num_def_levels, def_levels, values, null_count);
+  } else {
+    // Required field, read all values
+    total_values = ReadValues(batch_size, values);
+    *null_count = 0;
+  }
+
+  num_decoded_values_ += total_values;
   return total_values;
 }
 

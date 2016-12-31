@@ -48,6 +48,31 @@ class Decoder {
     throw ParquetException("Decoder does not implement this type.");
   }
 
+  // Decode the values in this data page but leave spaces for null entries.
+  //
+  // num_values is the size of the def_levels and buffer arrays including the number of
+  // null values.
+  virtual int DecodeSpaced(T* buffer, int16_t* def_levels, int16_t max_definition_level,
+      int num_values, int* null_count) {
+    int values_to_read = 0;
+    for (int i = 0; i < num_values; ++i) {
+      if (def_levels[i] == max_definition_level) { ++values_to_read; }
+    }
+    *null_count = num_values - values_to_read;
+    int values_read = Decode(buffer, values_to_read);
+    if (values_read != values_to_read) {
+      throw ParquetException("Number of values / definition_levels read did not match");
+    }
+
+    // Add spacing for null entries. As we have filled the buffer from the front,
+    // we need to add the spacing from the back.
+    int values_to_move = values_read;
+    for (int i = num_values - 1; i >= 0; i--) {
+      if (def_levels[i] == max_definition_level) { buffer[i] = buffer[--values_to_move]; }
+    }
+    return num_values;
+  }
+
   // Returns the number of values left (for the last call to SetData()). This is
   // the number of values left in this page.
   int values_left() const { return num_values_; }
