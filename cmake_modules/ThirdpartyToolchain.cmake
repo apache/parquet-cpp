@@ -190,12 +190,12 @@ if (NOT ZLIB_FOUND)
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/zlib-1.2.8.tar.gz"
+      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
       BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
       CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
   else()
     ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/zlib-1.2.8.tar.gz"
+      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
       CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
   endif()
 else()
