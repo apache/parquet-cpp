@@ -325,6 +325,7 @@ class FileMetaData::FileMetaDataImpl {
 
 std::shared_ptr<FileMetaData> FileMetaData::Make(
     const uint8_t* metadata, uint32_t* metadata_len) {
+  // This FileMetaData ctor is private, not compatible with std::make_shared
   return std::shared_ptr<FileMetaData>(new FileMetaData(metadata, metadata_len));
 }
 

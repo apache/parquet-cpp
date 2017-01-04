@@ -236,4 +236,12 @@ void ParquetFileReader::DebugPrint(
   }
 }
 
+// ----------------------------------------------------------------------
+// File metadata helpers
+
+std::shared_ptr<FileMetaData> ReadMetaData(
+    const std::shared_ptr<::arrow::io::ReadableFileInterface>& source) {
+  return ParquetFileReader::Open(source)->metadata();
+}
+
 }  // namespace parquet
