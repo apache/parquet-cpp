@@ -323,9 +323,9 @@ class FileMetaData::FileMetaDataImpl {
   FileMetaData::Version writer_version_;
 };
 
-std::unique_ptr<FileMetaData> FileMetaData::Make(
+std::shared_ptr<FileMetaData> FileMetaData::Make(
     const uint8_t* metadata, uint32_t* metadata_len) {
-  return std::unique_ptr<FileMetaData>(new FileMetaData(metadata, metadata_len));
+  return std::shared_ptr<FileMetaData>(new FileMetaData(metadata, metadata_len));
 }
 
 FileMetaData::FileMetaData(const uint8_t* metadata, uint32_t* metadata_len)

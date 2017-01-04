@@ -111,7 +111,7 @@ void ParquetFileReader::Close() {
   if (contents_) { contents_->Close(); }
 }
 
-const FileMetaData* ParquetFileReader::metadata() const {
+std::shared_ptr<FileMetaData> ParquetFileReader::metadata() const {
   return contents_->metadata();
 }
 
@@ -130,7 +130,7 @@ std::shared_ptr<RowGroupReader> ParquetFileReader::RowGroup(int i) {
 
 void ParquetFileReader::DebugPrint(
     std::ostream& stream, std::list<int> selected_columns, bool print_values) {
-  const FileMetaData* file_metadata = metadata();
+  const FileMetaData* file_metadata = metadata().get();
 
   stream << "File statistics:\n";
   stream << "Version: " << file_metadata->version() << "\n";

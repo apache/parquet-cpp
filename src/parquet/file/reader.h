@@ -73,7 +73,7 @@ class PARQUET_EXPORT ParquetFileReader {
     // Perform any cleanup associated with the file contents
     virtual void Close() = 0;
     virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i) = 0;
-    virtual const FileMetaData* metadata() const = 0;
+    virtual std::shared_ptr<FileMetaData> metadata() const = 0;
   };
 
   ParquetFileReader();
@@ -94,9 +94,8 @@ class PARQUET_EXPORT ParquetFileReader {
       const std::shared_ptr<::arrow::io::ReadableFileInterface>& source,
       const ReaderProperties& props = default_reader_properties());
 
-  // API Convenience to open a serialized Parquet file on disk, using built-in IO
-  // interface implementations that were created for testing, and may not be robust for
-  // all use cases.
+  // API Convenience to open a serialized Parquet file on disk, using Arrow IO
+  // interfaces.
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
       bool memory_map = true,
       const ReaderProperties& props = default_reader_properties());
@@ -107,8 +106,8 @@ class PARQUET_EXPORT ParquetFileReader {
   // The RowGroupReader is owned by the FileReader
   std::shared_ptr<RowGroupReader> RowGroup(int i);
 
-  // Returns the file metadata
-  const FileMetaData* metadata() const;
+  // Returns the file metadata. Only one instance is ever created
+  std::shared_ptr<FileMetaData> metadata() const;
 
   void DebugPrint(
       std::ostream& stream, std::list<int> selected_columns, bool print_values = true);

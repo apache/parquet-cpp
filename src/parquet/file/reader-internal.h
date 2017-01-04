@@ -105,9 +105,9 @@ class SerializedFile : public ParquetFileReader::Contents {
   static std::unique_ptr<ParquetFileReader::Contents> Open(
       std::unique_ptr<RandomAccessSource> source,
       const ReaderProperties& props = default_reader_properties());
-  virtual void Close();
-  virtual std::shared_ptr<RowGroupReader> GetRowGroup(int i);
-  virtual const FileMetaData* metadata() const;
+  void Close() override;
+  std::shared_ptr<RowGroupReader> GetRowGroup(int i) override;
+  std::shared_ptr<FileMetaData> metadata() const override;
   virtual ~SerializedFile();
 
  private:
@@ -116,7 +116,7 @@ class SerializedFile : public ParquetFileReader::Contents {
       std::unique_ptr<RandomAccessSource> source, const ReaderProperties& props);
 
   std::unique_ptr<RandomAccessSource> source_;
-  std::unique_ptr<FileMetaData> file_metadata_;
+  std::shared_ptr<FileMetaData> file_metadata_;
   ReaderProperties properties_;
 
   void ParseMetaData();

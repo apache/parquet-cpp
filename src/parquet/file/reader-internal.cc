@@ -233,8 +233,8 @@ std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
   return std::make_shared<RowGroupReader>(std::move(contents));
 }
 
-const FileMetaData* SerializedFile::metadata() const {
-  return file_metadata_.get();
+std::shared_ptr<FileMetaData> SerializedFile::metadata() const {
+  return file_metadata_;
 }
 
 SerializedFile::SerializedFile(std::unique_ptr<RandomAccessSource> source,
