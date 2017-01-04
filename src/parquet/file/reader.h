@@ -86,18 +86,21 @@ class PARQUET_EXPORT ParquetFileReader {
   // subclass of RandomAccessSource that wraps the shared resource
   static std::unique_ptr<ParquetFileReader> Open(
       std::unique_ptr<RandomAccessSource> source,
+      const std::shared<FileMetaData> metadata = nullptr,
       const ReaderProperties& props = default_reader_properties());
 
   // Create a file reader instance from an Arrow file object. Thread-safety is
   // the responsibility of the file implementation
   static std::unique_ptr<ParquetFileReader> Open(
       const std::shared_ptr<::arrow::io::ReadableFileInterface>& source,
+      const std::shared<FileMetaData> metadata = nullptr,
       const ReaderProperties& props = default_reader_properties());
 
   // API Convenience to open a serialized Parquet file on disk, using Arrow IO
   // interfaces.
   static std::unique_ptr<ParquetFileReader> OpenFile(const std::string& path,
       bool memory_map = true,
+      const std::shared<FileMetaData> metadata = nullptr,
       const ReaderProperties& props = default_reader_properties());
 
   void Open(std::unique_ptr<Contents> contents);
