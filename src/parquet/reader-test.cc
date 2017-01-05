@@ -208,23 +208,14 @@ TEST_F(TestLocalFile, FileClosedOnDestruction) {
 TEST_F(TestLocalFile, OpenWithMetadata) {
   // PARQUET-808
   std::stringstream ss;
-  std::shared_ptr<FileMetaData> metadata;
-
-  // empty list means print all
-  std::list<int> columns;
-
-  {
-    auto reader = ParquetFileReader::Open(handle);
-    metadata = reader->metadata();
-    reader->DebugPrint(ss, columns, true);
-  }
+  std::shared_ptr<FileMetaData> metadata = ReadMetaData(handle);
 
   auto reader = ParquetFileReader::Open(handle, default_reader_properties(), metadata);
 
   // Compare pointers
   ASSERT_EQ(metadata.get(), reader->metadata().get());
 
-  columns.clear();
+  std::list<int> columns;
   reader->DebugPrint(ss, columns, true);
 
   // Make sure OpenFile passes on the external metadata, too
