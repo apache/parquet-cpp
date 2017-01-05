@@ -360,6 +360,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
     ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), default_memory_pool(), arrow_sink_,
         512, default_writer_properties()));
 
+    // XXX: Remove this after ARROW-455 completed
     ASSERT_OK(arrow_sink_->Close());
   }
 
