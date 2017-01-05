@@ -98,15 +98,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
 class SerializedFile : public ParquetFileReader::Contents {
  public:
-  // Open the valid and validate the header, footer, and parse the Thrift metadata
+  // Open the file. If no metadata is passed, it is parsed from the footer of
+  // the file
   static std::unique_ptr<ParquetFileReader::Contents> Open(
       std::unique_ptr<RandomAccessSource> source,
-      const ReaderProperties& props = default_reader_properties());
-
-  // Open the file given externally-provided metadata
-  static std::unique_ptr<ParquetFileReader::Contents> Open(
-      std::unique_ptr<RandomAccessSource> source,
-      const ReaderProperties& props = default_reader_properties());
+      const ReaderProperties& props = default_reader_properties(),
+      const std::shared_ptr<FileMetaData>& metadata = nullptr);
 
   void Close() override;
   std::shared_ptr<RowGroupReader> GetRowGroup(int i) override;
