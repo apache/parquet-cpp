@@ -72,7 +72,7 @@ PARQUET_EXPORT MemoryAllocator* default_allocator();
 
 class PARQUET_EXPORT TrackingAllocator : public MemoryAllocator {
  public:
-  TrackingAllocator(MemoryAllocator* allocator = ::arrow::default_memory_pool())
+  explicit TrackingAllocator(MemoryAllocator* allocator = ::arrow::default_memory_pool())
       : allocator_(allocator), max_memory_(0) {}
 
   ::arrow::Status Allocate(int64_t size, uint8_t** out) override;
