@@ -412,10 +412,8 @@ Status FlatColumnReader::Impl::TypedReadBatch(
     int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
     auto values = reinterpret_cast<ParquetCType*>(values_buffer_.mutable_data());
     if (descr_->max_definition_level() == 0) {
-      // TODO: No need for spaced here.
-      int null_count;
-      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatchSpaced(
-                               values_to_read, def_levels, nullptr, values, &null_count));
+      int64_t values_read;
+      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(values_to_read, nullptr, nullptr, values, &values_read));
       ReadNonNullableBatch<ArrowType, ParquetType>(values, levels_read);
     } else {
       // As per the defintion and checks for flat columns:
@@ -486,11 +484,8 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
     int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
     auto values = reinterpret_cast<bool*>(values_buffer_.mutable_data());
     if (descr_->max_definition_level() == 0) {
-      // TODO: No need for spaced here.
-      // Remove null_count
-      int null_count;
-      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatchSpaced(
-                               values_to_read, def_levels, nullptr, values, &null_count));
+      int64_t values_read;
+      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(values_to_read, nullptr, nullptr, values, &values_read));
       ReadNonNullableBatch<::arrow::BooleanType, BooleanType>(values, levels_read);
     } else {
       // As per the defintion and checks for flat columns:
