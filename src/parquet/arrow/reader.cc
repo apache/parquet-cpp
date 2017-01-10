@@ -280,13 +280,14 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch(
   using ArrowCType = typename ArrowType::c_type;
 
   int null_count;
-  PARQUET_CATCH_NOT_OK(*levels_read = reader->ReadBatchSpaced(
-                           values_to_read, def_levels, nullptr, values, &null_count));
+  PARQUET_CATCH_NOT_OK(*levels_read =
+                           reader->ReadBatchSpaced(values_to_read, def_levels, nullptr,
+                               values, &null_count, valid_bits_ptr_, valid_bits_idx_));
 
   auto data_ptr = reinterpret_cast<ArrowCType*>(data_buffer_ptr_);
   for (int64_t i = 0; i < *levels_read; i++) {
+    // TODO: Replace with bitmap
     if (def_levels[i] == descr_->max_definition_level()) {
-      ::arrow::BitUtil::SetBit(valid_bits_ptr_, valid_bits_idx_ + i);
       data_ptr[valid_bits_idx_ + i] = values[i];
     }
   }
@@ -303,15 +304,10 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch(
       int64_t values_to_read, int64_t * levels_read) {                               \
     auto data_ptr = reinterpret_cast<CType*>(data_buffer_ptr_);                      \
     int null_count;                                                                  \
-    PARQUET_CATCH_NOT_OK(*levels_read =                                              \
-                             reader->ReadBatchSpaced(values_to_read, def_levels,     \
-                                 nullptr, data_ptr + valid_bits_idx_, &null_count)); \
+    PARQUET_CATCH_NOT_OK(*levels_read = reader->ReadBatchSpaced(values_to_read,      \
+                             def_levels, nullptr, data_ptr + valid_bits_idx_,        \
+                             &null_count, valid_bits_ptr_, valid_bits_idx_));        \
                                                                                      \
-    for (int64_t i = 0; i < *levels_read; i++) {                                     \
-      if (def_levels[i] == descr_->max_definition_level()) {                         \
-        ::arrow::BitUtil::SetBit(valid_bits_ptr_, valid_bits_idx_ + i);              \
-      }                                                                              \
-    }                                                                                \
     valid_bits_idx_ += *levels_read;                                                 \
     null_count_ += null_count;                                                       \
                                                                                      \
@@ -328,13 +324,14 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int
     TypedColumnReader<Int96Type>* reader, int16_t* def_levels, Int96* values,
     int64_t values_to_read, int64_t* levels_read) {
   int null_count;
-  PARQUET_CATCH_NOT_OK(*levels_read = reader->ReadBatchSpaced(
-                           values_to_read, def_levels, nullptr, values, &null_count));
+  PARQUET_CATCH_NOT_OK(*levels_read =
+                           reader->ReadBatchSpaced(values_to_read, def_levels, nullptr,
+                               values, &null_count, valid_bits_ptr_, valid_bits_idx_));
 
   auto data_ptr = reinterpret_cast<int64_t*>(data_buffer_ptr_);
   for (int64_t i = 0; i < *levels_read; i++) {
+    // TODO: Use valid_bits_
     if (def_levels[i] == descr_->max_definition_level()) {
-      ::arrow::BitUtil::SetBit(valid_bits_ptr_, valid_bits_idx_ + i);
       data_ptr[valid_bits_idx_ + i] = impala_timestamp_to_nanoseconds(values[i]);
     }
   }
@@ -349,12 +346,13 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::BooleanType, Boole
     TypedColumnReader<BooleanType>* reader, int16_t* def_levels, bool* values,
     int64_t values_to_read, int64_t* levels_read) {
   int null_count;
-  PARQUET_CATCH_NOT_OK(*levels_read = reader->ReadBatchSpaced(
-                           values_to_read, def_levels, nullptr, values, &null_count));
+  PARQUET_CATCH_NOT_OK(*levels_read =
+                           reader->ReadBatchSpaced(values_to_read, def_levels, nullptr,
+                               values, &null_count, valid_bits_ptr_, valid_bits_idx_));
 
   for (int64_t i = 0; i < *levels_read; i++) {
+    // TODO: use bitmap
     if (def_levels[i] == descr_->max_definition_level()) {
-      ::arrow::BitUtil::SetBit(valid_bits_ptr_, valid_bits_idx_ + i);
       if (values[i]) { ::arrow::BitUtil::SetBit(data_buffer_ptr_, valid_bits_idx_ + i); }
     }
   }
@@ -413,7 +411,8 @@ Status FlatColumnReader::Impl::TypedReadBatch(
     auto values = reinterpret_cast<ParquetCType*>(values_buffer_.mutable_data());
     if (descr_->max_definition_level() == 0) {
       int64_t values_read;
-      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(values_to_read, nullptr, nullptr, values, &values_read));
+      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(
+                               values_to_read, nullptr, nullptr, values, &values_read));
       ReadNonNullableBatch<ArrowType, ParquetType>(values, levels_read);
     } else {
       // As per the defintion and checks for flat columns:
@@ -485,7 +484,8 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
     auto values = reinterpret_cast<bool*>(values_buffer_.mutable_data());
     if (descr_->max_definition_level() == 0) {
       int64_t values_read;
-      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(values_to_read, nullptr, nullptr, values, &values_read));
+      PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(
+                               values_to_read, nullptr, nullptr, values, &values_read));
       ReadNonNullableBatch<::arrow::BooleanType, BooleanType>(values, levels_read);
     } else {
       // As per the defintion and checks for flat columns:

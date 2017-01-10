@@ -20,6 +20,8 @@
 
 #include <cstdint>
 
+#include <arrow/util/bit-util.h>
+
 #include "parquet/exception.h"
 #include "parquet/types.h"
 #include "parquet/util/memory.h"
@@ -53,10 +55,15 @@ class Decoder {
   // num_values is the size of the def_levels and buffer arrays including the number of
   // null values.
   virtual int DecodeSpaced(T* buffer, int16_t* def_levels, int16_t max_definition_level,
-      int num_values, int* null_count) {
+      int num_values, int* null_count, uint8_t* valid_bits, int64_t valid_bits_offset) {
     int values_to_read = 0;
     for (int i = 0; i < num_values; ++i) {
-      if (def_levels[i] == max_definition_level) { ++values_to_read; }
+      if (def_levels[i] == max_definition_level) {
+        ::arrow::BitUtil::SetBit(valid_bits, valid_bits_offset + i);
+        ++values_to_read;
+      } else {
+        ::arrow::BitUtil::ClearBit(valid_bits, valid_bits_offset + i);
+      }
     }
     *null_count = num_values - values_to_read;
     int values_read = Decode(buffer, values_to_read);

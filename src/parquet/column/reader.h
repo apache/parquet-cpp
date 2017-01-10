@@ -25,6 +25,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <arrow/util/bit-util.h>
+
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 #include "parquet/encodings/decoder.h"
@@ -138,11 +140,14 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // To fully exhaust a row group, you must read batches until the number of
   // values read reaches the number of stored values according to the metadata.
   //
+  // This function also needs memory allocated for a bitmap that indicates if
+  // the row is null or on the maximum definition level.
+  //
   // This API is the same for both V1 and V2 of the DataPage
   //
   // @returns: actual number of levels read
   int64_t ReadBatchSpaced(int batch_size, int16_t* def_levels, int16_t* rep_levels,
-      T* values, int* null_count);
+      T* values, int* null_count, uint8_t* valid_bits, int64_t valid_bits_offset);
 
   // Skip reading levels
   // Returns the number of levels skipped
@@ -165,8 +170,8 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // to the def_levels.
   //
   // @returns: the number of values read into the out buffer
-  int64_t ReadValuesSpaced(
-      int64_t batch_size, int16_t* def_levels, T* out, int* null_count);
+  int64_t ReadValuesSpaced(int64_t batch_size, int16_t* def_levels, T* out,
+      int* null_count, uint8_t* valid_bits, int64_t valid_bits_offset);
 
   // Map of encoding type to the respective decoder object. For example, a
   // column chunk's data pages may include both dictionary-encoded and
@@ -185,10 +190,11 @@ inline int64_t TypedColumnReader<DType>::ReadValues(int64_t batch_size, T* out) 
 }
 
 template <typename DType>
-inline int64_t TypedColumnReader<DType>::ReadValuesSpaced(
-    int64_t batch_size, int16_t* def_levels, T* out, int* null_count) {
-  return current_decoder_->DecodeSpaced(
-      out, def_levels, descr_->max_definition_level(), batch_size, null_count);
+inline int64_t TypedColumnReader<DType>::ReadValuesSpaced(int64_t batch_size,
+    int16_t* def_levels, T* out, int* null_count, uint8_t* valid_bits,
+    int64_t valid_bits_offset) {
+  return current_decoder_->DecodeSpaced(out, def_levels, descr_->max_definition_level(),
+      batch_size, null_count, valid_bits, valid_bits_offset);
 }
 
 template <typename DType>
@@ -239,7 +245,8 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
 
 template <typename DType>
 inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
-    int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count) {
+    int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count,
+    uint8_t* valid_bits, int64_t valid_bits_offset) {
   // HasNext invokes ReadNewPage
   if (!HasNext()) { return 0; }
 
@@ -260,10 +267,14 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
       }
     }
 
-    total_values = ReadValuesSpaced(num_def_levels, def_levels, values, null_count);
+    total_values = ReadValuesSpaced(
+        num_def_levels, def_levels, values, null_count, valid_bits, valid_bits_offset);
   } else {
     // Required field, read all values
     total_values = ReadValues(batch_size, values);
+    for (int64_t i = 0; i < total_values; i++) {
+      ::arrow::BitUtil::SetBit(valid_bits, valid_bits_offset + i);
+    }
     *null_count = 0;
   }
 
