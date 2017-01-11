@@ -170,8 +170,8 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // to the def_levels.
   //
   // @returns: the number of values read into the out buffer
-  int64_t ReadValuesSpaced(int64_t batch_size, int16_t* def_levels, T* out,
-      int* null_count, uint8_t* valid_bits, int64_t valid_bits_offset);
+  int64_t ReadValuesSpaced(int64_t batch_size, T* out,
+      int null_count, uint8_t* valid_bits, int64_t valid_bits_offset);
 
   // Map of encoding type to the respective decoder object. For example, a
   // column chunk's data pages may include both dictionary-encoded and
@@ -191,9 +191,9 @@ inline int64_t TypedColumnReader<DType>::ReadValues(int64_t batch_size, T* out) 
 
 template <typename DType>
 inline int64_t TypedColumnReader<DType>::ReadValuesSpaced(int64_t batch_size,
-    int16_t* def_levels, T* out, int* null_count, uint8_t* valid_bits,
+    T* out, int null_count, uint8_t* valid_bits,
     int64_t valid_bits_offset) {
-  return current_decoder_->DecodeSpaced(out, def_levels, descr_->max_definition_level(),
+  return current_decoder_->DecodeSpaced(out,
       batch_size, null_count, valid_bits, valid_bits_offset);
 }
 
@@ -245,7 +245,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
 
 template <typename DType>
 inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
-    int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count,
+    int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count_out,
     uint8_t* valid_bits, int64_t valid_bits_offset) {
   // HasNext invokes ReadNewPage
   if (!HasNext()) { return 0; }
@@ -266,16 +266,29 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
         throw ParquetException("Number of decoded rep / def levels did not match");
       }
     }
+    
+    // TODO: Move this into the DefinitionLevels reader
+    int null_count = 0;
+    int16_t max_definition_level = descr_->max_definition_level();
+    for (int i = 0; i < num_def_levels; ++i) {
+      if (def_levels[i] == max_definition_level) {
+        ::arrow::BitUtil::SetBit(valid_bits, valid_bits_offset + i);
+      } else {
+        ::arrow::BitUtil::ClearBit(valid_bits, valid_bits_offset + i);
+        ++null_count;
+      }
+    }
+    *null_count_out = null_count;
 
     total_values = ReadValuesSpaced(
-        num_def_levels, def_levels, values, null_count, valid_bits, valid_bits_offset);
+        num_def_levels, values, null_count, valid_bits, valid_bits_offset);
   } else {
     // Required field, read all values
     total_values = ReadValues(batch_size, values);
     for (int64_t i = 0; i < total_values; i++) {
       ::arrow::BitUtil::SetBit(valid_bits, valid_bits_offset + i);
     }
-    *null_count = 0;
+    *null_count_out = 0;
   }
 
   num_decoded_values_ += total_values;
