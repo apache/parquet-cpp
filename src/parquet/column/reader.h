@@ -170,8 +170,8 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   // to the def_levels.
   //
   // @returns: the number of values read into the out buffer
-  int64_t ReadValuesSpaced(int64_t batch_size, T* out,
-      int null_count, uint8_t* valid_bits, int64_t valid_bits_offset);
+  int64_t ReadValuesSpaced(int64_t batch_size, T* out, int null_count,
+      uint8_t* valid_bits, int64_t valid_bits_offset);
 
   // Map of encoding type to the respective decoder object. For example, a
   // column chunk's data pages may include both dictionary-encoded and
@@ -190,11 +190,10 @@ inline int64_t TypedColumnReader<DType>::ReadValues(int64_t batch_size, T* out) 
 }
 
 template <typename DType>
-inline int64_t TypedColumnReader<DType>::ReadValuesSpaced(int64_t batch_size,
-    T* out, int null_count, uint8_t* valid_bits,
-    int64_t valid_bits_offset) {
-  return current_decoder_->DecodeSpaced(out,
-      batch_size, null_count, valid_bits, valid_bits_offset);
+inline int64_t TypedColumnReader<DType>::ReadValuesSpaced(int64_t batch_size, T* out,
+    int null_count, uint8_t* valid_bits, int64_t valid_bits_offset) {
+  return current_decoder_->DecodeSpaced(
+      out, batch_size, null_count, valid_bits, valid_bits_offset);
 }
 
 template <typename DType>
@@ -266,7 +265,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
         throw ParquetException("Number of decoded rep / def levels did not match");
       }
     }
-    
+
     // TODO: Move this into the DefinitionLevels reader
     int null_count = 0;
     int16_t max_definition_level = descr_->max_definition_level();

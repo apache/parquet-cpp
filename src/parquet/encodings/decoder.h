@@ -54,8 +54,8 @@ class Decoder {
   //
   // num_values is the size of the def_levels and buffer arrays including the number of
   // null values.
-  virtual int DecodeSpaced(T* buffer,
-      int num_values, int null_count, const uint8_t* valid_bits, int64_t valid_bits_offset) {
+  virtual int DecodeSpaced(T* buffer, int num_values, int null_count,
+      const uint8_t* valid_bits, int64_t valid_bits_offset) {
     int values_to_read = num_values - null_count;
     int values_read = Decode(buffer, values_to_read);
     if (values_read != values_to_read) {
@@ -66,7 +66,9 @@ class Decoder {
     // we need to add the spacing from the back.
     int values_to_move = values_read;
     for (int i = num_values - 1; i >= 0; i--) {
-      if (::arrow::BitUtil::GetBit(valid_bits, valid_bits_offset + i))  { buffer[i] = buffer[--values_to_move]; }
+      if (::arrow::BitUtil::GetBit(valid_bits, valid_bits_offset + i)) {
+        buffer[i] = buffer[--values_to_move];
+      }
     }
     return num_values;
   }

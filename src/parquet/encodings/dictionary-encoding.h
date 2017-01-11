@@ -67,10 +67,11 @@ class DictionaryDecoder : public Decoder<Type> {
     num_values_ -= max_values;
     return max_values;
   }
-  
-  int DecodeSpaced(T* buffer,
-      int num_values, int null_count, const uint8_t* valid_bits, int64_t valid_bits_offset) override {
-    int decoded_values = idx_decoder_.GetBatchWithDictSpaced(dictionary_, buffer, num_values, null_count, valid_bits, valid_bits_offset);
+
+  int DecodeSpaced(T* buffer, int num_values, int null_count, const uint8_t* valid_bits,
+      int64_t valid_bits_offset) override {
+    int decoded_values = idx_decoder_.GetBatchWithDictSpaced(
+        dictionary_, buffer, num_values, null_count, valid_bits, valid_bits_offset);
     if (decoded_values != num_values) { ParquetException::EofException(); }
     return decoded_values;
   }
