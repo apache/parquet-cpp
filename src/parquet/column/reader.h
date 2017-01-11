@@ -25,8 +25,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <arrow/util/bit-util.h>
-
 #include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 #include "parquet/encodings/decoder.h"
@@ -242,6 +240,33 @@ inline int64_t TypedColumnReader<DType>::ReadBatch(int batch_size, int16_t* def_
   return total_values;
 }
 
+inline void DefinitionLevelsToBitmap(const int16_t* def_levels, int64_t num_def_levels,
+    int16_t max_definition_level, int* null_count, uint8_t* valid_bits,
+    int64_t valid_bits_offset) {
+  int byte_offset = valid_bits_offset / 8;
+  int bit_offset = valid_bits_offset % 8;
+  uint8_t bitset = valid_bits[byte_offset];
+
+  for (int i = 0; i < num_def_levels; ++i) {
+    if (def_levels[i] == max_definition_level) {
+      bitset |= (1 << bit_offset);
+    } else {
+      bitset &= ~(1 << bit_offset);
+      *null_count += 1;
+    }
+
+    bit_offset++;
+    if (bit_offset == 8) {
+      bit_offset = 0;
+      valid_bits[byte_offset] = bitset;
+      byte_offset++;
+      // TODO: Except for the last byte, this shouldn't be needed
+      bitset = valid_bits[byte_offset];
+    }
+  }
+  if (bit_offset != 0) { valid_bits[byte_offset] = bitset; }
+}
+
 template <typename DType>
 inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
     int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count_out,
@@ -269,14 +294,8 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
     // TODO: Move this into the DefinitionLevels reader
     int null_count = 0;
     int16_t max_definition_level = descr_->max_definition_level();
-    for (int i = 0; i < num_def_levels; ++i) {
-      if (def_levels[i] == max_definition_level) {
-        ::arrow::BitUtil::SetBit(valid_bits, valid_bits_offset + i);
-      } else {
-        ::arrow::BitUtil::ClearBit(valid_bits, valid_bits_offset + i);
-        ++null_count;
-      }
-    }
+    DefinitionLevelsToBitmap(def_levels, num_def_levels, max_definition_level,
+        &null_count, valid_bits, valid_bits_offset);
     *null_count_out = null_count;
 
     total_values = ReadValuesSpaced(

@@ -285,10 +285,18 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch(
                                values, &null_count, valid_bits_ptr_, valid_bits_idx_));
 
   auto data_ptr = reinterpret_cast<ArrowCType*>(data_buffer_ptr_);
+  int byte_offset = valid_bits_idx_ / 8;
+  int bit_offset = valid_bits_idx_ % 8;
+  uint8_t bitset = valid_bits_ptr_[byte_offset];
+
   for (int64_t i = 0; i < *levels_read; i++) {
-    // TODO: Replace with bitmap
-    if (def_levels[i] == descr_->max_definition_level()) {
-      data_ptr[valid_bits_idx_ + i] = values[i];
+    if (bitset & (1 << bit_offset)) { data_ptr[valid_bits_idx_ + i] = values[i]; }
+
+    bit_offset++;
+    if (bit_offset == 8) {
+      bit_offset = 0;
+      byte_offset++;
+      bitset = valid_bits_ptr_[byte_offset];
     }
   }
   null_count_ += null_count;
@@ -329,10 +337,19 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int
                                values, &null_count, valid_bits_ptr_, valid_bits_idx_));
 
   auto data_ptr = reinterpret_cast<int64_t*>(data_buffer_ptr_);
+  int byte_offset = valid_bits_idx_ / 8;
+  int bit_offset = valid_bits_idx_ % 8;
+  uint8_t bitset = valid_bits_ptr_[byte_offset];
   for (int64_t i = 0; i < *levels_read; i++) {
-    // TODO: Use valid_bits_
-    if (def_levels[i] == descr_->max_definition_level()) {
+    if (bitset & (1 << bit_offset)) {
       data_ptr[valid_bits_idx_ + i] = impala_timestamp_to_nanoseconds(values[i]);
+    }
+
+    bit_offset++;
+    if (bit_offset == 8) {
+      bit_offset = 0;
+      byte_offset++;
+      bitset = valid_bits_ptr_[byte_offset];
     }
   }
   null_count_ += null_count;
@@ -350,10 +367,19 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::BooleanType, Boole
                            reader->ReadBatchSpaced(values_to_read, def_levels, nullptr,
                                values, &null_count, valid_bits_ptr_, valid_bits_idx_));
 
+  int byte_offset = valid_bits_idx_ / 8;
+  int bit_offset = valid_bits_idx_ % 8;
+  uint8_t bitset = valid_bits_ptr_[byte_offset];
   for (int64_t i = 0; i < *levels_read; i++) {
-    // TODO: use bitmap
-    if (def_levels[i] == descr_->max_definition_level()) {
+    if (bitset & (1 << bit_offset)) {
       if (values[i]) { ::arrow::BitUtil::SetBit(data_buffer_ptr_, valid_bits_idx_ + i); }
+    }
+
+    bit_offset++;
+    if (bit_offset == 8) {
+      bit_offset = 0;
+      byte_offset++;
+      bitset = valid_bits_ptr_[byte_offset];
     }
   }
   valid_bits_idx_ += *levels_read;
