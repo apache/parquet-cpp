@@ -51,7 +51,7 @@ class DictionaryDecoder : public Decoder<Type> {
   // Perform type-specific initiatialization
   void SetDict(Decoder<Type>* dictionary);
 
-  virtual void SetData(int num_values, const uint8_t* data, int len) {
+  void SetData(int num_values, const uint8_t* data, int len) override {
     num_values_ = num_values;
     if (len == 0) return;
     uint8_t bit_width = *data;
@@ -60,7 +60,7 @@ class DictionaryDecoder : public Decoder<Type> {
     idx_decoder_ = RleDecoder(data, len, bit_width);
   }
 
-  virtual int Decode(T* buffer, int max_values) {
+  int Decode(T* buffer, int max_values) override {
     max_values = std::min(max_values, num_values_);
     int decoded_values = idx_decoder_.GetBatchWithDict(dictionary_, buffer, max_values);
     if (decoded_values != max_values) { ParquetException::EofException(); }
