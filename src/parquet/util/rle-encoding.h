@@ -23,8 +23,6 @@
 #include <algorithm>
 #include <math.h>
 
-#include <arrow/util/bit-util.h>
-
 #include "parquet/util/bit-stream-utils.inline.h"
 #include "parquet/util/bit-util.h"
 #include "parquet/util/compiler-util.h"
