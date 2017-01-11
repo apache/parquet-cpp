@@ -23,12 +23,16 @@
 #  ARROW_SHARED_LIB, path to libarrow's shared library
 #  ARROW_FOUND, whether arrow has been found
 
+if( NOT "$ENV{ARROW_HOME}" STREQUAL "")
+  set(ARROW_HOME "$ENV{ARROW_HOME}")
+endif()
+
 set(ARROW_SEARCH_HEADER_PATHS
-  $ENV{ARROW_HOME}/include
+  ${ARROW_HOME}/include
 )
 
 set(ARROW_SEARCH_LIB_PATH
-  $ENV{ARROW_HOME}/lib
+  ${ARROW_HOME}/lib
 )
 
 find_path(ARROW_INCLUDE_DIR arrow/array.h PATHS
