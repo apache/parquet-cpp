@@ -355,12 +355,7 @@ inline int RleDecoder::GetBatchWithDictSpaced(const Vector<T>& dictionary, T* va
 
   while (values_read < batch_size) {
     bool is_valid = (bitset & (1 << bit_offset));
-    bit_offset++;
-    if (bit_offset == 8) {
-      bit_offset = 0;
-      byte_offset++;
-      bitset = valid_bits[byte_offset];
-    }
+    READ_NEXT_BITSET(valid_bits);
 
     if (is_valid) {
       if ((repeat_count_ == 0) && (literal_count_ == 0)) {
@@ -380,12 +375,7 @@ inline int RleDecoder::GetBatchWithDictSpaced(const Vector<T>& dictionary, T* va
           }
           repeat_batch++;
 
-          bit_offset++;
-          if (bit_offset == 8) {
-            bit_offset = 0;
-            byte_offset++;
-            bitset = valid_bits[byte_offset];
-          }
+          READ_NEXT_BITSET(valid_bits);
         }
         std::fill(values + values_read, values + values_read + repeat_batch, value);
         values_read += repeat_batch;
@@ -394,7 +384,7 @@ inline int RleDecoder::GetBatchWithDictSpaced(const Vector<T>& dictionary, T* va
             batch_size - values_read - remaining_nulls, static_cast<int>(literal_count_));
 
         // Decode the literals
-        const int kBufferSize = 1024;
+        constexpr int kBufferSize = 1024;
         int indices[kBufferSize];
         literal_batch = std::min(literal_batch, kBufferSize);
         int actual_read = bit_reader_.GetBatch(bit_width_, &indices[0], literal_batch);
@@ -414,12 +404,7 @@ inline int RleDecoder::GetBatchWithDictSpaced(const Vector<T>& dictionary, T* va
             skipped++;
           }
 
-          bit_offset++;
-          if (bit_offset == 8) {
-            bit_offset = 0;
-            byte_offset++;
-            bitset = valid_bits[byte_offset];
-          }
+          READ_NEXT_BITSET(valid_bits);
         }
         literal_count_ -= literal_batch;
         values_read += literal_batch + skipped;

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "parquet/arrow/schema.h"
+#include "parquet/util/bit-util.h"
 
 #include "arrow/api.h"
 #include "arrow/type_traits.h"
@@ -292,12 +293,7 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch(
   for (int64_t i = 0; i < *levels_read; i++) {
     if (bitset & (1 << bit_offset)) { data_ptr[valid_bits_idx_ + i] = values[i]; }
 
-    bit_offset++;
-    if (bit_offset == 8) {
-      bit_offset = 0;
-      byte_offset++;
-      bitset = valid_bits_ptr_[byte_offset];
-    }
+    READ_NEXT_BITSET(valid_bits_ptr_);
   }
   null_count_ += null_count;
   valid_bits_idx_ += *levels_read;
@@ -345,12 +341,7 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int
       data_ptr[valid_bits_idx_ + i] = impala_timestamp_to_nanoseconds(values[i]);
     }
 
-    bit_offset++;
-    if (bit_offset == 8) {
-      bit_offset = 0;
-      byte_offset++;
-      bitset = valid_bits_ptr_[byte_offset];
-    }
+    READ_NEXT_BITSET(valid_bits_ptr_);
   }
   null_count_ += null_count;
   valid_bits_idx_ += *levels_read;
@@ -375,12 +366,7 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::BooleanType, Boole
       if (values[i]) { ::arrow::BitUtil::SetBit(data_buffer_ptr_, valid_bits_idx_ + i); }
     }
 
-    bit_offset++;
-    if (bit_offset == 8) {
-      bit_offset = 0;
-      byte_offset++;
-      bitset = valid_bits_ptr_[byte_offset];
-    }
+    READ_NEXT_BITSET(valid_bits_ptr_);
   }
   valid_bits_idx_ += *levels_read;
   null_count_ += null_count;
