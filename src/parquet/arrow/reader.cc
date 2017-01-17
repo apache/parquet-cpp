@@ -457,7 +457,7 @@ Status FlatColumnReader::Impl::TypedReadBatch(
   RETURN_NOT_OK(InitDataBuffer<ArrowType>(batch_size));
   valid_bits_idx_ = 0;
   if (descr_->max_definition_level() > 0) {
-    int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size) / 8;
+    int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size + 1) / 8;
     valid_bits_buffer_ = std::make_shared<PoolBuffer>(pool_);
     RETURN_NOT_OK(valid_bits_buffer_->Resize(valid_bits_size, false));
     valid_bits_ptr_ = valid_bits_buffer_->mutable_data();
@@ -527,7 +527,7 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
   valid_bits_idx_ = 0;
   if (descr_->max_definition_level() > 0) {
     valid_bits_buffer_ = std::make_shared<PoolBuffer>(pool_);
-    int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size) / 8;
+    int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size + 1) / 8;
     RETURN_NOT_OK(valid_bits_buffer_->Resize(valid_bits_size, false));
     valid_bits_ptr_ = valid_bits_buffer_->mutable_data();
     memset(valid_bits_ptr_, 0, valid_bits_size);

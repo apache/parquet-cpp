@@ -273,7 +273,7 @@ class TestDictionaryEncoding : public TestEncodingBase<Type> {
 
     // Also test spaced decoding
     decoder.SetData(num_values_, indices->data(), indices->size());
-    std::vector<uint8_t> valid_bits(BitUtil::RoundUpNumBytes(num_values_), 255);
+    std::vector<uint8_t> valid_bits(BitUtil::RoundUpNumBytes(num_values_) + 1, 255);
     values_decoded =
         decoder.DecodeSpaced(decode_buf_, num_values_, 0, valid_bits.data(), 0);
     ASSERT_EQ(num_values_, values_decoded);

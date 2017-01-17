@@ -129,21 +129,24 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
   int64_t ReadBatch(int batch_size, int16_t* def_levels, int16_t* rep_levels, T* values,
       int64_t* values_read);
 
-  // Read a batch of repetition levels, definition levels, and values from the
-  // column and leave spaces for null entries in the values buffer.
-  //
-  // In comparision to ReadBatch the length of repetition and definition levels
-  // is the same as of the number of values read.
-  //
-  // To fully exhaust a row group, you must read batches until the number of
-  // values read reaches the number of stored values according to the metadata.
-  //
-  // This function also needs memory allocated for a bitmap that indicates if
-  // the row is null or on the maximum definition level.
-  //
-  // This API is the same for both V1 and V2 of the DataPage
-  //
-  // @returns: actual number of levels read
+  /// Read a batch of repetition levels, definition levels, and values from the
+  /// column and leave spaces for null entries in the values buffer.
+  ///
+  /// In comparision to ReadBatch the length of repetition and definition levels
+  /// is the same as of the number of values read.
+  ///
+  /// To fully exhaust a row group, you must read batches until the number of
+  /// values read reaches the number of stored values according to the metadata.
+  ///
+  /// @param valid_bits Memory allocated for a bitmap that indicates if
+  ///   the row is null or on the maximum definition level. For performance
+  ///   reasons the underlying buffer should be able to store 1 bit more than
+  ///   required. If this requires an additional byte, this byte is only read
+  ///   but never written to.
+  /// @param valid_bits_offset The offset in bits of the valid_bits where the
+  ///  first relevant bit resides.
+  ///
+  /// @return actual number of levels read
   int64_t ReadBatchSpaced(int batch_size, int16_t* def_levels, int16_t* rep_levels,
       T* values, int* null_count, uint8_t* valid_bits, int64_t valid_bits_offset);
 
