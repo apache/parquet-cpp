@@ -204,8 +204,8 @@ Status OpenFile(const std::shared_ptr<::arrow::io::ReadableFileInterface>& file,
 
 Status OpenFile(const std::shared_ptr<::arrow::io::ReadableFileInterface>& file,
     MemoryPool* allocator, std::unique_ptr<FileReader>* reader) {
-  return OpenFile(file, allocator, ::parquet::default_reader_properties(),
-      nullptr, reader);
+  return OpenFile(
+      file, allocator, ::parquet::default_reader_properties(), nullptr, reader);
 }
 
 Status FileReader::GetFlatColumn(int i, std::unique_ptr<FlatColumnReader>* out) {

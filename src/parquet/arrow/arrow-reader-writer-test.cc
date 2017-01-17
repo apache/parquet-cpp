@@ -205,9 +205,9 @@ class TestParquetIO : public ::testing::Test {
 
   void ReaderFromSink(std::unique_ptr<FileReader>* out) {
     std::shared_ptr<Buffer> buffer = sink_->GetBuffer();
-    ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
-            ::arrow::default_memory_pool(), ::parquet::default_reader_properties(),
-            nullptr, out));
+    ASSERT_OK_NO_THROW(
+        OpenFile(std::make_shared<BufferReader>(buffer), ::arrow::default_memory_pool(),
+            ::parquet::default_reader_properties(), nullptr, out));
   }
 
   void ReadSingleColumnFile(
@@ -567,8 +567,8 @@ class TestPrimitiveParquetIO : public TestParquetIO<TestType> {
  public:
   typedef typename c_type_trait<TestType>::ArrowCType T;
 
-  void MakeTestFile(std::vector<T>& values, int num_chunks,
-      std::unique_ptr<FileReader>* reader) {
+  void MakeTestFile(
+      std::vector<T>& values, int num_chunks, std::unique_ptr<FileReader>* reader) {
     std::shared_ptr<GroupNode> schema = this->MakeSchema(Repetition::REQUIRED);
     std::unique_ptr<ParquetFileWriter> file_writer = this->MakeWriter(schema);
     size_t chunk_size = values.size() / num_chunks;

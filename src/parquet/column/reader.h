@@ -272,7 +272,10 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
     int16_t* def_levels, int16_t* rep_levels, T* values, int* null_count_out,
     uint8_t* valid_bits, int64_t valid_bits_offset) {
   // HasNext invokes ReadNewPage
-  if (!HasNext()) { return 0; }
+  if (!HasNext()) {
+    *null_count_out = 0;
+    return 0;
+  }
 
   int64_t total_values;
   // TODO(wesm): keep reading data pages until batch_size is reached, or the
