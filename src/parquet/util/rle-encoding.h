@@ -349,9 +349,7 @@ inline int RleDecoder::GetBatchWithDictSpaced(const Vector<T>& dictionary, T* va
   DCHECK_GE(bit_width_, 0);
   int values_read = 0;
   int remaining_nulls = null_count;
-  int byte_offset = valid_bits_offset / 8;
-  int bit_offset = valid_bits_offset % 8;
-  uint8_t bitset = valid_bits[byte_offset];
+  INIT_BITSET(valid_bits, valid_bits_offset);
 
   while (values_read < batch_size) {
     bool is_valid = (bitset & (1 << bit_offset));
