@@ -54,17 +54,7 @@ static inline int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timest
 }
 
 template <typename ArrowType>
-struct ArrowTypeTraits {
-  typedef ::arrow::NumericArray<ArrowType> array_type;
-};
-
-template <>
-struct ArrowTypeTraits<::arrow::BooleanType> {
-  typedef ::arrow::BooleanArray array_type;
-};
-
-template <typename ArrowType>
-using ArrayType = typename ArrowTypeTraits<ArrowType>::array_type;
+using ArrayType = typename ::arrow::TypeTraits<ArrowType>::ArrayType;
 
 class FileReader::Impl {
  public:
