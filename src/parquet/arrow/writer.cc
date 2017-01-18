@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "parquet/util/bit-util.h"
 #include "parquet/util/logging.h"
 
 #include "parquet/arrow/schema.h"
@@ -136,19 +137,27 @@ Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
       PARQUET_CATCH_NOT_OK(
           writer->WriteBatch(length, def_levels_ptr, nullptr, data_writer_ptr));
     } else {
+      const uint8_t* valid_bits = data->null_bitmap_data();
+      INIT_BITSET(valid_bits, offset);
+      for (int i = 0; i < length; i++) {
+        if (bitset & (1 << bit_offset)) {
+          def_levels_ptr[i] = 1;
+        } else {
+          def_levels_ptr[i] = 0;
+        }
+        READ_NEXT_BITSET(valid_bits);
+      }
+
       RETURN_NOT_OK(data_buffer_.Resize(length * sizeof(ParquetCType)));
       auto buffer_ptr = reinterpret_cast<ParquetCType*>(data_buffer_.mutable_data());
       int buffer_idx = 0;
       for (int i = 0; i < length; i++) {
-        if (data->IsNull(offset + i)) {
-          def_levels_ptr[i] = 0;
-        } else {
-          def_levels_ptr[i] = 1;
-          buffer_ptr[buffer_idx++] = static_cast<ParquetCType>(data_ptr[i]);
+        if (!data->IsNull(offset + i)) {
+          buffer_ptr[i] = static_cast<ParquetCType>(data_ptr[i]);
         }
       }
-      PARQUET_CATCH_NOT_OK(
-          writer->WriteBatch(length, def_levels_ptr, nullptr, buffer_ptr));
+      PARQUET_CATCH_NOT_OK(writer->WriteBatchSpaced(
+          length, def_levels_ptr, nullptr, valid_bits, offset, buffer_ptr));
     }
   } else {
     return Status::NotImplemented("no support for max definition level > 1 yet");
