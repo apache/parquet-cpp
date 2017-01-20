@@ -396,10 +396,9 @@ inline int64_t TypedColumnWriter<DType>::WriteMiniBatchSpaced(int64_t num_values
 
   WriteValuesSpaced(num_values, valid_bits, valid_bits_offset, values);
 
-  // TODO:
-  /*if (page_statistics_ != nullptr) {
+  if (page_statistics_ != nullptr) {
     page_statistics_->Update(values, values_to_write, num_values - values_to_write);
-  }*/
+  }
 
   num_buffered_values_ += num_values;
   num_buffered_encoded_values_ += values_to_write;
