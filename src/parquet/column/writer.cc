@@ -397,7 +397,8 @@ inline int64_t TypedColumnWriter<DType>::WriteMiniBatchSpaced(int64_t num_values
   WriteValuesSpaced(num_values, valid_bits, valid_bits_offset, values);
 
   if (page_statistics_ != nullptr) {
-    page_statistics_->UpdateSpaced(values, valid_bits, valid_bits_offset, values_to_write, num_values - values_to_write);
+    page_statistics_->UpdateSpaced(values, valid_bits, valid_bits_offset, values_to_write,
+        num_values - values_to_write);
   }
 
   num_buffered_values_ += num_values;
