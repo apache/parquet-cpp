@@ -19,6 +19,7 @@
 #define PARQUET_ARROW_READER_H
 
 #include <memory>
+#include <vector>
 
 #include "parquet/api/reader.h"
 #include "parquet/api/schema.h"

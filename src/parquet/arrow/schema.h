@@ -19,6 +19,7 @@
 #define PARQUET_ARROW_SCHEMA_H
 
 #include <memory>
+#include <vector>
 
 #include "arrow/schema.h"
 #include "arrow/type.h"
