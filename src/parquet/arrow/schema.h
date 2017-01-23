@@ -40,6 +40,9 @@ namespace arrow {
 ::arrow::Status PARQUET_EXPORT NodeToField(
     const schema::NodePtr& node, std::shared_ptr<::arrow::Field>* out);
 
+::arrow::Status PARQUET_EXPORT FromParquetSchema(const SchemaDescriptor* parquet_schema,
+    const std::vector<int>& column_indices, std::shared_ptr<::arrow::Schema>* out);
+
 ::arrow::Status PARQUET_EXPORT FromParquetSchema(
     const SchemaDescriptor* parquet_schema, std::shared_ptr<::arrow::Schema>* out);
 
