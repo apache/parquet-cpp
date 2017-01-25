@@ -43,10 +43,6 @@ static inline SchemaElement NewPrimitive(const std::string& name,
   result.__set_type(type);
   result.__set_num_children(0);
   result.__set_field_id(id);
-  // Set default (non-set) values
-  result.__set_type_length(-1);
-  result.__set_precision(-1);
-  result.__set_scale(-1);
 
   return result;
 }
