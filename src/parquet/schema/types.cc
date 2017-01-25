@@ -289,7 +289,6 @@ void GroupNode::ToParquet(void* opaque_element) const {
   if (logical_type_ != LogicalType::NONE) {
     element->__set_converted_type(ToThrift(logical_type_));
   }
-  // FIXME: SchemaFlattener does this for us: element->__set_field_id(id_);
 }
 
 void PrimitiveNode::ToParquet(void* opaque_element) const {
@@ -302,7 +301,6 @@ void PrimitiveNode::ToParquet(void* opaque_element) const {
     element->__set_converted_type(ToThrift(logical_type_));
   }
   element->__set_type(ToThrift(physical_type_));
-  // FIXME: SchemaFlattener does this for us: element->__set_field_id(id_);
   if (physical_type_ == Type::FIXED_LEN_BYTE_ARRAY) {
     element->__set_type_length(type_length_);
   }
