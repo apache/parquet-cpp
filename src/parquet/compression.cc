@@ -15,7 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #include <brotli/decode.h>
 #include <brotli/encode.h>
@@ -53,7 +55,6 @@ std::unique_ptr<Codec> Codec::Create(Compression::type codec_type) {
 
 // ----------------------------------------------------------------------
 // gzip implementation
-
 
 // These are magic numbers from zlib.h.  Not clear why they are not defined
 // there.

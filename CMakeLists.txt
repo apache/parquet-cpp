@@ -494,10 +494,7 @@ set(LIBPARQUET_SRCS
   src/parquet/file/writer.cc
   src/parquet/file/writer-internal.cc
 
-  src/parquet/schema/converter.cc
-  src/parquet/schema/descriptor.cc
-  src/parquet/schema/printer.cc
-  src/parquet/schema/types.cc
+  src/parquet/schema.cc
 
   src/parquet/util/cpu-info.cc
   src/parquet/util/memory.cc
@@ -577,7 +574,6 @@ add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/encodings)
 add_subdirectory(src/parquet/file)
-add_subdirectory(src/parquet/schema)
 add_subdirectory(src/parquet/thrift)
 add_subdirectory(src/parquet/util)
 

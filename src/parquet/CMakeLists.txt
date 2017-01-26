@@ -19,6 +19,7 @@
 install(FILES
   compression.h
   exception.h
+  schema.h
   types.h
   DESTINATION include/parquet)
 
@@ -26,3 +27,4 @@ ADD_PARQUET_TEST(compression-test)
 ADD_PARQUET_TEST(public-api-test)
 ADD_PARQUET_TEST(types-test)
 ADD_PARQUET_TEST(reader-test)
+ADD_PARQUET_TEST(schema-test)
