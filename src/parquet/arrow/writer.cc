@@ -28,6 +28,7 @@
 #include "arrow/api.h"
 #include "arrow/type_traits.h"
 
+using arrow::Array;
 using arrow::BinaryArray;
 using arrow::MemoryPool;
 using arrow::PoolBuffer;
@@ -528,29 +529,30 @@ Status FileWriter::Impl::WriteColumnChunk(
     break;
 
   switch (data->value_type()->type) {
-    // case ::arrow::Type::UINT32:
-    //   if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
-    //     // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
-    //     // to use the larger Int64Type to store them lossless.
-    //     return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(
-    //         writer, data, offset, length);
-    //   } else {
-    //     return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(
-    //         writer, data, offset, length);
-    //   }
-    WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)
-    WRITE_LIST_BATCH_CASE(INT8, Int8Type, Int32Type)
-    WRITE_LIST_BATCH_CASE(UINT8, UInt8Type, Int32Type)
-    WRITE_LIST_BATCH_CASE(INT16, Int16Type, Int32Type)
-    WRITE_LIST_BATCH_CASE(UINT16, UInt16Type, Int32Type)
-    WRITE_LIST_BATCH_CASE(INT32, Int32Type, Int32Type)
-    WRITE_LIST_BATCH_CASE(INT64, Int64Type, Int64Type)
-    WRITE_LIST_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
-    WRITE_LIST_BATCH_CASE(UINT64, UInt64Type, Int64Type)
-    WRITE_LIST_BATCH_CASE(FLOAT, FloatType, FloatType)
-    WRITE_LIST_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
-    WRITE_LIST_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
-    WRITE_LIST_BATCH_CASE(STRING, StringType, ByteArrayType)
+    case ::arrow::Type::UINT32: {
+      if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
+        // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
+        // to use the larger Int64Type to store them lossless.
+        RETURN_NOT_OK((WriteListBatch<Int64Type, ::arrow::UInt32Type>(column_writer, data,
+            offset, length, rep_levels.size(), rep_levels.data(), def_levels.data())));
+      } else {
+        RETURN_NOT_OK((WriteListBatch<Int32Type, ::arrow::UInt32Type>(column_writer, data,
+            offset, length, rep_levels.size(), rep_levels.data(), def_levels.data())));
+      }
+    }
+      WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)
+      WRITE_LIST_BATCH_CASE(INT8, Int8Type, Int32Type)
+      WRITE_LIST_BATCH_CASE(UINT8, UInt8Type, Int32Type)
+      WRITE_LIST_BATCH_CASE(INT16, Int16Type, Int32Type)
+      WRITE_LIST_BATCH_CASE(UINT16, UInt16Type, Int32Type)
+      WRITE_LIST_BATCH_CASE(INT32, Int32Type, Int32Type)
+      WRITE_LIST_BATCH_CASE(INT64, Int64Type, Int64Type)
+      WRITE_LIST_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
+      WRITE_LIST_BATCH_CASE(UINT64, UInt64Type, Int64Type)
+      WRITE_LIST_BATCH_CASE(FLOAT, FloatType, FloatType)
+      WRITE_LIST_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
+      WRITE_LIST_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
+      WRITE_LIST_BATCH_CASE(STRING, StringType, ByteArrayType)
     default:
       std::stringstream ss;
       ss << "Data type not supported as list value: " << data->value_type()->ToString();
@@ -617,7 +619,7 @@ Status WriteTable(const Table* table, MemoryPool* pool,
     int64_t size = std::min(chunk_size, table->num_rows() - offset);
     RETURN_NOT_OK_ELSE(writer.NewRowGroup(size), PARQUET_IGNORE_NOT_OK(writer.Close()));
     for (int i = 0; i < table->num_columns(); i++) {
-      std::shared_ptr<::arrow::Array> array = table->column(i)->data()->chunk(0);
+      std::shared_ptr<Array> array = table->column(i)->data()->chunk(0);
       RETURN_NOT_OK_ELSE(writer.WriteColumnChunk(array.get(), offset, size),
           PARQUET_IGNORE_NOT_OK(writer.Close()));
     }

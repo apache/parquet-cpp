@@ -34,8 +34,11 @@
 #include "arrow/util/bit-util.h"
 
 using arrow::Array;
+using arrow::BooleanArray;
 using arrow::Column;
 using arrow::Field;
+using arrow::Int32Array;
+using arrow::ListArray;
 using arrow::MemoryPool;
 using arrow::PoolBuffer;
 using arrow::Status;
@@ -555,10 +558,10 @@ Status FlatColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
         }
       }
       offset_builder.Append(offset);
-      std::shared_ptr<::arrow::Array> offset_array;
+      std::shared_ptr<Array> offset_array;
       offset_builder.Finish(&offset_array);
-      std::shared_ptr<::arrow::Buffer> offset_buffer =
-          static_cast<::arrow::Int32Array*>(offset_array.get())->data();
+      std::shared_ptr<Buffer> offset_buffer =
+          static_cast<Int32Array*>(offset_array.get())->data();
 
       // Build list null bitmap, if def_levels == 0, then the list is null.
       int valid_lists_size = ::arrow::BitUtil::CeilByte(offset_array->length()) / 8;
@@ -579,7 +582,7 @@ Status FlatColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
         }
       }
 
-      *array = std::make_shared<::arrow::ListArray>(::arrow::list(field_->type),
+      *array = std::make_shared<ListArray>(::arrow::list(field_->type),
           offset_array->length() - 1, offset_buffer, values_array, null_lists_count,
           valid_lists);
     } else {
@@ -696,15 +699,14 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
           valid_bits_buffer->size());
       valid_bits_buffer_ = valid_bits_buffer;
     }
-    *out = std::make_shared<::arrow::BooleanArray>(
+    *out = std::make_shared<BooleanArray>(
         field_->type, valid_bits_idx_, data_buffer_, null_count_, valid_bits_buffer_);
     // Relase the ownership
     data_buffer_.reset();
     valid_bits_buffer_.reset();
     return Status::OK();
   } else {
-    *out = std::make_shared<::arrow::BooleanArray>(
-        field_->type, valid_bits_idx_, data_buffer_);
+    *out = std::make_shared<BooleanArray>(field_->type, valid_bits_idx_, data_buffer_);
     data_buffer_.reset();
     return Status::OK();
   }
