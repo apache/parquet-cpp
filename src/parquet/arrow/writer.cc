@@ -26,11 +26,13 @@
 #include "parquet/arrow/schema.h"
 
 #include "arrow/api.h"
+#include "arrow/type_traits.h"
 
 using arrow::BinaryArray;
 using arrow::MemoryPool;
 using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
+using arrow::ListArray;
 using arrow::Status;
 using arrow::Table;
 
@@ -56,6 +58,11 @@ class FileWriter::Impl {
   Status WriteNullableBatch(TypedColumnWriter<ParquetType>* writer, int64_t length,
       const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,
       int64_t valid_bits_offset, const typename ArrowType::c_type* data_ptr);
+
+  template <typename ParquetType, typename ArrowType>
+  Status WriteListBatch(ColumnWriter* writer, const ListArray* data, int64_t offset,
+      int64_t length, int64_t num_levels, const int16_t* rep_levels,
+      const int16_t* def_levels);
 
   // TODO(uwe): Same code as in reader.cc the only difference is the name of the temporary
   // buffer
@@ -85,8 +92,9 @@ class FileWriter::Impl {
     return Status::OK();
   }
 
-  Status WriteFlatColumnChunk(const PrimitiveArray* data, int64_t offset, int64_t length);
-  Status WriteFlatColumnChunk(const BinaryArray* data, int64_t offset, int64_t length);
+  Status WriteColumnChunk(const BinaryArray* data, int64_t offset, int64_t length);
+  Status WriteColumnChunk(const ListArray* data, int64_t offset, int64_t length);
+  Status WriteColumnChunk(const PrimitiveArray* data, int64_t offset, int64_t length);
   Status Close();
 
   virtual ~Impl() {}
@@ -145,7 +153,7 @@ Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
       const uint8_t* valid_bits = data->null_bitmap_data();
       INIT_BITSET(valid_bits, offset);
       for (int i = 0; i < length; i++) {
-        if (bitset & (1 << bit_offset)) {
+        if (bitset_valid_bits & (1 << bit_offset_valid_bits)) {
           def_levels_ptr[i] = 1;
         } else {
           def_levels_ptr[i] = 0;
@@ -173,7 +181,7 @@ Status FileWriter::Impl::WriteNullableBatch(TypedColumnWriter<ParquetType>* writ
   auto buffer_ptr = reinterpret_cast<ParquetCType*>(data_buffer_.mutable_data());
   INIT_BITSET(valid_bits, valid_bits_offset);
   for (int i = 0; i < length; i++) {
-    if (bitset & (1 << bit_offset)) {
+    if (bitset_valid_bits & (1 << bit_offset_valid_bits)) {
       buffer_ptr[i] = static_cast<ParquetCType>(data_ptr[i]);
     }
     READ_NEXT_BITSET(valid_bits);
@@ -262,7 +270,7 @@ Status FileWriter::Impl::Close() {
     return TypedWriteBatch<ParquetType, ArrowType>(writer, data, offset, length); \
     break;
 
-Status FileWriter::Impl::WriteFlatColumnChunk(
+Status FileWriter::Impl::WriteColumnChunk(
     const PrimitiveArray* data, int64_t offset, int64_t length) {
   ColumnWriter* writer;
   PARQUET_CATCH_NOT_OK(writer = row_group_writer_->NextColumn());
@@ -293,7 +301,7 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
   }
 }
 
-Status FileWriter::Impl::WriteFlatColumnChunk(
+Status FileWriter::Impl::WriteColumnChunk(
     const BinaryArray* data, int64_t offset, int64_t length) {
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
@@ -342,6 +350,52 @@ Status FileWriter::Impl::WriteFlatColumnChunk(
   return Status::OK();
 }
 
+template <typename ParquetType, typename ArrowType>
+Status FileWriter::Impl::WriteListBatch(ColumnWriter* column_writer,
+    const ListArray* data, int64_t offset, int64_t length, int64_t num_levels,
+    const int16_t* rep_levels, const int16_t* def_levels) {
+  using ArrowCType = typename ArrowType::c_type;
+  using ParquetCType = typename ParquetType::c_type;
+  using ArrayType = typename ::arrow::TypeTraits<ArrowType>::ArrayType;
+
+  auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
+  const int32_t* raw_offsets = data->raw_offsets();
+  int64_t num_values = raw_offsets[offset + length] - raw_offsets[offset];
+  RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(ParquetCType), false));
+  auto buffer_ptr = reinterpret_cast<ParquetCType*>(data_buffer_.mutable_data());
+  // In the case of an array consisting of only empty strings or all null,
+  // data->values()->data() points already to a nullptr, thus
+  // data->values()->data()->data() will segfault.
+  const ArrowCType* data_ptr = nullptr;
+  auto values = static_cast<ArrayType*>(data->values().get());
+  if (values->data()) {
+    data_ptr = reinterpret_cast<const ArrowCType*>(values->data()->data());
+    DCHECK(data_ptr != nullptr);
+  }
+
+  const uint8_t* valid_values = data->values()->null_bitmap_data();
+  INIT_BITSET(valid_values, raw_offsets[offset]);
+  int64_t buffer_idx = 0;
+  for (int64_t i = 0; i < num_values; i++) {
+    if (bitset_valid_values & (1 << bit_offset_valid_values)) {
+      buffer_ptr[buffer_idx++] = data_ptr[raw_offsets[offset] + i];
+    }
+    READ_NEXT_BITSET(valid_values);
+  }
+
+  PARQUET_CATCH_NOT_OK(
+      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+
+  return Status::OK();
+}
+
+template <>
+Status FileWriter::Impl::WriteListBatch<BooleanType, ::arrow::BooleanType>(
+    ColumnWriter* column_writer, const ListArray* data, int64_t offset, int64_t length,
+    int64_t num_levels, const int16_t* rep_levels, const int16_t* def_levels) {
+  return Status::NotImplemented("Boolean lists aren't yet supported");
+}
+
 FileWriter::FileWriter(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
     : impl_(new FileWriter::Impl(pool, std::move(writer))) {}
 
@@ -349,22 +403,129 @@ Status FileWriter::NewRowGroup(int64_t chunk_size) {
   return impl_->NewRowGroup(chunk_size);
 }
 
+Status FileWriter::Impl::WriteColumnChunk(
+    const ListArray* data, int64_t offset, int64_t length) {
+  ColumnWriter* column_writer;
+  PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
+  DCHECK((offset + length) <= data->length());
+
+  if (column_writer->descr()->max_repetition_level() != 1) {
+    return Status::NotImplemented(
+        "Only primitive arrays with repetition level == 1 are supported yet");
+  }
+  if (column_writer->descr()->max_definition_level() != 3) {
+    return Status::NotImplemented(
+        "Only primitive arrays with max definition level == 3 are supported yet");
+  }
+
+  // Generate repetition levels
+  std::vector<int16_t> rep_levels;
+  std::vector<int16_t> def_levels;
+  const uint8_t* valid_lists = data->null_bitmap_data();
+  const int32_t* raw_offsets = data->raw_offsets();
+  INIT_BITSET(valid_lists, offset);
+  const uint8_t* valid_values = data->values()->null_bitmap_data();
+  INIT_BITSET(valid_values, raw_offsets[offset]);
+  // With maximum definition level 3, we have the following definition levels:
+  // 0 -> list is null
+  // 1 -> list is non-null but empty
+  // 2 -> list is non-null, element is null
+  // 3 -> list is non-null, element is non-null
+  //
+  // In the case of maximum definition level == 2, this shrinks down to
+  // 0 -> list is empty
+  // 1 -> element is null
+  // 2 -> element is non-null
+  for (int64_t i = 0; i < length; i++) {
+    rep_levels.push_back(0);
+    if (bitset_valid_lists & (1 << bit_offset_valid_lists)) {
+      // not null, so we have offsets
+      int32_t len = raw_offsets[i + 1] - raw_offsets[i];
+      if (len == 0) {
+        def_levels.push_back(1);
+      } else {
+        if (bitset_valid_values & (1 << bit_offset_valid_values)) {
+          def_levels.push_back(3);
+        } else {
+          def_levels.push_back(2);
+        }
+        READ_NEXT_BITSET(valid_values);
+        for (int32_t j = 1; j < len; j++) {
+          rep_levels.push_back(1);
+          if (bitset_valid_values & (1 << bit_offset_valid_values)) {
+            def_levels.push_back(3);
+          } else {
+            def_levels.push_back(2);
+          }
+          READ_NEXT_BITSET(valid_values);
+        }
+      }
+    } else {
+      def_levels.push_back(0);
+    }
+    READ_NEXT_BITSET(valid_lists);
+  }
+
+#define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                        \
+  case ::arrow::Type::ArrowEnum:                                                        \
+    RETURN_NOT_OK((WriteListBatch<ParquetType, ::arrow::ArrowType>(column_writer, data, \
+        offset, length, rep_levels.size(), rep_levels.data(), def_levels.data())));     \
+    break;
+
+  switch (data->value_type()->type) {
+    // TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
+    // case ::arrow::Type::UINT32:
+    //   if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
+    //     // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
+    //     // to use the larger Int64Type to store them lossless.
+    //     return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(
+    //         writer, data, offset, length);
+    //   } else {
+    //     return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(
+    //         writer, data, offset, length);
+    //   }
+    WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)
+    WRITE_LIST_BATCH_CASE(INT8, Int8Type, Int32Type)
+    WRITE_LIST_BATCH_CASE(UINT8, UInt8Type, Int32Type)
+    WRITE_LIST_BATCH_CASE(INT16, Int16Type, Int32Type)
+    WRITE_LIST_BATCH_CASE(UINT16, UInt16Type, Int32Type)
+    WRITE_LIST_BATCH_CASE(INT32, Int32Type, Int32Type)
+    WRITE_LIST_BATCH_CASE(INT64, Int64Type, Int64Type)
+    WRITE_LIST_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
+    WRITE_LIST_BATCH_CASE(UINT64, UInt64Type, Int64Type)
+    WRITE_LIST_BATCH_CASE(FLOAT, FloatType, FloatType)
+    WRITE_LIST_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
+    default:
+      std::stringstream ss;
+      ss << "Data type not supported as list value: " << data->value_type()->ToString();
+      return Status::NotImplemented(ss.str());
+  }
+
+  PARQUET_CATCH_NOT_OK(column_writer->Close());
+
+  return Status::OK();
+}
+
 Status FileWriter::WriteFlatColumnChunk(
     const ::arrow::Array* array, int64_t offset, int64_t length) {
   int64_t real_length = length;
   if (length == -1) { real_length = array->length(); }
-  if (array->type_enum() == ::arrow::Type::STRING ||
-      array->type_enum() == ::arrow::Type::BINARY) {
+  if (is_primitive(array->type_enum())) {
+    auto primitive_array = dynamic_cast<const PrimitiveArray*>(array);
+    DCHECK(primitive_array);
+    return impl_->WriteColumnChunk(primitive_array, offset, real_length);
+  } else if (is_binary_like(array->type_enum())) {
     auto binary_array = static_cast<const ::arrow::BinaryArray*>(array);
     DCHECK(binary_array);
-    return impl_->WriteFlatColumnChunk(binary_array, offset, real_length);
-  } else {
-    auto primitive_array = dynamic_cast<const PrimitiveArray*>(array);
-    if (!primitive_array) {
-      return Status::NotImplemented("Table must consist of PrimitiveArray instances");
-    }
-    return impl_->WriteFlatColumnChunk(primitive_array, offset, real_length);
+    return impl_->WriteColumnChunk(binary_array, offset, real_length);
+  } else if (array->type_enum() == ::arrow::Type::LIST) {
+    auto list_array = static_cast<const ListArray*>(array);
+    return impl_->WriteColumnChunk(list_array, offset, real_length);
   }
+
+  std::stringstream ss;
+  ss << "No support for the given array type: " << array->type()->ToString();
+  return Status::NotImplemented(ss.str());
 }
 
 Status FileWriter::Close() {

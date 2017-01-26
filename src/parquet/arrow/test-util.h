@@ -177,6 +177,113 @@ typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NullableA
   return builder.Finish(out);
 }
 
+// This helper function only supports (size/2) nulls.
+template <typename ArrowType>
+typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type NullableListArray(
+    size_t size, size_t num_nulls, std::shared_ptr<Array>* out) {
+  std::vector<typename ArrowType::c_type> values;
+  ::arrow::test::random_real<typename ArrowType::c_type>(size, 0, 0, 1, &values);
+
+  std::vector<uint8_t> valid_bytes(size, 1);
+  for (size_t i = 0; i < num_nulls; i++) {
+    valid_bytes[i * 2] = 0;
+  }
+
+  auto value_builder = std::make_shared<::arrow::NumericBuilder<ArrowType>>(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder);
+  for (int64_t i = 0; i < size; i++) {
+    if (valid_bytes[i]) {
+      builder.Append();
+      value_builder->Append(values.data(), values.size(), valid_bytes.data());
+    } else {
+      builder.AppendNull();
+    }
+  }
+
+  return builder.Finish(out);
+}
+
+// This helper function only supports (size/2) nulls.
+template <typename ArrowType>
+typename std::enable_if<is_arrow_int<ArrowType>::value, Status>::type NullableListArray(
+    size_t size, size_t num_nulls, std::shared_ptr<Array>* out) {
+  std::vector<typename ArrowType::c_type> values;
+  ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
+
+  std::vector<uint8_t> valid_bytes(size, 1);
+  for (size_t i = 0; i < num_nulls; i++) {
+    valid_bytes[i * 2] = 0;
+  }
+
+  auto value_builder = std::make_shared<::arrow::NumericBuilder<ArrowType>>(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder);
+  for (int64_t i = 0; i < size; i++) {
+    if (valid_bytes[i]) {
+      builder.Append();
+      value_builder->Append(values.data(), values.size(), valid_bytes.data());
+    } else {
+      builder.AppendNull();
+    }
+  }
+
+  return builder.Finish(out);
+}
+
+// This helper function only supports (size/2) nulls yet.
+template <typename ArrowType>
+typename std::enable_if<
+    is_arrow_string<ArrowType>::value || is_arrow_binary<ArrowType>::value, Status>::type
+NullableListArray(size_t size, size_t num_nulls, std::shared_ptr<::arrow::Array>* out) {
+  std::vector<uint8_t> valid_bytes(size, 1);
+  for (size_t i = 0; i < num_nulls; i++) {
+    valid_bytes[i * 2] = 0;
+  }
+
+  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
+  auto value_builder = std::make_shared<BuilderType>(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
+  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder);
+  for (int64_t i = 0; i < size; i++) {
+    if (valid_bytes[i]) {
+      builder.Append();
+      for (size_t j = 0; j < size; j++) {
+        if (valid_bytes[j]) { value_builder->Append("test-string"); }
+      }
+    } else {
+      builder.AppendNull();
+    }
+  }
+  return builder.Finish(out);
+}
+
+// This helper function only supports (size/2) nulls yet.
+template <class ArrowType>
+typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NullableListArray(
+    size_t size, size_t num_nulls, std::shared_ptr<Array>* out) {
+  std::vector<uint8_t> values;
+  ::arrow::test::randint<uint8_t>(size, 0, 1, &values);
+
+  std::vector<uint8_t> valid_bytes(size, 1);
+  for (size_t i = 0; i < num_nulls; i++) {
+    valid_bytes[i * 2] = 0;
+  }
+
+  auto value_builder = std::make_shared<::arrow::BooleanBuilder>(
+      ::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
+  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder);
+  for (int64_t i = 0; i < size; i++) {
+    if (valid_bytes[i]) {
+      builder.Append();
+      value_builder->Append(values.data(), values.size(), valid_bytes.data());
+    } else {
+      builder.AppendNull();
+    }
+  }
+  return builder.Finish(out);
+}
+
 std::shared_ptr<::arrow::Column> MakeColumn(
     const std::string& name, const std::shared_ptr<Array>& array, bool nullable) {
   auto field = std::make_shared<::arrow::Field>(name, array->type(), nullable);
