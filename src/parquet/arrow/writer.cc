@@ -506,7 +506,7 @@ Status FileWriter::Impl::WriteColumnChunk(
   return Status::OK();
 }
 
-Status FileWriter::WriteFlatColumnChunk(
+Status FileWriter::WriteColumnChunk(
     const ::arrow::Array* array, int64_t offset, int64_t length) {
   int64_t real_length = length;
   if (length == -1) { real_length = array->length(); }
@@ -538,7 +538,7 @@ MemoryPool* FileWriter::memory_pool() const {
 
 FileWriter::~FileWriter() {}
 
-Status WriteFlatTable(const Table* table, MemoryPool* pool,
+Status WriteTable(const Table* table, MemoryPool* pool,
     const std::shared_ptr<OutputStream>& sink, int64_t chunk_size,
     const std::shared_ptr<WriterProperties>& properties) {
   std::shared_ptr<SchemaDescriptor> parquet_schema;
@@ -562,7 +562,7 @@ Status WriteFlatTable(const Table* table, MemoryPool* pool,
     RETURN_NOT_OK_ELSE(writer.NewRowGroup(size), PARQUET_IGNORE_NOT_OK(writer.Close()));
     for (int i = 0; i < table->num_columns(); i++) {
       std::shared_ptr<::arrow::Array> array = table->column(i)->data()->chunk(0);
-      RETURN_NOT_OK_ELSE(writer.WriteFlatColumnChunk(array.get(), offset, size),
+      RETURN_NOT_OK_ELSE(writer.WriteColumnChunk(array.get(), offset, size),
           PARQUET_IGNORE_NOT_OK(writer.Close()));
     }
   }
@@ -570,11 +570,11 @@ Status WriteFlatTable(const Table* table, MemoryPool* pool,
   return writer.Close();
 }
 
-Status WriteFlatTable(const Table* table, MemoryPool* pool,
+Status WriteTable(const Table* table, MemoryPool* pool,
     const std::shared_ptr<::arrow::io::OutputStream>& sink, int64_t chunk_size,
     const std::shared_ptr<WriterProperties>& properties) {
   auto wrapper = std::make_shared<ArrowOutputStream>(sink);
-  return WriteFlatTable(table, pool, wrapper, chunk_size, properties);
+  return WriteTable(table, pool, wrapper, chunk_size, properties);
 }
 
 }  // namespace arrow

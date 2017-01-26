@@ -253,11 +253,11 @@ class TestParquetIO : public ::testing::Test {
   }
 
   template <typename ArrayType>
-  void WriteFlatColumn(const std::shared_ptr<GroupNode>& schema,
+  void WriteColumn(const std::shared_ptr<GroupNode>& schema,
       const std::shared_ptr<ArrayType>& values) {
     FileWriter writer(::arrow::default_memory_pool(), MakeWriter(schema));
     ASSERT_OK_NO_THROW(writer.NewRowGroup(values->length()));
-    ASSERT_OK_NO_THROW(writer.WriteFlatColumnChunk(values.get()));
+    ASSERT_OK_NO_THROW(writer.WriteColumnChunk(values.get()));
     ASSERT_OK_NO_THROW(writer.Close());
   }
 
@@ -282,7 +282,7 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredWrite) {
   ASSERT_OK(NonNullArray<TypeParam>(SMALL_SIZE, &values));
 
   std::shared_ptr<GroupNode> schema = this->MakeSchema(Repetition::REQUIRED);
-  this->WriteFlatColumn(schema, values);
+  this->WriteColumn(schema, values);
 
   this->ReadAndCheckSingleColumnFile(values.get());
 }
@@ -292,7 +292,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredWrite) {
   ASSERT_OK(NonNullArray<TypeParam>(SMALL_SIZE, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, false);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+  ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(),
       this->sink_, values->length(), default_writer_properties()));
 
   std::shared_ptr<Table> out;
@@ -314,7 +314,7 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalReadWrite) {
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
 
   std::shared_ptr<GroupNode> schema = this->MakeSchema(Repetition::OPTIONAL);
-  this->WriteFlatColumn(schema, values);
+  this->WriteColumn(schema, values);
 
   this->ReadAndCheckSingleColumnFile(values.get());
 }
@@ -326,7 +326,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalReadWrite) {
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+  ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(),
       this->sink_, values->length(), default_writer_properties()));
 
   this->ReadAndCheckSingleColumnTable(values);
@@ -338,7 +338,7 @@ TYPED_TEST(TestParquetIO, SingleListColumnReadWrite) {
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
 
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+  ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(),
       this->sink_, values->length(), default_writer_properties()));
 
   this->ReadAndCheckSingleColumnTable(values);
@@ -354,7 +354,7 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
   for (int i = 0; i < 4; i++) {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(chunk_size));
     ASSERT_OK_NO_THROW(
-        writer.WriteFlatColumnChunk(values.get(), i * chunk_size, chunk_size));
+        writer.WriteColumnChunk(values.get(), i * chunk_size, chunk_size));
   }
   ASSERT_OK_NO_THROW(writer.Close());
 
@@ -366,7 +366,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWrite) {
   ASSERT_OK(NonNullArray<TypeParam>(LARGE_SIZE, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, false);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(
+  ASSERT_OK_NO_THROW(WriteTable(
       table.get(), default_memory_pool(), this->sink_, 512, default_writer_properties()));
 
   this->ReadAndCheckSingleColumnTable(values);
@@ -382,7 +382,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
   {
     // BufferOutputStream closed on gc
     auto arrow_sink_ = std::make_shared<::arrow::io::BufferOutputStream>(buffer);
-    ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), default_memory_pool(), arrow_sink_,
+    ASSERT_OK_NO_THROW(WriteTable(table.get(), default_memory_pool(), arrow_sink_,
         512, default_writer_properties()));
 
     // XXX: Remove this after ARROW-455 completed
@@ -415,7 +415,7 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalChunkedWrite) {
   for (int i = 0; i < 4; i++) {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(chunk_size));
     ASSERT_OK_NO_THROW(
-        writer.WriteFlatColumnChunk(values.get(), i * chunk_size, chunk_size));
+        writer.WriteColumnChunk(values.get(), i * chunk_size, chunk_size));
   }
   ASSERT_OK_NO_THROW(writer.Close());
 
@@ -429,7 +429,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalChunkedWrite) {
   ASSERT_OK(NullableArray<TypeParam>(LARGE_SIZE, 100, kDefaultSeed, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+  ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(),
       this->sink_, 512, default_writer_properties()));
 
   this->ReadAndCheckSingleColumnTable(values);
@@ -503,7 +503,7 @@ TEST_F(TestUInt32ParquetIO, Parquet_2_0_Compability) {
           .version(ParquetVersion::PARQUET_2_0)
           ->build();
   ASSERT_OK_NO_THROW(
-      WriteFlatTable(table.get(), default_memory_pool(), this->sink_, 512, properties));
+      WriteTable(table.get(), default_memory_pool(), this->sink_, 512, properties));
   this->ReadAndCheckSingleColumnTable(values);
 }
 
@@ -524,7 +524,7 @@ TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
       ::parquet::WriterProperties::Builder()
           .version(ParquetVersion::PARQUET_1_0)
           ->build();
-  ASSERT_OK_NO_THROW(WriteFlatTable(
+  ASSERT_OK_NO_THROW(WriteTable(
       table.get(), ::arrow::default_memory_pool(), this->sink_, 512, properties));
 
   std::shared_ptr<Array> expected_values;
@@ -556,7 +556,7 @@ TEST_F(TestStringParquetIO, EmptyStringColumnRequiredWrite) {
   ASSERT_OK(builder.Finish(&values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, false);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteFlatTable(table.get(), ::arrow::default_memory_pool(),
+  ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(),
       this->sink_, values->length(), default_writer_properties()));
 
   std::shared_ptr<Table> out;
@@ -687,7 +687,7 @@ void DoTableRoundtrip(const std::shared_ptr<Table>& table, int num_threads,
     const std::vector<int>& column_subset, std::shared_ptr<Table>* out) {
   auto sink = std::make_shared<InMemoryOutputStream>();
 
-  ASSERT_OK_NO_THROW(WriteFlatTable(
+  ASSERT_OK_NO_THROW(WriteTable(
       table.get(), ::arrow::default_memory_pool(), sink, (table->num_rows() + 1) / 2));
 
   std::shared_ptr<Buffer> buffer = sink->GetBuffer();
