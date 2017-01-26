@@ -64,6 +64,10 @@ class FileWriter::Impl {
       int64_t length, int64_t num_levels, const int16_t* rep_levels,
       const int16_t* def_levels);
 
+  Status WriteBinaryListBatch(ColumnWriter* writer, const ListArray* data, int64_t offset,
+      int64_t length, int64_t num_levels, const int16_t* rep_levels,
+      const int16_t* def_levels);
+
   // TODO(uwe): Same code as in reader.cc the only difference is the name of the temporary
   // buffer
   template <typename InType, typename OutType>
@@ -396,6 +400,57 @@ Status FileWriter::Impl::WriteListBatch<BooleanType, ::arrow::BooleanType>(
   return Status::NotImplemented("Boolean lists aren't yet supported");
 }
 
+template <>
+Status FileWriter::Impl::WriteListBatch<ByteArrayType, ::arrow::BinaryType>(
+    ColumnWriter* column_writer, const ListArray* data, int64_t offset, int64_t length,
+    int64_t num_levels, const int16_t* rep_levels, const int16_t* def_levels) {
+  return WriteBinaryListBatch(
+      column_writer, data, offset, length, num_levels, rep_levels, def_levels);
+}
+
+template <>
+Status FileWriter::Impl::WriteListBatch<ByteArrayType, ::arrow::StringType>(
+    ColumnWriter* column_writer, const ListArray* data, int64_t offset, int64_t length,
+    int64_t num_levels, const int16_t* rep_levels, const int16_t* def_levels) {
+  return WriteBinaryListBatch(
+      column_writer, data, offset, length, num_levels, rep_levels, def_levels);
+}
+
+Status FileWriter::Impl::WriteBinaryListBatch(ColumnWriter* column_writer,
+    const ListArray* data, int64_t offset, int64_t length, int64_t num_levels,
+    const int16_t* rep_levels, const int16_t* def_levels) {
+  auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
+  const int32_t* raw_offsets = data->raw_offsets();
+  int64_t num_values = raw_offsets[offset + length] - raw_offsets[offset];
+  RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(ByteArray), false));
+  auto buffer_ptr = reinterpret_cast<ByteArray*>(data_buffer_.mutable_data());
+  // In the case of an array consisting of only empty strings or all null,
+  // data->values()->data() points already to a nullptr, thus
+  // data->values()->data()->data() will segfault.
+  const uint8_t* data_ptr = nullptr;
+  auto values = static_cast<BinaryArray*>(data->values().get());
+  if (values->data()) {
+    data_ptr = reinterpret_cast<const uint8_t*>(values->data()->data());
+    DCHECK(data_ptr != nullptr);
+  }
+
+  const uint8_t* valid_values = data->values()->null_bitmap_data();
+  INIT_BITSET(valid_values, raw_offsets[offset]);
+  int64_t buffer_idx = 0;
+  for (int64_t i = 0; i < num_values; i++) {
+    if (bitset_valid_values & (1 << bit_offset_valid_values)) {
+      buffer_ptr[buffer_idx++] = ByteArray(
+          values->value_length(i + offset), data_ptr + values->value_offset(i + offset));
+    }
+    READ_NEXT_BITSET(valid_values);
+  }
+
+  PARQUET_CATCH_NOT_OK(
+      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+
+  return Status::OK();
+}
+
 FileWriter::FileWriter(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
     : impl_(new FileWriter::Impl(pool, std::move(writer))) {}
 
@@ -473,7 +528,6 @@ Status FileWriter::Impl::WriteColumnChunk(
     break;
 
   switch (data->value_type()->type) {
-    // TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
     // case ::arrow::Type::UINT32:
     //   if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
     //     // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
@@ -495,6 +549,8 @@ Status FileWriter::Impl::WriteColumnChunk(
     WRITE_LIST_BATCH_CASE(UINT64, UInt64Type, Int64Type)
     WRITE_LIST_BATCH_CASE(FLOAT, FloatType, FloatType)
     WRITE_LIST_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
+    WRITE_LIST_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
+    WRITE_LIST_BATCH_CASE(STRING, StringType, ByteArrayType)
     default:
       std::stringstream ss;
       ss << "Data type not supported as list value: " << data->value_type()->ToString();

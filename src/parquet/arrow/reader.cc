@@ -106,6 +106,8 @@ class FlatColumnReader::Impl {
   template <typename ArrowType, typename ParquetType>
   Status ReadNonNullableBatch(TypedColumnReader<ParquetType>* reader,
       int64_t values_to_read, int64_t* levels_read);
+  Status WrapIntoListArray(const int16_t* def_levels, const int16_t* rep_levels,
+      int64_t total_values_read, std::shared_ptr<Array>* array);
 
  private:
   void NextRowGroup();
@@ -534,6 +536,59 @@ Status FlatColumnReader::Impl::InitValidBits(int batch_size) {
   return Status::OK();
 }
 
+Status FlatColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
+    const int16_t* rep_levels, int64_t total_levels_read, std::shared_ptr<Array>* array) {
+  if (descr_->max_repetition_level() > 0) {
+    if ((descr_->max_definition_level() == 3) && (descr_->max_repetition_level() == 1)) {
+      // List is nullable and elements are nullable
+      std::shared_ptr<Array> values_array = *array;
+      int32_t offset = 0;
+      ::arrow::Int32Builder offset_builder(pool_, ::arrow::int32());
+      for (int64_t i = 0; i < total_levels_read; i++) {
+        if ((rep_levels[i] == 0) || (i == 0)) {
+          // New List
+          offset_builder.Append(offset);
+        }
+        if (def_levels[i] >= 2) {
+          // We have a (possibly null) element on the lowest nesting level
+          offset++;
+        }
+      }
+      offset_builder.Append(offset);
+      std::shared_ptr<::arrow::Array> offset_array;
+      offset_builder.Finish(&offset_array);
+      std::shared_ptr<::arrow::Buffer> offset_buffer =
+          static_cast<::arrow::Int32Array*>(offset_array.get())->data();
+
+      // Build list null bitmap, if def_levels == 0, then the list is null.
+      int valid_lists_size = ::arrow::BitUtil::CeilByte(offset_array->length()) / 8;
+      auto valid_lists = std::make_shared<PoolBuffer>(pool_);
+      RETURN_NOT_OK(valid_lists->Resize(valid_lists_size));
+      uint8_t* valid_lists_ptr = valid_lists->mutable_data();
+      memset(valid_lists_ptr, 0, valid_lists_size);
+      int valid_lists_idx = 0;
+      int null_lists_count = 0;
+      for (int64_t i = 0; i < total_levels_read; i++) {
+        if ((rep_levels[i] == 0) || (i == 0)) {
+          if (def_levels[i] > 0) {
+            ::arrow::BitUtil::SetBit(valid_lists_ptr, valid_lists_idx);
+          } else {
+            null_lists_count++;
+          }
+          valid_lists_idx++;
+        }
+      }
+
+      *array = std::make_shared<::arrow::ListArray>(::arrow::list(field_->type),
+          offset_array->length() - 1, offset_buffer, values_array, null_lists_count,
+          valid_lists);
+    } else {
+      return Status::NotImplemented("Only nullable flat lists are supported yet");
+    }
+  }
+  return Status::OK();
+}
+
 template <typename ArrowType, typename ParquetType>
 Status FlatColumnReader::Impl::TypedReadBatch(
     int batch_size, std::shared_ptr<Array>* out) {
@@ -589,56 +644,8 @@ Status FlatColumnReader::Impl::TypedReadBatch(
   // Relase the ownership as the Buffer is now part of a new Array
   data_buffer_.reset();
 
-  if (descr_->max_repetition_level() > 0) {
-    if ((descr_->max_definition_level() == 3) && (descr_->max_repetition_level() == 1)) {
-      // List is nullable and elements are nullable
-      std::shared_ptr<Array> values_array = *out;
-      int32_t offset = 0;
-      ::arrow::Int32Builder offset_builder(pool_, ::arrow::int32());
-      for (int64_t i = 0; i < total_levels_read; i++) {
-        if ((rep_levels[i] == 0) || (i == 0)) {
-          // New List
-          offset_builder.Append(offset);
-        }
-        if (def_levels[i] >= 2) {
-          // We have a (possibly null) element on the lowest nesting level
-          offset++;
-        }
-      }
-      offset_builder.Append(offset);
-      std::shared_ptr<::arrow::Array> offset_array;
-      offset_builder.Finish(&offset_array);
-      std::shared_ptr<::arrow::Buffer> offset_buffer =
-          static_cast<::arrow::Int32Array*>(offset_array.get())->data();
-
-      // Build list null bitmap, if def_levels == 0, then the list is null.
-      int valid_lists_size = ::arrow::BitUtil::CeilByte(offset_array->length()) / 8;
-      auto valid_lists = std::make_shared<PoolBuffer>(pool_);
-      RETURN_NOT_OK(valid_lists->Resize(valid_lists_size));
-      uint8_t* valid_lists_ptr = valid_lists->mutable_data();
-      memset(valid_lists_ptr, 0, valid_lists_size);
-      int valid_lists_idx = 0;
-      int null_lists_count = 0;
-      for (int64_t i = 0; i < total_levels_read; i++) {
-        if ((rep_levels[i] == 0) || (i == 0)) {
-          if (def_levels[i] > 0) {
-            ::arrow::BitUtil::SetBit(valid_lists_ptr, valid_lists_idx);
-          } else {
-            null_lists_count++;
-          }
-          valid_lists_idx++;
-        }
-      }
-
-      *out = std::make_shared<::arrow::ListArray>(::arrow::list(field_->type),
-          offset_array->length() - 1, offset_buffer, values_array, null_lists_count,
-          valid_lists);
-    } else {
-      return Status::NotImplemented("Only nullable flat lists are supported yet");
-    }
-  }
-
-  return Status::OK();
+  // Check if we should transform this array into an list array.
+  return WrapIntoListArray(def_levels, rep_levels, total_levels_read, out);
 }
 
 template <>
@@ -708,20 +715,27 @@ Status FlatColumnReader::Impl::ReadByteArrayBatch(
     int batch_size, std::shared_ptr<Array>* out) {
   using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
 
+  int total_levels_read = 0;
+  if (descr_->max_definition_level() > 0) {
+    RETURN_NOT_OK(def_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+  }
+  if (descr_->max_repetition_level() > 0) {
+    RETURN_NOT_OK(rep_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+  }
+  int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
+  int16_t* rep_levels = reinterpret_cast<int16_t*>(rep_levels_buffer_.mutable_data());
+
   int values_to_read = batch_size;
   BuilderType builder(pool_, field_->type);
   while ((values_to_read > 0) && column_reader_) {
     RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(ByteArray), false));
-    if (descr_->max_definition_level() > 0) {
-      RETURN_NOT_OK(def_levels_buffer_.Resize(values_to_read * sizeof(int16_t), false));
-    }
     auto reader = dynamic_cast<TypedColumnReader<ByteArrayType>*>(column_reader_.get());
     int64_t values_read;
     int64_t levels_read;
-    int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
     auto values = reinterpret_cast<ByteArray*>(values_buffer_.mutable_data());
-    PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(
-                             values_to_read, def_levels, nullptr, values, &values_read));
+    PARQUET_CATCH_NOT_OK(
+        levels_read = reader->ReadBatch(values_to_read, def_levels + total_levels_read,
+            rep_levels + total_levels_read, values, &values_read));
     values_to_read -= levels_read;
     if (descr_->max_definition_level() == 0) {
       for (int64_t i = 0; i < levels_read; i++) {
@@ -729,22 +743,26 @@ Status FlatColumnReader::Impl::ReadByteArrayBatch(
             builder.Append(reinterpret_cast<const char*>(values[i].ptr), values[i].len));
       }
     } else {
-      // descr_->max_definition_level() == 1
+      // descr_->max_definition_level() > 0
       int values_idx = 0;
       for (int64_t i = 0; i < levels_read; i++) {
-        if (def_levels[i] < descr_->max_definition_level()) {
+        if (def_levels[i + total_levels_read] == (descr_->max_definition_level() - 1)) {
           RETURN_NOT_OK(builder.AppendNull());
-        } else {
+        } else if (def_levels[i + total_levels_read] == descr_->max_definition_level()) {
           RETURN_NOT_OK(
               builder.Append(reinterpret_cast<const char*>(values[values_idx].ptr),
                   values[values_idx].len));
           values_idx++;
         }
       }
+      total_levels_read += levels_read;
     }
     if (!column_reader_->HasNext()) { NextRowGroup(); }
   }
-  return builder.Finish(out);
+
+  RETURN_NOT_OK(builder.Finish(out));
+  // Check if we should transform this array into an list array.
+  return WrapIntoListArray(def_levels, rep_levels, total_levels_read, out);
 }
 
 template <>
