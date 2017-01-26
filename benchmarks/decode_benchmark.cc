@@ -19,7 +19,7 @@
 #include <random>
 #include <stdio.h>
 
-#include "parquet/compression/codec.h"
+#include "parquet/compression.h"
 #include "parquet/encodings/delta-bit-pack-encoding.h"
 #include "parquet/encodings/delta-byte-array-encoding.h"
 #include "parquet/encodings/delta-length-byte-array-encoding.h"
