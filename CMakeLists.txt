@@ -486,10 +486,7 @@ set(LIBPARQUET_SRCS
   src/parquet/column/scan-all.cc
   src/parquet/column/statistics.cc
 
-  src/parquet/compression/codec.cc
-  src/parquet/compression/brotli-codec.cc
-  src/parquet/compression/snappy-codec.cc
-  src/parquet/compression/gzip-codec.cc
+  src/parquet/compression.cc
 
   src/parquet/file/metadata.cc
   src/parquet/file/reader.cc
@@ -578,7 +575,6 @@ endif()
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/column)
-add_subdirectory(src/parquet/compression)
 add_subdirectory(src/parquet/encodings)
 add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/schema)

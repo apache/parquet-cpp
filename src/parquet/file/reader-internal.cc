@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "parquet/column/page.h"
-#include "parquet/compression/codec.h"
+#include "parquet/compression.h"
 #include "parquet/exception.h"
 #include "parquet/schema/converter.h"
 #include "parquet/schema/descriptor.h"
