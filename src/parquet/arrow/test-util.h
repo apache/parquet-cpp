@@ -232,7 +232,7 @@ typename std::enable_if<is_arrow_int<ArrowType>::value, Status>::type NullableLi
   auto list_type = std::make_shared<::arrow::ListType>(std::make_shared<::arrow::Field>(
       "item", std::make_shared<ArrowType>(), nullable_elements));
   ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
-  for (int64_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < size; i++) {
     if (i == 2) {
       // Second list is always empty and non-null
       builder.Append();
