@@ -540,7 +540,22 @@ Status ColumnReader::Impl::InitValidBits(int batch_size) {
 Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     const int16_t* rep_levels, int64_t total_levels_read, std::shared_ptr<Array>* array) {
   if (descr_->max_repetition_level() > 0) {
-    if ((descr_->max_definition_level() == 3) && (descr_->max_repetition_level() == 1)) {
+    bool can_parse = false;
+    // All definition levels above this mean that we have an element on
+    // the lowest nesting level, i.e. the list is neither null nor empty.
+    int16_t minimal_valid_def_level = 2;
+    if ((descr_->max_definition_level() == 2) && (descr_->schema_node()->is_optional())) {
+      can_parse = true;
+      minimal_valid_def_level--;
+    } else if ((descr_->max_definition_level() == 2) &&
+               (descr_->schema_node()->is_required())) {
+      can_parse = true;
+    } else if ((descr_->max_definition_level() == 3) &&
+               (descr_->max_repetition_level() == 1)) {
+      can_parse = true;
+    }
+
+    if (can_parse) {
       // List is nullable and elements are nullable
       std::shared_ptr<Array> values_array = *array;
       int32_t offset = 0;
@@ -550,7 +565,7 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
           // New List
           offset_builder.Append(offset);
         }
-        if (def_levels[i] >= 2) {
+        if (def_levels[i] >= minimal_valid_def_level) {
           // We have a (possibly null) element on the lowest nesting level
           offset++;
         }
@@ -584,7 +599,8 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
           offset_array->length() - 1, offset_buffer, values_array, null_lists_count,
           valid_lists);
     } else {
-      return Status::NotImplemented("Only nullable flat lists are supported yet");
+      return Status::NotImplemented(
+          "Only flat lists with a max definition level of 2 or 3 are supported yet");
     }
   }
   return Status::OK();

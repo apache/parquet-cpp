@@ -31,6 +31,8 @@
 using arrow::Array;
 using arrow::BinaryArray;
 using arrow::BooleanArray;
+using arrow::Int16Array;
+using arrow::Int16Builder;
 using arrow::MemoryPool;
 using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
@@ -494,67 +496,95 @@ Status FileWriter::Impl::WriteColumnChunk(
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
   DCHECK((offset + length) <= data->length());
 
+  auto list_type = std::static_pointer_cast<::arrow::ListType>(data->type());
+  bool nullable_elements = list_type->value_field()->nullable;
+  bool nullable_lists =
+      (column_writer->descr()->max_definition_level() == 3) ||
+      (!nullable_elements && (column_writer->descr()->max_definition_level() == 2));
+
   if (column_writer->descr()->max_repetition_level() != 1) {
     return Status::NotImplemented(
         "Only primitive arrays with repetition level == 1 are supported yet");
   }
-  if (column_writer->descr()->max_definition_level() != 3) {
-    return Status::NotImplemented(
-        "Only primitive arrays with max definition level == 3 are supported yet");
-  }
-
-  // Generate repetition levels
-  std::vector<int16_t> rep_levels;
-  std::vector<int16_t> def_levels;
-  const uint8_t* valid_lists = data->null_bitmap_data();
-  const int32_t* raw_offsets = data->raw_offsets();
-  INIT_BITSET(valid_lists, offset);
-  const uint8_t* valid_values = data->values()->null_bitmap_data();
-  INIT_BITSET(valid_values, raw_offsets[offset]);
   // With maximum definition level 3, we have the following definition levels:
   // 0 -> list is null
   // 1 -> list is non-null but empty
   // 2 -> list is non-null, element is null
   // 3 -> list is non-null, element is non-null
-  //
-  // In the case of maximum definition level == 2, this shrinks down to
-  // 0 -> list is empty
-  // 1 -> element is null
-  // 2 -> element is non-null
+  int16_t valid_element = 3;
+  int16_t null_element = 2;
+  int16_t empty_list = 1;
+  int16_t null_list = 0;
+  if (column_writer->descr()->max_definition_level() != 3) {
+    if (column_writer->descr()->max_definition_level() > 3) {
+      return Status::NotImplemented(
+          "Only primitive arrays with max definition level <= 3 are supported yet");
+    } else if ((column_writer->descr()->max_definition_level() == 2) &&
+               nullable_elements) {
+      // Lists are required
+      valid_element--;
+      null_element--;
+      empty_list--;
+    } else if ((column_writer->descr()->max_definition_level() == 2) && nullable_lists) {
+      // Elements are required
+      valid_element--;
+    } else {
+      return Status::NotImplemented(
+          "Primitive arrays with max definition level < 2 aren't supported yet");
+    }
+  }
+
+  // Generate repetition levels
+  Int16Builder rep_levels(pool_, ::arrow::int16());
+  Int16Builder def_levels(pool_, ::arrow::int16());
+  const uint8_t* valid_lists = data->null_bitmap_data();
+  const int32_t* raw_offsets = data->raw_offsets();
+  INIT_BITSET(valid_lists, offset);
+  const uint8_t* valid_values = data->values()->null_bitmap_data();
+  INIT_BITSET(valid_values, raw_offsets[offset]);
   for (int64_t i = 0; i < length; i++) {
-    rep_levels.push_back(0);
+    rep_levels.Append(0);
     if (bitset_valid_lists & (1 << bit_offset_valid_lists)) {
       // not null, so we have offsets
       int32_t len = raw_offsets[i + 1] - raw_offsets[i];
       if (len == 0) {
-        def_levels.push_back(1);
+        def_levels.Append(empty_list);
       } else {
         if (bitset_valid_values & (1 << bit_offset_valid_values)) {
-          def_levels.push_back(3);
+          def_levels.Append(valid_element);
         } else {
-          def_levels.push_back(2);
+          def_levels.Append(null_element);
         }
         READ_NEXT_BITSET(valid_values);
         for (int32_t j = 1; j < len; j++) {
-          rep_levels.push_back(1);
+          rep_levels.Append(1);
           if (bitset_valid_values & (1 << bit_offset_valid_values)) {
-            def_levels.push_back(3);
+            def_levels.Append(valid_element);
           } else {
-            def_levels.push_back(2);
+            def_levels.Append(null_element);
           }
           READ_NEXT_BITSET(valid_values);
         }
       }
     } else {
-      def_levels.push_back(0);
+      def_levels.Append(null_list);
     }
     READ_NEXT_BITSET(valid_lists);
   }
+  std::shared_ptr<Array> def_levels_array;
+  def_levels.Finish(&def_levels_array);
+  const int16_t* def_levels_ptr = reinterpret_cast<const int16_t*>(
+      static_cast<Int16Array*>(def_levels_array.get())->data()->data());
+
+  std::shared_ptr<Array> rep_levels_array;
+  rep_levels.Finish(&rep_levels_array);
+  const int16_t* rep_levels_ptr = reinterpret_cast<const int16_t*>(
+      static_cast<Int16Array*>(rep_levels_array.get())->data()->data());
 
 #define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                        \
   case ::arrow::Type::ArrowEnum:                                                        \
     RETURN_NOT_OK((WriteListBatch<ParquetType, ::arrow::ArrowType>(column_writer, data, \
-        offset, length, rep_levels.size(), rep_levels.data(), def_levels.data())));     \
+        offset, length, rep_levels_array->length(), rep_levels_ptr, def_levels_ptr)));  \
     break;
 
   switch (data->value_type()->type) {
@@ -563,10 +593,10 @@ Status FileWriter::Impl::WriteColumnChunk(
         // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
         // to use the larger Int64Type to store them lossless.
         RETURN_NOT_OK((WriteListBatch<Int64Type, ::arrow::UInt32Type>(column_writer, data,
-            offset, length, rep_levels.size(), rep_levels.data(), def_levels.data())));
+            offset, length, rep_levels_array->length(), rep_levels_ptr, def_levels_ptr)));
       } else {
         RETURN_NOT_OK((WriteListBatch<Int32Type, ::arrow::UInt32Type>(column_writer, data,
-            offset, length, rep_levels.size(), rep_levels.data(), def_levels.data())));
+            offset, length, rep_levels_array->length(), rep_levels_ptr, def_levels_ptr)));
       }
     }
       WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)

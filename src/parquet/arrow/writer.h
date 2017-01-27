@@ -64,9 +64,9 @@ class PARQUET_EXPORT FileWriter {
 };
 
 /**
- * Write a flat Table to Parquet.
+ * Write a Table to Parquet.
  *
- * The table shall only consist of nullable, non-repeated columns of primitive type.
+ * The table shall only consist of columns of primitive type or of primitive lists.
  */
 ::arrow::Status PARQUET_EXPORT WriteTable(const ::arrow::Table* table,
     ::arrow::MemoryPool* pool, const std::shared_ptr<OutputStream>& sink,
