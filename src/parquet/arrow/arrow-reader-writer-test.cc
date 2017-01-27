@@ -216,8 +216,8 @@ class TestParquetIO : public ::testing::Test {
 
   void ReadSingleColumnFile(
       std::unique_ptr<FileReader> file_reader, std::shared_ptr<Array>* out) {
-    std::unique_ptr<FlatColumnReader> column_reader;
-    ASSERT_OK_NO_THROW(file_reader->GetFlatColumn(0, &column_reader));
+    std::unique_ptr<ColumnReader> column_reader;
+    ASSERT_OK_NO_THROW(file_reader->GetColumn(0, &column_reader));
     ASSERT_NE(nullptr, column_reader.get());
 
     ASSERT_OK(column_reader->NextBatch(SMALL_SIZE, out));
@@ -235,7 +235,7 @@ class TestParquetIO : public ::testing::Test {
 
   void ReadTableFromFile(
       std::unique_ptr<FileReader> reader, std::shared_ptr<Table>* out) {
-    ASSERT_OK_NO_THROW(reader->ReadFlatTable(out));
+    ASSERT_OK_NO_THROW(reader->ReadTable(out));
     ASSERT_NE(nullptr, out->get());
   }
 
@@ -697,10 +697,10 @@ void DoTableRoundtrip(const std::shared_ptr<Table>& table, int num_threads,
   reader->set_num_threads(num_threads);
 
   if (column_subset.size() > 0) {
-    ASSERT_OK_NO_THROW(reader->ReadFlatTable(column_subset, out));
+    ASSERT_OK_NO_THROW(reader->ReadTable(column_subset, out));
   } else {
     // Read everything
-    ASSERT_OK_NO_THROW(reader->ReadFlatTable(out));
+    ASSERT_OK_NO_THROW(reader->ReadTable(out));
   }
 }
 

@@ -69,11 +69,10 @@ class FileReader::Impl {
 
   bool CheckForFlatColumn(const ColumnDescriptor* descr);
   bool CheckForFlatListColumn(const ColumnDescriptor* descr);
-  Status GetFlatColumn(int i, std::unique_ptr<FlatColumnReader>* out);
-  Status ReadFlatColumn(int i, std::shared_ptr<Array>* out);
-  Status ReadFlatTable(std::shared_ptr<Table>* out);
-  Status ReadFlatTable(
-      const std::vector<int>& column_indices, std::shared_ptr<Table>* out);
+  Status GetColumn(int i, std::unique_ptr<ColumnReader>* out);
+  Status ReadColumn(int i, std::shared_ptr<Array>* out);
+  Status ReadTable(std::shared_ptr<Table>* out);
+  Status ReadTable(const std::vector<int>& column_indices, std::shared_ptr<Table>* out);
   const ParquetFileReader* parquet_reader() const { return reader_.get(); }
 
   void set_num_threads(int num_threads) { num_threads_ = num_threads; }
@@ -85,7 +84,7 @@ class FileReader::Impl {
   int num_threads_;
 };
 
-class FlatColumnReader::Impl {
+class ColumnReader::Impl {
  public:
   Impl(MemoryPool* pool, const ColumnDescriptor* descr, ParquetFileReader* reader,
       int column_index);
@@ -103,9 +102,9 @@ class FlatColumnReader::Impl {
   Status InitDataBuffer(int batch_size);
   Status InitValidBits(int batch_size);
   template <typename ArrowType, typename ParquetType>
-  Status ReadNullableFlatBatch(TypedColumnReader<ParquetType>* reader,
-      int16_t* def_levels, int16_t* rep_levels, int64_t values_to_read,
-      int64_t* levels_read, int64_t* values_read);
+  Status ReadNullableBatch(TypedColumnReader<ParquetType>* reader, int16_t* def_levels,
+      int16_t* rep_levels, int64_t values_to_read, int64_t* levels_read,
+      int64_t* values_read);
   template <typename ArrowType, typename ParquetType>
   Status ReadNonNullableBatch(TypedColumnReader<ParquetType>* reader,
       int64_t values_to_read, int64_t* levels_read);
@@ -128,7 +127,7 @@ class FlatColumnReader::Impl {
   ParquetFileReader* reader_;
   int column_index_;
   int next_row_group_;
-  std::shared_ptr<ColumnReader> column_reader_;
+  std::shared_ptr<::parquet::ColumnReader> column_reader_;
   std::shared_ptr<Field> field_;
 
   PoolBuffer values_buffer_;
@@ -159,22 +158,22 @@ bool FileReader::Impl::CheckForFlatListColumn(const ColumnDescriptor* descr) {
   return (descr->max_repetition_level() == 1) && (descr->max_definition_level() <= 3);
 }
 
-Status FileReader::Impl::GetFlatColumn(int i, std::unique_ptr<FlatColumnReader>* out) {
+Status FileReader::Impl::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
   const SchemaDescriptor* schema = reader_->metadata()->schema();
 
   if (!CheckForFlatColumn(schema->Column(i)) &&
       !CheckForFlatListColumn(schema->Column(i))) {
     return Status::Invalid("The requested column is neither flat nor a flat list");
   }
-  std::unique_ptr<FlatColumnReader::Impl> impl(
-      new FlatColumnReader::Impl(pool_, schema->Column(i), reader_.get(), i));
-  *out = std::unique_ptr<FlatColumnReader>(new FlatColumnReader(std::move(impl)));
+  std::unique_ptr<ColumnReader::Impl> impl(
+      new ColumnReader::Impl(pool_, schema->Column(i), reader_.get(), i));
+  *out = std::unique_ptr<ColumnReader>(new ColumnReader(std::move(impl)));
   return Status::OK();
 }
 
-Status FileReader::Impl::ReadFlatColumn(int i, std::shared_ptr<Array>* out) {
-  std::unique_ptr<FlatColumnReader> flat_column_reader;
-  RETURN_NOT_OK(GetFlatColumn(i, &flat_column_reader));
+Status FileReader::Impl::ReadColumn(int i, std::shared_ptr<Array>* out) {
+  std::unique_ptr<ColumnReader> flat_column_reader;
+  RETURN_NOT_OK(GetColumn(i, &flat_column_reader));
 
   int64_t batch_size = 0;
   for (int j = 0; j < reader_->metadata()->num_row_groups(); j++) {
@@ -184,13 +183,13 @@ Status FileReader::Impl::ReadFlatColumn(int i, std::shared_ptr<Array>* out) {
   return flat_column_reader->NextBatch(batch_size, out);
 }
 
-Status FileReader::Impl::ReadFlatTable(std::shared_ptr<Table>* table) {
+Status FileReader::Impl::ReadTable(std::shared_ptr<Table>* table) {
   std::vector<int> column_indices(reader_->metadata()->num_columns());
 
   for (size_t i = 0; i < column_indices.size(); ++i) {
     column_indices[i] = i;
   }
-  return ReadFlatTable(column_indices, table);
+  return ReadTable(column_indices, table);
 }
 
 template <class FUNCTION>
@@ -227,7 +226,7 @@ Status ParallelFor(int nthreads, int num_tasks, FUNCTION&& func) {
   return Status::OK();
 }
 
-Status FileReader::Impl::ReadFlatTable(
+Status FileReader::Impl::ReadTable(
     const std::vector<int>& indices, std::shared_ptr<Table>* table) {
   auto descr = reader_->metadata()->schema();
 
@@ -239,19 +238,19 @@ Status FileReader::Impl::ReadFlatTable(
   int nthreads = std::min<int>(num_threads_, num_columns);
   std::vector<std::shared_ptr<Column>> columns(num_columns);
 
-  auto ReadColumn = [&indices, &schema, &columns, this](int i) {
+  auto ReadColumnFunc = [&indices, &schema, &columns, this](int i) {
     std::shared_ptr<Array> array;
-    RETURN_NOT_OK(ReadFlatColumn(indices[i], &array));
+    RETURN_NOT_OK(ReadColumn(indices[i], &array));
     columns[i] = std::make_shared<Column>(schema->field(i), array);
     return Status::OK();
   };
 
   if (nthreads == 1) {
     for (int i = 0; i < num_columns; i++) {
-      RETURN_NOT_OK(ReadColumn(i));
+      RETURN_NOT_OK(ReadColumnFunc(i));
     }
   } else {
-    RETURN_NOT_OK(ParallelFor(nthreads, num_columns, ReadColumn));
+    RETURN_NOT_OK(ParallelFor(nthreads, num_columns, ReadColumnFunc));
   }
 
   *table = std::make_shared<Table>(name, schema, columns);
@@ -281,30 +280,30 @@ Status OpenFile(const std::shared_ptr<::arrow::io::ReadableFileInterface>& file,
       file, allocator, ::parquet::default_reader_properties(), nullptr, reader);
 }
 
-Status FileReader::GetFlatColumn(int i, std::unique_ptr<FlatColumnReader>* out) {
-  return impl_->GetFlatColumn(i, out);
+Status FileReader::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
+  return impl_->GetColumn(i, out);
 }
 
-Status FileReader::ReadFlatColumn(int i, std::shared_ptr<Array>* out) {
+Status FileReader::ReadColumn(int i, std::shared_ptr<Array>* out) {
   try {
-    return impl_->ReadFlatColumn(i, out);
+    return impl_->ReadColumn(i, out);
   } catch (const ::parquet::ParquetException& e) {
     return ::arrow::Status::IOError(e.what());
   }
 }
 
-Status FileReader::ReadFlatTable(std::shared_ptr<Table>* out) {
+Status FileReader::ReadTable(std::shared_ptr<Table>* out) {
   try {
-    return impl_->ReadFlatTable(out);
+    return impl_->ReadTable(out);
   } catch (const ::parquet::ParquetException& e) {
     return ::arrow::Status::IOError(e.what());
   }
 }
 
-Status FileReader::ReadFlatTable(
+Status FileReader::ReadTable(
     const std::vector<int>& column_indices, std::shared_ptr<Table>* out) {
   try {
-    return impl_->ReadFlatTable(column_indices, out);
+    return impl_->ReadTable(column_indices, out);
   } catch (const ::parquet::ParquetException& e) {
     return ::arrow::Status::IOError(e.what());
   }
@@ -318,7 +317,7 @@ const ParquetFileReader* FileReader::parquet_reader() const {
   return impl_->parquet_reader();
 }
 
-FlatColumnReader::Impl::Impl(MemoryPool* pool, const ColumnDescriptor* descr,
+ColumnReader::Impl::Impl(MemoryPool* pool, const ColumnDescriptor* descr,
     ParquetFileReader* reader, int column_index)
     : pool_(pool),
       descr_(descr),
@@ -333,9 +332,8 @@ FlatColumnReader::Impl::Impl(MemoryPool* pool, const ColumnDescriptor* descr,
 }
 
 template <typename ArrowType, typename ParquetType>
-Status FlatColumnReader::Impl::ReadNonNullableBatch(
-    TypedColumnReader<ParquetType>* reader, int64_t values_to_read,
-    int64_t* levels_read) {
+Status ColumnReader::Impl::ReadNonNullableBatch(TypedColumnReader<ParquetType>* reader,
+    int64_t values_to_read, int64_t* levels_read) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
 
@@ -354,7 +352,7 @@ Status FlatColumnReader::Impl::ReadNonNullableBatch(
 
 #define NONNULLABLE_BATCH_FAST_PATH(ArrowType, ParquetType, CType)                 \
   template <>                                                                      \
-  Status FlatColumnReader::Impl::ReadNonNullableBatch<ArrowType, ParquetType>(     \
+  Status ColumnReader::Impl::ReadNonNullableBatch<ArrowType, ParquetType>(         \
       TypedColumnReader<ParquetType> * reader, int64_t values_to_read,             \
       int64_t * levels_read) {                                                     \
     int64_t values_read;                                                           \
@@ -373,7 +371,7 @@ NONNULLABLE_BATCH_FAST_PATH(::arrow::FloatType, FloatType, float)
 NONNULLABLE_BATCH_FAST_PATH(::arrow::DoubleType, DoubleType, double)
 
 template <>
-Status FlatColumnReader::Impl::ReadNonNullableBatch<::arrow::TimestampType, Int96Type>(
+Status ColumnReader::Impl::ReadNonNullableBatch<::arrow::TimestampType, Int96Type>(
     TypedColumnReader<Int96Type>* reader, int64_t values_to_read, int64_t* levels_read) {
   RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(Int96Type), false));
   auto values = reinterpret_cast<Int96*>(values_buffer_.mutable_data());
@@ -391,7 +389,7 @@ Status FlatColumnReader::Impl::ReadNonNullableBatch<::arrow::TimestampType, Int9
 }
 
 template <>
-Status FlatColumnReader::Impl::ReadNonNullableBatch<::arrow::BooleanType, BooleanType>(
+Status ColumnReader::Impl::ReadNonNullableBatch<::arrow::BooleanType, BooleanType>(
     TypedColumnReader<BooleanType>* reader, int64_t values_to_read,
     int64_t* levels_read) {
   RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(bool), false));
@@ -409,9 +407,9 @@ Status FlatColumnReader::Impl::ReadNonNullableBatch<::arrow::BooleanType, Boolea
 }
 
 template <typename ArrowType, typename ParquetType>
-Status FlatColumnReader::Impl::ReadNullableFlatBatch(
-    TypedColumnReader<ParquetType>* reader, int16_t* def_levels, int16_t* rep_levels,
-    int64_t values_to_read, int64_t* levels_read, int64_t* values_read) {
+Status ColumnReader::Impl::ReadNullableBatch(TypedColumnReader<ParquetType>* reader,
+    int16_t* def_levels, int16_t* rep_levels, int64_t values_to_read,
+    int64_t* levels_read, int64_t* values_read) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
 
@@ -438,7 +436,7 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch(
 
 #define NULLABLE_BATCH_FAST_PATH(ArrowType, ParquetType, CType)                          \
   template <>                                                                            \
-  Status FlatColumnReader::Impl::ReadNullableFlatBatch<ArrowType, ParquetType>(          \
+  Status ColumnReader::Impl::ReadNullableBatch<ArrowType, ParquetType>(                  \
       TypedColumnReader<ParquetType> * reader, int16_t * def_levels,                     \
       int16_t * rep_levels, int64_t values_to_read, int64_t * levels_read,               \
       int64_t * values_read) {                                                           \
@@ -460,7 +458,7 @@ NULLABLE_BATCH_FAST_PATH(::arrow::FloatType, FloatType, float)
 NULLABLE_BATCH_FAST_PATH(::arrow::DoubleType, DoubleType, double)
 
 template <>
-Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int96Type>(
+Status ColumnReader::Impl::ReadNullableBatch<::arrow::TimestampType, Int96Type>(
     TypedColumnReader<Int96Type>* reader, int16_t* def_levels, int16_t* rep_levels,
     int64_t values_to_read, int64_t* levels_read, int64_t* values_read) {
   RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(Int96Type), false));
@@ -484,7 +482,7 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::TimestampType, Int
 }
 
 template <>
-Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::BooleanType, BooleanType>(
+Status ColumnReader::Impl::ReadNullableBatch<::arrow::BooleanType, BooleanType>(
     TypedColumnReader<BooleanType>* reader, int16_t* def_levels, int16_t* rep_levels,
     int64_t values_to_read, int64_t* levels_read, int64_t* values_read) {
   RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(bool), false));
@@ -507,7 +505,7 @@ Status FlatColumnReader::Impl::ReadNullableFlatBatch<::arrow::BooleanType, Boole
 }
 
 template <typename ArrowType>
-Status FlatColumnReader::Impl::InitDataBuffer(int batch_size) {
+Status ColumnReader::Impl::InitDataBuffer(int batch_size) {
   using ArrowCType = typename ArrowType::c_type;
   data_buffer_ = std::make_shared<PoolBuffer>(pool_);
   RETURN_NOT_OK(data_buffer_->Resize(batch_size * sizeof(ArrowCType), false));
@@ -517,7 +515,7 @@ Status FlatColumnReader::Impl::InitDataBuffer(int batch_size) {
 }
 
 template <>
-Status FlatColumnReader::Impl::InitDataBuffer<::arrow::BooleanType>(int batch_size) {
+Status ColumnReader::Impl::InitDataBuffer<::arrow::BooleanType>(int batch_size) {
   data_buffer_ = std::make_shared<PoolBuffer>(pool_);
   RETURN_NOT_OK(data_buffer_->Resize(::arrow::BitUtil::CeilByte(batch_size) / 8, false));
   data_buffer_ptr_ = data_buffer_->mutable_data();
@@ -526,7 +524,7 @@ Status FlatColumnReader::Impl::InitDataBuffer<::arrow::BooleanType>(int batch_si
   return Status::OK();
 }
 
-Status FlatColumnReader::Impl::InitValidBits(int batch_size) {
+Status ColumnReader::Impl::InitValidBits(int batch_size) {
   valid_bits_idx_ = 0;
   if (descr_->max_definition_level() > 0) {
     int valid_bits_size = ::arrow::BitUtil::CeilByte(batch_size + 1) / 8;
@@ -539,7 +537,7 @@ Status FlatColumnReader::Impl::InitValidBits(int batch_size) {
   return Status::OK();
 }
 
-Status FlatColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
+Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     const int16_t* rep_levels, int64_t total_levels_read, std::shared_ptr<Array>* array) {
   if (descr_->max_repetition_level() > 0) {
     if ((descr_->max_definition_level() == 3) && (descr_->max_repetition_level() == 1)) {
@@ -593,8 +591,7 @@ Status FlatColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
 }
 
 template <typename ArrowType, typename ParquetType>
-Status FlatColumnReader::Impl::TypedReadBatch(
-    int batch_size, std::shared_ptr<Array>* out) {
+Status ColumnReader::Impl::TypedReadBatch(int batch_size, std::shared_ptr<Array>* out) {
   using ArrowCType = typename ArrowType::c_type;
 
   int values_to_read = batch_size;
@@ -620,7 +617,7 @@ Status FlatColumnReader::Impl::TypedReadBatch(
     } else {
       // As per the defintion and checks for flat (list) columns:
       // descr_->max_definition_level() > 0, <= 3
-      RETURN_NOT_OK((ReadNullableFlatBatch<ArrowType, ParquetType>(reader,
+      RETURN_NOT_OK((ReadNullableBatch<ArrowType, ParquetType>(reader,
           def_levels + total_levels_read, rep_levels + total_levels_read, values_to_read,
           &levels_read, &values_read)));
       total_levels_read += levels_read;
@@ -652,7 +649,7 @@ Status FlatColumnReader::Impl::TypedReadBatch(
 }
 
 template <>
-Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>(
+Status ColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>(
     int batch_size, std::shared_ptr<Array>* out) {
   int values_to_read = batch_size;
   int total_levels_read = 0;
@@ -681,7 +678,7 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
     } else {
       // As per the defintion and checks for flat columns:
       // descr_->max_definition_level() == 1
-      RETURN_NOT_OK((ReadNullableFlatBatch<::arrow::BooleanType, BooleanType>(reader,
+      RETURN_NOT_OK((ReadNullableBatch<::arrow::BooleanType, BooleanType>(reader,
           def_levels + total_levels_read, rep_levels + total_levels_read, values_to_read,
           &levels_read, &values_read)));
       total_levels_read += levels_read;
@@ -725,7 +722,7 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
 }
 
 template <typename ArrowType>
-Status FlatColumnReader::Impl::ReadByteArrayBatch(
+Status ColumnReader::Impl::ReadByteArrayBatch(
     int batch_size, std::shared_ptr<Array>* out) {
   using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
 
@@ -780,13 +777,13 @@ Status FlatColumnReader::Impl::ReadByteArrayBatch(
 }
 
 template <>
-Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BinaryType, ByteArrayType>(
+Status ColumnReader::Impl::TypedReadBatch<::arrow::BinaryType, ByteArrayType>(
     int batch_size, std::shared_ptr<Array>* out) {
   return ReadByteArrayBatch<::arrow::BinaryType>(batch_size, out);
 }
 
 template <>
-Status FlatColumnReader::Impl::TypedReadBatch<::arrow::StringType, ByteArrayType>(
+Status ColumnReader::Impl::TypedReadBatch<::arrow::StringType, ByteArrayType>(
     int batch_size, std::shared_ptr<Array>* out) {
   return ReadByteArrayBatch<::arrow::StringType>(batch_size, out);
 }
@@ -796,7 +793,7 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::StringType, ByteArrayType
     return TypedReadBatch<ArrowType, ParquetType>(batch_size, out); \
     break;
 
-Status FlatColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
+Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
   if (!column_reader_) {
     // Exhausted all row groups.
     *out = nullptr;
@@ -841,7 +838,7 @@ Status FlatColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>*
   }
 }
 
-void FlatColumnReader::Impl::NextRowGroup() {
+void ColumnReader::Impl::NextRowGroup() {
   if (next_row_group_ < reader_->metadata()->num_row_groups()) {
     column_reader_ = reader_->RowGroup(next_row_group_)->Column(column_index_);
     next_row_group_++;
@@ -850,11 +847,11 @@ void FlatColumnReader::Impl::NextRowGroup() {
   }
 }
 
-FlatColumnReader::FlatColumnReader(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
+ColumnReader::ColumnReader(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 
-FlatColumnReader::~FlatColumnReader() {}
+ColumnReader::~ColumnReader() {}
 
-Status FlatColumnReader::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
+Status ColumnReader::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
   return impl_->NextBatch(batch_size, out);
 }
 
