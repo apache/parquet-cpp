@@ -129,8 +129,6 @@ class TestPrimitiveReader : public ::testing::Test {
       batch = reader->ReadBatchSpaced(batch_size, dresult.data() + levels_actual,
           rresult.data() + levels_actual, vresult.data() + batch_actual,
           valid_bits.data() + batch_actual, 0, &levels_read, &values_read, &null_count);
-      // ASSERT_EQ(batch, values_read);
-      // ASSERT_EQ(batch, levels_read);
       total_values_read += batch - null_count;
       batch_actual += batch;
       levels_actual += levels_read;
