@@ -522,15 +522,21 @@ Status FileWriter::Impl::WriteColumnChunk(
     } else if ((column_writer->descr()->max_definition_level() == 2) &&
                nullable_elements) {
       // Lists are required
-      valid_element--;
-      null_element--;
-      empty_list--;
+      valid_element = 2;
+      null_element = 1;
+      empty_list = 0;
     } else if ((column_writer->descr()->max_definition_level() == 2) && nullable_lists) {
       // Elements are required
       valid_element--;
+    } else if ((column_writer->descr()->max_definition_level() == 1) && !nullable_lists &&
+               !nullable_elements) {
+      valid_element = 1;
+      null_element = 1;
+      empty_list = 0;
+      null_list = 0;
     } else {
       return Status::NotImplemented(
-          "Primitive arrays with max definition level < 2 aren't supported yet");
+          "Primitive arrays with max definition level == 0 aren't supported yet");
     }
   }
 

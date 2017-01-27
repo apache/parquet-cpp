@@ -195,8 +195,11 @@ typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type Nullable
   auto list_type = std::make_shared<::arrow::ListType>(std::make_shared<::arrow::Field>(
       "item", std::make_shared<ArrowType>(), nullable_elements));
   ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
-  for (int64_t i = 0; i < size; i++) {
-    if (valid_bytes[i] || !nullable_lists) {
+  for (size_t i = 0; i < size; i++) {
+    if (i == 2) {
+      // Second list is always empty and non-null
+      builder.Append();
+    } else if (valid_bytes[i] || !nullable_lists) {
       builder.Append();
       if (nullable_elements) {
         value_builder->Append(values.data(), values.size(), valid_bytes.data());
@@ -230,7 +233,10 @@ typename std::enable_if<is_arrow_int<ArrowType>::value, Status>::type NullableLi
       "item", std::make_shared<ArrowType>(), nullable_elements));
   ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
   for (int64_t i = 0; i < size; i++) {
-    if (valid_bytes[i] || !nullable_lists) {
+    if (i == 2) {
+      // Second list is always empty and non-null
+      builder.Append();
+    } else if (valid_bytes[i] || !nullable_lists) {
       builder.Append();
       if (nullable_elements) {
         value_builder->Append(values.data(), values.size(), valid_bytes.data());
@@ -263,7 +269,10 @@ NullableListArray(size_t size, size_t num_nulls, bool nullable_lists,
       "item", std::make_shared<ArrowType>(), nullable_elements));
   ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
   for (size_t i = 0; i < size; i++) {
-    if (valid_bytes[i] || !nullable_lists) {
+    if (i == 2) {
+      // Second list is always empty and non-null
+      builder.Append();
+    } else if (valid_bytes[i] || !nullable_lists) {
       builder.Append();
       for (size_t j = 0; j < size; j++) {
         if (valid_bytes[j] || !nullable_elements) {
@@ -296,7 +305,10 @@ typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NullableL
       "item", std::make_shared<ArrowType>(), nullable_elements));
   ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
   for (size_t i = 0; i < size; i++) {
-    if (valid_bytes[i] || !nullable_lists) {
+    if (i == 2) {
+      // Second list is always empty and non-null
+      builder.Append();
+    } else if (valid_bytes[i] || !nullable_lists) {
       builder.Append();
       if (nullable_elements) {
         value_builder->Append(values.data(), values.size(), valid_bytes.data());

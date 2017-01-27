@@ -368,6 +368,18 @@ TYPED_TEST(TestParquetIO, SingleNullableListRequiredColumnReadWrite) {
   this->ReadAndCheckSingleColumnTable(values);
 }
 
+TYPED_TEST(TestParquetIO, SingleRequiredListRequiredColumnReadWrite) {
+  std::shared_ptr<Array> values;
+  ASSERT_OK(NullableListArray<TypeParam>(SMALL_SIZE, 10, false, false, &values));
+  std::shared_ptr<Table> table = MakeSimpleTable(values, false);
+
+  this->sink_ = std::make_shared<InMemoryOutputStream>();
+  ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(), this->sink_,
+      values->length(), default_writer_properties()));
+
+  this->ReadAndCheckSingleColumnTable(values);
+}
+
 TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
   std::shared_ptr<Array> values;
   ASSERT_OK(NonNullArray<TypeParam>(SMALL_SIZE, &values));

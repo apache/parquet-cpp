@@ -544,19 +544,27 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     // All definition levels above this mean that we have an element on
     // the lowest nesting level, i.e. the list is neither null nor empty.
     int16_t minimal_valid_def_level = 2;
-    if ((descr_->max_definition_level() == 2) && (descr_->schema_node()->is_optional())) {
+    bool nullable_lists = true;
+    if ((descr_->max_definition_level() == 2) && (descr_->schema_node()->is_optional()) &&
+        (descr_->max_repetition_level() == 1)) {
       can_parse = true;
       minimal_valid_def_level--;
+      nullable_lists = false;
     } else if ((descr_->max_definition_level() == 2) &&
-               (descr_->schema_node()->is_required())) {
+               (descr_->schema_node()->is_required()) &&
+               (descr_->max_repetition_level() == 1)) {
       can_parse = true;
     } else if ((descr_->max_definition_level() == 3) &&
                (descr_->max_repetition_level() == 1)) {
       can_parse = true;
+    } else if ((descr_->max_definition_level() == 1) &&
+               (descr_->max_repetition_level() == 1)) {
+      can_parse = true;
+      minimal_valid_def_level--;
+      nullable_lists = false;
     }
 
     if (can_parse) {
-      // List is nullable and elements are nullable
       std::shared_ptr<Array> values_array = *array;
       int32_t offset = 0;
       ::arrow::Int32Builder offset_builder(pool_, ::arrow::int32());
@@ -579,19 +587,21 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
       // Build list null bitmap, if def_levels == 0, then the list is null.
       int valid_lists_size = ::arrow::BitUtil::CeilByte(offset_array->length()) / 8;
       auto valid_lists = std::make_shared<PoolBuffer>(pool_);
-      RETURN_NOT_OK(valid_lists->Resize(valid_lists_size));
-      uint8_t* valid_lists_ptr = valid_lists->mutable_data();
-      memset(valid_lists_ptr, 0, valid_lists_size);
-      int valid_lists_idx = 0;
       int null_lists_count = 0;
-      for (int64_t i = 0; i < total_levels_read; i++) {
-        if ((rep_levels[i] == 0) || (i == 0)) {
-          if (def_levels[i] > 0) {
-            ::arrow::BitUtil::SetBit(valid_lists_ptr, valid_lists_idx);
-          } else {
-            null_lists_count++;
+      if (nullable_lists) {
+        RETURN_NOT_OK(valid_lists->Resize(valid_lists_size));
+        uint8_t* valid_lists_ptr = valid_lists->mutable_data();
+        memset(valid_lists_ptr, 0, valid_lists_size);
+        int valid_lists_idx = 0;
+        for (int64_t i = 0; i < total_levels_read; i++) {
+          if ((rep_levels[i] == 0) || (i == 0)) {
+            if (def_levels[i] > 0) {
+              ::arrow::BitUtil::SetBit(valid_lists_ptr, valid_lists_idx);
+            } else {
+              null_lists_count++;
+            }
+            valid_lists_idx++;
           }
-          valid_lists_idx++;
         }
       }
 
@@ -600,7 +610,7 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
           valid_lists);
     } else {
       return Status::NotImplemented(
-          "Only flat lists with a max definition level of 2 or 3 are supported yet");
+          "Only flat lists with a max definition level of 1, 2 or 3 are supported yet");
     }
   }
   return Status::OK();
@@ -772,8 +782,10 @@ Status ColumnReader::Impl::ReadByteArrayBatch(
     } else {
       // descr_->max_definition_level() > 0
       int values_idx = 0;
+      int nullable_elements = descr_->schema_node()->is_optional();
       for (int64_t i = 0; i < levels_read; i++) {
-        if (def_levels[i + total_levels_read] == (descr_->max_definition_level() - 1)) {
+        if (nullable_elements &&
+            (def_levels[i + total_levels_read] == (descr_->max_definition_level() - 1))) {
           RETURN_NOT_OK(builder.AppendNull());
         } else if (def_levels[i + total_levels_read] == descr_->max_definition_level()) {
           RETURN_NOT_OK(

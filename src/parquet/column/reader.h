@@ -320,16 +320,28 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(int batch_size,
       }
     }
 
-    // TODO: Move this into the DefinitionLevels reader
     int64_t null_count = 0;
-    int16_t max_definition_level = descr_->max_definition_level();
-    DefinitionLevelsToBitmap(def_levels, num_def_levels, max_definition_level,
-        values_read, &null_count, valid_bits, valid_bits_offset);
+    if (descr_->schema_node()->is_required()) {
+      // Node is required so there are no null entries on the lowest nesting level.
+      int values_to_read = 0;
+      for (int64_t i = 0; i < num_def_levels; ++i) {
+        if (def_levels[i] == descr_->max_definition_level()) { ++values_to_read; }
+      }
+      total_values = ReadValues(values_to_read, values);
+      for (int64_t i = 0; i < total_values; i++) {
+        ::arrow::BitUtil::SetBit(valid_bits, valid_bits_offset + i);
+      }
+      *values_read = total_values;
+    } else {
+      int16_t max_definition_level = descr_->max_definition_level();
+      DefinitionLevelsToBitmap(def_levels, num_def_levels, max_definition_level,
+          values_read, &null_count, valid_bits, valid_bits_offset);
+      total_values = ReadValuesSpaced(
+          *values_read, values, null_count, valid_bits, valid_bits_offset);
+    }
     *levels_read = num_def_levels;
     *null_count_out = null_count;
 
-    total_values =
-        ReadValuesSpaced(*values_read, values, null_count, valid_bits, valid_bits_offset);
   } else {
     // Required field, read all values
     total_values = ReadValues(batch_size, values);
