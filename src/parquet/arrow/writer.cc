@@ -30,6 +30,7 @@
 
 using arrow::Array;
 using arrow::BinaryArray;
+using arrow::BooleanArray;
 using arrow::MemoryPool;
 using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
@@ -398,7 +399,35 @@ template <>
 Status FileWriter::Impl::WriteListBatch<BooleanType, ::arrow::BooleanType>(
     ColumnWriter* column_writer, const ListArray* data, int64_t offset, int64_t length,
     int64_t num_levels, const int16_t* rep_levels, const int16_t* def_levels) {
-  return Status::NotImplemented("Boolean lists aren't yet supported");
+  auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
+  const int32_t* raw_offsets = data->raw_offsets();
+  int64_t num_values = raw_offsets[offset + length] - raw_offsets[offset];
+  RETURN_NOT_OK(data_buffer_.Resize(num_values, false));
+  auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
+  // In the case of an array consisting of only empty strings or all null,
+  // data->values()->data() points already to a nullptr, thus
+  // data->values()->data()->data() will segfault.
+  const uint8_t* data_ptr = nullptr;
+  auto values = static_cast<BooleanArray*>(data->values().get());
+  if (values->data()) {
+    data_ptr = reinterpret_cast<const uint8_t*>(values->data()->data());
+    DCHECK(data_ptr != nullptr);
+  }
+
+  const uint8_t* valid_values = data->values()->null_bitmap_data();
+  INIT_BITSET(valid_values, raw_offsets[offset]);
+  int64_t buffer_idx = 0;
+  for (int64_t i = 0; i < num_values; i++) {
+    if (bitset_valid_values & (1 << bit_offset_valid_values)) {
+      buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, raw_offsets[offset] + i);
+    }
+    READ_NEXT_BITSET(valid_values);
+  }
+
+  PARQUET_CATCH_NOT_OK(
+      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+
+  return Status::OK();
 }
 
 template <>

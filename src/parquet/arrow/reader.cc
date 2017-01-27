@@ -655,8 +655,17 @@ template <>
 Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>(
     int batch_size, std::shared_ptr<Array>* out) {
   int values_to_read = batch_size;
+  int total_levels_read = 0;
   RETURN_NOT_OK(InitDataBuffer<::arrow::BooleanType>(batch_size));
   RETURN_NOT_OK(InitValidBits(batch_size));
+  if (descr_->max_definition_level() > 0) {
+    RETURN_NOT_OK(def_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+  }
+  if (descr_->max_repetition_level() > 0) {
+    RETURN_NOT_OK(rep_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+  }
+  int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
+  int16_t* rep_levels = reinterpret_cast<int16_t*>(rep_levels_buffer_.mutable_data());
 
   while ((values_to_read > 0) && column_reader_) {
     if (descr_->max_definition_level() > 0) {
@@ -672,8 +681,10 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
     } else {
       // As per the defintion and checks for flat columns:
       // descr_->max_definition_level() == 1
-      RETURN_NOT_OK((ReadNullableFlatBatch<::arrow::BooleanType, BooleanType>(
-          reader, def_levels, nullptr, values_to_read, &levels_read, &values_read)));
+      RETURN_NOT_OK((ReadNullableFlatBatch<::arrow::BooleanType, BooleanType>(reader,
+          def_levels + total_levels_read, rep_levels + total_levels_read, values_to_read,
+          &levels_read, &values_read)));
+      total_levels_read += levels_read;
     }
     values_to_read -= values_read;
     if (!column_reader_->HasNext()) { NextRowGroup(); }
@@ -704,12 +715,13 @@ Status FlatColumnReader::Impl::TypedReadBatch<::arrow::BooleanType, BooleanType>
     // Relase the ownership
     data_buffer_.reset();
     valid_bits_buffer_.reset();
-    return Status::OK();
   } else {
     *out = std::make_shared<BooleanArray>(field_->type, valid_bits_idx_, data_buffer_);
     data_buffer_.reset();
-    return Status::OK();
   }
+
+  // Check if we should transform this array into an list array.
+  return WrapIntoListArray(def_levels, rep_levels, total_levels_read, out);
 }
 
 template <typename ArrowType>
