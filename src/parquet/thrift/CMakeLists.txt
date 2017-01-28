@@ -22,13 +22,29 @@ set(THRIFT_SRCS
 set_source_files_properties(parquet_types.cpp PROPERTIES
   COMPILE_FLAGS -Wno-unused-variable)
 
-add_library(parquet_thrift STATIC
-  ${THRIFT_SRCS}
-)
-
-set_target_properties(parquet_thrift
+if (PARQUET_BUILD_SHARED)
+  add_library(parquet_thrift_shared SHARED
+    ${THRIFT_SRCS}
+  )
+  
+  set_target_properties(parquet_thrift_shared
   PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+endif()
+
+if (PARQUET_BUILD_STATIC)
+  add_library(parquet_thrift_static STATIC
+    ${THRIFT_SRCS}
+  )
+  
+  set_target_properties(parquet_thrift_static
+  PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
+  
+endif()
+  
+
+  
 set_source_files_properties(${THRIFT_SRCS} PROPERTIES GENERATED TRUE)
 
 # List of thrift output targets

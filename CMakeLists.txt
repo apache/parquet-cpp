@@ -504,7 +504,7 @@ set(LIBPARQUET_LINK_LIBS
 )
 
 set(BUNDLED_STATIC_LIBS
-  parquet_thrift
+  parquet_thrift_static
   brotlistatic_dec
   brotlistatic_enc
   brotlistatic_common
@@ -579,7 +579,14 @@ add_subdirectory(src/parquet/util)
 
 # Ensure that thrift compilation is done before using its generated headers
 # in parquet code.
-add_dependencies(parquet_objlib parquet_thrift)
+
+if (PARQUET_BUILD_SHARED)
+  add_dependencies(parquet_objlib parquet_thrift_shared)
+endif()
+
+if (PARQUET_BUILD_STATIC)
+  add_dependencies(parquet_objlib parquet_thrift_static)
+endif()
 
 add_subdirectory(benchmarks)
 add_subdirectory(examples)
