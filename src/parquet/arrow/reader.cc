@@ -545,23 +545,40 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     // the lowest nesting level, i.e. the list is neither null nor empty.
     int16_t minimal_valid_def_level = 2;
     bool nullable_lists = true;
-    if ((descr_->max_definition_level() == 2) && (descr_->schema_node()->is_optional()) &&
-        (descr_->max_repetition_level() == 1)) {
-      can_parse = true;
-      minimal_valid_def_level--;
-      nullable_lists = false;
-    } else if ((descr_->max_definition_level() == 2) &&
-               (descr_->schema_node()->is_required()) &&
-               (descr_->max_repetition_level() == 1)) {
-      can_parse = true;
-    } else if ((descr_->max_definition_level() == 3) &&
-               (descr_->max_repetition_level() == 1)) {
-      can_parse = true;
-    } else if ((descr_->max_definition_level() == 1) &&
-               (descr_->max_repetition_level() == 1)) {
-      can_parse = true;
-      minimal_valid_def_level--;
-      nullable_lists = false;
+    if (descr_->max_repetition_level() == 1) {
+      if (descr_->max_definition_level() == 3) {
+        // optional group my_list (LIST) {
+        //   repeated group list {
+        //     optional primitive_type element;
+        //   }
+        can_parse = true;
+      } else if (descr_->max_definition_level() == 2) {
+        if (descr_->schema_node()->is_optional()) {
+          // required group my_list (LIST) {
+          //   repeated group list {
+          //     optional primitive_type element;
+          //   }
+          can_parse = true;
+          minimal_valid_def_level--;
+          nullable_lists = false;
+        } else if (descr_->schema_node()->is_required()) {
+          // optional group my_list (LIST) {
+          //   repeated group list {
+          //     required primitive_type element;
+          //   }
+          // }
+          can_parse = true;
+        }
+      } else if (descr_->max_definition_level() == 1) {
+        // required group my_list (LIST) {
+        //   repeated group list {
+        //     required primitive_type element;
+        //   }
+        // }
+        can_parse = true;
+        minimal_valid_def_level--;
+        nullable_lists = false;
+      }
     }
 
     if (can_parse) {
