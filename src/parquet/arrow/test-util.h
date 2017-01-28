@@ -177,149 +177,43 @@ typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NullableA
   return builder.Finish(out);
 }
 
-// This helper function only supports (size/2) nulls.
-template <typename ArrowType>
-typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type NullableListArray(
-    size_t size, size_t num_nulls, bool nullable_lists, bool nullable_elements,
-    std::shared_ptr<Array>* out) {
-  std::vector<typename ArrowType::c_type> values;
-  ::arrow::test::random_real<typename ArrowType::c_type>(size, 0, 0, 1, &values);
+/// Wrap an Array into a ListArray by splitting it up into size lists.
+///
+/// This helper function only supports (size/2) nulls.
+Status MakeListArary(const std::shared_ptr<Array>& values, int64_t size,
+    int64_t null_count, bool nullable_values, std::shared_ptr<::arrow::ListArray>* out) {
+  // We always include an empty list
+  int64_t non_null_entries = size - null_count - 1;
+  int64_t length_per_entry = values->length() / non_null_entries;
 
-  std::vector<uint8_t> valid_bytes(size, 1);
-  for (size_t i = 0; i < num_nulls; i++) {
-    valid_bytes[i * 2] = 0;
-  }
+  auto offsets = std::make_shared<::arrow::PoolBuffer>(::arrow::default_memory_pool());
+  RETURN_NOT_OK(offsets->Resize((size + 1) * sizeof(int32_t)));
+  int32_t* offsets_ptr = reinterpret_cast<int32_t*>(offsets->mutable_data());
 
-  auto value_builder = std::make_shared<::arrow::NumericBuilder<ArrowType>>(
-      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
-  auto list_type = std::make_shared<::arrow::ListType>(std::make_shared<::arrow::Field>(
-      "item", std::make_shared<ArrowType>(), nullable_elements));
-  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
-  for (size_t i = 0; i < size; i++) {
-    if (i == 2) {
-      // Second list is always empty and non-null
-      builder.Append();
-    } else if (valid_bytes[i] || !nullable_lists) {
-      builder.Append();
-      if (nullable_elements) {
-        value_builder->Append(values.data(), values.size(), valid_bytes.data());
-      } else {
-        value_builder->Append(values.data(), values.size());
-      }
-    } else {
-      builder.AppendNull();
+  auto null_bitmap =
+      std::make_shared<::arrow::PoolBuffer>(::arrow::default_memory_pool());
+  int64_t bitmap_size = ::arrow::BitUtil::CeilByte(size) / 8;
+  RETURN_NOT_OK(null_bitmap->Resize(bitmap_size));
+  uint8_t* null_bitmap_ptr = null_bitmap->mutable_data();
+  memset(null_bitmap_ptr, 0, bitmap_size);
+
+  int32_t current_offset = 0;
+  for (int64_t i = 0; i < size; i++) {
+    offsets_ptr[i] = current_offset;
+    if (!(((i % 2) == 0) && ((i / 2) < null_count))) {
+      // Non-null list (list with index 1 is always empty).
+      ::arrow::BitUtil::SetBit(null_bitmap_ptr, i);
+      if (i != 1) { current_offset += length_per_entry; }
     }
   }
+  offsets_ptr[size] = values->length();
 
-  return builder.Finish(out);
-}
+  auto value_field =
+      std::make_shared<::arrow::Field>("item", values->type(), nullable_values);
+  *out = std::make_shared<::arrow::ListArray>(
+      ::arrow::list(value_field), size, offsets, values, null_count, null_bitmap);
 
-// This helper function only supports (size/2) nulls.
-template <typename ArrowType>
-typename std::enable_if<is_arrow_int<ArrowType>::value, Status>::type NullableListArray(
-    size_t size, size_t num_nulls, bool nullable_lists, bool nullable_elements,
-    std::shared_ptr<Array>* out) {
-  std::vector<typename ArrowType::c_type> values;
-  ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
-
-  std::vector<uint8_t> valid_bytes(size, 1);
-  for (size_t i = 0; i < num_nulls; i++) {
-    valid_bytes[i * 2] = 0;
-  }
-
-  auto value_builder = std::make_shared<::arrow::NumericBuilder<ArrowType>>(
-      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
-  auto list_type = std::make_shared<::arrow::ListType>(std::make_shared<::arrow::Field>(
-      "item", std::make_shared<ArrowType>(), nullable_elements));
-  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
-  for (size_t i = 0; i < size; i++) {
-    if (i == 2) {
-      // Second list is always empty and non-null
-      builder.Append();
-    } else if (valid_bytes[i] || !nullable_lists) {
-      builder.Append();
-      if (nullable_elements) {
-        value_builder->Append(values.data(), values.size(), valid_bytes.data());
-      } else {
-        value_builder->Append(values.data(), values.size());
-      }
-    } else {
-      builder.AppendNull();
-    }
-  }
-
-  return builder.Finish(out);
-}
-
-// This helper function only supports (size/2) nulls yet.
-template <typename ArrowType>
-typename std::enable_if<
-    is_arrow_string<ArrowType>::value || is_arrow_binary<ArrowType>::value, Status>::type
-NullableListArray(size_t size, size_t num_nulls, bool nullable_lists,
-    bool nullable_elements, std::shared_ptr<::arrow::Array>* out) {
-  std::vector<uint8_t> valid_bytes(size, 1);
-  for (size_t i = 0; i < num_nulls; i++) {
-    valid_bytes[i * 2] = 0;
-  }
-
-  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
-  auto value_builder = std::make_shared<BuilderType>(
-      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
-  auto list_type = std::make_shared<::arrow::ListType>(std::make_shared<::arrow::Field>(
-      "item", std::make_shared<ArrowType>(), nullable_elements));
-  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
-  for (size_t i = 0; i < size; i++) {
-    if (i == 2) {
-      // Second list is always empty and non-null
-      builder.Append();
-    } else if (valid_bytes[i] || !nullable_lists) {
-      builder.Append();
-      for (size_t j = 0; j < size; j++) {
-        if (valid_bytes[j] || !nullable_elements) {
-          value_builder->Append("test-string");
-        }
-      }
-    } else {
-      builder.AppendNull();
-    }
-  }
-  return builder.Finish(out);
-}
-
-// This helper function only supports (size/2) nulls yet.
-template <class ArrowType>
-typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NullableListArray(
-    size_t size, size_t num_nulls, bool nullable_lists, bool nullable_elements,
-    std::shared_ptr<Array>* out) {
-  std::vector<uint8_t> values;
-  ::arrow::test::randint<uint8_t>(size, 0, 1, &values);
-
-  std::vector<uint8_t> valid_bytes(size, 1);
-  for (size_t i = 0; i < num_nulls; i++) {
-    valid_bytes[i * 2] = 0;
-  }
-
-  auto value_builder = std::make_shared<::arrow::BooleanBuilder>(
-      ::arrow::default_memory_pool(), std::make_shared<::arrow::BooleanType>());
-  auto list_type = std::make_shared<::arrow::ListType>(std::make_shared<::arrow::Field>(
-      "item", std::make_shared<ArrowType>(), nullable_elements));
-  ::arrow::ListBuilder builder(::arrow::default_memory_pool(), value_builder, list_type);
-  for (size_t i = 0; i < size; i++) {
-    if (i == 2) {
-      // Second list is always empty and non-null
-      builder.Append();
-    } else if (valid_bytes[i] || !nullable_lists) {
-      builder.Append();
-      if (nullable_elements) {
-        value_builder->Append(values.data(), values.size(), valid_bytes.data());
-      } else {
-        value_builder->Append(values.data(), values.size());
-      }
-    } else {
-      builder.AppendNull();
-    }
-  }
-  return builder.Finish(out);
+  return Status::OK();
 }
 
 std::shared_ptr<::arrow::Column> MakeColumn(

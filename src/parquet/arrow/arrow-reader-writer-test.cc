@@ -36,6 +36,7 @@ using arrow::Column;
 using arrow::ChunkedArray;
 using arrow::default_memory_pool;
 using arrow::io::BufferReader;
+using arrow::ListArray;
 using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
 using arrow::Status;
@@ -252,8 +253,16 @@ class TestParquetIO : public ::testing::Test {
     ASSERT_TRUE(values->Equals(chunked_array->chunk(0)));
   }
 
-  void WriteReadAndCheckSingleColumnTable(const std::shared_ptr<::arrow::Array>& values,
-      const std::shared_ptr<Table>& table) {
+  void PrepareListTable(int64_t size, bool nullable_lists, bool nullable_elements, int64_t null_count, std::shared_ptr<Table>* out) {
+    std::shared_ptr<Array> values;
+    ASSERT_OK(NullableArray<TestType>(size * size, nullable_elements ? null_count : 0, kDefaultSeed, &values));
+    std::shared_ptr<ListArray> lists;
+    ASSERT_OK(MakeListArary(values, size, nullable_lists ? null_count : 0, nullable_elements, &lists));
+    *out = MakeSimpleTable(lists, nullable_lists);
+  }
+
+  void WriteReadAndCheckSingleColumnTable(const std::shared_ptr<Table>& table) {
+    std::shared_ptr<Array> values = table->column(0)->data()->chunk(0);
     this->sink_ = std::make_shared<InMemoryOutputStream>();
     ASSERT_OK_NO_THROW(WriteTable(table.get(), ::arrow::default_memory_pool(),
         this->sink_, values->length(), default_writer_properties()));
@@ -334,35 +343,31 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalReadWrite) {
 
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
-  this->WriteReadAndCheckSingleColumnTable(values, table);
+  this->WriteReadAndCheckSingleColumnTable(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleNullableListNullableColumnReadWrite) {
-  std::shared_ptr<Array> values;
-  ASSERT_OK(NullableListArray<TypeParam>(SMALL_SIZE, 10, true, true, &values));
-  std::shared_ptr<Table> table = MakeSimpleTable(values, true);
-  this->WriteReadAndCheckSingleColumnTable(values, table);
+  std::shared_ptr<Table> table;
+  this->PrepareListTable(SMALL_SIZE, true, true, 10, &table);
+  this->WriteReadAndCheckSingleColumnTable(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleRequiredListNullableColumnReadWrite) {
-  std::shared_ptr<Array> values;
-  ASSERT_OK(NullableListArray<TypeParam>(SMALL_SIZE, 10, false, true, &values));
-  std::shared_ptr<Table> table = MakeSimpleTable(values, false);
-  this->WriteReadAndCheckSingleColumnTable(values, table);
+  std::shared_ptr<Table> table;
+  this->PrepareListTable(SMALL_SIZE, false, true, 10, &table);
+  this->WriteReadAndCheckSingleColumnTable(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleNullableListRequiredColumnReadWrite) {
-  std::shared_ptr<Array> values;
-  ASSERT_OK(NullableListArray<TypeParam>(SMALL_SIZE, 10, true, false, &values));
-  std::shared_ptr<Table> table = MakeSimpleTable(values, true);
-  this->WriteReadAndCheckSingleColumnTable(values, table);
+  std::shared_ptr<Table> table;
+  this->PrepareListTable(SMALL_SIZE, true, false, 10, &table);
+  this->WriteReadAndCheckSingleColumnTable(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleRequiredListRequiredColumnReadWrite) {
-  std::shared_ptr<Array> values;
-  ASSERT_OK(NullableListArray<TypeParam>(SMALL_SIZE, 10, false, false, &values));
-  std::shared_ptr<Table> table = MakeSimpleTable(values, false);
-  this->WriteReadAndCheckSingleColumnTable(values, table);
+  std::shared_ptr<Table> table;
+  this->PrepareListTable(SMALL_SIZE, false, false, 0, &table);
+  this->WriteReadAndCheckSingleColumnTable(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
