@@ -845,41 +845,41 @@ Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out
     return Status::OK();
   }
 
-  if (descr_->max_repetition_level() <= 1) {
-    switch (field_->type->type) {
-      TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
-      TYPED_BATCH_CASE(UINT8, ::arrow::UInt8Type, Int32Type)
-      TYPED_BATCH_CASE(INT8, ::arrow::Int8Type, Int32Type)
-      TYPED_BATCH_CASE(UINT16, ::arrow::UInt16Type, Int32Type)
-      TYPED_BATCH_CASE(INT16, ::arrow::Int16Type, Int32Type)
-      TYPED_BATCH_CASE(UINT32, ::arrow::UInt32Type, Int32Type)
-      TYPED_BATCH_CASE(INT32, ::arrow::Int32Type, Int32Type)
-      TYPED_BATCH_CASE(UINT64, ::arrow::UInt64Type, Int64Type)
-      TYPED_BATCH_CASE(INT64, ::arrow::Int64Type, Int64Type)
-      TYPED_BATCH_CASE(FLOAT, ::arrow::FloatType, FloatType)
-      TYPED_BATCH_CASE(DOUBLE, ::arrow::DoubleType, DoubleType)
-      TYPED_BATCH_CASE(STRING, ::arrow::StringType, ByteArrayType)
-      TYPED_BATCH_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
-      case ::arrow::Type::TIMESTAMP: {
-        ::arrow::TimestampType* timestamp_type =
-            static_cast<::arrow::TimestampType*>(field_->type.get());
-        switch (timestamp_type->unit) {
-          case ::arrow::TimeUnit::MILLI:
-            return TypedReadBatch<::arrow::TimestampType, Int64Type>(batch_size, out);
-            break;
-          case ::arrow::TimeUnit::NANO:
-            return TypedReadBatch<::arrow::TimestampType, Int96Type>(batch_size, out);
-            break;
-          default:
-            return Status::NotImplemented("TimeUnit not supported");
-        }
-        break;
-      }
-      default:
-        return Status::NotImplemented(field_->type->ToString());
-    }
-  } else {
+  if (descr_->max_repetition_level() > 1) {
     return Status::NotImplemented("Repetition levels above 1 aren't yet supported.");
+  }
+
+  switch (field_->type->type) {
+    TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
+    TYPED_BATCH_CASE(UINT8, ::arrow::UInt8Type, Int32Type)
+    TYPED_BATCH_CASE(INT8, ::arrow::Int8Type, Int32Type)
+    TYPED_BATCH_CASE(UINT16, ::arrow::UInt16Type, Int32Type)
+    TYPED_BATCH_CASE(INT16, ::arrow::Int16Type, Int32Type)
+    TYPED_BATCH_CASE(UINT32, ::arrow::UInt32Type, Int32Type)
+    TYPED_BATCH_CASE(INT32, ::arrow::Int32Type, Int32Type)
+    TYPED_BATCH_CASE(UINT64, ::arrow::UInt64Type, Int64Type)
+    TYPED_BATCH_CASE(INT64, ::arrow::Int64Type, Int64Type)
+    TYPED_BATCH_CASE(FLOAT, ::arrow::FloatType, FloatType)
+    TYPED_BATCH_CASE(DOUBLE, ::arrow::DoubleType, DoubleType)
+    TYPED_BATCH_CASE(STRING, ::arrow::StringType, ByteArrayType)
+    TYPED_BATCH_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
+    case ::arrow::Type::TIMESTAMP: {
+      ::arrow::TimestampType* timestamp_type =
+          static_cast<::arrow::TimestampType*>(field_->type.get());
+      switch (timestamp_type->unit) {
+        case ::arrow::TimeUnit::MILLI:
+          return TypedReadBatch<::arrow::TimestampType, Int64Type>(batch_size, out);
+          break;
+        case ::arrow::TimeUnit::NANO:
+          return TypedReadBatch<::arrow::TimestampType, Int96Type>(batch_size, out);
+          break;
+        default:
+          return Status::NotImplemented("TimeUnit not supported");
+      }
+      break;
+    }
+    default:
+      return Status::NotImplemented(field_->type->ToString());
   }
 }
 
