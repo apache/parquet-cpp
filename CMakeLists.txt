@@ -473,6 +473,35 @@ else()
 endif()
 
 ############################################################
+# Generated Thrift sources
+
+set(THRIFT_SRCS
+  src/parquet/parquet_constants.cpp
+  src/parquet/parquet_types.cpp)
+
+set_source_files_properties(src/parquet/parquet_types.cpp PROPERTIES
+  COMPILE_FLAGS -Wno-unused-variable)
+
+# List of thrift output targets
+set(THRIFT_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/parquet)
+set(THRIFT_OUTPUT_FILES "${THRIFT_OUTPUT_DIR}/parquet_types.cpp")
+set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_types.h")
+set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_constants.cpp")
+set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_constants.h")
+
+set_source_files_properties(${THRIFT_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
+
+get_filename_component(ABS_PARQUET_THRIFT src/parquet/parquet.thrift ABSOLUTE)
+
+add_custom_command(
+  OUTPUT ${THRIFT_OUTPUT_FILES}
+  COMMAND ${THRIFT_COMPILER} --gen cpp -out ${THRIFT_OUTPUT_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src/parquet/parquet.thrift
+  DEPENDS ${ABS_PARQUET_THRIFT} thriftstatic
+  COMMENT "Running thrift compiler on parquet.thrift"
+  VERBATIM
+)
+
+############################################################
 # Library config
 
 set(LIBPARQUET_SRCS
@@ -496,6 +525,9 @@ set(LIBPARQUET_SRCS
 
   src/parquet/schema.cc
 
+  src/parquet/parquet_constants.cpp
+  src/parquet/parquet_types.cpp
+
   src/parquet/util/cpu-info.cc
   src/parquet/util/memory.cc
 )
@@ -504,7 +536,6 @@ set(LIBPARQUET_LINK_LIBS
 )
 
 set(BUNDLED_STATIC_LIBS
-  parquet_thrift
   brotlistatic_dec
   brotlistatic_enc
   brotlistatic_common
@@ -522,6 +553,12 @@ set(LIBPARQUET_PRIVATE_LINK_LIBS
 add_library(parquet_objlib OBJECT
   ${LIBPARQUET_SRCS}
 )
+
+# # Ensure that thrift compilation is done before using its generated headers
+# # in parquet code.
+add_custom_target(thrift-deps ALL
+  DEPENDS ${THRIFT_OUTPUT_FILES})
+add_dependencies(parquet_objlib thrift-deps)
 
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
@@ -574,12 +611,7 @@ add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/encodings)
 add_subdirectory(src/parquet/file)
-add_subdirectory(src/parquet/thrift)
 add_subdirectory(src/parquet/util)
-
-# Ensure that thrift compilation is done before using its generated headers
-# in parquet code.
-add_dependencies(parquet_objlib parquet_thrift)
 
 add_subdirectory(benchmarks)
 add_subdirectory(examples)
