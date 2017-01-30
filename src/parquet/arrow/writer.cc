@@ -179,12 +179,10 @@ Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
         data_ptr, length, &data_writer_ptr)));
     PARQUET_CATCH_NOT_OK(
         writer->WriteBatch(length, def_levels, rep_levels, data_writer_ptr));
-  } else if (writer->descr()->max_definition_level() == 1) {
+  } else {
     const uint8_t* valid_bits = data->null_bitmap_data();
     RETURN_NOT_OK((WriteNullableBatch<ParquetType, ArrowType>(
         writer, length, def_levels, rep_levels, valid_bits, offset, data_ptr)));
-  } else {
-    return Status::NotImplemented("no support for max definition level > 1 yet");
   }
   PARQUET_CATCH_NOT_OK(writer->Close());
   return Status::OK();
@@ -242,24 +240,13 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
 
-  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
-    // no nulls, just dump the data
-    for (int64_t i = 0; i < length; i++) {
-      buffer_ptr[i] = BitUtil::GetBit(data_ptr, offset + i);
+  int buffer_idx = 0;
+  for (int i = 0; i < length; i++) {
+    if (!data->IsNull(offset + i)) {
+      buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
     }
-    // TODO(PARQUET-644): write boolean values as a packed bitmap
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
-  } else if (writer->descr()->max_definition_level() == 1) {
-    int buffer_idx = 0;
-    for (int i = 0; i < length; i++) {
-      if (!data->IsNull(offset + i)) {
-        buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
-      }
-    }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
-  } else {
-    return Status::NotImplemented("no support for max definition level > 1 yet");
   }
+  PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
   PARQUET_CATCH_NOT_OK(writer->Close());
   return Status::OK();
 }
