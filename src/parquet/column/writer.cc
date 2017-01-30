@@ -459,13 +459,15 @@ void TypedColumnWriter<DType>::WriteBatchSpaced(int64_t num_values,
   for (int round = 0; round < num_batches; round++) {
     int64_t offset = round * write_batch_size;
     WriteMiniBatchSpaced(write_batch_size, &def_levels[offset], &rep_levels[offset],
-        valid_bits, valid_bits_offset + offset, values + values_offset, &num_spaced_written);
+        valid_bits, valid_bits_offset + offset, values + values_offset,
+        &num_spaced_written);
     values_offset += num_spaced_written;
   }
   // Write the remaining values
   int64_t offset = num_batches * write_batch_size;
   WriteMiniBatchSpaced(num_remaining, &def_levels[offset], &rep_levels[offset],
-      valid_bits, valid_bits_offset + offset, values + values_offset, &num_spaced_written);
+      valid_bits, valid_bits_offset + offset, values + values_offset,
+      &num_spaced_written);
 }
 
 template <typename DType>

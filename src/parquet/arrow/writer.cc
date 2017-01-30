@@ -63,6 +63,8 @@ class FileWriter::Impl {
       const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,
       int64_t valid_bits_offset, const typename ArrowType::c_type* data_ptr);
 
+  Status GenerateLevels(ColumnWriter* column_writer, const Array* data, int64_t offset,
+      int64_t length, int16_t** def_levels, int16_t** rep_levels);
   template <typename ParquetType, typename ArrowType>
   Status WriteListBatch(ColumnWriter* writer, const ListArray* data, int64_t offset,
       int64_t length, int64_t num_levels, const int16_t* rep_levels,
@@ -131,32 +133,15 @@ Status FileWriter::Impl::NewRowGroup(int64_t chunk_size) {
   return Status::OK();
 }
 
-template <typename ParquetType, typename ArrowType>
-Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
-    const PrimitiveArray* data, int64_t offset, int64_t length) {
-  using ArrowCType = typename ArrowType::c_type;
-  using ParquetCType = typename ParquetType::c_type;
-
-  DCHECK((offset + length) <= data->length());
-  auto data_ptr = reinterpret_cast<const ArrowCType*>(data->data()->data()) + offset;
-  auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
-  if (writer->descr()->max_definition_level() == 0) {
-    // no nulls, just dump the data
-    const ParquetCType* data_writer_ptr = nullptr;
-    RETURN_NOT_OK((ConvertPhysicalType<ArrowCType, ParquetCType>(
-        data_ptr, length, &data_writer_ptr)));
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, nullptr, nullptr, data_writer_ptr));
-  } else if (writer->descr()->max_definition_level() == 1) {
+Status FileWriter::Impl::GenerateLevels(ColumnWriter* writer, const Array* data,
+    int64_t offset, int64_t length, int16_t** def_levels, int16_t** rep_levels) {
+  int16_t* def_levels_ptr = nullptr;
+  int16_t* rep_levels_ptr = nullptr;
+  if (writer->descr()->max_definition_level() > 0) {
     RETURN_NOT_OK(def_levels_buffer_.Resize(length * sizeof(int16_t)));
-    int16_t* def_levels_ptr =
-        reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
+    def_levels_ptr = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
     if (data->null_count() == 0) {
       std::fill(def_levels_ptr, def_levels_ptr + length, 1);
-      const ParquetCType* data_writer_ptr = nullptr;
-      RETURN_NOT_OK((ConvertPhysicalType<ArrowCType, ParquetCType>(
-          data_ptr, length, &data_writer_ptr)));
-      PARQUET_CATCH_NOT_OK(
-          writer->WriteBatch(length, def_levels_ptr, nullptr, data_writer_ptr));
     } else {
       const uint8_t* valid_bits = data->null_bitmap_data();
       INIT_BITSET(valid_bits, offset);
@@ -168,9 +153,39 @@ Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
         }
         READ_NEXT_BITSET(valid_bits);
       }
-      RETURN_NOT_OK((WriteNullableBatch<ParquetType, ArrowType>(
-          writer, length, def_levels_ptr, nullptr, valid_bits, offset, data_ptr)));
     }
+  }
+
+  *def_levels = def_levels_ptr;
+  *rep_levels = rep_levels_ptr;
+  return Status::OK();
+}
+
+template <typename ParquetType, typename ArrowType>
+Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
+    const PrimitiveArray* data, int64_t offset, int64_t length) {
+  using ArrowCType = typename ArrowType::c_type;
+  using ParquetCType = typename ParquetType::c_type;
+
+  DCHECK((offset + length) <= data->length());
+  auto data_ptr = reinterpret_cast<const ArrowCType*>(data->data()->data()) + offset;
+  auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
+  int16_t* def_levels;
+  int16_t* rep_levels;
+  RETURN_NOT_OK(
+      GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
+
+  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
+    // no nulls, just dump the data
+    const ParquetCType* data_writer_ptr = nullptr;
+    RETURN_NOT_OK((ConvertPhysicalType<ArrowCType, ParquetCType>(
+        data_ptr, length, &data_writer_ptr)));
+    PARQUET_CATCH_NOT_OK(
+        writer->WriteBatch(length, def_levels, rep_levels, data_writer_ptr));
+  } else if (writer->descr()->max_definition_level() == 1) {
+    const uint8_t* valid_bits = data->null_bitmap_data();
+    RETURN_NOT_OK((WriteNullableBatch<ParquetType, ArrowType>(
+        writer, length, def_levels, rep_levels, valid_bits, offset, data_ptr)));
   } else {
     return Status::NotImplemented("no support for max definition level > 1 yet");
   }
@@ -229,37 +244,27 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   auto data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
-  if (writer->descr()->max_definition_level() == 0) {
+  int16_t* def_levels;
+  int16_t* rep_levels;
+  RETURN_NOT_OK(
+      GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
+
+  if (writer->descr()->schema_node()->is_required() ||  (data->null_count() == 0)) {
     // no nulls, just dump the data
     for (int64_t i = 0; i < length; i++) {
       buffer_ptr[i] = BitUtil::GetBit(data_ptr, offset + i);
     }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, nullptr, nullptr, buffer_ptr));
+    // TODO(PARQUET-644): write boolean values as a packed bitmap
+    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
   } else if (writer->descr()->max_definition_level() == 1) {
-    RETURN_NOT_OK(def_levels_buffer_.Resize(length * sizeof(int16_t)));
-    int16_t* def_levels_ptr =
-        reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
-    if (data->null_count() == 0) {
-      std::fill(def_levels_ptr, def_levels_ptr + length, 1);
-      for (int64_t i = 0; i < length; i++) {
-        buffer_ptr[i] = BitUtil::GetBit(data_ptr, offset + i);
+    int buffer_idx = 0;
+    for (int i = 0; i < length; i++) {
+      if (data->IsNull(offset + i)) {
+      } else {
+        buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
       }
-      // TODO(PARQUET-644): write boolean values as a packed bitmap
-      PARQUET_CATCH_NOT_OK(
-          writer->WriteBatch(length, def_levels_ptr, nullptr, buffer_ptr));
-    } else {
-      int buffer_idx = 0;
-      for (int i = 0; i < length; i++) {
-        if (data->IsNull(offset + i)) {
-          def_levels_ptr[i] = 0;
-        } else {
-          def_levels_ptr[i] = 1;
-          buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
-        }
-      }
-      PARQUET_CATCH_NOT_OK(
-          writer->WriteBatch(length, def_levels_ptr, nullptr, buffer_ptr));
     }
+    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
   } else {
     return Status::NotImplemented("no support for max definition level > 1 yet");
   }
@@ -325,32 +330,28 @@ Status FileWriter::Impl::WriteColumnChunk(
     DCHECK(data_ptr != nullptr);
   }
   auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
-  if (writer->descr()->max_definition_level() > 0) {
-    RETURN_NOT_OK(def_levels_buffer_.Resize(length * sizeof(int16_t)));
-  }
-  int16_t* def_levels_ptr = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
-  if (writer->descr()->max_definition_level() == 0 || data->null_count() == 0) {
+  int16_t* def_levels;
+  int16_t* rep_levels;
+  RETURN_NOT_OK(
+      GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
+
+  if (writer->descr()->schema_node()->is_required() || data->null_count() == 0) {
     // no nulls, just dump the data
     for (int64_t i = 0; i < length; i++) {
       buffer_ptr[i] =
           ByteArray(data->value_length(i + offset), data_ptr + data->value_offset(i));
     }
-    if (writer->descr()->max_definition_level() > 0) {
-      std::fill(def_levels_ptr, def_levels_ptr + length, 1);
-    }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels_ptr, nullptr, buffer_ptr));
+    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
   } else if (writer->descr()->max_definition_level() == 1) {
     int buffer_idx = 0;
     for (int64_t i = 0; i < length; i++) {
       if (data->IsNull(offset + i)) {
-        def_levels_ptr[i] = 0;
       } else {
-        def_levels_ptr[i] = 1;
         buffer_ptr[buffer_idx++] = ByteArray(
             data->value_length(i + offset), data_ptr + data->value_offset(i + offset));
       }
     }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels_ptr, nullptr, buffer_ptr));
+    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
   } else {
     return Status::NotImplemented("no support for max definition level > 1 yet");
   }

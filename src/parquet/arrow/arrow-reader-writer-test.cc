@@ -253,11 +253,14 @@ class TestParquetIO : public ::testing::Test {
     ASSERT_TRUE(values->Equals(chunked_array->chunk(0)));
   }
 
-  void PrepareListTable(int64_t size, bool nullable_lists, bool nullable_elements, int64_t null_count, std::shared_ptr<Table>* out) {
+  void PrepareListTable(int64_t size, bool nullable_lists, bool nullable_elements,
+      int64_t null_count, std::shared_ptr<Table>* out) {
     std::shared_ptr<Array> values;
-    ASSERT_OK(NullableArray<TestType>(size * size, nullable_elements ? null_count : 0, kDefaultSeed, &values));
+    ASSERT_OK(NullableArray<TestType>(
+        size * size, nullable_elements ? null_count : 0, kDefaultSeed, &values));
     std::shared_ptr<ListArray> lists;
-    ASSERT_OK(MakeListArary(values, size, nullable_lists ? null_count : 0, nullable_elements, &lists));
+    ASSERT_OK(MakeListArary(
+        values, size, nullable_lists ? null_count : 0, nullable_elements, &lists));
     *out = MakeSimpleTable(lists, nullable_lists);
   }
 
