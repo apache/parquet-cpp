@@ -55,8 +55,8 @@ class FileWriter::Impl {
 
   Status NewRowGroup(int64_t chunk_size);
   template <typename ParquetType, typename ArrowType>
-  Status TypedWriteBatch(
-      ColumnWriter* writer, const PrimitiveArray* data, int64_t offset, int64_t length);
+  Status TypedWriteBatch(ColumnWriter* writer, const PrimitiveArray* data, int64_t offset,
+      int64_t length, const int16_t* def_levels, const int16_t* rep_levels);
 
   template <typename ParquetType, typename ArrowType>
   Status WriteNullableBatch(TypedColumnWriter<ParquetType>* writer, int64_t length,
@@ -163,17 +163,14 @@ Status FileWriter::Impl::GenerateLevels(ColumnWriter* writer, const Array* data,
 
 template <typename ParquetType, typename ArrowType>
 Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
-    const PrimitiveArray* data, int64_t offset, int64_t length) {
+    const PrimitiveArray* data, int64_t offset, int64_t length, const int16_t* def_levels,
+    const int16_t* rep_levels) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
 
   DCHECK((offset + length) <= data->length());
   auto data_ptr = reinterpret_cast<const ArrowCType*>(data->data()->data()) + offset;
   auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
-  int16_t* def_levels;
-  int16_t* rep_levels;
-  RETURN_NOT_OK(
-      GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
 
   if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
     // no nulls, just dump the data
@@ -238,16 +235,12 @@ NULLABLE_BATCH_FAST_PATH(DoubleType, ::arrow::DoubleType, double)
 template <>
 Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
     ColumnWriter* column_writer, const PrimitiveArray* data, int64_t offset,
-    int64_t length) {
+    int64_t length, const int16_t* def_levels, const int16_t* rep_levels) {
   DCHECK((offset + length) <= data->length());
   RETURN_NOT_OK(data_buffer_.Resize(length));
   auto data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
-  int16_t* def_levels;
-  int16_t* rep_levels;
-  RETURN_NOT_OK(
-      GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
 
   if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
     // no nulls, just dump the data
@@ -277,15 +270,20 @@ Status FileWriter::Impl::Close() {
   return Status::OK();
 }
 
-#define TYPED_BATCH_CASE(ENUM, ArrowType, ParquetType)                            \
-  case ::arrow::Type::ENUM:                                                       \
-    return TypedWriteBatch<ParquetType, ArrowType>(writer, data, offset, length); \
+#define TYPED_BATCH_CASE(ENUM, ArrowType, ParquetType)         \
+  case ::arrow::Type::ENUM:                                    \
+    return TypedWriteBatch<ParquetType, ArrowType>(            \
+        writer, data, offset, length, def_levels, rep_levels); \
     break;
 
 Status FileWriter::Impl::WriteColumnChunk(
     const PrimitiveArray* data, int64_t offset, int64_t length) {
   ColumnWriter* writer;
   PARQUET_CATCH_NOT_OK(writer = row_group_writer_->NextColumn());
+
+  int16_t* def_levels;
+  int16_t* rep_levels;
+  RETURN_NOT_OK(GenerateLevels(writer, data, offset, length, &def_levels, &rep_levels));
   switch (data->type_enum()) {
     TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
     TYPED_BATCH_CASE(UINT8, ::arrow::UInt8Type, Int32Type)
@@ -297,10 +295,10 @@ Status FileWriter::Impl::WriteColumnChunk(
         // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
         // to use the larger Int64Type to store them lossless.
         return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(
-            writer, data, offset, length);
+            writer, data, offset, length, def_levels, rep_levels);
       } else {
         return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(
-            writer, data, offset, length);
+            writer, data, offset, length, def_levels, rep_levels);
       }
       TYPED_BATCH_CASE(INT32, ::arrow::Int32Type, Int32Type)
       TYPED_BATCH_CASE(UINT64, ::arrow::UInt64Type, Int64Type)
