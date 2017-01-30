@@ -249,7 +249,7 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   RETURN_NOT_OK(
       GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
 
-  if (writer->descr()->schema_node()->is_required() ||  (data->null_count() == 0)) {
+  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
     // no nulls, just dump the data
     for (int64_t i = 0; i < length; i++) {
       buffer_ptr[i] = BitUtil::GetBit(data_ptr, offset + i);
@@ -259,8 +259,7 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   } else if (writer->descr()->max_definition_level() == 1) {
     int buffer_idx = 0;
     for (int i = 0; i < length; i++) {
-      if (data->IsNull(offset + i)) {
-      } else {
+      if (!data->IsNull(offset + i)) {
         buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
       }
     }
@@ -345,8 +344,7 @@ Status FileWriter::Impl::WriteColumnChunk(
   } else if (writer->descr()->max_definition_level() == 1) {
     int buffer_idx = 0;
     for (int64_t i = 0; i < length; i++) {
-      if (data->IsNull(offset + i)) {
-      } else {
+      if (!data->IsNull(offset + i)) {
         buffer_ptr[buffer_idx++] = ByteArray(
             data->value_length(i + offset), data_ptr + data->value_offset(i + offset));
       }
