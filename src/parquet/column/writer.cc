@@ -399,7 +399,11 @@ inline int64_t TypedColumnWriter<DType>::WriteMiniBatchSpaced(int64_t num_values
     throw ParquetException("More rows were written in the column chunk than expected");
   }
 
-  WriteValuesSpaced(spaced_values_to_write, valid_bits, valid_bits_offset, values);
+  if (descr_->schema_node()->is_optional()) {
+    WriteValuesSpaced(spaced_values_to_write, valid_bits, valid_bits_offset, values);
+  } else {
+    WriteValues(values_to_write, values);
+  }
   *num_spaced_written = spaced_values_to_write;
 
   if (page_statistics_ != nullptr) {
@@ -459,14 +463,14 @@ void TypedColumnWriter<DType>::WriteBatchSpaced(int64_t num_values,
   for (int round = 0; round < num_batches; round++) {
     int64_t offset = round * write_batch_size;
     WriteMiniBatchSpaced(write_batch_size, &def_levels[offset], &rep_levels[offset],
-        valid_bits, valid_bits_offset + offset, values + values_offset,
+        valid_bits, valid_bits_offset + values_offset, values + values_offset,
         &num_spaced_written);
     values_offset += num_spaced_written;
   }
   // Write the remaining values
   int64_t offset = num_batches * write_batch_size;
   WriteMiniBatchSpaced(num_remaining, &def_levels[offset], &rep_levels[offset],
-      valid_bits, valid_bits_offset + offset, values + values_offset,
+      valid_bits, valid_bits_offset + values_offset, values + values_offset,
       &num_spaced_written);
 }
 
