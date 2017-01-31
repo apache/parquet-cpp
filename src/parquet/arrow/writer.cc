@@ -55,7 +55,7 @@ class FileWriter::Impl {
 
   Status NewRowGroup(int64_t chunk_size);
   template <typename ParquetType, typename ArrowType>
-  Status TypedWriteBatch(ColumnWriter* writer, const PrimitiveArray* data, int64_t offset,
+  Status TypedWriteBatch(ColumnWriter* writer, const Array* data, int64_t offset,
       int64_t num_values, int64_t num_levels, const int16_t* def_levels,
       const int16_t* rep_levels);
 
@@ -165,12 +165,13 @@ Status FileWriter::Impl::GenerateLevels(ColumnWriter* writer, const Array* data,
 
 template <typename ParquetType, typename ArrowType>
 Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
-    const PrimitiveArray* data, int64_t offset, int64_t num_values, int64_t num_levels,
+    const Array* array, int64_t offset, int64_t num_values, int64_t num_levels,
     const int16_t* def_levels, const int16_t* rep_levels) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
 
-  DCHECK((offset + num_values) <= data->length());
+  DCHECK((offset + num_values) <= array->length());
+  auto data = static_cast<const PrimitiveArray*>(array);
   auto data_ptr = reinterpret_cast<const ArrowCType*>(data->data()->data()) + offset;
   auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
 
@@ -235,11 +236,12 @@ NULLABLE_BATCH_FAST_PATH(DoubleType, ::arrow::DoubleType, double)
 //   ArrowType::c_type to ParquetType::c_type
 template <>
 Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
-    ColumnWriter* column_writer, const PrimitiveArray* data, int64_t offset,
+    ColumnWriter* column_writer, const Array* array, int64_t offset,
     int64_t num_values, int64_t num_levels, const int16_t* def_levels,
     const int16_t* rep_levels) {
-  DCHECK((offset + num_values) <= data->length());
+  DCHECK((offset + num_values) <= array->length());
   RETURN_NOT_OK(data_buffer_.Resize(num_values));
+  auto data = static_cast<const BooleanArray*>(array);
   auto data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
@@ -252,6 +254,46 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   }
   PARQUET_CATCH_NOT_OK(
       writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+  PARQUET_CATCH_NOT_OK(writer->Close());
+  return Status::OK();
+}
+
+template <>
+Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
+    ColumnWriter* column_writer, const Array* array, int64_t offset,
+    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels) {
+  DCHECK((offset + num_values) <= array->length());
+  RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(ByteArray)));
+  auto data = static_cast<const BinaryArray*>(array);
+  auto buffer_ptr = reinterpret_cast<ByteArray*>(data_buffer_.mutable_data());
+  // In the case of an array consisting of only empty strings or all null,
+  // data->data() points already to a nullptr, thus data->data()->data() will
+  // segfault.
+  const uint8_t* data_ptr = nullptr;
+  if (data->data()) {
+    data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
+    DCHECK(data_ptr != nullptr);
+  }
+  auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
+
+  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
+    // no nulls, just dump the data
+    for (int64_t i = 0; i < num_values; i++) {
+      buffer_ptr[i] =
+          ByteArray(data->value_length(i + offset), data_ptr + data->value_offset(i));
+    }
+    PARQUET_CATCH_NOT_OK(writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+  } else {
+    int buffer_idx = 0;
+    for (int64_t i = 0; i < num_values; i++) {
+      if (!data->IsNull(offset + i)) {
+        buffer_ptr[buffer_idx++] = ByteArray(
+            data->value_length(i + offset), data_ptr + data->value_offset(i + offset));
+      }
+    }
+    PARQUET_CATCH_NOT_OK(writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+  }
   PARQUET_CATCH_NOT_OK(writer->Close());
   return Status::OK();
 }
@@ -309,44 +351,12 @@ Status FileWriter::Impl::WriteColumnChunk(
     const BinaryArray* data, int64_t offset, int64_t length) {
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
-  DCHECK((offset + length) <= data->length());
-  RETURN_NOT_OK(data_buffer_.Resize(length * sizeof(ByteArray)));
-  auto buffer_ptr = reinterpret_cast<ByteArray*>(data_buffer_.mutable_data());
-  // In the case of an array consisting of only empty strings or all null,
-  // data->data() points already to a nullptr, thus data->data()->data() will
-  // segfault.
-  const uint8_t* data_ptr = nullptr;
-  if (data->data()) {
-    data_ptr = reinterpret_cast<const uint8_t*>(data->data()->data());
-    DCHECK(data_ptr != nullptr);
-  }
-  auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
   int16_t* def_levels;
   int16_t* rep_levels;
   RETURN_NOT_OK(
       GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
-
-  if (writer->descr()->schema_node()->is_required() || data->null_count() == 0) {
-    // no nulls, just dump the data
-    for (int64_t i = 0; i < length; i++) {
-      buffer_ptr[i] =
-          ByteArray(data->value_length(i + offset), data_ptr + data->value_offset(i));
-    }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
-  } else if (writer->descr()->max_definition_level() == 1) {
-    int buffer_idx = 0;
-    for (int64_t i = 0; i < length; i++) {
-      if (!data->IsNull(offset + i)) {
-        buffer_ptr[buffer_idx++] = ByteArray(
-            data->value_length(i + offset), data_ptr + data->value_offset(i + offset));
-      }
-    }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(length, def_levels, rep_levels, buffer_ptr));
-  } else {
-    return Status::NotImplemented("no support for max definition level > 1 yet");
-  }
-  PARQUET_CATCH_NOT_OK(writer->Close());
-  return Status::OK();
+  return TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
+    column_writer, data, offset, length, length, def_levels, rep_levels);
 }
 
 template <typename ParquetType, typename ArrowType>
@@ -356,60 +366,8 @@ Status FileWriter::Impl::WriteListBatch(ColumnWriter* column_writer,
   const int32_t* raw_offsets = data->raw_offsets();
   int64_t values_offset = raw_offsets[offset];
   int64_t num_values = raw_offsets[offset + length] - raw_offsets[offset];
-  auto values = static_cast<PrimitiveArray*>(data->values().get());
-  return TypedWriteBatch<ParquetType, ArrowType>(column_writer, values, values_offset,
+  return TypedWriteBatch<ParquetType, ArrowType>(column_writer, data->values().get(), values_offset,
       num_values, num_levels, def_levels, rep_levels);
-}
-
-template <>
-Status FileWriter::Impl::WriteListBatch<ByteArrayType, ::arrow::BinaryType>(
-    ColumnWriter* column_writer, const ListArray* data, int64_t offset, int64_t length,
-    int64_t num_levels, const int16_t* rep_levels, const int16_t* def_levels) {
-  return WriteBinaryListBatch(
-      column_writer, data, offset, length, num_levels, rep_levels, def_levels);
-}
-
-template <>
-Status FileWriter::Impl::WriteListBatch<ByteArrayType, ::arrow::StringType>(
-    ColumnWriter* column_writer, const ListArray* data, int64_t offset, int64_t length,
-    int64_t num_levels, const int16_t* rep_levels, const int16_t* def_levels) {
-  return WriteBinaryListBatch(
-      column_writer, data, offset, length, num_levels, rep_levels, def_levels);
-}
-
-Status FileWriter::Impl::WriteBinaryListBatch(ColumnWriter* column_writer,
-    const ListArray* data, int64_t offset, int64_t length, int64_t num_levels,
-    const int16_t* rep_levels, const int16_t* def_levels) {
-  auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
-  const int32_t* raw_offsets = data->raw_offsets();
-  int64_t num_values = raw_offsets[offset + length] - raw_offsets[offset];
-  RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(ByteArray), false));
-  auto buffer_ptr = reinterpret_cast<ByteArray*>(data_buffer_.mutable_data());
-  // In the case of an array consisting of only empty strings or all null,
-  // data->values()->data() points already to a nullptr, thus
-  // data->values()->data()->data() will segfault.
-  const uint8_t* data_ptr = nullptr;
-  auto values = static_cast<BinaryArray*>(data->values().get());
-  if (values->data()) {
-    data_ptr = reinterpret_cast<const uint8_t*>(values->data()->data());
-    DCHECK(data_ptr != nullptr);
-  }
-
-  const uint8_t* valid_values = data->values()->null_bitmap_data();
-  INIT_BITSET(valid_values, raw_offsets[offset]);
-  int64_t buffer_idx = 0;
-  for (int64_t i = 0; i < num_values; i++) {
-    if (bitset_valid_values & (1 << bit_offset_valid_values)) {
-      buffer_ptr[buffer_idx++] = ByteArray(
-          values->value_length(i + offset), data_ptr + values->value_offset(i + offset));
-    }
-    READ_NEXT_BITSET(valid_values);
-  }
-
-  PARQUET_CATCH_NOT_OK(
-      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
-
-  return Status::OK();
 }
 
 FileWriter::FileWriter(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
@@ -546,7 +504,7 @@ Status FileWriter::Impl::WriteColumnChunk(
       WRITE_LIST_BATCH_CASE(FLOAT, FloatType, FloatType)
       WRITE_LIST_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
       WRITE_LIST_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
-      WRITE_LIST_BATCH_CASE(STRING, StringType, ByteArrayType)
+      WRITE_LIST_BATCH_CASE(STRING, BinaryType, ByteArrayType)
     default:
       std::stringstream ss;
       ss << "Data type not supported as list value: " << data->value_type()->ToString();
