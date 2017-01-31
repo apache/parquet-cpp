@@ -66,14 +66,6 @@ class FileWriter::Impl {
 
   Status GenerateLevels(ColumnWriter* column_writer, const Array* data, int64_t offset,
       int64_t length, int16_t** def_levels, int16_t** rep_levels);
-  template <typename ParquetType, typename ArrowType>
-  Status WriteListBatch(ColumnWriter* writer, const ListArray* data, int64_t offset,
-      int64_t length, int64_t num_levels, const int16_t* rep_levels,
-      const int16_t* def_levels);
-
-  Status WriteBinaryListBatch(ColumnWriter* writer, const ListArray* data, int64_t offset,
-      int64_t length, int64_t num_levels, const int16_t* rep_levels,
-      const int16_t* def_levels);
 
   // TODO(uwe): Same code as in reader.cc the only difference is the name of the temporary
   // buffer
@@ -163,9 +155,9 @@ Status FileWriter::Impl::GenerateLevels(ColumnWriter* writer, const Array* data,
 }
 
 template <typename ParquetType, typename ArrowType>
-Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
-    const Array* array, int64_t offset, int64_t num_values, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels) {
+Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer, const Array* array,
+    int64_t offset, int64_t num_values, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
 
@@ -235,9 +227,8 @@ NULLABLE_BATCH_FAST_PATH(DoubleType, ::arrow::DoubleType, double)
 //   ArrowType::c_type to ParquetType::c_type
 template <>
 Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
-    ColumnWriter* column_writer, const Array* array, int64_t offset,
-    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
-    const int16_t* rep_levels) {
+    ColumnWriter* column_writer, const Array* array, int64_t offset, int64_t num_values,
+    int64_t num_levels, const int16_t* def_levels, const int16_t* rep_levels) {
   DCHECK((offset + num_values) <= array->length());
   RETURN_NOT_OK(data_buffer_.Resize(num_values));
   auto data = static_cast<const BooleanArray*>(array);
@@ -259,9 +250,8 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
 
 template <>
 Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
-    ColumnWriter* column_writer, const Array* array, int64_t offset,
-    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
-    const int16_t* rep_levels) {
+    ColumnWriter* column_writer, const Array* array, int64_t offset, int64_t num_values,
+    int64_t num_levels, const int16_t* def_levels, const int16_t* rep_levels) {
   DCHECK((offset + num_values) <= array->length());
   RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(ByteArray)));
   auto data = static_cast<const BinaryArray*>(array);
@@ -282,7 +272,8 @@ Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
       buffer_ptr[i] =
           ByteArray(data->value_length(i + offset), data_ptr + data->value_offset(i));
     }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+    PARQUET_CATCH_NOT_OK(
+        writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
   } else {
     int buffer_idx = 0;
     for (int64_t i = 0; i < num_values; i++) {
@@ -291,7 +282,8 @@ Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
             data->value_length(i + offset), data_ptr + data->value_offset(i + offset));
       }
     }
-    PARQUET_CATCH_NOT_OK(writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+    PARQUET_CATCH_NOT_OK(
+        writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
   }
   PARQUET_CATCH_NOT_OK(writer->Close());
   return Status::OK();
@@ -355,18 +347,7 @@ Status FileWriter::Impl::WriteColumnChunk(
   RETURN_NOT_OK(
       GenerateLevels(column_writer, data, offset, length, &def_levels, &rep_levels));
   return TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
-    column_writer, data, offset, length, length, def_levels, rep_levels);
-}
-
-template <typename ParquetType, typename ArrowType>
-Status FileWriter::Impl::WriteListBatch(ColumnWriter* column_writer,
-    const ListArray* data, int64_t offset, int64_t length, int64_t num_levels,
-    const int16_t* rep_levels, const int16_t* def_levels) {
-  const int32_t* raw_offsets = data->raw_offsets();
-  int64_t values_offset = raw_offsets[offset];
-  int64_t num_values = raw_offsets[offset + length] - raw_offsets[offset];
-  return TypedWriteBatch<ParquetType, ArrowType>(column_writer, data->values().get(), values_offset,
-      num_values, num_levels, def_levels, rep_levels);
+      column_writer, data, offset, length, length, def_levels, rep_levels);
 }
 
 FileWriter::FileWriter(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
@@ -431,9 +412,11 @@ Status FileWriter::Impl::WriteColumnChunk(
   Int16Builder def_levels(pool_, ::arrow::int16());
   const uint8_t* valid_lists = data->null_bitmap_data();
   const int32_t* raw_offsets = data->raw_offsets();
+  int64_t values_offset = raw_offsets[offset];
+  int64_t num_values = raw_offsets[offset + length] - values_offset;
   INIT_BITSET(valid_lists, offset);
   const uint8_t* valid_values = data->values()->null_bitmap_data();
-  INIT_BITSET(valid_values, raw_offsets[offset]);
+  INIT_BITSET(valid_values, values_offset);
   for (int64_t i = 0; i < length; i++) {
     rep_levels.Append(0);
     if (bitset_valid_lists & (1 << bit_offset_valid_lists)) {
@@ -473,10 +456,11 @@ Status FileWriter::Impl::WriteColumnChunk(
   const int16_t* rep_levels_ptr = reinterpret_cast<const int16_t*>(
       static_cast<Int16Array*>(rep_levels_array.get())->data()->data());
 
-#define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                        \
-  case ::arrow::Type::ArrowEnum:                                                        \
-    RETURN_NOT_OK((WriteListBatch<ParquetType, ::arrow::ArrowType>(column_writer, data, \
-        offset, length, rep_levels_array->length(), rep_levels_ptr, def_levels_ptr)));  \
+#define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                     \
+  case ::arrow::Type::ArrowEnum:                                                     \
+    return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(column_writer,           \
+        data->values().get(), values_offset, num_values, rep_levels_array->length(), \
+        def_levels_ptr, rep_levels_ptr);                                             \
     break;
 
   switch (data->value_type()->type) {
@@ -484,11 +468,13 @@ Status FileWriter::Impl::WriteColumnChunk(
       if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
         // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
         // to use the larger Int64Type to store them lossless.
-        RETURN_NOT_OK((WriteListBatch<Int64Type, ::arrow::UInt32Type>(column_writer, data,
-            offset, length, rep_levels_array->length(), rep_levels_ptr, def_levels_ptr)));
+        return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(column_writer,
+            data->values().get(), values_offset, num_values, rep_levels_array->length(),
+            def_levels_ptr, rep_levels_ptr);
       } else {
-        RETURN_NOT_OK((WriteListBatch<Int32Type, ::arrow::UInt32Type>(column_writer, data,
-            offset, length, rep_levels_array->length(), rep_levels_ptr, def_levels_ptr)));
+        return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(column_writer,
+            data->values().get(), values_offset, num_values, rep_levels_array->length(),
+            def_levels_ptr, rep_levels_ptr);
       }
     }
       WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)
