@@ -18,7 +18,6 @@
 #include "parquet/arrow/writer.h"
 
 #include <algorithm>
-#include <vector>
 
 #include "parquet/util/bit-util.h"
 #include "parquet/util/logging.h"
