@@ -32,6 +32,7 @@ using arrow::BinaryArray;
 using arrow::BooleanArray;
 using arrow::Int16Array;
 using arrow::Int16Builder;
+using arrow::Field;
 using arrow::MemoryPool;
 using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
@@ -357,110 +358,185 @@ Status FileWriter::NewRowGroup(int64_t chunk_size) {
   return impl_->NewRowGroup(chunk_size);
 }
 
+class LevelBuilder : public ::arrow::ArrayVisitor {
+ public:
+  LevelBuilder(MemoryPool* pool)
+      : def_levels_(pool, ::arrow::int16()), rep_levels_(pool, ::arrow::int16()) {}
+
+#define PRIMITIVE_VISIT(ArrowTypePrefix)                                \
+  Status Visit(const ::arrow::ArrowTypePrefix##Array& array) override { \
+    valid_bitmaps.push_back(array.null_bitmap_data());                  \
+    null_counts.push_back(array.null_count());                          \
+    return Status::OK();                                                \
+  }
+
+  PRIMITIVE_VISIT(Boolean)
+  PRIMITIVE_VISIT(Int8)
+  PRIMITIVE_VISIT(Int16)
+  PRIMITIVE_VISIT(Int32)
+  PRIMITIVE_VISIT(Int64)
+  PRIMITIVE_VISIT(UInt8)
+  PRIMITIVE_VISIT(UInt16)
+  PRIMITIVE_VISIT(UInt32)
+  PRIMITIVE_VISIT(UInt64)
+  PRIMITIVE_VISIT(HalfFloat)
+  PRIMITIVE_VISIT(Float)
+  PRIMITIVE_VISIT(Double)
+  PRIMITIVE_VISIT(String)
+  PRIMITIVE_VISIT(Binary)
+  PRIMITIVE_VISIT(Date)
+  PRIMITIVE_VISIT(Time)
+  PRIMITIVE_VISIT(Timestamp)
+  PRIMITIVE_VISIT(Interval)
+
+  Status Visit(const ListArray& array) override {
+    valid_bitmaps.push_back(array.null_bitmap_data());
+    null_counts.push_back(array.null_count());
+    offsets.push_back(array.raw_offsets());
+
+    return array.values()->Accept(this);
+  }
+
+#define NOT_IMPLEMENTED_VIST(ArrowTypePrefix)                           \
+  Status Visit(const ::arrow::ArrowTypePrefix##Array& array) override { \
+    return Status::NotImplemented(                                      \
+        "Level generation for ArrowTypePrefix not supported yet");      \
+  };
+
+  NOT_IMPLEMENTED_VIST(Null)
+  NOT_IMPLEMENTED_VIST(Struct)
+  NOT_IMPLEMENTED_VIST(Union)
+  NOT_IMPLEMENTED_VIST(Decimal)
+  NOT_IMPLEMENTED_VIST(Dictionary)
+
+  Status GenerateLevels(const Array* array, int64_t offset, int64_t length,
+      const std::shared_ptr<Field>& field, int64_t* num_levels,
+      std::shared_ptr<Buffer>* def_levels, std::shared_ptr<Buffer>* rep_levels) {
+    // Work downwards to extract bitmaps and offsets
+    RETURN_NOT_OK(array->Accept(this));
+
+    // Walk downwards to extract nullability
+    std::shared_ptr<Field> current_field = field;
+    nullable.push_back(current_field->nullable);
+    while (current_field->type->num_children() > 0) {
+      if (current_field->type->num_children() > 1) {
+        return Status::NotImplemented(
+            "Fields with more than one child are not supported.");
+      } else {
+        current_field = current_field->type->child(0);
+      }
+      nullable.push_back(current_field->nullable);
+    }
+
+    // Generate the levels.
+    rep_levels_.Append(0);
+    HandleListEntries(0, 0, offset, length);
+
+    std::shared_ptr<Array> def_levels_array;
+    RETURN_NOT_OK(def_levels_.Finish(&def_levels_array));
+    *def_levels = static_cast<PrimitiveArray*>(def_levels_array.get())->data();
+
+    std::shared_ptr<Array> rep_levels_array;
+    RETURN_NOT_OK(rep_levels_.Finish(&rep_levels_array));
+    *rep_levels = static_cast<PrimitiveArray*>(rep_levels_array.get())->data();
+    
+    *num_levels = rep_levels_array->length();
+    return Status::OK();
+  }
+
+  Status HandleList(int16_t def_level, int16_t rep_level, int64_t index) {
+    if (nullable[rep_level]) {
+      if (null_counts[rep_level] == 0 ||
+          BitUtil::GetBit(valid_bitmaps[rep_level], index)) {
+        return HandleNonNullList(def_level + 1, rep_level, index);
+      } else {
+        return def_levels_.Append(def_level);
+      }
+    } else {
+      return HandleNonNullList(def_level, rep_level, index);
+    }
+  }
+
+  Status HandleNonNullList(int16_t def_level, int16_t rep_level, int64_t index) {
+    int32_t inner_offset = offsets[rep_level][index];
+    int32_t inner_length = offsets[rep_level][index + 1] - inner_offset;
+    int64_t recursion_level = rep_level + 1;
+    if (inner_length == 0) {
+      return def_levels_.Append(def_level);
+      ;
+    }
+    if (recursion_level < offsets.size()) {
+      return HandleListEntries(def_level + 1, rep_level + 1, inner_offset, inner_length);
+    } else {
+      // We have reached the leaf: primitive list, handle remaining nullables
+      for (int64_t i = 0; i < inner_length; i++) {
+        if (i > 0) { rep_levels_.Append(rep_level + 1); }
+        if (nullable[recursion_level] &&
+            ((null_counts[recursion_level] == 0) ||
+                BitUtil::GetBit(valid_bitmaps[recursion_level], inner_offset + i))) {
+          RETURN_NOT_OK(def_levels_.Append(def_level + 2));
+        } else {
+          // This can be produced in two case:
+          //  * elements are nullable and this one is null (i.e. max_def_level = def_level
+          //  + 2)
+          //  * elements are non-nullable (i.e. max_def_level = def_level + 1)
+          RETURN_NOT_OK(def_levels_.Append(def_level + 1));
+        }
+      }
+      return Status::OK();
+    }
+  }
+
+  Status HandleListEntries(
+      int16_t def_level, int16_t rep_level, int64_t offset, int64_t length) {
+    for (int64_t i = 0; i < length; i++) {
+      if (i > 0) { rep_levels_.Append(rep_level); }
+      RETURN_NOT_OK(HandleList(def_level, rep_level, offset + i));
+    }
+    return Status::OK();
+  }
+
+ private:
+  Int16Builder def_levels_;
+  Int16Builder rep_levels_;
+
+  std::vector<int64_t> null_counts;
+  std::vector<const uint8_t*> valid_bitmaps;
+  std::vector<const int32_t*> offsets;
+  std::vector<bool> nullable;
+};
+
 Status FileWriter::Impl::WriteColumnChunk(
     const ListArray* data, int64_t offset, int64_t length) {
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
   DCHECK((offset + length) <= data->length());
 
+  int current_column_idx = row_group_writer_->current_column();
+  std::shared_ptr<::arrow::Schema> arrow_schema;
+  RETURN_NOT_OK(
+      FromParquetSchema(writer_->schema(), {current_column_idx - 1}, &arrow_schema));
+  LevelBuilder level_builder(pool_);
+  std::shared_ptr<Buffer> def_levels_buffer;
+  std::shared_ptr<Buffer> rep_levels_buffer;
+  int64_t num_levels;
+  RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
+      &num_levels, &def_levels_buffer, &rep_levels_buffer));
+  const int16_t* def_levels_ptr =
+      reinterpret_cast<const int16_t*>(def_levels_buffer->data());
+  const int16_t* rep_levels_ptr =
+      reinterpret_cast<const int16_t*>(rep_levels_buffer->data());
+
   auto list_type = std::static_pointer_cast<::arrow::ListType>(data->type());
-  bool nullable_elements = list_type->value_field()->nullable;
-  bool nullable_lists =
-      (column_writer->descr()->max_definition_level() == 3) ||
-      (!nullable_elements && (column_writer->descr()->max_definition_level() == 2));
-
-  if (column_writer->descr()->max_repetition_level() != 1) {
-    return Status::NotImplemented(
-        "Only primitive arrays with repetition level == 1 are supported yet");
-  }
-  // With maximum definition level 3, we have the following definition levels:
-  // 0 -> list is null
-  // 1 -> list is non-null but empty
-  // 2 -> list is non-null, element is null
-  // 3 -> list is non-null, element is non-null
-  int16_t valid_element = 3;
-  int16_t null_element = 2;
-  int16_t empty_list = 1;
-  int16_t null_list = 0;
-  if (column_writer->descr()->max_definition_level() != 3) {
-    if (column_writer->descr()->max_definition_level() > 3) {
-      return Status::NotImplemented(
-          "Only primitive arrays with max definition level <= 3 are supported yet");
-    } else if ((column_writer->descr()->max_definition_level() == 2) &&
-               nullable_elements) {
-      // Lists are required
-      valid_element = 2;
-      null_element = 1;
-      empty_list = 0;
-    } else if ((column_writer->descr()->max_definition_level() == 2) && nullable_lists) {
-      // Elements are required
-      valid_element--;
-    } else if ((column_writer->descr()->max_definition_level() == 1) && !nullable_lists &&
-               !nullable_elements) {
-      valid_element = 1;
-      null_element = 1;
-      empty_list = 0;
-      null_list = 0;
-    } else {
-      return Status::NotImplemented(
-          "Primitive arrays with max definition level == 0 aren't supported yet");
-    }
-  }
-
-  // Generate repetition levels
-  Int16Builder rep_levels(pool_, ::arrow::int16());
-  Int16Builder def_levels(pool_, ::arrow::int16());
-  const uint8_t* valid_lists = data->null_bitmap_data();
   const int32_t* raw_offsets = data->raw_offsets();
   int64_t values_offset = raw_offsets[offset];
   int64_t num_values = raw_offsets[offset + length] - values_offset;
-  INIT_BITSET(valid_lists, offset);
-  const uint8_t* valid_values = data->values()->null_bitmap_data();
-  INIT_BITSET(valid_values, values_offset);
-  for (int64_t i = 0; i < length; i++) {
-    rep_levels.Append(0);
-    if (bitset_valid_lists & (1 << bit_offset_valid_lists)) {
-      // not null, so we have offsets
-      int32_t len = raw_offsets[i + 1] - raw_offsets[i];
-      if (len == 0) {
-        def_levels.Append(empty_list);
-      } else {
-        if (bitset_valid_values & (1 << bit_offset_valid_values)) {
-          def_levels.Append(valid_element);
-        } else {
-          def_levels.Append(null_element);
-        }
-        READ_NEXT_BITSET(valid_values);
-        for (int32_t j = 1; j < len; j++) {
-          rep_levels.Append(1);
-          if (bitset_valid_values & (1 << bit_offset_valid_values)) {
-            def_levels.Append(valid_element);
-          } else {
-            def_levels.Append(null_element);
-          }
-          READ_NEXT_BITSET(valid_values);
-        }
-      }
-    } else {
-      def_levels.Append(null_list);
-    }
-    READ_NEXT_BITSET(valid_lists);
-  }
-  std::shared_ptr<Array> def_levels_array;
-  def_levels.Finish(&def_levels_array);
-  const int16_t* def_levels_ptr = reinterpret_cast<const int16_t*>(
-      static_cast<Int16Array*>(def_levels_array.get())->data()->data());
-
-  std::shared_ptr<Array> rep_levels_array;
-  rep_levels.Finish(&rep_levels_array);
-  const int16_t* rep_levels_ptr = reinterpret_cast<const int16_t*>(
-      static_cast<Int16Array*>(rep_levels_array.get())->data()->data());
 
 #define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                     \
   case ::arrow::Type::ArrowEnum:                                                     \
     return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(column_writer,           \
-        data->values().get(), values_offset, num_values, rep_levels_array->length(), \
-        def_levels_ptr, rep_levels_ptr);                                             \
+        data->values().get(), values_offset, num_values, num_levels, def_levels_ptr, \
+        rep_levels_ptr);                                                             \
     break;
 
   switch (data->value_type()->type) {
@@ -469,12 +545,12 @@ Status FileWriter::Impl::WriteColumnChunk(
         // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
         // to use the larger Int64Type to store them lossless.
         return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(column_writer,
-            data->values().get(), values_offset, num_values, rep_levels_array->length(),
-            def_levels_ptr, rep_levels_ptr);
+            data->values().get(), values_offset, num_values, num_levels, def_levels_ptr,
+            rep_levels_ptr);
       } else {
         return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(column_writer,
-            data->values().get(), values_offset, num_values, rep_levels_array->length(),
-            def_levels_ptr, rep_levels_ptr);
+            data->values().get(), values_offset, num_values, num_levels, def_levels_ptr,
+            rep_levels_ptr);
       }
     }
       WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)
