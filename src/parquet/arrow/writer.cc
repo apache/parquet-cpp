@@ -60,6 +60,8 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   Status Visit(const ::arrow::ArrowTypePrefix##Array& array) override { \
     valid_bitmaps_.push_back(array.null_bitmap_data());                 \
     null_counts_.push_back(array.null_count());                         \
+    values_type_ = array.type_enum();                                   \
+    values_array_ = &array;                                             \
     return Status::OK();                                                \
   }
 
@@ -87,6 +89,9 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
     null_counts_.push_back(array.null_count());
     offsets_.push_back(array.raw_offsets());
 
+    min_offset_idx_ = array.raw_offsets()[min_offset_idx_];
+    max_offset_idx_ = array.raw_offsets()[max_offset_idx_];
+
     return array.values()->Accept(this);
   }
 
@@ -103,10 +108,18 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   NOT_IMPLEMENTED_VIST(Dictionary)
 
   Status GenerateLevels(const Array* array, int64_t offset, int64_t length,
-      const std::shared_ptr<Field>& field, int64_t* num_levels,
-      std::shared_ptr<Buffer>* def_levels, std::shared_ptr<Buffer>* rep_levels) {
+      const std::shared_ptr<Field>& field, int64_t* values_offset,
+      ::arrow::Type::type* values_type, int64_t* num_values, int64_t* num_levels,
+      std::shared_ptr<Buffer>* def_levels, std::shared_ptr<Buffer>* rep_levels,
+      const Array** values_array) {
     // Work downwards to extract bitmaps and offsets
+    min_offset_idx_ = offset;
+    max_offset_idx_ = offset + length;
     RETURN_NOT_OK(array->Accept(this));
+    *num_values = max_offset_idx_ - min_offset_idx_;
+    *values_offset = min_offset_idx_;
+    *values_type = values_type_;
+    *values_array = values_array_;
 
     // Walk downwards to extract nullability
     std::shared_ptr<Field> current_field = field;
@@ -223,6 +236,11 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   std::vector<const uint8_t*> valid_bitmaps_;
   std::vector<const int32_t*> offsets_;
   std::vector<bool> nullable_;
+
+  int32_t min_offset_idx_;
+  int32_t max_offset_idx_;
+  ::arrow::Type::type values_type_;
+  const Array* values_array_;
 };
 
 class FileWriter::Impl {
@@ -459,9 +477,14 @@ Status FileWriter::Impl::WriteColumnChunk(
   LevelBuilder level_builder(pool_);
   std::shared_ptr<Buffer> def_levels_buffer;
   std::shared_ptr<Buffer> rep_levels_buffer;
+  int64_t values_offset;
+  ::arrow::Type::type values_type;
+  int64_t num_values;
   int64_t num_levels;
+  const Array* values_array;
   RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
-      &num_levels, &def_levels_buffer, &rep_levels_buffer));
+      &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
+      &rep_levels_buffer, &values_array));
   const int16_t* def_levels = nullptr;
   if (def_levels_buffer) {
     def_levels = reinterpret_cast<const int16_t*>(def_levels_buffer->data());
@@ -512,9 +535,14 @@ Status FileWriter::Impl::WriteColumnChunk(
   LevelBuilder level_builder(pool_);
   std::shared_ptr<Buffer> def_levels_buffer;
   std::shared_ptr<Buffer> rep_levels_buffer;
+  int64_t values_offset;
+  ::arrow::Type::type values_type;
+  int64_t num_values;
   int64_t num_levels;
+  const Array* values_array;
   RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
-      &num_levels, &def_levels_buffer, &rep_levels_buffer));
+      &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
+      &rep_levels_buffer, &values_array));
   const int16_t* def_levels = nullptr;
   if (def_levels_buffer) {
     def_levels = reinterpret_cast<const int16_t*>(def_levels_buffer->data());
@@ -548,37 +576,36 @@ Status FileWriter::Impl::WriteColumnChunk(
   LevelBuilder level_builder(pool_);
   std::shared_ptr<Buffer> def_levels_buffer;
   std::shared_ptr<Buffer> rep_levels_buffer;
+  int64_t values_offset;
+  ::arrow::Type::type values_type;
   int64_t num_levels;
+  int64_t num_values;
+  const Array* values_array;
   RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
-      &num_levels, &def_levels_buffer, &rep_levels_buffer));
+      &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
+      &rep_levels_buffer, &values_array));
   const int16_t* def_levels_ptr =
       reinterpret_cast<const int16_t*>(def_levels_buffer->data());
   const int16_t* rep_levels_ptr =
       reinterpret_cast<const int16_t*>(rep_levels_buffer->data());
 
-  auto list_type = std::static_pointer_cast<::arrow::ListType>(data->type());
-  const int32_t* raw_offsets = data->raw_offsets();
-  int64_t values_offset = raw_offsets[offset];
-  int64_t num_values = raw_offsets[offset + length] - values_offset;
-
-#define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                     \
-  case ::arrow::Type::ArrowEnum:                                                     \
-    return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(column_writer,           \
-        data->values().get(), values_offset, num_values, num_levels, def_levels_ptr, \
-        rep_levels_ptr);                                                             \
+#define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                         \
+  case ::arrow::Type::ArrowEnum:                                                         \
+    return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(column_writer, values_array, \
+        values_offset, num_values, num_levels, def_levels_ptr, rep_levels_ptr);          \
     break;
 
-  switch (data->value_type()->type) {
+  switch (values_type) {
     case ::arrow::Type::UINT32: {
       if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
         // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
         // to use the larger Int64Type to store them lossless.
         return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(column_writer,
-            data->values().get(), values_offset, num_values, num_levels, def_levels_ptr,
+            values_array, values_offset, num_values, num_levels, def_levels_ptr,
             rep_levels_ptr);
       } else {
         return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(column_writer,
-            data->values().get(), values_offset, num_values, num_levels, def_levels_ptr,
+            values_array, values_offset, num_values, num_levels, def_levels_ptr,
             rep_levels_ptr);
       }
     }
