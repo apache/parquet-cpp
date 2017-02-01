@@ -287,9 +287,7 @@ class FileWriter::Impl {
     return Status::OK();
   }
 
-  Status WriteColumnChunk(const BinaryArray* data, int64_t offset, int64_t length);
-  Status WriteColumnChunk(const ListArray* data, int64_t offset, int64_t length);
-  Status WriteColumnChunk(const PrimitiveArray* data, int64_t offset, int64_t length);
+  Status WriteColumnChunk(const Array* data, int64_t offset, int64_t length);
   Status Close();
 
   virtual ~Impl() {}
@@ -459,103 +457,6 @@ Status FileWriter::Impl::Close() {
   return Status::OK();
 }
 
-#define TYPED_BATCH_CASE(ENUM, ArrowType, ParquetType)                     \
-  case ::arrow::Type::ENUM:                                                \
-    return TypedWriteBatch<ParquetType, ArrowType>(                        \
-        writer, data, offset, length, num_levels, def_levels, rep_levels); \
-    break;
-
-Status FileWriter::Impl::WriteColumnChunk(
-    const PrimitiveArray* data, int64_t offset, int64_t length) {
-  ColumnWriter* writer;
-  PARQUET_CATCH_NOT_OK(writer = row_group_writer_->NextColumn());
-
-  int current_column_idx = row_group_writer_->current_column();
-  std::shared_ptr<::arrow::Schema> arrow_schema;
-  RETURN_NOT_OK(
-      FromParquetSchema(writer_->schema(), {current_column_idx - 1}, &arrow_schema));
-  LevelBuilder level_builder(pool_);
-  std::shared_ptr<Buffer> def_levels_buffer;
-  std::shared_ptr<Buffer> rep_levels_buffer;
-  int64_t values_offset;
-  ::arrow::Type::type values_type;
-  int64_t num_values;
-  int64_t num_levels;
-  const Array* values_array;
-  RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
-      &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
-      &rep_levels_buffer, &values_array));
-  const int16_t* def_levels = nullptr;
-  if (def_levels_buffer) {
-    def_levels = reinterpret_cast<const int16_t*>(def_levels_buffer->data());
-  }
-  const int16_t* rep_levels = nullptr;
-  if (rep_levels) {
-    rep_levels = reinterpret_cast<const int16_t*>(rep_levels_buffer->data());
-  }
-
-  switch (data->type_enum()) {
-    TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
-    TYPED_BATCH_CASE(UINT8, ::arrow::UInt8Type, Int32Type)
-    TYPED_BATCH_CASE(INT8, ::arrow::Int8Type, Int32Type)
-    TYPED_BATCH_CASE(UINT16, ::arrow::UInt16Type, Int32Type)
-    TYPED_BATCH_CASE(INT16, ::arrow::Int16Type, Int32Type)
-    case ::arrow::Type::UINT32:
-      if (writer_->properties()->version() == ParquetVersion::PARQUET_1_0) {
-        // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
-        // to use the larger Int64Type to store them lossless.
-        return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(
-            writer, data, offset, length, length, def_levels, rep_levels);
-      } else {
-        return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(
-            writer, data, offset, length, length, def_levels, rep_levels);
-      }
-      TYPED_BATCH_CASE(INT32, ::arrow::Int32Type, Int32Type)
-      TYPED_BATCH_CASE(UINT64, ::arrow::UInt64Type, Int64Type)
-      TYPED_BATCH_CASE(INT64, ::arrow::Int64Type, Int64Type)
-      TYPED_BATCH_CASE(TIMESTAMP, ::arrow::TimestampType, Int64Type)
-      TYPED_BATCH_CASE(FLOAT, ::arrow::FloatType, FloatType)
-      TYPED_BATCH_CASE(DOUBLE, ::arrow::DoubleType, DoubleType)
-      TYPED_BATCH_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
-      TYPED_BATCH_CASE(STRING, ::arrow::BinaryType, ByteArrayType)
-    default:
-      return Status::NotImplemented(data->type()->ToString());
-  }
-}
-
-Status FileWriter::Impl::WriteColumnChunk(
-    const BinaryArray* data, int64_t offset, int64_t length) {
-  ColumnWriter* column_writer;
-  PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
-
-  int current_column_idx = row_group_writer_->current_column();
-  std::shared_ptr<::arrow::Schema> arrow_schema;
-  RETURN_NOT_OK(
-      FromParquetSchema(writer_->schema(), {current_column_idx - 1}, &arrow_schema));
-  LevelBuilder level_builder(pool_);
-  std::shared_ptr<Buffer> def_levels_buffer;
-  std::shared_ptr<Buffer> rep_levels_buffer;
-  int64_t values_offset;
-  ::arrow::Type::type values_type;
-  int64_t num_values;
-  int64_t num_levels;
-  const Array* values_array;
-  RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
-      &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
-      &rep_levels_buffer, &values_array));
-  const int16_t* def_levels = nullptr;
-  if (def_levels_buffer) {
-    def_levels = reinterpret_cast<const int16_t*>(def_levels_buffer->data());
-  }
-  const int16_t* rep_levels = nullptr;
-  if (rep_levels) {
-    rep_levels = reinterpret_cast<const int16_t*>(rep_levels_buffer->data());
-  }
-
-  return TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
-      column_writer, data, offset, length, length, def_levels, rep_levels);
-}
-
 FileWriter::FileWriter(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer)
     : impl_(new FileWriter::Impl(pool, std::move(writer))) {}
 
@@ -564,7 +465,7 @@ Status FileWriter::NewRowGroup(int64_t chunk_size) {
 }
 
 Status FileWriter::Impl::WriteColumnChunk(
-    const ListArray* data, int64_t offset, int64_t length) {
+    const Array* data, int64_t offset, int64_t length) {
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
   DCHECK((offset + length) <= data->length());
@@ -584,15 +485,19 @@ Status FileWriter::Impl::WriteColumnChunk(
   RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
       &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
       &rep_levels_buffer, &values_array));
-  const int16_t* def_levels_ptr =
-      reinterpret_cast<const int16_t*>(def_levels_buffer->data());
-  const int16_t* rep_levels_ptr =
-      reinterpret_cast<const int16_t*>(rep_levels_buffer->data());
+  const int16_t* def_levels = nullptr;
+  if (def_levels_buffer) {
+    def_levels = reinterpret_cast<const int16_t*>(def_levels_buffer->data());
+  }
+  const int16_t* rep_levels = nullptr;
+  if (rep_levels_buffer) {
+    rep_levels = reinterpret_cast<const int16_t*>(rep_levels_buffer->data());
+  }
 
-#define WRITE_LIST_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                         \
+#define WRITE_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                              \
   case ::arrow::Type::ArrowEnum:                                                         \
     return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(column_writer, values_array, \
-        values_offset, num_values, num_levels, def_levels_ptr, rep_levels_ptr);          \
+        values_offset, num_values, num_levels, def_levels, rep_levels);                  \
     break;
 
   switch (values_type) {
@@ -601,30 +506,28 @@ Status FileWriter::Impl::WriteColumnChunk(
         // Parquet 1.0 reader cannot read the UINT_32 logical type. Thus we need
         // to use the larger Int64Type to store them lossless.
         return TypedWriteBatch<Int64Type, ::arrow::UInt32Type>(column_writer,
-            values_array, values_offset, num_values, num_levels, def_levels_ptr,
-            rep_levels_ptr);
+            values_array, values_offset, num_values, num_levels, def_levels, rep_levels);
       } else {
         return TypedWriteBatch<Int32Type, ::arrow::UInt32Type>(column_writer,
-            values_array, values_offset, num_values, num_levels, def_levels_ptr,
-            rep_levels_ptr);
+            values_array, values_offset, num_values, num_levels, def_levels, rep_levels);
       }
     }
-      WRITE_LIST_BATCH_CASE(BOOL, BooleanType, BooleanType)
-      WRITE_LIST_BATCH_CASE(INT8, Int8Type, Int32Type)
-      WRITE_LIST_BATCH_CASE(UINT8, UInt8Type, Int32Type)
-      WRITE_LIST_BATCH_CASE(INT16, Int16Type, Int32Type)
-      WRITE_LIST_BATCH_CASE(UINT16, UInt16Type, Int32Type)
-      WRITE_LIST_BATCH_CASE(INT32, Int32Type, Int32Type)
-      WRITE_LIST_BATCH_CASE(INT64, Int64Type, Int64Type)
-      WRITE_LIST_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
-      WRITE_LIST_BATCH_CASE(UINT64, UInt64Type, Int64Type)
-      WRITE_LIST_BATCH_CASE(FLOAT, FloatType, FloatType)
-      WRITE_LIST_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
-      WRITE_LIST_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
-      WRITE_LIST_BATCH_CASE(STRING, BinaryType, ByteArrayType)
+      WRITE_BATCH_CASE(BOOL, BooleanType, BooleanType)
+      WRITE_BATCH_CASE(INT8, Int8Type, Int32Type)
+      WRITE_BATCH_CASE(UINT8, UInt8Type, Int32Type)
+      WRITE_BATCH_CASE(INT16, Int16Type, Int32Type)
+      WRITE_BATCH_CASE(UINT16, UInt16Type, Int32Type)
+      WRITE_BATCH_CASE(INT32, Int32Type, Int32Type)
+      WRITE_BATCH_CASE(INT64, Int64Type, Int64Type)
+      WRITE_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
+      WRITE_BATCH_CASE(UINT64, UInt64Type, Int64Type)
+      WRITE_BATCH_CASE(FLOAT, FloatType, FloatType)
+      WRITE_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
+      WRITE_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
+      WRITE_BATCH_CASE(STRING, BinaryType, ByteArrayType)
     default:
       std::stringstream ss;
-      ss << "Data type not supported as list value: " << data->value_type()->ToString();
+      ss << "Data type not supported as list value: " << values_array->type()->ToString();
       return Status::NotImplemented(ss.str());
   }
 
@@ -637,22 +540,7 @@ Status FileWriter::WriteColumnChunk(
     const ::arrow::Array* array, int64_t offset, int64_t length) {
   int64_t real_length = length;
   if (length == -1) { real_length = array->length(); }
-  if (is_primitive(array->type_enum())) {
-    auto primitive_array = dynamic_cast<const PrimitiveArray*>(array);
-    DCHECK(primitive_array);
-    return impl_->WriteColumnChunk(primitive_array, offset, real_length);
-  } else if (is_binary_like(array->type_enum())) {
-    auto binary_array = static_cast<const ::arrow::BinaryArray*>(array);
-    DCHECK(binary_array);
-    return impl_->WriteColumnChunk(binary_array, offset, real_length);
-  } else if (array->type_enum() == ::arrow::Type::LIST) {
-    auto list_array = static_cast<const ListArray*>(array);
-    return impl_->WriteColumnChunk(list_array, offset, real_length);
-  }
-
-  std::stringstream ss;
-  ss << "No support for the given array type: " << array->type()->ToString();
-  return Status::NotImplemented(ss.str());
+  return impl_->WriteColumnChunk(array, offset, real_length);
 }
 
 Status FileWriter::Close() {
