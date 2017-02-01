@@ -58,8 +58,8 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
 
 #define PRIMITIVE_VISIT(ArrowTypePrefix)                                \
   Status Visit(const ::arrow::ArrowTypePrefix##Array& array) override { \
-    valid_bitmaps.push_back(array.null_bitmap_data());                  \
-    null_counts.push_back(array.null_count());                          \
+    valid_bitmaps_.push_back(array.null_bitmap_data());                 \
+    null_counts_.push_back(array.null_count());                         \
     return Status::OK();                                                \
   }
 
@@ -83,9 +83,9 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   PRIMITIVE_VISIT(Interval)
 
   Status Visit(const ListArray& array) override {
-    valid_bitmaps.push_back(array.null_bitmap_data());
-    null_counts.push_back(array.null_count());
-    offsets.push_back(array.raw_offsets());
+    valid_bitmaps_.push_back(array.null_bitmap_data());
+    null_counts_.push_back(array.null_count());
+    offsets_.push_back(array.raw_offsets());
 
     return array.values()->Accept(this);
   }
@@ -110,7 +110,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
 
     // Walk downwards to extract nullability
     std::shared_ptr<Field> current_field = field;
-    nullable.push_back(current_field->nullable);
+    nullable_.push_back(current_field->nullable);
     while (current_field->type->num_children() > 0) {
       if (current_field->type->num_children() > 1) {
         return Status::NotImplemented(
@@ -118,14 +118,14 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
       } else {
         current_field = current_field->type->child(0);
       }
-      nullable.push_back(current_field->nullable);
+      nullable_.push_back(current_field->nullable);
     }
 
     // Generate the levels.
-    if (nullable.size() == 1) {
+    if (nullable_.size() == 1) {
       // We have a PrimitiveArray
       *rep_levels = nullptr;
-      if (nullable[0]) {
+      if (nullable_[0]) {
         RETURN_NOT_OK(def_levels_buffer_->Resize(length * sizeof(int16_t)));
         auto def_levels_ptr =
             reinterpret_cast<int16_t*>(def_levels_buffer_->mutable_data());
@@ -166,9 +166,9 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   }
 
   Status HandleList(int16_t def_level, int16_t rep_level, int64_t index) {
-    if (nullable[rep_level]) {
-      if (null_counts[rep_level] == 0 ||
-          BitUtil::GetBit(valid_bitmaps[rep_level], index)) {
+    if (nullable_[rep_level]) {
+      if (null_counts_[rep_level] == 0 ||
+          BitUtil::GetBit(valid_bitmaps_[rep_level], index)) {
         return HandleNonNullList(def_level + 1, rep_level, index);
       } else {
         return def_levels_.Append(def_level);
@@ -179,19 +179,19 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   }
 
   Status HandleNonNullList(int16_t def_level, int16_t rep_level, int64_t index) {
-    int32_t inner_offset = offsets[rep_level][index];
-    int32_t inner_length = offsets[rep_level][index + 1] - inner_offset;
+    int32_t inner_offset = offsets_[rep_level][index];
+    int32_t inner_length = offsets_[rep_level][index + 1] - inner_offset;
     int64_t recursion_level = rep_level + 1;
     if (inner_length == 0) { return def_levels_.Append(def_level); }
-    if (recursion_level < offsets.size()) {
+    if (recursion_level < offsets_.size()) {
       return HandleListEntries(def_level + 1, rep_level + 1, inner_offset, inner_length);
     } else {
       // We have reached the leaf: primitive list, handle remaining nullables
       for (int64_t i = 0; i < inner_length; i++) {
         if (i > 0) { rep_levels_.Append(rep_level + 1); }
-        if (nullable[recursion_level] &&
-            ((null_counts[recursion_level] == 0) ||
-                BitUtil::GetBit(valid_bitmaps[recursion_level], inner_offset + i))) {
+        if (nullable_[recursion_level] &&
+            ((null_counts_[recursion_level] == 0) ||
+                BitUtil::GetBit(valid_bitmaps_[recursion_level], inner_offset + i))) {
           RETURN_NOT_OK(def_levels_.Append(def_level + 2));
         } else {
           // This can be produced in two case:
@@ -219,10 +219,10 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   std::shared_ptr<PoolBuffer> def_levels_buffer_;
   Int16Builder rep_levels_;
 
-  std::vector<int64_t> null_counts;
-  std::vector<const uint8_t*> valid_bitmaps;
-  std::vector<const int32_t*> offsets;
-  std::vector<bool> nullable;
+  std::vector<int64_t> null_counts_;
+  std::vector<const uint8_t*> valid_bitmaps_;
+  std::vector<const int32_t*> offsets_;
+  std::vector<bool> nullable_;
 };
 
 class FileWriter::Impl {
