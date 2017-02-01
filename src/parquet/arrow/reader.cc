@@ -144,27 +144,9 @@ class ColumnReader::Impl {
 FileReader::Impl::Impl(MemoryPool* pool, std::unique_ptr<ParquetFileReader> reader)
     : pool_(pool), reader_(std::move(reader)), num_threads_(1) {}
 
-bool FileReader::Impl::CheckForFlatColumn(const ColumnDescriptor* descr) {
-  if ((descr->max_repetition_level() > 0) || (descr->max_definition_level() > 1)) {
-    return false;
-  } else if ((descr->max_definition_level() == 1) &&
-             (descr->schema_node()->repetition() != Repetition::OPTIONAL)) {
-    return false;
-  }
-  return true;
-}
-
-bool FileReader::Impl::CheckForFlatListColumn(const ColumnDescriptor* descr) {
-  return (descr->max_repetition_level() == 1) && (descr->max_definition_level() <= 3);
-}
-
 Status FileReader::Impl::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
   const SchemaDescriptor* schema = reader_->metadata()->schema();
 
-  if (!CheckForFlatColumn(schema->Column(i)) &&
-      !CheckForFlatListColumn(schema->Column(i))) {
-    return Status::Invalid("The requested column is neither flat nor a flat list");
-  }
   std::unique_ptr<ColumnReader::Impl> impl(
       new ColumnReader::Impl(pool_, schema->Column(i), reader_.get(), i));
   *out = std::unique_ptr<ColumnReader>(new ColumnReader(std::move(impl)));
