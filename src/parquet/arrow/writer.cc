@@ -300,7 +300,6 @@ class FileWriter::Impl {
   // Buffer used for storing the data of an array converted to the physical type
   // as expected by parquet-cpp.
   PoolBuffer data_buffer_;
-  PoolBuffer def_levels_buffer_;
   std::unique_ptr<ParquetFileWriter> writer_;
   RowGroupWriter* row_group_writer_;
 };
