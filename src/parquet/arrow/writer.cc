@@ -197,7 +197,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
     int32_t inner_length = offsets_[rep_level][index + 1] - inner_offset;
     int64_t recursion_level = rep_level + 1;
     if (inner_length == 0) { return def_levels_.Append(def_level); }
-    if (recursion_level < offsets_.size()) {
+    if (recursion_level < static_cast<int64_t>(offsets_.size())) {
       return HandleListEntries(def_level + 1, rep_level + 1, inner_offset, inner_length);
     } else {
       // We have reached the leaf: primitive list, handle remaining nullables
