@@ -18,6 +18,7 @@
 #include "parquet/arrow/writer.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "parquet/util/bit-util.h"
 #include "parquet/util/logging.h"
@@ -51,7 +52,7 @@ namespace BitUtil = ::arrow::BitUtil;
 
 class LevelBuilder : public ::arrow::ArrayVisitor {
  public:
-  LevelBuilder(MemoryPool* pool)
+  explicit LevelBuilder(MemoryPool* pool)
       : def_levels_(pool, ::arrow::int16()), rep_levels_(pool, ::arrow::int16()) {
     def_levels_buffer_ = std::make_shared<PoolBuffer>(pool);
   }

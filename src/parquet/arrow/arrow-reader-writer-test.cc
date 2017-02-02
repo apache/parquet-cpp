@@ -269,10 +269,10 @@ class TestParquetIO : public ::testing::Test {
       std::shared_ptr<Table>* out) {
     std::shared_ptr<Array> values;
     ASSERT_OK(NullableArray<TestType>(
-        size * size * size, nullable_elements ? null_count : 0, kDefaultSeed, &values));
+        size * 6, nullable_elements ? null_count : 0, kDefaultSeed, &values));
     std::shared_ptr<ListArray> lists;
     ASSERT_OK(MakeListArary(
-        values, size * size, nullable_lists ? null_count : 0, nullable_elements, &lists));
+        values, size * 3, nullable_lists ? null_count : 0, nullable_elements, &lists));
     std::shared_ptr<ListArray> parent_lists;
     ASSERT_OK(MakeListArary(lists, size, nullable_parent_lists ? null_count : 0,
         nullable_lists, &parent_lists));

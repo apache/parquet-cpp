@@ -522,95 +522,102 @@ Status ColumnReader::Impl::InitValidBits(int batch_size) {
 Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     const int16_t* rep_levels, int64_t total_levels_read, std::shared_ptr<Array>* array) {
   if (descr_->max_repetition_level() > 0) {
-    bool can_parse = false;
-    // All definition levels above this mean that we have an element on
-    // the lowest nesting level, i.e. the list is neither null nor empty.
-    int16_t minimal_valid_def_level = 2;
-    bool nullable_lists = true;
-    if (descr_->max_repetition_level() == 1) {
-      if (descr_->max_definition_level() == 3) {
-        // optional group my_list (LIST) {
-        //   repeated group list {
-        //     optional primitive_type element;
-        //   }
-        can_parse = true;
-      } else if (descr_->max_definition_level() == 2) {
-        if (descr_->schema_node()->is_optional()) {
-          // required group my_list (LIST) {
-          //   repeated group list {
-          //     optional primitive_type element;
-          //   }
-          can_parse = true;
-          minimal_valid_def_level--;
-          nullable_lists = false;
-        } else if (descr_->schema_node()->is_required()) {
-          // optional group my_list (LIST) {
-          //   repeated group list {
-          //     required primitive_type element;
-          //   }
-          // }
-          can_parse = true;
+    std::shared_ptr<::arrow::Schema> arrow_schema;
+    RETURN_NOT_OK(
+        FromParquetSchema(reader_->metadata()->schema(), {column_index_}, &arrow_schema));
+
+    // Walk downwards to extract nullability
+    std::shared_ptr<Field> current_field = arrow_schema->field(0);
+    std::vector<bool> nullable;
+    std::vector<std::shared_ptr<::arrow::Int32Builder>> offset_builders;
+    std::vector<std::shared_ptr<::arrow::BooleanBuilder>> valid_bits_builders;
+    nullable.push_back(current_field->nullable);
+    while (current_field->type->num_children() > 0) {
+      if (current_field->type->num_children() > 1) {
+        return Status::NotImplemented(
+            "Fields with more than one child are not supported.");
+      } else {
+        if (current_field->type->type != ::arrow::Type::LIST) {
+          return Status::NotImplemented(
+              "Currently only nesting with Lists is supported.");
         }
-      } else if (descr_->max_definition_level() == 1) {
-        // required group my_list (LIST) {
-        //   repeated group list {
-        //     required primitive_type element;
-        //   }
-        // }
-        can_parse = true;
-        minimal_valid_def_level--;
-        nullable_lists = false;
+        current_field = current_field->type->child(0);
       }
+      offset_builders.emplace_back(
+          std::make_shared<::arrow::Int32Builder>(pool_, ::arrow::int32()));
+      valid_bits_builders.emplace_back(
+          std::make_shared<::arrow::BooleanBuilder>(pool_, ::arrow::boolean()));
+      nullable.push_back(current_field->nullable);
     }
 
-    if (can_parse) {
-      std::shared_ptr<Array> values_array = *array;
-      int32_t offset = 0;
-      ::arrow::Int32Builder offset_builder(pool_, ::arrow::int32());
-      for (int64_t i = 0; i < total_levels_read; i++) {
-        if ((rep_levels[i] == 0) || (i == 0)) {
-          // New List
-          offset_builder.Append(offset);
-        }
-        if (def_levels[i] >= minimal_valid_def_level) {
-          // We have a (possibly null) element on the lowest nesting level
-          offset++;
-        }
-      }
-      offset_builder.Append(offset);
-      std::shared_ptr<Array> offset_array;
-      offset_builder.Finish(&offset_array);
-      std::shared_ptr<Buffer> offset_buffer =
-          static_cast<Int32Array*>(offset_array.get())->data();
+    // This describes the minimal definition that describes a level that
+    // reflects a value in the primitive values array.
+    int16_t values_def_level = descr_->max_definition_level();
+    if (nullable[nullable.size() - 1]) { values_def_level--; }
 
-      // Build list null bitmap, if def_levels == 0, then the list is null.
-      int valid_lists_size = ::arrow::BitUtil::CeilByte(offset_array->length()) / 8;
-      auto valid_lists = std::make_shared<PoolBuffer>(pool_);
-      int null_lists_count = 0;
-      if (nullable_lists) {
-        RETURN_NOT_OK(valid_lists->Resize(valid_lists_size));
-        uint8_t* valid_lists_ptr = valid_lists->mutable_data();
-        memset(valid_lists_ptr, 0, valid_lists_size);
-        int valid_lists_idx = 0;
-        for (int64_t i = 0; i < total_levels_read; i++) {
-          if ((rep_levels[i] == 0) || (i == 0)) {
-            if (def_levels[i] > 0) {
-              ::arrow::BitUtil::SetBit(valid_lists_ptr, valid_lists_idx);
-            } else {
-              null_lists_count++;
-            }
-            valid_lists_idx++;
+    // The definition levels that are needed so that a list is declared
+    // as empty and not null.
+    std::vector<int16_t> empty_def_level(offset_builders.size());
+    int def_level = 0;
+    for (int i = 0; i < offset_builders.size(); i++) {
+      if (nullable[i]) { def_level++; }
+      empty_def_level[i] = def_level;
+      def_level++;
+    }
+
+    int32_t values_offset = 0;
+    std::vector<int64_t> null_counts(offset_builders.size(), 0);
+    for (int64_t i = 0; i < total_levels_read; i++) {
+      int16_t rep_level = rep_levels[i];
+      if (rep_level < descr_->max_repetition_level()) {
+        for (int64_t j = rep_level; j < offset_builders.size(); j++) {
+          if (j == (offset_builders.size() - 1)) {
+            RETURN_NOT_OK(offset_builders[j]->Append(values_offset));
+          } else {
+            RETURN_NOT_OK(offset_builders[j]->Append(offset_builders[j + 1]->length()));
+          }
+
+          if (((empty_def_level[j] - 1) == def_levels[i]) && (nullable[j])) {
+            valid_bits_builders[j]->Append(false);
+            null_counts[j]++;
+            break;
+          } else {
+            valid_bits_builders[j]->Append(true);
+            if (empty_def_level[j] == def_levels[i]) { break; }
           }
         }
       }
-
-      *array = std::make_shared<ListArray>(::arrow::list(field_->type),
-          offset_array->length() - 1, offset_buffer, values_array, null_lists_count,
-          valid_lists);
-    } else {
-      return Status::NotImplemented(
-          "Only flat lists with a max definition level of 1, 2 or 3 are supported yet");
+      if (def_levels[i] >= values_def_level) { values_offset++; }
     }
+    // Add the final offset to all lists
+    for (int64_t j = 0; j < offset_builders.size(); j++) {
+      if (j == (offset_builders.size() - 1)) {
+        RETURN_NOT_OK(offset_builders[j]->Append(values_offset));
+      } else {
+        RETURN_NOT_OK(offset_builders[j]->Append(offset_builders[j + 1]->length()));
+      }
+    }
+
+    std::vector<std::shared_ptr<Buffer>> offsets;
+    std::vector<std::shared_ptr<Buffer>> valid_bits;
+    std::vector<int64_t> list_lengths;
+    for (int64_t j = 0; j < offset_builders.size(); j++) {
+      list_lengths.push_back(offset_builders[j]->length() - 1);
+      std::shared_ptr<Array> array;
+      RETURN_NOT_OK(offset_builders[j]->Finish(&array));
+      offsets.emplace_back(std::static_pointer_cast<Int32Array>(array)->data());
+      RETURN_NOT_OK(valid_bits_builders[j]->Finish(&array));
+      valid_bits.emplace_back(std::static_pointer_cast<BooleanArray>(array)->data());
+    }
+
+    std::shared_ptr<Array> output(*array);
+    for (int64_t j = offset_builders.size() - 1; j >= 0; j--) {
+      auto list_type = std::make_shared<::arrow::ListType>(
+          std::make_shared<Field>("item", output->type(), nullable[j + 1]));
+      output = std::make_shared<::arrow::ListArray>(
+          list_type, list_lengths[j], offsets[j], output, null_counts[j], valid_bits[j]);
+    }
+    *array = output;
   }
   return Status::OK();
 }
@@ -825,10 +832,6 @@ Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out
     // Exhausted all row groups.
     *out = nullptr;
     return Status::OK();
-  }
-
-  if (descr_->max_repetition_level() > 1) {
-    return Status::NotImplemented("Repetition levels above 1 aren't yet supported.");
   }
 
   switch (field_->type->type) {
