@@ -163,7 +163,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
       }
       *num_levels = length;
     } else {
-      rep_levels_.Append(0);
+      RETURN_NOT_OK(rep_levels_.Append(0));
       HandleListEntries(0, 0, offset, length);
 
       std::shared_ptr<Array> def_levels_array;
@@ -202,7 +202,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
     } else {
       // We have reached the leaf: primitive list, handle remaining nullables
       for (int64_t i = 0; i < inner_length; i++) {
-        if (i > 0) { rep_levels_.Append(rep_level + 1); }
+        if (i > 0) { RETURN_NOT_OK(rep_levels_.Append(rep_level + 1)); }
         if (nullable_[recursion_level] &&
             ((null_counts_[recursion_level] == 0) ||
                 BitUtil::GetBit(valid_bitmaps_[recursion_level], inner_offset + i))) {
@@ -222,7 +222,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   Status HandleListEntries(
       int16_t def_level, int16_t rep_level, int64_t offset, int64_t length) {
     for (int64_t i = 0; i < length; i++) {
-      if (i > 0) { rep_levels_.Append(rep_level); }
+      if (i > 0) { RETURN_NOT_OK(rep_levels_.Append(rep_level)); }
       RETURN_NOT_OK(HandleList(def_level, rep_level, offset + i));
     }
     return Status::OK();

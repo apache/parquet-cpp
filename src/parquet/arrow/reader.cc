@@ -578,11 +578,11 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
           }
 
           if (((empty_def_level[j] - 1) == def_levels[i]) && (nullable[j])) {
-            valid_bits_builders[j]->Append(false);
+            RETURN_NOT_OK(valid_bits_builders[j]->Append(false));
             null_counts[j]++;
             break;
           } else {
-            valid_bits_builders[j]->Append(true);
+            RETURN_NOT_OK(valid_bits_builders[j]->Append(true));
             if (empty_def_level[j] == def_levels[i]) { break; }
           }
         }
