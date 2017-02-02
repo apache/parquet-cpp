@@ -550,6 +550,7 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
       nullable.push_back(current_field->nullable);
     }
 
+    int64_t list_depth = offset_builders.size();
     // This describes the minimal definition that describes a level that
     // reflects a value in the primitive values array.
     int16_t values_def_level = descr_->max_definition_level();
@@ -557,21 +558,21 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
 
     // The definition levels that are needed so that a list is declared
     // as empty and not null.
-    std::vector<int16_t> empty_def_level(offset_builders.size());
+    std::vector<int16_t> empty_def_level(list_depth);
     int def_level = 0;
-    for (int i = 0; i < offset_builders.size(); i++) {
+    for (int i = 0; i < list_depth; i++) {
       if (nullable[i]) { def_level++; }
       empty_def_level[i] = def_level;
       def_level++;
     }
 
     int32_t values_offset = 0;
-    std::vector<int64_t> null_counts(offset_builders.size(), 0);
+    std::vector<int64_t> null_counts(list_depth, 0);
     for (int64_t i = 0; i < total_levels_read; i++) {
       int16_t rep_level = rep_levels[i];
       if (rep_level < descr_->max_repetition_level()) {
-        for (int64_t j = rep_level; j < offset_builders.size(); j++) {
-          if (j == (offset_builders.size() - 1)) {
+        for (int64_t j = rep_level; j < list_depth; j++) {
+          if (j == (list_depth - 1)) {
             RETURN_NOT_OK(offset_builders[j]->Append(values_offset));
           } else {
             RETURN_NOT_OK(offset_builders[j]->Append(offset_builders[j + 1]->length()));
@@ -590,8 +591,8 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
       if (def_levels[i] >= values_def_level) { values_offset++; }
     }
     // Add the final offset to all lists
-    for (int64_t j = 0; j < offset_builders.size(); j++) {
-      if (j == (offset_builders.size() - 1)) {
+    for (int64_t j = 0; j < list_depth; j++) {
+      if (j == (list_depth - 1)) {
         RETURN_NOT_OK(offset_builders[j]->Append(values_offset));
       } else {
         RETURN_NOT_OK(offset_builders[j]->Append(offset_builders[j + 1]->length()));
@@ -601,7 +602,7 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     std::vector<std::shared_ptr<Buffer>> offsets;
     std::vector<std::shared_ptr<Buffer>> valid_bits;
     std::vector<int64_t> list_lengths;
-    for (int64_t j = 0; j < offset_builders.size(); j++) {
+    for (int64_t j = 0; j < list_depth; j++) {
       list_lengths.push_back(offset_builders[j]->length() - 1);
       std::shared_ptr<Array> array;
       RETURN_NOT_OK(offset_builders[j]->Finish(&array));
@@ -611,7 +612,7 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     }
 
     std::shared_ptr<Array> output(*array);
-    for (int64_t j = offset_builders.size() - 1; j >= 0; j--) {
+    for (int64_t j = list_depth - 1; j >= 0; j--) {
       auto list_type = std::make_shared<::arrow::ListType>(
           std::make_shared<Field>("item", output->type(), nullable[j + 1]));
       output = std::make_shared<::arrow::ListArray>(
