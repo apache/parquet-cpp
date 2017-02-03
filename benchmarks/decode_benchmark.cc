@@ -20,11 +20,7 @@
 #include <stdio.h>
 
 #include "parquet/compression.h"
-#include "parquet/encodings/delta-bit-pack-encoding.h"
-#include "parquet/encodings/delta-byte-array-encoding.h"
-#include "parquet/encodings/delta-length-byte-array-encoding.h"
-#include "parquet/encodings/dictionary-encoding.h"
-#include "parquet/encodings/plain-encoding.h"
+#include "parquet/encoding-internal.h"
 #include "parquet/util/stopwatch.h"
 
 /**
