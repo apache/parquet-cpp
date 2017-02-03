@@ -609,7 +609,6 @@ endif()
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/column)
-add_subdirectory(src/parquet/encodings)
 add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/util)
 
