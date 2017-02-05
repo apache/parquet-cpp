@@ -47,11 +47,16 @@ if (NOT THRIFT_FOUND)
   set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
   set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
   set(THRIFT_VENDORED 1)
+  string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
+  set(THRIFT_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+  set(THRIFT_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+  set(THRIFT_CONFIGURE_COMMAND
+        ./configure "CFLAGS=${THRIFT_C_FLAGS}" "CXXFLAGS=${THRIFT_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}")
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+      CONFIGURE_COMMAND ${THRIFT_CONFIGURE_COMMAND}
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
@@ -62,7 +67,7 @@ if (NOT THRIFT_FOUND)
       )
   else()
     ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+        CONFIGURE_COMMAND ./configure "CFLAGS=${THRIFT_C_FLAGS}" "CXXFLAGS=${THRIFT_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
