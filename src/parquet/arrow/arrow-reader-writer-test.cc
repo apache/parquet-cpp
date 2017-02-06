@@ -587,8 +587,10 @@ TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
       int64_data_ptr[i] = static_cast<int64_t>(uint32_data_ptr[i]);
     }
   }
+
+  const int32_t kOffset = 0;
   ASSERT_OK(MakePrimitiveArray(std::make_shared<::arrow::Int64Type>(), values->length(),
-      int64_data, values->null_count(), values->null_bitmap(), &expected_values));
+          int64_data, values->null_bitmap(), values->null_count(), kOffset, &expected_values));
   this->ReadAndCheckSingleColumnTable(expected_values);
 }
 
@@ -596,7 +598,7 @@ using TestStringParquetIO = TestParquetIO<::arrow::StringType>;
 
 TEST_F(TestStringParquetIO, EmptyStringColumnRequiredWrite) {
   std::shared_ptr<Array> values;
-  ::arrow::StringBuilder builder(::arrow::default_memory_pool(), ::arrow::utf8());
+  ::arrow::StringBuilder builder(::arrow::default_memory_pool());
   for (size_t i = 0; i < SMALL_SIZE; i++) {
     builder.Append("");
   }
