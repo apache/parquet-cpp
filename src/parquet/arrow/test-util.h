@@ -59,8 +59,8 @@ typename std::enable_if<is_arrow_int<ArrowType>::value, Status>::type NonNullArr
   ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
 
   // Passing data type so this will work with TimestampType too
-  ::arrow::NumericBuilder<ArrowType> builder(::arrow::default_memory_pool(),
-      std::make_shared<ArrowType>());
+  ::arrow::NumericBuilder<ArrowType> builder(
+      ::arrow::default_memory_pool(), std::make_shared<ArrowType>());
   builder.Append(values.data(), values.size());
   return builder.Finish(out);
 }
