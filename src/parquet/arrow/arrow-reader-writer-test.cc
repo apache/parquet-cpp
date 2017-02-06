@@ -491,7 +491,7 @@ TEST_F(TestInt96ParquetIO, ReadIntoTimestamp) {
   // 2nd January 1970, 11:35min 145738543ns
   Int96 day;
   day.value[2] = 2440589l;
-  int64_t seconds = ((1 * 24 + 11) * 60 + 35) * 60;
+  int64_t seconds = (11 * 60 + 35) * 60;
   *(reinterpret_cast<int64_t*>(&(day.value))) =
       seconds * 1000l * 1000l * 1000l + 145738543;
   // Compute the corresponding nanosecond timestamp
