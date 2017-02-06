@@ -33,6 +33,11 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 message(STATUS "Boost include dir: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
 
+string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
+# Set -fPIC on all external projects and include the main CXX_FLAGS
+set(EP_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+set(EP_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+
 # find thrift headers and libs
 find_package(Thrift)
 
@@ -47,11 +52,13 @@ if (NOT THRIFT_FOUND)
   set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
   set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
   set(THRIFT_VENDORED 1)
+  set(THRIFT_CONFIGURE_COMMAND
+      ./configure "CFLAGS=${EP_C_FLAGS}" "CXXFLAGS=${EP_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}")
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+      CONFIGURE_COMMAND ${THRIFT_CONFIGURE_COMMAND}
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
@@ -62,7 +69,7 @@ if (NOT THRIFT_FOUND)
       )
   else()
     ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ./configure "CXXFLAGS=-fPIC" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+        CONFIGURE_COMMAND ./configure "CFLAGS=${THRIFT_C_FLAGS}" "CXXFLAGS=${THRIFT_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
@@ -138,6 +145,8 @@ if (NOT BROTLI_FOUND)
   set(BROTLI_LIBRARY_COMMON "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlicommon.a")
   set(BROTLI_VENDORED 1)
   set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                        "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
+                        "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
                         -DCMAKE_INSTALL_PREFIX=${BROTLI_PREFIX}
                         -DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}
                         -DBUILD_SHARED_LIBS=OFF)
@@ -184,7 +193,7 @@ if (NOT ZLIB_FOUND)
   set(ZLIB_VENDORED 1)
   set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                       -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
-                      -DCMAKE_C_FLAGS=-fPIC
+                      -DCMAKE_C_FLAGS=${EP_C_FLAGS}
                       -DBUILD_SHARED_LIBS=OFF)
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
@@ -216,9 +225,9 @@ if(PARQUET_BUILD_TESTS)
 
   if("$ENV{GTEST_HOME}" STREQUAL "")
     if(APPLE)
-      set(GTEST_CMAKE_CXX_FLAGS "-fPIC -std=c++11 -stdlib=libc++ -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes")
+      set(GTEST_CMAKE_CXX_FLAGS "${EP_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes")
     else()
-      set(GTEST_CMAKE_CXX_FLAGS "-fPIC")
+      set(GTEST_CMAKE_CXX_FLAGS "${EP_CXX_FLAGS}")
     endif()
 
     set(GTEST_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/googletest_ep-prefix/src/googletest_ep")
@@ -272,12 +281,6 @@ if(PARQUET_BUILD_BENCHMARKS)
   add_custom_target(runbenchmark ctest -L benchmark)
 
   if("$ENV{GBENCHMARK_HOME}" STREQUAL "")
-    if(APPLE)
-      set(GBENCHMARK_CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++")
-    else()
-      set(GBENCHMARK_CMAKE_CXX_FLAGS "--std=c++11")
-    endif()
-
     set(GBENCHMARK_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/gbenchmark_ep/src/gbenchmark_ep-install")
     set(GBENCHMARK_INCLUDE_DIR "${GBENCHMARK_PREFIX}/include")
     set(GBENCHMARK_STATIC_LIB "${GBENCHMARK_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}benchmark${CMAKE_STATIC_LIBRARY_SUFFIX}")
@@ -285,7 +288,7 @@ if(PARQUET_BUILD_BENCHMARKS)
     set(GBENCHMARK_CMAKE_ARGS
           "-DCMAKE_BUILD_TYPE=Release"
           "-DCMAKE_INSTALL_PREFIX:PATH=${GBENCHMARK_PREFIX}"
-          "-DCMAKE_CXX_FLAGS=-fPIC ${GBENCHMARK_CMAKE_CXX_FLAGS}")
+          "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}")
     if (CMAKE_VERSION VERSION_GREATER "3.2")
       # BUILD_BYPRODUCTS is a 3.2+ feature
       ExternalProject_Add(gbenchmark_ep
@@ -324,6 +327,8 @@ if (NOT ARROW_FOUND)
   set(ARROW_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow.a")
   set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow_io.a")
   set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+    -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
     -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
     -DARROW_JEMALLOC=OFF
     -DARROW_BUILD_TESTS=OFF)
