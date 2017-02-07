@@ -103,10 +103,18 @@ if (NOT SNAPPY_FOUND)
   set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/libsnappy.a")
   set(SNAPPY_VENDORED 1)
 
+  if (${UPPERCASE_BUILD_TYPE} EQUAL "RELEASE")
+    if (APPLE)
+      set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O1'")
+    else()
+      set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O2'")
+    endif()
+  endif()
+
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}"
+      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
       BUILD_IN_SOURCE 1
       BUILD_COMMAND ${MAKE}
       INSTALL_DIR ${SNAPPY_PREFIX}
@@ -115,7 +123,7 @@ if (NOT SNAPPY_FOUND)
       )
   else()
     ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}"
+      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
       BUILD_IN_SOURCE 1
       BUILD_COMMAND ${MAKE}
       INSTALL_DIR ${SNAPPY_PREFIX}
