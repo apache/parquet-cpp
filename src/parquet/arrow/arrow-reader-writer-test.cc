@@ -310,7 +310,8 @@ class TestParquetIO : public ::testing::Test {
 typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type,
     ::arrow::UInt16Type, ::arrow::Int16Type, ::arrow::Int32Type, ::arrow::UInt64Type,
     ::arrow::Int64Type, ::arrow::TimestampType, ::arrow::FloatType, ::arrow::DoubleType,
-    ::arrow::StringType, ::arrow::BinaryType> TestTypes;
+    ::arrow::StringType, ::arrow::BinaryType>
+    TestTypes;
 
 TYPED_TEST_CASE(TestParquetIO, TestTypes);
 
@@ -434,7 +435,8 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
   FileWriter writer(default_memory_pool(), this->MakeWriter(schema));
   for (int i = 0; i < 4; i++) {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(chunk_size));
-    ASSERT_OK_NO_THROW(writer.WriteColumnChunk(values.get(), i * chunk_size, chunk_size));
+    std::shared_ptr<Array> sliced_array = values->Slice(i * chunk_size, chunk_size);
+    ASSERT_OK_NO_THROW(writer.WriteColumnChunk(sliced_array.get()));
   }
   ASSERT_OK_NO_THROW(writer.Close());
 
@@ -494,7 +496,8 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalChunkedWrite) {
   FileWriter writer(::arrow::default_memory_pool(), this->MakeWriter(schema));
   for (int i = 0; i < 4; i++) {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(chunk_size));
-    ASSERT_OK_NO_THROW(writer.WriteColumnChunk(values.get(), i * chunk_size, chunk_size));
+    std::shared_ptr<Array> sliced_array = values->Slice(i * chunk_size, chunk_size);
+    ASSERT_OK_NO_THROW(writer.WriteColumnChunk(sliced_array.get()));
   }
   ASSERT_OK_NO_THROW(writer.Close());
 

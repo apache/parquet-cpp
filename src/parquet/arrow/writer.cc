@@ -110,14 +110,13 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   NOT_IMPLEMENTED_VIST(Decimal)
   NOT_IMPLEMENTED_VIST(Dictionary)
 
-  Status GenerateLevels(const Array* array, int64_t offset, int64_t length,
-      const std::shared_ptr<Field>& field, int64_t* values_offset,
-      ::arrow::Type::type* values_type, int64_t* num_values, int64_t* num_levels,
-      std::shared_ptr<Buffer>* def_levels, std::shared_ptr<Buffer>* rep_levels,
-      const Array** values_array) {
+  Status GenerateLevels(const Array* array, const std::shared_ptr<Field>& field,
+      int64_t* values_offset, ::arrow::Type::type* values_type, int64_t* num_values,
+      int64_t* num_levels, std::shared_ptr<Buffer>* def_levels,
+      std::shared_ptr<Buffer>* rep_levels, const Array** values_array) {
     // Work downwards to extract bitmaps and offsets
-    min_offset_idx_ = offset;
-    max_offset_idx_ = offset + length;
+    min_offset_idx_ = 0;
+    max_offset_idx_ = array->length();
     RETURN_NOT_OK(array->Accept(this));
     *num_values = max_offset_idx_ - min_offset_idx_;
     *values_offset = min_offset_idx_;
@@ -142,15 +141,15 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
       // We have a PrimitiveArray
       *rep_levels = nullptr;
       if (nullable_[0]) {
-        RETURN_NOT_OK(def_levels_buffer_->Resize(length * sizeof(int16_t)));
+        RETURN_NOT_OK(def_levels_buffer_->Resize(array->length() * sizeof(int16_t)));
         auto def_levels_ptr =
             reinterpret_cast<int16_t*>(def_levels_buffer_->mutable_data());
         if (array->null_count() == 0) {
-          std::fill(def_levels_ptr, def_levels_ptr + length, 1);
+          std::fill(def_levels_ptr, def_levels_ptr + array->length(), 1);
         } else {
           const uint8_t* valid_bits = array->null_bitmap_data();
-          INIT_BITSET(valid_bits, offset + array->offset());
-          for (int i = 0; i < length; i++) {
+          INIT_BITSET(valid_bits, array->offset());
+          for (int i = 0; i < array->length(); i++) {
             if (bitset_valid_bits & (1 << bit_offset_valid_bits)) {
               def_levels_ptr[i] = 1;
             } else {
@@ -163,10 +162,10 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
       } else {
         *def_levels = nullptr;
       }
-      *num_levels = length;
+      *num_levels = array->length();
     } else {
       RETURN_NOT_OK(rep_levels_.Append(0));
-      HandleListEntries(0, 0, offset, length);
+      HandleListEntries(0, 0, 0, array->length());
 
       std::shared_ptr<Array> def_levels_array;
       RETURN_NOT_OK(def_levels_.Finish(&def_levels_array));
@@ -292,7 +291,7 @@ class FileWriter::Impl {
     return Status::OK();
   }
 
-  Status WriteColumnChunk(const Array* data, int64_t offset, int64_t length);
+  Status WriteColumnChunk(const Array* data);
   Status Close();
 
   virtual ~Impl() {}
@@ -470,11 +469,9 @@ Status FileWriter::NewRowGroup(int64_t chunk_size) {
   return impl_->NewRowGroup(chunk_size);
 }
 
-Status FileWriter::Impl::WriteColumnChunk(
-    const Array* data, int64_t offset, int64_t length) {
+Status FileWriter::Impl::WriteColumnChunk(const Array* data) {
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
-  DCHECK((offset + length) <= data->length());
 
   int current_column_idx = row_group_writer_->current_column();
   std::shared_ptr<::arrow::Schema> arrow_schema;
@@ -488,9 +485,9 @@ Status FileWriter::Impl::WriteColumnChunk(
   int64_t num_levels;
   int64_t num_values;
   const Array* values_array;
-  RETURN_NOT_OK(level_builder.GenerateLevels(data, offset, length, arrow_schema->field(0),
-      &values_offset, &values_type, &num_values, &num_levels, &def_levels_buffer,
-      &rep_levels_buffer, &values_array));
+  RETURN_NOT_OK(level_builder.GenerateLevels(data, arrow_schema->field(0), &values_offset,
+      &values_type, &num_values, &num_levels, &def_levels_buffer, &rep_levels_buffer,
+      &values_array));
   const int16_t* def_levels = nullptr;
   if (def_levels_buffer) {
     def_levels = reinterpret_cast<const int16_t*>(def_levels_buffer->data());
@@ -542,11 +539,8 @@ Status FileWriter::Impl::WriteColumnChunk(
   return Status::OK();
 }
 
-Status FileWriter::WriteColumnChunk(
-    const ::arrow::Array* array, int64_t offset, int64_t length) {
-  int64_t real_length = length;
-  if (length == -1) { real_length = array->length(); }
-  return impl_->WriteColumnChunk(array, offset, real_length);
+Status FileWriter::WriteColumnChunk(const ::arrow::Array* array) {
+  return impl_->WriteColumnChunk(array);
 }
 
 Status FileWriter::Close() {

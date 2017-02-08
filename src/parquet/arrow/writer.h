@@ -50,8 +50,7 @@ class PARQUET_EXPORT FileWriter {
   FileWriter(::arrow::MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer);
 
   ::arrow::Status NewRowGroup(int64_t chunk_size);
-  ::arrow::Status WriteColumnChunk(
-      const ::arrow::Array* data, int64_t offset = 0, int64_t length = -1);
+  ::arrow::Status WriteColumnChunk(const ::arrow::Array* data);
   ::arrow::Status Close();
 
   virtual ~FileWriter();
