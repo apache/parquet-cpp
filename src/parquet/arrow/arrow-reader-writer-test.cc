@@ -258,10 +258,12 @@ class TestParquetIO : public ::testing::Test {
     std::shared_ptr<Array> values;
     ASSERT_OK(NullableArray<TestType>(
         size * size, nullable_elements ? null_count : 0, kDefaultSeed, &values));
+    // Also test that slice offsets are respected
+    values = values->Slice(5, values->length() - 5);
     std::shared_ptr<ListArray> lists;
     ASSERT_OK(MakeListArary(
         values, size, nullable_lists ? null_count : 0, nullable_elements, &lists));
-    *out = MakeSimpleTable(lists, nullable_lists);
+    *out = MakeSimpleTable(lists->Slice(3, size - 6), nullable_lists);
   }
 
   void PrepareListOfListTable(int64_t size, bool nullable_parent_lists,
@@ -352,6 +354,36 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalReadWrite) {
   this->WriteColumn(schema, values);
 
   this->ReadAndCheckSingleColumnFile(values.get());
+}
+
+TYPED_TEST(TestParquetIO, SingleColumnRequiredSliceWrite) {
+  std::shared_ptr<Array> values;
+  ASSERT_OK(NonNullArray<TypeParam>(2 * SMALL_SIZE, &values));
+  std::shared_ptr<GroupNode> schema = this->MakeSchema(Repetition::REQUIRED);
+
+  std::shared_ptr<Array> sliced_values = values->Slice(SMALL_SIZE / 2, SMALL_SIZE);
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(sliced_values.get());
+
+  // Slice offset 1 higher
+  sliced_values = values->Slice(SMALL_SIZE / 2 + 1, SMALL_SIZE);
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(sliced_values.get());
+}
+
+TYPED_TEST(TestParquetIO, SingleColumnOptionalSliceWrite) {
+  std::shared_ptr<Array> values;
+  ASSERT_OK(NullableArray<TypeParam>(2 * SMALL_SIZE, SMALL_SIZE, kDefaultSeed, &values));
+  std::shared_ptr<GroupNode> schema = this->MakeSchema(Repetition::OPTIONAL);
+
+  std::shared_ptr<Array> sliced_values = values->Slice(SMALL_SIZE / 2, SMALL_SIZE);
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(sliced_values.get());
+
+  // Slice offset 1 higher, thus different null bitmap.
+  sliced_values = values->Slice(SMALL_SIZE / 2 + 1, SMALL_SIZE);
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(sliced_values.get());
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnTableOptionalReadWrite) {
