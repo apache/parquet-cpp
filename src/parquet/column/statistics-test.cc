@@ -32,9 +32,9 @@
 #include "parquet/file/reader.h"
 #include "parquet/file/writer.h"
 #include "parquet/schema.h"
+#include "parquet/thrift.h"
 #include "parquet/types.h"
 #include "parquet/util/memory.h"
-#include "parquet/thrift.h"
 
 namespace parquet {
 
@@ -308,34 +308,45 @@ TYPED_TEST(TestNumericRowGroupStatistics, Merge) {
 }
 
 TEST(CorruptStatistics, Basics) {
-
   Version version("parquet-mr version 1.8.0");
   SchemaDescriptor schema;
   schema::NodePtr node;
   std::vector<schema::NodePtr> fields;
   // Test Physical Types
-  fields.push_back(schema::PrimitiveNode::Make("col1", Repetition::OPTIONAL, Type::INT32, LogicalType::NONE));
-  fields.push_back(schema::PrimitiveNode::Make("col2", Repetition::OPTIONAL, Type::BYTE_ARRAY, LogicalType::NONE));
+  fields.push_back(schema::PrimitiveNode::Make(
+      "col1", Repetition::OPTIONAL, Type::INT32, LogicalType::NONE));
+  fields.push_back(schema::PrimitiveNode::Make(
+      "col2", Repetition::OPTIONAL, Type::BYTE_ARRAY, LogicalType::NONE));
   // Test Logical Types
-  fields.push_back(schema::PrimitiveNode::Make("col3", Repetition::OPTIONAL, Type::INT32, LogicalType::DATE));
-  fields.push_back(schema::PrimitiveNode::Make("col4", Repetition::OPTIONAL, Type::INT32, LogicalType::UINT_32));
-  fields.push_back(schema::PrimitiveNode::Make("col5", Repetition::OPTIONAL, Type::FIXED_LEN_BYTE_ARRAY, LogicalType::INTERVAL, 12));
-  fields.push_back(schema::PrimitiveNode::Make("col6", Repetition::OPTIONAL, Type::BYTE_ARRAY, LogicalType::UTF8));
+  fields.push_back(schema::PrimitiveNode::Make(
+      "col3", Repetition::OPTIONAL, Type::INT32, LogicalType::DATE));
+  fields.push_back(schema::PrimitiveNode::Make(
+      "col4", Repetition::OPTIONAL, Type::INT32, LogicalType::UINT_32));
+  fields.push_back(schema::PrimitiveNode::Make("col5", Repetition::OPTIONAL,
+      Type::FIXED_LEN_BYTE_ARRAY, LogicalType::INTERVAL, 12));
+  fields.push_back(schema::PrimitiveNode::Make(
+      "col6", Repetition::OPTIONAL, Type::BYTE_ARRAY, LogicalType::UTF8));
   node = schema::GroupNode::Make("schema", Repetition::REQUIRED, fields);
   schema.Init(node);
 
   format::ColumnMetaData meta_data;
-  auto column_chunk1 = ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(0), &version);
+  auto column_chunk1 = ColumnChunkMetaData::Make(
+      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(0), &version);
   ASSERT_TRUE(column_chunk1->is_stats_set());
-  auto column_chunk2 = ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(1), &version);
+  auto column_chunk2 = ColumnChunkMetaData::Make(
+      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(1), &version);
   ASSERT_FALSE(column_chunk2->is_stats_set());
-  auto column_chunk3 = ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(2), &version);
+  auto column_chunk3 = ColumnChunkMetaData::Make(
+      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(2), &version);
   ASSERT_TRUE(column_chunk3->is_stats_set());
-  auto column_chunk4 = ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(3), &version);
+  auto column_chunk4 = ColumnChunkMetaData::Make(
+      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(3), &version);
   ASSERT_FALSE(column_chunk4->is_stats_set());
-  auto column_chunk5 = ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(4), &version);
+  auto column_chunk5 = ColumnChunkMetaData::Make(
+      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(4), &version);
   ASSERT_FALSE(column_chunk5->is_stats_set());
-  auto column_chunk6 = ColumnChunkMetaData::Make(reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(5), &version);
+  auto column_chunk6 = ColumnChunkMetaData::Make(
+      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(5), &version);
   ASSERT_FALSE(column_chunk6->is_stats_set());
 }
 

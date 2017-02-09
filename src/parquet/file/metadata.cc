@@ -44,7 +44,7 @@ SortOrder defaultSortOrder(Type::type primitive) {
       return SortOrder::SIGNED;
     case Type::BYTE_ARRAY:
     case Type::FIXED_LEN_BYTE_ARRAY:
-    case Type::INT96: // only used for timestamp, which uses unsigned values
+    case Type::INT96:  // only used for timestamp, which uses unsigned values
       return SortOrder::UNSIGNED;
   }
   return SortOrder::UNKNOWN;
@@ -52,7 +52,6 @@ SortOrder defaultSortOrder(Type::type primitive) {
 
 // Return the SortOrder of the Parquet Types using Logical or Physical Types
 SortOrder sortOrder(LogicalType::type converted, Type::type primitive) {
-
   if (converted == LogicalType::NONE) return defaultSortOrder(primitive);
   switch (converted) {
     case LogicalType::INT_8:
@@ -79,7 +78,7 @@ SortOrder sortOrder(LogicalType::type converted, Type::type primitive) {
     case LogicalType::MAP:
     case LogicalType::MAP_KEY_VALUE:
     case LogicalType::INTERVAL:
-    case LogicalType::NONE: // required instead of default
+    case LogicalType::NONE:  // required instead of default
       return SortOrder::UNKNOWN;
   }
   return SortOrder::UNKNOWN;
@@ -121,8 +120,8 @@ std::shared_ptr<RowGroupStatistics> MakeColumnStats(
 // ColumnChunk metadata
 class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
  public:
-  explicit ColumnChunkMetaDataImpl(
-      const format::ColumnChunk* column, const ColumnDescriptor* descr, const Version* writer_version)
+  explicit ColumnChunkMetaDataImpl(const format::ColumnChunk* column,
+      const ColumnDescriptor* descr, const Version* writer_version)
       : column_(column), descr_(descr), writer_version_(writer_version) {
     const format::ColumnMetaData& meta_data = column->meta_data;
     for (auto encoding : meta_data.encodings) {
@@ -149,14 +148,20 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   // 1) Must be set in the metadata
   // 2) Statistics must not be corrupted
   // 3) parquet-mr and parquet-cpp write statistics by SIGNED order comparison.
-  //    The statistics are corrupted if the type requires UNSIGNED order comparison. Eg: UTF8
-  inline bool is_stats_set() { return column_->meta_data.__isset.statistics && Version::hasCorrectStatistics(writer_version_, type()) && SortOrder::SIGNED == sortOrder(descr_->logical_type(), descr_->physical_type()); }
+  //    The statistics are corrupted if the type requires UNSIGNED order comparison.
+  //    Eg: UTF8
+  inline bool is_stats_set() {
+    return column_->meta_data.__isset.statistics &&
+           Version::hasCorrectStatistics(writer_version_, type()) &&
+           SortOrder::SIGNED ==
+               sortOrder(descr_->logical_type(), descr_->physical_type());
+  }
 
   inline std::shared_ptr<RowGroupStatistics> statistics() {
     if (stats_ == nullptr && is_stats_set()) {
       stats_ = MakeColumnStats(column_->meta_data, descr_);
     }
-    return stats_; 
+    return stats_;
   }
 
   inline Compression::type compression() const {
@@ -195,17 +200,17 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   const Version* writer_version_;
 };
 
-std::unique_ptr<ColumnChunkMetaData> ColumnChunkMetaData::Make(
-    const uint8_t* metadata, const ColumnDescriptor* descr,
-    const Version* writer_version) {
-  return std::unique_ptr<ColumnChunkMetaData>(new ColumnChunkMetaData(metadata, descr, writer_version));
+std::unique_ptr<ColumnChunkMetaData> ColumnChunkMetaData::Make(const uint8_t* metadata,
+    const ColumnDescriptor* descr, const Version* writer_version) {
+  return std::unique_ptr<ColumnChunkMetaData>(
+      new ColumnChunkMetaData(metadata, descr, writer_version));
 }
 
 ColumnChunkMetaData::ColumnChunkMetaData(
-    const uint8_t* metadata, const ColumnDescriptor* descr,
-    const Version* writer_version)
+    const uint8_t* metadata, const ColumnDescriptor* descr, const Version* writer_version)
     : impl_{std::unique_ptr<ColumnChunkMetaDataImpl>(new ColumnChunkMetaDataImpl(
-          reinterpret_cast<const format::ColumnChunk*>(metadata), descr, writer_version))} {}
+          reinterpret_cast<const format::ColumnChunk*>(metadata), descr,
+          writer_version))} {}
 ColumnChunkMetaData::~ColumnChunkMetaData() {}
 
 // column chunk
@@ -273,9 +278,8 @@ int64_t ColumnChunkMetaData::total_compressed_size() const {
 // row-group metadata
 class RowGroupMetaData::RowGroupMetaDataImpl {
  public:
-  explicit RowGroupMetaDataImpl(
-      const format::RowGroup* row_group, const SchemaDescriptor* schema,
-      const Version* writer_version)
+  explicit RowGroupMetaDataImpl(const format::RowGroup* row_group,
+      const SchemaDescriptor* schema, const Version* writer_version)
       : row_group_(row_group), schema_(schema), writer_version_(writer_version) {}
   ~RowGroupMetaDataImpl() {}
 
@@ -295,7 +299,8 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
       throw ParquetException(ss.str());
     }
     return ColumnChunkMetaData::Make(
-        reinterpret_cast<const uint8_t*>(&row_group_->columns[i]), schema_->Column(i), writer_version_);
+        reinterpret_cast<const uint8_t*>(&row_group_->columns[i]), schema_->Column(i),
+        writer_version_);
   }
 
  private:
@@ -304,16 +309,17 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
   const Version* writer_version_;
 };
 
-std::unique_ptr<RowGroupMetaData> RowGroupMetaData::Make(
-    const uint8_t* metadata, const SchemaDescriptor* schema,
-    const Version* writer_version) {
-  return std::unique_ptr<RowGroupMetaData>(new RowGroupMetaData(metadata, schema, writer_version));
+std::unique_ptr<RowGroupMetaData> RowGroupMetaData::Make(const uint8_t* metadata,
+    const SchemaDescriptor* schema, const Version* writer_version) {
+  return std::unique_ptr<RowGroupMetaData>(
+      new RowGroupMetaData(metadata, schema, writer_version));
 }
 
-RowGroupMetaData::RowGroupMetaData(
-    const uint8_t* metadata, const SchemaDescriptor* schema, const Version* writer_version)
+RowGroupMetaData::RowGroupMetaData(const uint8_t* metadata,
+    const SchemaDescriptor* schema, const Version* writer_version)
     : impl_{std::unique_ptr<RowGroupMetaDataImpl>(new RowGroupMetaDataImpl(
-          reinterpret_cast<const format::RowGroup*>(metadata), schema, writer_version))} {}
+          reinterpret_cast<const format::RowGroup*>(metadata), schema, writer_version))} {
+}
 RowGroupMetaData::~RowGroupMetaData() {}
 
 int RowGroupMetaData::num_columns() const {
@@ -377,7 +383,8 @@ class FileMetaData::FileMetaDataImpl {
       throw ParquetException(ss.str());
     }
     return RowGroupMetaData::Make(
-        reinterpret_cast<const uint8_t*>(&metadata_->row_groups[i]), &schema_, &writer_version_);
+        reinterpret_cast<const uint8_t*>(&metadata_->row_groups[i]), &schema_,
+        &writer_version_);
   }
 
   const SchemaDescriptor* schema() const { return &schema_; }
@@ -495,7 +502,7 @@ Version::Version(const std::string& created_by) {
 }
 
 bool Version::VersionLt(const Version& other_version) const {
-  if (application != other_version.application) return false; 
+  if (application != other_version.application) return false;
 
   if (version.major < other_version.version.major) return true;
   if (version.major > other_version.version.major) return false;
@@ -507,13 +514,16 @@ bool Version::VersionLt(const Version& other_version) const {
 }
 
 bool Version::VersionEq(const Version& other_version) const {
-  return application == other_version.application && version.major == other_version.version.major && version.minor == other_version.version.minor && version.patch == other_version.version.patch;
+  return application == other_version.application &&
+         version.major == other_version.version.major &&
+         version.minor == other_version.version.minor &&
+         version.patch == other_version.version.patch;
 }
 
-// Reference: parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/CorruptStatistics.java
+// Reference:
+// parquet-mr/parquet-column/src/main/java/org/apache/parquet/CorruptStatistics.java
 // PARQUET-686 has more disussion on statistics
 bool Version::hasCorrectStatistics(const Version* writer_version, Type::type colType) {
-
   // Can be NULL for internal tests
   DCHECK(writer_version != NULL);
 
@@ -522,19 +532,15 @@ bool Version::hasCorrectStatistics(const Version* writer_version, Type::type col
 
   // Statistics of other types are OK
   if (colType != Type::FIXED_LEN_BYTE_ARRAY && colType != Type::BYTE_ARRAY) {
-      return true;
+    return true;
   }
 
   // created_by is not populated, which could have been caused by
   // parquet-mr during the same time as PARQUET-251, see PARQUET-297
-  if (writer_version->application == "unknown") {
-      return true;
-  }
+  if (writer_version->application == "unknown") { return true; }
 
   // PARQUET-251
-  if (writer_version->VersionLt(PARQUET_251_FIXED_VERSION)) {
-     return false;
-  }
+  if (writer_version->VersionLt(PARQUET_251_FIXED_VERSION)) { return false; }
 
   return true;
 }
