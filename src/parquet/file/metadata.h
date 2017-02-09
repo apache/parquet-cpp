@@ -32,6 +32,19 @@
 
 namespace parquet {
 
+// Reference: /parquet-hadoop/src/main/java/org/apache/parquet/format/converter/ParquetMetadataConverter.java
+// Sort order for page and column statistics. Types are associated with sort
+// orders (e.g., UTF8 columns should use UNSIGNED) and column stats are
+// aggregated using a sort order. As of parquet-format version 2.3.1, the
+// order used to aggregate stats is always SIGNED and is not stored in the
+// Parquet file. These stats are discarded for types that need unsigned.
+// See PARQUET-686.
+enum SortOrder {
+  SIGNED,
+  UNSIGNED,
+  UNKNOWN
+};
+
 class Version {
  public:
   /// Known Versions with Issues
@@ -82,8 +95,8 @@ class PARQUET_EXPORT ColumnChunkMetaData {
   Type::type type() const;
   int64_t num_values() const;
   std::shared_ptr<schema::ColumnPath> path_in_schema() const;
-  bool is_stats_set() const;
-  std::shared_ptr<RowGroupStatistics> statistics() const;
+  bool is_stats_set();
+  std::shared_ptr<RowGroupStatistics> statistics();
   Compression::type compression() const;
   const std::vector<Encoding::type>& encodings() const;
   int64_t has_dictionary_page() const;

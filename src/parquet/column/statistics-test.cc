@@ -164,6 +164,7 @@ class TestRowGroupStatistics : public PrimitiveTypedTest<TestType> {
     auto file_reader = ParquetFileReader::Open(source);
     auto rg_reader = file_reader->RowGroup(0);
     auto column_chunk = rg_reader->metadata()->ColumnChunk(0);
+    if (!column_chunk->is_stats_set()) return;
     std::shared_ptr<RowGroupStatistics> stats = column_chunk->statistics();
     // check values after serialization + deserialization
     ASSERT_EQ(null_count, stats->null_count());

@@ -33,6 +33,58 @@ namespace parquet {
 const Version Version::PARQUET_251_FIXED_VERSION = Version("parquet-mr version 1.8.0");
 const Version Version::PARQUET_816_FIXED_VERSION = Version("parquet-mr version 1.2.9");
 
+// Return the Sort Order of the Parquet Physical Types
+SortOrder defaultSortOrder(Type::type primitive) {
+  switch (primitive) {
+    case Type::BOOLEAN:
+    case Type::INT32:
+    case Type::INT64:
+    case Type::FLOAT:
+    case Type::DOUBLE:
+      return SortOrder::SIGNED;
+    case Type::BYTE_ARRAY:
+    case Type::FIXED_LEN_BYTE_ARRAY:
+    case Type::INT96: // only used for timestamp, which uses unsigned values
+      return SortOrder::UNSIGNED;
+  }
+  return SortOrder::UNKNOWN;
+}
+
+// Return the SortOrder of the Parquet Types using Logical or Physical Types
+SortOrder sortOrder(LogicalType::type converted, Type::type primitive) {
+
+  if (converted == LogicalType::NONE) return defaultSortOrder(primitive);
+  switch (converted) {
+    case LogicalType::INT_8:
+    case LogicalType::INT_16:
+    case LogicalType::INT_32:
+    case LogicalType::INT_64:
+    case LogicalType::DATE:
+    case LogicalType::TIME_MICROS:
+    case LogicalType::TIME_MILLIS:
+    case LogicalType::TIMESTAMP_MICROS:
+    case LogicalType::TIMESTAMP_MILLIS:
+      return SortOrder::SIGNED;
+    case LogicalType::UINT_8:
+    case LogicalType::UINT_16:
+    case LogicalType::UINT_32:
+    case LogicalType::UINT_64:
+    case LogicalType::ENUM:
+    case LogicalType::UTF8:
+    case LogicalType::BSON:
+    case LogicalType::JSON:
+      return SortOrder::UNSIGNED;
+    case LogicalType::DECIMAL:
+    case LogicalType::LIST:
+    case LogicalType::MAP:
+    case LogicalType::MAP_KEY_VALUE:
+    case LogicalType::INTERVAL:
+    case LogicalType::NONE: // required instead of default
+      return SortOrder::UNKNOWN;
+  }
+  return SortOrder::UNKNOWN;
+}
+
 template <typename DType>
 static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     const format::ColumnMetaData& metadata, const ColumnDescriptor* descr) {
@@ -76,9 +128,7 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
     for (auto encoding : meta_data.encodings) {
       encodings_.push_back(FromThrift(encoding));
     }
-    if (meta_data.__isset.statistics && Version::hasCorrectStatistics(writer_version_, type())) {
-      stats_ = MakeColumnStats(meta_data, descr_);
-    }
+    stats_ = nullptr;
   }
   ~ColumnChunkMetaDataImpl() {}
 
@@ -95,9 +145,14 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
     return std::make_shared<schema::ColumnPath>(column_->meta_data.path_in_schema);
   }
 
-  inline bool is_stats_set() const { return column_->meta_data.__isset.statistics; }
+  inline bool is_stats_set() { return column_->meta_data.__isset.statistics && Version::hasCorrectStatistics(writer_version_, type()) && SortOrder::SIGNED == sortOrder(descr_->logical_type(), descr_->physical_type()); }
 
-  inline std::shared_ptr<RowGroupStatistics> statistics() const { return stats_; }
+  inline std::shared_ptr<RowGroupStatistics> statistics() {
+    if (stats_ == nullptr && is_stats_set()) {
+      stats_ = MakeColumnStats(column_->meta_data, descr_);
+    }
+    return stats_; 
+  }
 
   inline Compression::type compression() const {
     return FromThrift(column_->meta_data.codec);
@@ -170,11 +225,11 @@ std::shared_ptr<schema::ColumnPath> ColumnChunkMetaData::path_in_schema() const 
   return impl_->path_in_schema();
 }
 
-std::shared_ptr<RowGroupStatistics> ColumnChunkMetaData::statistics() const {
+std::shared_ptr<RowGroupStatistics> ColumnChunkMetaData::statistics() {
   return impl_->statistics();
 }
 
-bool ColumnChunkMetaData::is_stats_set() const {
+bool ColumnChunkMetaData::is_stats_set() {
   return impl_->is_stats_set();
 }
 
@@ -450,18 +505,24 @@ bool Version::VersionEq(const Version& other_version) const {
   return application == other_version.application && version.major == other_version.version.major && version.minor == other_version.version.minor && version.patch == other_version.version.patch;
 }
 
+// Reference: parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/CorruptStatistics.java
+// PARQUET-686 has more disussion on statistics
 bool Version::hasCorrectStatistics(const Version* writer_version, Type::type colType) {
 
-  // If the writer version is not specified, assume the statistics are valid.
-  if (writer_version == NULL) return true;
+  // Can be NULL for internal tests
+  DCHECK(writer_version != NULL);
 
   // None of the current tools write INT96 Statistics correctly
-  if (colType == Type::INT96) {
-      return false;
-  }
+  if (colType == Type::INT96) return false;
 
   // Statistics of other types are OK
   if (colType != Type::FIXED_LEN_BYTE_ARRAY && colType != Type::BYTE_ARRAY) {
+      return true;
+  }
+
+  // created_by is not populated, which could have been caused by
+  // parquet-mr during the same time as PARQUET-251, see PARQUET-297
+  if (writer_version->application == "unknown") {
       return true;
   }
 
