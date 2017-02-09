@@ -182,12 +182,28 @@ TEST(Metadata, TestV1Version) {
 }
 
 TEST(FileVersion, Basics) {
-  Version version("parquet-mr version 1.2.8");
+  Version version("parquet-mr version 1.7.9");
+  Version version1("parquet-mr version 1.8.0");
+  Version version2("parquet-cpp version 1.0.0");
+  Version version3("");
 
   ASSERT_EQ("parquet-mr", version.application);
   ASSERT_EQ(1, version.version.major);
-  ASSERT_EQ(2, version.version.minor);
-  ASSERT_EQ(8, version.version.patch);
+  ASSERT_EQ(7, version.version.minor);
+  ASSERT_EQ(9, version.version.patch);
+
+  ASSERT_EQ("parquet-cpp", version2.application);
+  ASSERT_EQ(1, version2.version.major);
+  ASSERT_EQ(0, version2.version.minor);
+  ASSERT_EQ(0, version2.version.patch);
+
+  ASSERT_EQ(true, version.VersionLt(version1));
+
+  ASSERT_FALSE(Version::hasCorrectStatistics(&version1, Type::INT96));
+  ASSERT_TRUE(Version::hasCorrectStatistics(&version, Type::INT32));
+  ASSERT_FALSE(Version::hasCorrectStatistics(&version, Type::BYTE_ARRAY));
+  ASSERT_TRUE(Version::hasCorrectStatistics(&version1, Type::BYTE_ARRAY));
+  ASSERT_TRUE(Version::hasCorrectStatistics(&version3, Type::FIXED_LEN_BYTE_ARRAY));
 }
 
 }  // namespace metadata
