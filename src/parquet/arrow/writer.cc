@@ -110,14 +110,14 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   NOT_IMPLEMENTED_VIST(Decimal)
   NOT_IMPLEMENTED_VIST(Dictionary)
 
-  Status GenerateLevels(const Array* array, const std::shared_ptr<Field>& field,
+  Status GenerateLevels(const Array& array, const std::shared_ptr<Field>& field,
       int64_t* values_offset, ::arrow::Type::type* values_type, int64_t* num_values,
       int64_t* num_levels, std::shared_ptr<Buffer>* def_levels,
       std::shared_ptr<Buffer>* rep_levels, const Array** values_array) {
     // Work downwards to extract bitmaps and offsets
     min_offset_idx_ = 0;
-    max_offset_idx_ = array->length();
-    RETURN_NOT_OK(array->Accept(this));
+    max_offset_idx_ = array.length();
+    RETURN_NOT_OK(array.Accept(this));
     *num_values = max_offset_idx_ - min_offset_idx_;
     *values_offset = min_offset_idx_;
     *values_type = values_type_;
@@ -141,15 +141,15 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
       // We have a PrimitiveArray
       *rep_levels = nullptr;
       if (nullable_[0]) {
-        RETURN_NOT_OK(def_levels_buffer_->Resize(array->length() * sizeof(int16_t)));
+        RETURN_NOT_OK(def_levels_buffer_->Resize(array.length() * sizeof(int16_t)));
         auto def_levels_ptr =
             reinterpret_cast<int16_t*>(def_levels_buffer_->mutable_data());
-        if (array->null_count() == 0) {
-          std::fill(def_levels_ptr, def_levels_ptr + array->length(), 1);
+        if (array.null_count() == 0) {
+          std::fill(def_levels_ptr, def_levels_ptr + array.length(), 1);
         } else {
-          const uint8_t* valid_bits = array->null_bitmap_data();
-          INIT_BITSET(valid_bits, array->offset());
-          for (int i = 0; i < array->length(); i++) {
+          const uint8_t* valid_bits = array.null_bitmap_data();
+          INIT_BITSET(valid_bits, array.offset());
+          for (int i = 0; i < array.length(); i++) {
             if (bitset_valid_bits & (1 << bit_offset_valid_bits)) {
               def_levels_ptr[i] = 1;
             } else {
@@ -162,10 +162,10 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
       } else {
         *def_levels = nullptr;
       }
-      *num_levels = array->length();
+      *num_levels = array.length();
     } else {
       RETURN_NOT_OK(rep_levels_.Append(0));
-      HandleListEntries(0, 0, 0, array->length());
+      HandleListEntries(0, 0, 0, array.length());
 
       std::shared_ptr<Array> def_levels_array;
       RETURN_NOT_OK(def_levels_.Finish(&def_levels_array));
@@ -291,7 +291,7 @@ class FileWriter::Impl {
     return Status::OK();
   }
 
-  Status WriteColumnChunk(const Array* data);
+  Status WriteColumnChunk(const Array& data);
   Status Close();
 
   virtual ~Impl() {}
@@ -469,7 +469,7 @@ Status FileWriter::NewRowGroup(int64_t chunk_size) {
   return impl_->NewRowGroup(chunk_size);
 }
 
-Status FileWriter::Impl::WriteColumnChunk(const Array* data) {
+Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
 
@@ -539,7 +539,7 @@ Status FileWriter::Impl::WriteColumnChunk(const Array* data) {
   return Status::OK();
 }
 
-Status FileWriter::WriteColumnChunk(const ::arrow::Array* array) {
+Status FileWriter::WriteColumnChunk(const ::arrow::Array& array) {
   return impl_->WriteColumnChunk(array);
 }
 
@@ -553,40 +553,39 @@ MemoryPool* FileWriter::memory_pool() const {
 
 FileWriter::~FileWriter() {}
 
-Status WriteTable(const Table* table, MemoryPool* pool,
+Status WriteTable(const Table& table, MemoryPool* pool,
     const std::shared_ptr<OutputStream>& sink, int64_t chunk_size,
     const std::shared_ptr<WriterProperties>& properties) {
   std::shared_ptr<SchemaDescriptor> parquet_schema;
-  RETURN_NOT_OK(
-      ToParquetSchema(table->schema().get(), *properties.get(), &parquet_schema));
+  RETURN_NOT_OK(ToParquetSchema(table.schema().get(), *properties, &parquet_schema));
   auto schema_node = std::static_pointer_cast<GroupNode>(parquet_schema->schema_root());
   std::unique_ptr<ParquetFileWriter> parquet_writer =
       ParquetFileWriter::Open(sink, schema_node, properties);
   FileWriter writer(pool, std::move(parquet_writer));
 
   // TODO(ARROW-232) Support writing chunked arrays.
-  for (int i = 0; i < table->num_columns(); i++) {
-    if (table->column(i)->data()->num_chunks() != 1) {
+  for (int i = 0; i < table.num_columns(); i++) {
+    if (table.column(i)->data()->num_chunks() != 1) {
       return Status::NotImplemented("No support for writing chunked arrays yet.");
     }
   }
 
-  for (int chunk = 0; chunk * chunk_size < table->num_rows(); chunk++) {
+  for (int chunk = 0; chunk * chunk_size < table.num_rows(); chunk++) {
     int64_t offset = chunk * chunk_size;
-    int64_t size = std::min(chunk_size, table->num_rows() - offset);
+    int64_t size = std::min(chunk_size, table.num_rows() - offset);
     RETURN_NOT_OK_ELSE(writer.NewRowGroup(size), PARQUET_IGNORE_NOT_OK(writer.Close()));
-    for (int i = 0; i < table->num_columns(); i++) {
-      std::shared_ptr<Array> array = table->column(i)->data()->chunk(0);
+    for (int i = 0; i < table.num_columns(); i++) {
+      std::shared_ptr<Array> array = table.column(i)->data()->chunk(0);
       array = array->Slice(offset, size);
       RETURN_NOT_OK_ELSE(
-          writer.WriteColumnChunk(array.get()), PARQUET_IGNORE_NOT_OK(writer.Close()));
+          writer.WriteColumnChunk(*array), PARQUET_IGNORE_NOT_OK(writer.Close()));
     }
   }
 
   return writer.Close();
 }
 
-Status WriteTable(const Table* table, MemoryPool* pool,
+Status WriteTable(const Table& table, MemoryPool* pool,
     const std::shared_ptr<::arrow::io::OutputStream>& sink, int64_t chunk_size,
     const std::shared_ptr<WriterProperties>& properties) {
   auto wrapper = std::make_shared<ArrowOutputStream>(sink);
