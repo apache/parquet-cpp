@@ -145,6 +145,11 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
     return std::make_shared<schema::ColumnPath>(column_->meta_data.path_in_schema);
   }
 
+  // Check if statistics are set and are valid
+  // 1) Must be set in the metadata
+  // 2) Statistics must not be corrupted
+  // 3) parquet-mr and parquet-cpp write statistics by SIGNED order comparison.
+  //    The statistics are corrupted if the type requires UNSIGNED order comparison. Eg: UTF8
   inline bool is_stats_set() { return column_->meta_data.__isset.statistics && Version::hasCorrectStatistics(writer_version_, type()) && SortOrder::SIGNED == sortOrder(descr_->logical_type(), descr_->physical_type()); }
 
   inline std::shared_ptr<RowGroupStatistics> statistics() {
