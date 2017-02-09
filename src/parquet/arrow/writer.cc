@@ -400,9 +400,10 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
 
   int buffer_idx = 0;
+  int32_t offset = array->offset();
   for (int i = 0; i < data->length(); i++) {
     if (!data->IsNull(i)) {
-      buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, array->offset() + i);
+      buffer_ptr[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
     }
   }
   PARQUET_CATCH_NOT_OK(
@@ -427,11 +428,13 @@ Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
     DCHECK(data_ptr != nullptr);
   }
   auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
+  const int32_t* value_offset = data->raw_value_offsets();
 
   if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
     // no nulls, just dump the data
     for (int64_t i = 0; i < data->length(); i++) {
-      buffer_ptr[i] = ByteArray(data->value_length(i), data_ptr + data->value_offset(i));
+      buffer_ptr[i] =
+          ByteArray(value_offset[i + 1] - value_offset[i], data_ptr + value_offset[i]);
     }
     PARQUET_CATCH_NOT_OK(
         writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
@@ -440,7 +443,7 @@ Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
     for (int64_t i = 0; i < data->length(); i++) {
       if (!data->IsNull(i)) {
         buffer_ptr[buffer_idx++] =
-            ByteArray(data->value_length(i), data_ptr + data->value_offset(i));
+            ByteArray(value_offset[i + 1] - value_offset[i], data_ptr + value_offset[i]);
       }
     }
     PARQUET_CATCH_NOT_OK(
