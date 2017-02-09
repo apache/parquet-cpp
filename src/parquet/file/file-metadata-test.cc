@@ -182,7 +182,7 @@ TEST(Metadata, TestV1Version) {
 }
 
 TEST(FileVersion, Basics) {
-  FileMetaData::Version version("parquet-mr version 1.2.8");
+  Version version("parquet-mr version 1.2.8");
 
   ASSERT_EQ("parquet-mr", version.application);
   ASSERT_EQ(1, version.version.major);

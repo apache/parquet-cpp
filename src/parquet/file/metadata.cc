@@ -30,6 +30,9 @@
 
 namespace parquet {
 
+const Version Version::PARQUET_251_FIXED_VERSION = Version("parquet-mr version 1.8.0");
+const Version Version::PARQUET_816_FIXED_VERSION = Version("parquet-mr version 1.2.9");
+
 template <typename DType>
 static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     const format::ColumnMetaData& metadata, const ColumnDescriptor* descr) {
@@ -67,13 +70,15 @@ std::shared_ptr<RowGroupStatistics> MakeColumnStats(
 class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
  public:
   explicit ColumnChunkMetaDataImpl(
-      const format::ColumnChunk* column, const ColumnDescriptor* descr)
-      : column_(column), descr_(descr) {
+      const format::ColumnChunk* column, const ColumnDescriptor* descr, const Version* writer_version)
+      : column_(column), descr_(descr), writer_version_(writer_version) {
     const format::ColumnMetaData& meta_data = column->meta_data;
     for (auto encoding : meta_data.encodings) {
       encodings_.push_back(FromThrift(encoding));
     }
-    if (meta_data.__isset.statistics) { stats_ = MakeColumnStats(meta_data, descr_); }
+    if (meta_data.__isset.statistics && Version::hasCorrectStatistics(writer_version_, type())) {
+      stats_ = MakeColumnStats(meta_data, descr_);
+    }
   }
   ~ColumnChunkMetaDataImpl() {}
 
@@ -127,17 +132,20 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   std::vector<Encoding::type> encodings_;
   const format::ColumnChunk* column_;
   const ColumnDescriptor* descr_;
+  const Version* writer_version_;
 };
 
 std::unique_ptr<ColumnChunkMetaData> ColumnChunkMetaData::Make(
-    const uint8_t* metadata, const ColumnDescriptor* descr) {
-  return std::unique_ptr<ColumnChunkMetaData>(new ColumnChunkMetaData(metadata, descr));
+    const uint8_t* metadata, const ColumnDescriptor* descr,
+    const Version* writer_version) {
+  return std::unique_ptr<ColumnChunkMetaData>(new ColumnChunkMetaData(metadata, descr, writer_version));
 }
 
 ColumnChunkMetaData::ColumnChunkMetaData(
-    const uint8_t* metadata, const ColumnDescriptor* descr)
+    const uint8_t* metadata, const ColumnDescriptor* descr,
+    const Version* writer_version)
     : impl_{std::unique_ptr<ColumnChunkMetaDataImpl>(new ColumnChunkMetaDataImpl(
-          reinterpret_cast<const format::ColumnChunk*>(metadata), descr))} {}
+          reinterpret_cast<const format::ColumnChunk*>(metadata), descr, writer_version))} {}
 ColumnChunkMetaData::~ColumnChunkMetaData() {}
 
 // column chunk
@@ -206,8 +214,9 @@ int64_t ColumnChunkMetaData::total_compressed_size() const {
 class RowGroupMetaData::RowGroupMetaDataImpl {
  public:
   explicit RowGroupMetaDataImpl(
-      const format::RowGroup* row_group, const SchemaDescriptor* schema)
-      : row_group_(row_group), schema_(schema) {}
+      const format::RowGroup* row_group, const SchemaDescriptor* schema,
+      const Version* writer_version)
+      : row_group_(row_group), schema_(schema), writer_version_(writer_version) {}
   ~RowGroupMetaDataImpl() {}
 
   inline int num_columns() const { return row_group_->columns.size(); }
@@ -226,23 +235,25 @@ class RowGroupMetaData::RowGroupMetaDataImpl {
       throw ParquetException(ss.str());
     }
     return ColumnChunkMetaData::Make(
-        reinterpret_cast<const uint8_t*>(&row_group_->columns[i]), schema_->Column(i));
+        reinterpret_cast<const uint8_t*>(&row_group_->columns[i]), schema_->Column(i), writer_version_);
   }
 
  private:
   const format::RowGroup* row_group_;
   const SchemaDescriptor* schema_;
+  const Version* writer_version_;
 };
 
 std::unique_ptr<RowGroupMetaData> RowGroupMetaData::Make(
-    const uint8_t* metadata, const SchemaDescriptor* schema) {
-  return std::unique_ptr<RowGroupMetaData>(new RowGroupMetaData(metadata, schema));
+    const uint8_t* metadata, const SchemaDescriptor* schema,
+    const Version* writer_version) {
+  return std::unique_ptr<RowGroupMetaData>(new RowGroupMetaData(metadata, schema, writer_version));
 }
 
 RowGroupMetaData::RowGroupMetaData(
-    const uint8_t* metadata, const SchemaDescriptor* schema)
+    const uint8_t* metadata, const SchemaDescriptor* schema, const Version* writer_version)
     : impl_{std::unique_ptr<RowGroupMetaDataImpl>(new RowGroupMetaDataImpl(
-          reinterpret_cast<const format::RowGroup*>(metadata), schema))} {}
+          reinterpret_cast<const format::RowGroup*>(metadata), schema, writer_version))} {}
 RowGroupMetaData::~RowGroupMetaData() {}
 
 int RowGroupMetaData::num_columns() const {
@@ -277,9 +288,9 @@ class FileMetaData::FileMetaDataImpl {
     metadata_len_ = *metadata_len;
 
     if (metadata_->__isset.created_by) {
-      writer_version_ = FileMetaData::Version(metadata_->created_by);
+      writer_version_ = Version(metadata_->created_by);
     } else {
-      writer_version_ = FileMetaData::Version("unknown 0.0.0");
+      writer_version_ = Version("unknown 0.0.0");
     }
 
     InitSchema();
@@ -294,7 +305,7 @@ class FileMetaData::FileMetaDataImpl {
   inline const std::string& created_by() const { return metadata_->created_by; }
   inline int num_schema_elements() const { return metadata_->schema.size(); }
 
-  const FileMetaData::Version& writer_version() const { return writer_version_; }
+  const Version& writer_version() const { return writer_version_; }
 
   void WriteTo(OutputStream* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
 
@@ -306,7 +317,7 @@ class FileMetaData::FileMetaDataImpl {
       throw ParquetException(ss.str());
     }
     return RowGroupMetaData::Make(
-        reinterpret_cast<const uint8_t*>(&metadata_->row_groups[i]), &schema_);
+        reinterpret_cast<const uint8_t*>(&metadata_->row_groups[i]), &schema_, &writer_version_);
   }
 
   const SchemaDescriptor* schema() const { return &schema_; }
@@ -321,7 +332,7 @@ class FileMetaData::FileMetaDataImpl {
     schema_.Init(converter.Convert());
   }
   SchemaDescriptor schema_;
-  FileMetaData::Version writer_version_;
+  Version writer_version_;
 };
 
 std::shared_ptr<FileMetaData> FileMetaData::Make(
@@ -372,7 +383,7 @@ ParquetVersion::type FileMetaData::version() const {
   return ParquetVersion::PARQUET_1_0;
 }
 
-const FileMetaData::Version& FileMetaData::writer_version() const {
+const Version& FileMetaData::writer_version() const {
   return impl_->writer_version();
 }
 
@@ -392,7 +403,7 @@ void FileMetaData::WriteTo(OutputStream* dst) {
   return impl_->WriteTo(dst);
 }
 
-FileMetaData::Version::Version(const std::string& created_by) {
+Version::Version(const std::string& created_by) {
   namespace ba = boost::algorithm;
 
   std::string created_by_lower = created_by;
@@ -423,18 +434,43 @@ FileMetaData::Version::Version(const std::string& created_by) {
   }
 }
 
-bool FileMetaData::Version::VersionLt(int major, int minor, int patch) const {
-  if (version.major < major) return true;
-  if (version.major > major) return false;
-  DCHECK_EQ(version.major, major);
-  if (version.minor < minor) return true;
-  if (version.minor > minor) return false;
-  DCHECK_EQ(version.minor, minor);
-  return version.patch < patch;
+bool Version::VersionLt(const Version& other_version) const {
+  if (application != other_version.application) return false; 
+
+  if (version.major < other_version.version.major) return true;
+  if (version.major > other_version.version.major) return false;
+  DCHECK_EQ(version.major, other_version.version.major);
+  if (version.minor < other_version.version.minor) return true;
+  if (version.minor > other_version.version.minor) return false;
+  DCHECK_EQ(version.minor, other_version.version.minor);
+  return version.patch < other_version.version.patch;
 }
 
-bool FileMetaData::Version::VersionEq(int major, int minor, int patch) const {
-  return version.major == major && version.minor == minor && version.patch == patch;
+bool Version::VersionEq(const Version& other_version) const {
+  return application == other_version.application && version.major == other_version.version.major && version.minor == other_version.version.minor && version.patch == other_version.version.patch;
+}
+
+bool Version::hasCorrectStatistics(const Version* writer_version, Type::type colType) {
+
+  // If the writer version is not specified, assume the statistics are valid.
+  if (writer_version == NULL) return true;
+
+  // None of the current tools write INT96 Statistics correctly
+  if (colType == Type::INT96) {
+      return false;
+  }
+
+  // Statistics of other types are OK
+  if (colType != Type::FIXED_LEN_BYTE_ARRAY && colType != Type::BYTE_ARRAY) {
+      return true;
+  }
+
+  // PARQUET-251
+  if (writer_version->VersionLt(PARQUET_251_FIXED_VERSION)) {
+     return false;
+  }
+
+  return true;
 }
 
 // MetaData Builders
