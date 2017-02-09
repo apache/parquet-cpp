@@ -330,6 +330,7 @@ TEST(CorruptStatistics, Basics) {
   schema.Init(node);
 
   format::ColumnMetaData meta_data;
+  meta_data.__isset.statistics = true;
   auto column_chunk1 = ColumnChunkMetaData::Make(
       reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(0), &version);
   ASSERT_TRUE(column_chunk1->is_stats_set());
