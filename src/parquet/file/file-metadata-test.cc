@@ -181,11 +181,11 @@ TEST(Metadata, TestV1Version) {
   ASSERT_EQ(ParquetVersion::PARQUET_1_0, f_accessor->version());
 }
 
-TEST(FileVersion, Basics) {
-  Version version("parquet-mr version 1.7.9");
-  Version version1("parquet-mr version 1.8.0");
-  Version version2("parquet-cpp version 1.0.0");
-  Version version3("");
+TEST(ApplicationVersion, Basics) {
+  ApplicationVersion version("parquet-mr version 1.7.9");
+  ApplicationVersion version1("parquet-mr version 1.8.0");
+  ApplicationVersion version2("parquet-cpp version 1.0.0");
+  ApplicationVersion version3("");
 
   ASSERT_EQ("parquet-mr", version.application);
   ASSERT_EQ(1, version.version.major);
@@ -199,11 +199,11 @@ TEST(FileVersion, Basics) {
 
   ASSERT_EQ(true, version.VersionLt(version1));
 
-  ASSERT_FALSE(Version::hasCorrectStatistics(&version1, Type::INT96));
-  ASSERT_TRUE(Version::hasCorrectStatistics(&version, Type::INT32));
-  ASSERT_FALSE(Version::hasCorrectStatistics(&version, Type::BYTE_ARRAY));
-  ASSERT_TRUE(Version::hasCorrectStatistics(&version1, Type::BYTE_ARRAY));
-  ASSERT_TRUE(Version::hasCorrectStatistics(&version3, Type::FIXED_LEN_BYTE_ARRAY));
+  ASSERT_FALSE(version1.HasCorrectStatistics(Type::INT96));
+  ASSERT_TRUE(version.HasCorrectStatistics(Type::INT32));
+  ASSERT_FALSE(version.HasCorrectStatistics(Type::BYTE_ARRAY));
+  ASSERT_TRUE(version1.HasCorrectStatistics(Type::BYTE_ARRAY));
+  ASSERT_TRUE(version3.HasCorrectStatistics(Type::FIXED_LEN_BYTE_ARRAY));
 }
 
 }  // namespace metadata

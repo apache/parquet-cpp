@@ -43,11 +43,11 @@ namespace parquet {
 // See PARQUET-686.
 enum SortOrder { SIGNED, UNSIGNED, UNKNOWN };
 
-class Version {
+class ApplicationVersion {
  public:
   /// Known Versions with Issues
-  static const Version PARQUET_251_FIXED_VERSION;
-  static const Version PARQUET_816_FIXED_VERSION;
+  static const ApplicationVersion PARQUET_251_FIXED_VERSION;
+  static const ApplicationVersion PARQUET_816_FIXED_VERSION;
 
   /// Application that wrote the file. e.g. "IMPALA"
   std::string application;
@@ -64,24 +64,24 @@ class Version {
     int patch;
   } version;
 
-  Version() {}
-  explicit Version(const std::string& created_by);
+  ApplicationVersion() {}
+  explicit ApplicationVersion(const std::string& created_by);
 
   /// Returns true if version is strictly less than other_version
-  bool VersionLt(const Version& other_Version) const;
+  bool VersionLt(const ApplicationVersion& other_version) const;
 
   /// Returns true if version is strictly less than other_version
-  bool VersionEq(const Version& other_Version) const;
+  bool VersionEq(const ApplicationVersion& other_version) const;
 
   // Checks if the Version has the correct statistics for a given column
-  static bool hasCorrectStatistics(const Version* writer_version, Type::type);
+  bool HasCorrectStatistics(Type::type primitive) const;
 };
 
 class PARQUET_EXPORT ColumnChunkMetaData {
  public:
   // API convenience to get a MetaData accessor
   static std::unique_ptr<ColumnChunkMetaData> Make(const uint8_t* metadata,
-      const ColumnDescriptor* descr, const Version* writer_version = NULL);
+      const ColumnDescriptor* descr, const ApplicationVersion* writer_version = NULL);
 
   ~ColumnChunkMetaData();
 
@@ -93,8 +93,8 @@ class PARQUET_EXPORT ColumnChunkMetaData {
   Type::type type() const;
   int64_t num_values() const;
   std::shared_ptr<schema::ColumnPath> path_in_schema() const;
-  bool is_stats_set();
-  std::shared_ptr<RowGroupStatistics> statistics();
+  bool is_stats_set() const;
+  std::shared_ptr<RowGroupStatistics> statistics() const;
   Compression::type compression() const;
   const std::vector<Encoding::type>& encodings() const;
   int64_t has_dictionary_page() const;
@@ -106,7 +106,7 @@ class PARQUET_EXPORT ColumnChunkMetaData {
 
  private:
   explicit ColumnChunkMetaData(const uint8_t* metadata, const ColumnDescriptor* descr,
-      const Version* writer_version = NULL);
+      const ApplicationVersion* writer_version = NULL);
   // PIMPL Idiom
   class ColumnChunkMetaDataImpl;
   std::unique_ptr<ColumnChunkMetaDataImpl> impl_;
@@ -116,7 +116,7 @@ class PARQUET_EXPORT RowGroupMetaData {
  public:
   // API convenience to get a MetaData accessor
   static std::unique_ptr<RowGroupMetaData> Make(const uint8_t* metadata,
-      const SchemaDescriptor* schema, const Version* writer_version = NULL);
+      const SchemaDescriptor* schema, const ApplicationVersion* writer_version = NULL);
 
   ~RowGroupMetaData();
 
@@ -130,7 +130,7 @@ class PARQUET_EXPORT RowGroupMetaData {
 
  private:
   explicit RowGroupMetaData(const uint8_t* metadata, const SchemaDescriptor* schema,
-      const Version* writer_version = NULL);
+      const ApplicationVersion* writer_version = NULL);
   // PIMPL Idiom
   class RowGroupMetaDataImpl;
   std::unique_ptr<RowGroupMetaDataImpl> impl_;
@@ -156,7 +156,7 @@ class PARQUET_EXPORT FileMetaData {
   int num_schema_elements() const;
   std::unique_ptr<RowGroupMetaData> RowGroup(int i) const;
 
-  const Version& writer_version() const;
+  const ApplicationVersion& writer_version() const;
 
   void WriteTo(OutputStream* dst);
 

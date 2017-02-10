@@ -308,7 +308,7 @@ TYPED_TEST(TestNumericRowGroupStatistics, Merge) {
 }
 
 TEST(CorruptStatistics, Basics) {
-  Version version("parquet-mr version 1.8.0");
+  ApplicationVersion version("parquet-mr version 1.8.0");
   SchemaDescriptor schema;
   schema::NodePtr node;
   std::vector<schema::NodePtr> fields;
