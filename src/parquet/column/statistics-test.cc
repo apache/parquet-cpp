@@ -329,25 +329,25 @@ TEST(CorruptStatistics, Basics) {
   node = schema::GroupNode::Make("schema", Repetition::REQUIRED, fields);
   schema.Init(node);
 
-  format::ColumnMetaData meta_data;
-  meta_data.__isset.statistics = true;
+  format::ColumnChunk col_chunk;
+  col_chunk.meta_data.__isset.statistics = true;
   auto column_chunk1 = ColumnChunkMetaData::Make(
-      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(0), &version);
+      reinterpret_cast<const uint8_t*>(&col_chunk), schema.Column(0), &version);
   ASSERT_TRUE(column_chunk1->is_stats_set());
   auto column_chunk2 = ColumnChunkMetaData::Make(
-      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(1), &version);
+      reinterpret_cast<const uint8_t*>(&col_chunk), schema.Column(1), &version);
   ASSERT_FALSE(column_chunk2->is_stats_set());
   auto column_chunk3 = ColumnChunkMetaData::Make(
-      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(2), &version);
+      reinterpret_cast<const uint8_t*>(&col_chunk), schema.Column(2), &version);
   ASSERT_TRUE(column_chunk3->is_stats_set());
   auto column_chunk4 = ColumnChunkMetaData::Make(
-      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(3), &version);
+      reinterpret_cast<const uint8_t*>(&col_chunk), schema.Column(3), &version);
   ASSERT_FALSE(column_chunk4->is_stats_set());
   auto column_chunk5 = ColumnChunkMetaData::Make(
-      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(4), &version);
+      reinterpret_cast<const uint8_t*>(&col_chunk), schema.Column(4), &version);
   ASSERT_FALSE(column_chunk5->is_stats_set());
   auto column_chunk6 = ColumnChunkMetaData::Make(
-      reinterpret_cast<const uint8_t*>(&meta_data), schema.Column(5), &version);
+      reinterpret_cast<const uint8_t*>(&col_chunk), schema.Column(5), &version);
   ASSERT_FALSE(column_chunk6->is_stats_set());
 }
 
