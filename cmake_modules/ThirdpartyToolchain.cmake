@@ -69,7 +69,7 @@ if (NOT THRIFT_FOUND)
       )
   else()
     ExternalProject_Add(thrift_ep
-        CONFIGURE_COMMAND ./configure "CFLAGS=${THRIFT_C_FLAGS}" "CXXFLAGS=${THRIFT_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+      CONFIGURE_COMMAND ${THRIFT_CONFIGURE_COMMAND}
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean
