@@ -48,7 +48,6 @@ fetch_archive() {
 
 run_tests() {
   # Build
-  source ./setup_build_env.sh
   mkdir -p build
   cd build
   cmake -DPARQUET_ARROW=ON ..
