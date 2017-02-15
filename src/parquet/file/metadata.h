@@ -60,8 +60,8 @@ class ApplicationVersion {
   // Application that wrote the file. e.g. "IMPALA"
   std::string application_;
   // Build name
-  std::string build_; 
-  
+  std::string build_;
+
   // Version of the application that wrote the file, expressed as
   // (<major>.<minor>.<patch>). Unmatched parts default to 0.
   // "1.2.3"    => {1, 2, 3}

@@ -491,7 +491,7 @@ ApplicationVersion::ApplicationVersion(const std::string& created_by) {
     // first match is the entire string. sub-matches start from second.
     application_ = app_matches[1];
     std::string version = app_matches[2];
-    build_ = app_matches[3]; 
+    build_ = app_matches[3];
     ver_success = std::regex_match(version, ver_matches, ver_regex);
   }
 
