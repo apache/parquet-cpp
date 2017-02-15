@@ -49,11 +49,13 @@ class ApplicationVersion {
   static const ApplicationVersion PARQUET_251_FIXED_VERSION;
   static const ApplicationVersion PARQUET_816_FIXED_VERSION;
   // Regular expression for the version format
-  // major  . minor  .patch   ???       - prerelease.x + build info
+  // major . minor . patch unknown - prerelease.x + build info
+  // Eg: 1.5.0ab-cdh5.5.0+cd
   static constexpr char const* VERSION_FORMAT =
       "^(\\d+)\\.(\\d+)\\.(\\d+)([^-+]*)?(?:-([^+]*))?(?:\\+(.*))?$";
   // Regular expression for the application format
-  // library_name version VERSION_FORMAT build
+  // application_name version VERSION_FORMAT (build build_name)
+  // Eg: parquet-cpp version 1.5.0ab-xyz5.5.0+cd (build abcd)
   static constexpr char const* APPLICATION_FORMAT =
       "(.*?)\\s+version\\s*(?:([^(]*?)\\s*(?:\\(\\s*build\\s*([^)]*?)\\s*\\))?)?";
 
