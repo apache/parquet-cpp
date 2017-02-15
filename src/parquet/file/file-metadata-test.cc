@@ -187,12 +187,12 @@ TEST(ApplicationVersion, Basics) {
   ApplicationVersion version2("parquet-cpp version 1.0.0");
   ApplicationVersion version3("");
 
-  ASSERT_EQ("parquet-mr", version.application);
+  ASSERT_EQ("parquet-mr", version.application_);
   ASSERT_EQ(1, version.version.major);
   ASSERT_EQ(7, version.version.minor);
   ASSERT_EQ(9, version.version.patch);
 
-  ASSERT_EQ("parquet-cpp", version2.application);
+  ASSERT_EQ("parquet-cpp", version2.application_);
   ASSERT_EQ(1, version2.version.major);
   ASSERT_EQ(0, version2.version.minor);
   ASSERT_EQ(0, version2.version.patch);
