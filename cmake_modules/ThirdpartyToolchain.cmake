@@ -22,7 +22,7 @@ set(THRIFT_VERSION "0.9.1")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
-set(ARROW_VERSION "0bdfd5efb2d7360f8ec8f6a65401d4c76a8df597")
+set(ARROW_VERSION "fa8d27f314b7c21c611d1c5caaa9b32ae0cb2b06")
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -69,7 +69,7 @@ if (NOT THRIFT_FOUND)
       )
   else()
     ExternalProject_Add(thrift_ep
-        CONFIGURE_COMMAND ./configure "CFLAGS=${THRIFT_C_FLAGS}" "CXXFLAGS=${THRIFT_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}"
+      CONFIGURE_COMMAND ${THRIFT_CONFIGURE_COMMAND}
       BUILD_IN_SOURCE 1
       # This is needed for 0.9.1 and can be removed for 0.9.3 again
       BUILD_COMMAND make clean

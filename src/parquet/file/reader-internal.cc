@@ -32,6 +32,8 @@
 #include "parquet/types.h"
 #include "parquet/util/memory.h"
 
+using arrow::MemoryPool;
+
 namespace parquet {
 
 // ----------------------------------------------------------------------
@@ -39,9 +41,9 @@ namespace parquet {
 // assembled in a serialized stream for storing in a Parquet files
 
 SerializedPageReader::SerializedPageReader(std::unique_ptr<InputStream> stream,
-    int64_t total_num_rows, Compression::type codec_type, MemoryAllocator* allocator)
+    int64_t total_num_rows, Compression::type codec_type, MemoryPool* pool)
     : stream_(std::move(stream)),
-      decompression_buffer_(AllocateBuffer(allocator, 0)),
+      decompression_buffer_(AllocateBuffer(pool, 0)),
       seen_num_rows_(0),
       total_num_rows_(total_num_rows) {
   max_page_header_size_ = DEFAULT_MAX_PAGE_HEADER_SIZE;
@@ -181,8 +183,8 @@ std::unique_ptr<PageReader> SerializedRowGroup::GetColumnPageReader(int i) {
   std::unique_ptr<InputStream> stream;
 
   // PARQUET-816 workaround for old files created by older parquet-mr
-  const FileMetaData::Version& version = file_metadata_->writer_version();
-  if (version.application == "parquet-mr" && version.VersionLt(1, 2, 9)) {
+  const ApplicationVersion& version = file_metadata_->writer_version();
+  if (version.VersionLt(ApplicationVersion::PARQUET_816_FIXED_VERSION)) {
     // The Parquet MR writer had a bug in 1.2.8 and below where it didn't include the
     // dictionary page header size in total_compressed_size and total_uncompressed_size
     // (see IMPALA-694). We add padding to compensate.
@@ -227,7 +229,9 @@ void SerializedFile::Close() {
 }
 
 SerializedFile::~SerializedFile() {
-  Close();
+  try {
+    Close();
+  } catch (...) {}
 }
 
 std::shared_ptr<RowGroupReader> SerializedFile::GetRowGroup(int i) {
@@ -268,7 +272,7 @@ void SerializedFile::ParseMetaData() {
   }
 
   std::shared_ptr<PoolBuffer> metadata_buffer =
-      AllocateBuffer(properties_.allocator(), metadata_len);
+      AllocateBuffer(properties_.memory_pool(), metadata_len);
   bytes_read =
       source_->ReadAt(metadata_start, metadata_len, metadata_buffer->mutable_data());
   if (bytes_read != metadata_len) {
