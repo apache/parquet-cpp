@@ -486,13 +486,16 @@ ApplicationVersion::ApplicationVersion(const std::string& created_by) {
 
   bool app_success = std::regex_match(created_by_lower, app_matches, app_regex);
   bool ver_success = false;
+  std::string version_str;
 
   if (app_success && app_matches.size() >= 4) {
     // first match is the entire string. sub-matches start from second.
     application_ = app_matches[1];
-    std::string version = app_matches[2];
+    version_str = app_matches[2];
     build_ = app_matches[3];
-    ver_success = std::regex_match(version, ver_matches, ver_regex);
+    ver_success = std::regex_match(version_str, ver_matches, ver_regex);
+  } else {
+      application_ = "unknown";
   }
 
   if (ver_success && ver_matches.size() >= 7) {
