@@ -1,0 +1,226 @@
+Parquet C++ 1.0.0
+--------------------------------------------------------------------------------
+## Bug
+    * [PARQUET-454] - Address inconsistencies in boolean decoding
+    * [PARQUET-455] - Fix compiler warnings on OS X / Clang
+    * [PARQUET-565] - Use PATH instead of DIRECTORY in get_filename_component to support CMake<2.8.12
+    * [PARQUET-558] - Support ZSH in build scripts
+    * [PARQUET-720] - Parquet-cpp fails to link when included in multiple TUs
+    * [PARQUET-718] - Reading boolean pages written by parquet-cpp fails
+    * [PARQUET-640] - [C++] Force the use of gcc 4.9 in conda builds
+    * [PARQUET-639] - Do not export DCHECK in public headers
+    * [PARQUET-643] - Add const modifier to schema pointer reference in ParquetFileWriter
+    * [PARQUET-672] - [C++] Build testing conda artifacts in debug mode
+    * [PARQUET-661] - [C++] Do not assume that perl is found in /usr/bin
+    * [PARQUET-659] - [C++] Instantiated template visibility is broken on clang / OS X
+    * [PARQUET-658] - ColumnReader has no virtual destructor
+    * [PARQUET-657] - [C++] Don't define DISALLOW_COPY_AND_ASSIGN if already defined
+    * [PARQUET-656] - [C++] Revert PARQUET-653
+    * [PARQUET-676] - MAX_VALUES_PER_LITERAL_RUN causes RLE encoding failure
+    * [PARQUET-615] - C++: Building static or shared libparquet should not be mutually exclusive
+    * [PARQUET-614] - C++: Remove unneeded LZ4-related code
+    * [PARQUET-604] - Install writer.h headers
+    * [PARQUET-621] - C++: Uninitialised DecimalMetadata is read
+    * [PARQUET-620] - C++: Duplicate calls to ParquetFileWriter::Close cause duplicate metdata writes
+    * [PARQUET-599] - ColumnWriter::RleEncodeLevels' size estimation might be wrong
+    * [PARQUET-617] - C++: Enable conda build to work on systems with non-default C++ toolchains
+    * [PARQUET-626] - Fix builds due to unavailable llvm.org apt mirror
+    * [PARQUET-629] - RowGroupSerializer should only close itself once
+    * [PARQUET-627] - Ensure that thrift headers are generated before source compilation
+    * [PARQUET-745] - TypedRowGroupStatistics fails to PlainDecode min and max in ByteArrayType
+    * [PARQUET-738] - Update arrow version that also supports newer Xcode
+    * [PARQUET-736] - XCode 8.0 breaks builds
+    * [PARQUET-747] - [C++] TypedRowGroupStatistics are not being exported in libparquet.so
+    * [PARQUET-711] - Use metadata builders in parquet writer
+    * [PARQUET-708] - [C++] RleEncoder does not account for "worst case scenario" in MaxBufferSize for bit_width > 1
+    * [PARQUET-732] - Building a subset of dependencies does not work
+    * [PARQUET-760] - On switching from dictionary to the fallback encoding, an incorrect encoding is set
+    * [PARQUET-694] - C++: Revert default data page size back to 1M
+    * [PARQUET-691] - [C++] Write ColumnChunk metadata after each column chunk in the file
+    * [PARQUET-797] - [C++] Update for API changes in ARROW-418
+    * [PARQUET-819] - C++: Trying to install non-existing parquet/arrow/utils.h
+    * [PARQUET-837] - [C++] SerializedFile::ParseMetaData uses Seek, followed by Read, and could have race conditions
+    * [PARQUET-821] - [C++] zlib download link is broken
+    * [PARQUET-827] - [C++] Incorporate addition of arrow::MemoryPool::Reallocate
+    * [PARQUET-505] - Column reader: automatically handle large data pages
+    * [PARQUET-502] - Scanner segfaults when its batch size is smaller than the number of rows
+    * [PARQUET-472] - Clean up InputStream ownership semantics in ColumnReader
+    * [PARQUET-469] - Roll back Thrift bindings to 0.9.0
+    * [PARQUET-818] - [C++] Refactor library to share IO, Buffer, and memory management abstractions with Apache Arrow
+    * [PARQUET-742] - Add missing license headers
+    * [PARQUET-739] - Rle-decoding uses static buffer that is shared accross threads
+    * [PARQUET-741] - compression_buffer_ is reused although it shouldn't
+    * [PARQUET-700] - C++: Disable dictionary encoding for boolean columns
+    * [PARQUET-662] - [C++] ParquetException must be explicitly exported in dynamic libraries
+    * [PARQUET-812] - [C++] Failure reading BYTE_ARRAY data from file in parquet-compatibility project
+    * [PARQUET-846] - [CPP] CpuInfo::Init() is not thread safe
+    * [PARQUET-828] - [C++] "version" field set improperly in file metadata
+    * [PARQUET-513] - Valgrind errors are not failing the Travis CI build
+    * [PARQUET-841] - [C++] Writing wrong format version when using ParquetVersion::PARQUET_1_0
+    * [PARQUET-842] - [C++] Impala rejects DOUBLE columns if decimal metadata is set
+    * [PARQUET-816] - [C++] Failure decoding sample dict-encoded file from parquet-compatibility project
+    * [PARQUET-759] - Cannot store columns consisting of empty strings
+    * [PARQUET-446] - Hide thrift dependency in parquet-cpp
+    * [PARQUET-704] - [C++] scan-all.h is not being installed
+    * [PARQUET-865] - C++: Pass all CXXFLAGS to Thrift ExternalProject
+    * [PARQUET-875] - [C++] Fix coveralls build given changes to thirdparty build procedure
+    * [PARQUET-876] - C++: Correct snapshot version
+    * [PARQUET-799] - concurrent usage of the file reader API
+    * [PARQUET-709] - [C++] Fix conda dev binary builds
+    * [PARQUET-638] - [C++] Revert static linking of libstdc++ in conda builds until symbol visibility addressed
+    * [PARQUET-606] - Travis coverage is broken
+    * [PARQUET-880] - [CPP] Prevent destructors from throwing
+    * [PARQUET-793] - [CPP] Do not return incorrect statistics
+    * [PARQUET-635] - [C++] Statically link libstdc++ on Linux in conda recipe
+    * [PARQUET-555] - Dictionary page metadata handling inconsistencies
+    * [PARQUET-710] - Remove unneeded private member variables from RowGroupReader ABI
+    * [PARQUET-766] - C++: Expose ParquetFileReader through Arrow reader as const
+    * [PARQUET-764] - [CPP] Parquet Writer does not write Boolean values correctly
+    * [PARQUET-843] - [C++] Impala unable to read files created by parquet-cpp
+    * [PARQUET-879] - C++: ExternalProject compilation for Thrift fails on older CMake versions
+    * [PARQUET-537] - LocalFileSource leaks resources
+    * [PARQUET-561] - ParquetFileReader::Contents PIMPL missing a virtual destructor
+
+## Improvement
+    * [PARQUET-277] - Remove boost dependency
+    * [PARQUET-267] - Detach thirdparty code from build configuration.
+    * [PARQUET-500] - Enable coveralls.io for apache/parquet-cpp
+    * [PARQUET-497] - Decouple Parquet physical file structure from FileReader class
+    * [PARQUET-597] - Add data rates to benchmark output
+    * [PARQUET-522] - #include cleanup with include-what-you-use 
+    * [PARQUET-520] - Add version of LocalFileSource that uses memory-mapping for zero-copy reads
+    * [PARQUET-519] - Disable compiler warning supressions and fix all DEBUG build warnings
+    * [PARQUET-518] - Review usages of size_t and unsigned integers generally per Google style guide
+    * [PARQUET-515] - Add "Reset" to LevelEncoder and LevelDecoder
+    * [PARQUET-514] - Automate coveralls.io updates in Travis CI
+    * [PARQUET-551] - Handle compiler warnings due to disabled DCHECKs in release builds
+    * [PARQUET-559] - Enable InputStream as a source to the ParquetFileReader
+    * [PARQUET-562] - Simplified ZSH support in build scripts
+    * [PARQUET-538] - Improve ColumnReader Tests
+    * [PARQUET-541] - Portable build scripts
+    * [PARQUET-547] - Refactor most templates to use DataType structs rather than the Type::type enum
+    * [PARQUET-572] - Rename parquet_cpp namespace to parquet
+    * [PARQUET-724] - Test more advanced properties setting
+    * [PARQUET-721] - Performance benchmarks for reading into Arrow structures
+    * [PARQUET-641] - Instantiate stringstream only if needed in SerializedPageReader::NextPage
+    * [PARQUET-681] - Add tool to scan a parquet file
+    * [PARQUET-636] - Expose selection for different encodings
+    * [PARQUET-603] - Implement missing information in schema descriptor
+    * [PARQUET-610] - Print ColumnMetaData for each RowGroup
+    * [PARQUET-600] - Add benchmarks for RLE-Level encoding
+    * [PARQUET-592] - Support compressed writes
+    * [PARQUET-593] - Add API for writing Page statistics
+    * [PARQUET-591] - Page size estimation during writes
+    * [PARQUET-589] - Implement Chunked InMemoryInputStream for better memory usage
+    * [PARQUET-587] - Implement BufferReader::Read(int64_t,uint8_t*)
+    * [PARQUET-616] - C++: WriteBatch should accept const arrays
+    * [PARQUET-630] - C++: Support link flags for older CMake versions
+    * [PARQUET-634] - Consistent private linking of dependencies
+    * [PARQUET-633] - Add version to WriterProperties
+    * [PARQUET-625] - Improve RLE read performance
+    * [PARQUET-744] - Clarifications on build instructions
+    * [PARQUET-737] - Use absolute namespace in macros
+    * [PARQUET-762] - C++: Use optimistic allocation instead of Arrow Builders
+    * [PARQUET-773] - C++: Check licenses with RAT in CI
+    * [PARQUET-687] - C++: Switch to PLAIN encoding if dictionary grows too large
+    * [PARQUET-784] - C++: Reference Spark, Kudu and FrameOfReference in LICENSE
+    * [PARQUET-813] - C++: Build dependencies using CMake External project
+    * [PARQUET-809] - [C++] Add API to determine if two files' schemas are compatible 
+    * [PARQUET-778] - Standardize the schema output to match the parquet-mr format
+    * [PARQUET-829] - C++: Make use of ARROW-469
+    * [PARQUET-463] - Add DCHECK* macros for assertions in debug builds
+    * [PARQUET-471] - Use the same environment setup script for Travis CI as local sandbox development
+    * [PARQUET-449] - Update to latest parquet.thrift
+    * [PARQUET-447] - Add Debug and Release build types and associated compiler flags
+    * [PARQUET-448] - Add cmake option to skip building the unit tests
+    * [PARQUET-496] - Fix cpplint configuration to be more restrictive
+    * [PARQUET-488] - Add SSE-related cmake options to manage compiler flags
+    * [PARQUET-468] - Add a cmake option to generate the Parquet thrift headers with the thriftc in the environment
+    * [PARQUET-482] - Organize src code file structure to have a very clear folder with public headers.
+    * [PARQUET-671] - Improve performance of RLE/bit-packed decoding in parquet-cpp
+    * [PARQUET-653] - [C++] Re-enable -static-libstdc++ in dev artifact builds
+    * [PARQUET-763] - C++: Expose ParquetFileReader through Arrow reader
+    * [PARQUET-820] - C++: Decoders should directly emit arrays with spacing for null entries
+    * [PARQUET-533] - Simplify RandomAccessSource API to combine Seek/Read 
+    * [PARQUET-501] - Add an OutputStream abstraction (capable of memory allocation) for Encoder public API
+    * [PARQUET-767] - Add release scripts for parquet-cpp
+    * [PARQUET-699] - Update parquet.thrift from https://github.com/apache/parquet-format
+    * [PARQUET-857] - [C++] Flatten parquet/encodings directory
+    * [PARQUET-556] - Extend RowGroupStatistics to include "min" "max" statistics
+    * [PARQUET-862] - Provide defaut cache size values if CPU info probing is not available
+    * [PARQUET-868] - C++: Build snappy with optimizations
+    * [PARQUET-877] - C++: Update Arrow Hash, update Version in metadata.
+    * [PARQUET-689] - C++: Compress DataPages eagerly
+    * [PARQUET-874] - [C++] Use default memory allocator from Arrow
+    * [PARQUET-607] - Public Writer header
+    * [PARQUET-731] - [CPP] Add API to return metadata size and Skip reading values
+    * [PARQUET-883] - C++: Support non-standard gcc version strings
+    * [PARQUET-628] - Link thrift privately
+    * [PARQUET-418] - Add a utility to print contents of a Parquet file to stdout
+    * [PARQUET-564] - Add option to run unit tests with valgrind --tool=memcheck
+
+## New Feature
+    * [PARQUET-499] - Complete PlainEncoder implementation for all primitive types and test end to end
+    * [PARQUET-451] - Add a RowGroup reader interface class
+    * [PARQUET-439] - Conform all copyright headers to ASF requirements
+    * [PARQUET-436] - Implement ParquetFileWriter class entry point for generating new Parquet files
+    * [PARQUET-435] - Provide vectorized ColumnReader interface
+    * [PARQUET-438] - Update RLE encoder/decoder modules from Impala upstream changes and adapt unit tests
+    * [PARQUET-512] - Add optional google/benchmark 3rd-party dependency for performance testing
+    * [PARQUET-566] - Add method to retrieve the full column path
+    * [PARQUET-613] - C++: Add conda packaging recipe
+    * [PARQUET-605] - Expose schema node in ColumnDescriptor
+    * [PARQUET-619] - C++: Add OutputStream for local files
+    * [PARQUET-583] - Implement Parquet to Thrift schema conversion
+    * [PARQUET-582] - Conversion functions for Parquet enums to Thrift enums
+    * [PARQUET-618] - C++: Automatically upload conda build artifacts on commits to master
+    * [PARQUET-712] - C++: Read into Arrow memory
+    * [PARQUET-728] - [C++] Bring parquet::arrow up to date with API changes in arrow::io 
+    * [PARQUET-752] - [C++] Conform parquet_arrow to upstream API changes
+    * [PARQUET-769] - C++: Add support for Brotli Compression
+    * [PARQUET-785] - C++: List conversion for Arrow Schemas
+    * [PARQUET-788] - [C++] Reference Impala / Apache Impala (incubating) in LICENSE
+    * [PARQUET-782] - C++: Support writing to Arrow sinks
+    * [PARQUET-808] - [C++] Add API to read file given externally-provided FileMetadata
+    * [PARQUET-807] - [C++] Add API to read file metadata only from a file handle
+    * [PARQUET-805] - C++: Read Int96 into Arrow Timestamp(ns)
+    * [PARQUET-836] - [C++] Add column selection to parquet::arrow::FileReader
+    * [PARQUET-835] - [C++] Add option to parquet::arrow to read columns in parallel using a thread pool
+    * [PARQUET-830] - [C++] Add additional configuration options to parquet::arrow::OpenFIle
+    * [PARQUET-833] - C++: Provide API to write spaced arrays (e.g. Arrow)
+    * [PARQUET-494] - Implement PLAIN_DICTIONARY encoding and decoding
+    * [PARQUET-485] - Decouple data page delimiting from column reader / scanner classes, create test fixtures
+    * [PARQUET-844] - [C++] Consolidate encodings, schema, and compression subdirectories into fewer files
+    * [PARQUET-848] - [C++] Consolidate libparquet_thrift subcomponent
+    * [PARQUET-646] - [C++] Enable easier 3rd-party toolchain clang builds on Linux
+    * [PARQUET-598] - [C++] Test writing all primitive data types
+    * [PARQUET-579] - Add API for writing Column statistics
+    * [PARQUET-666] - PLAIN_DICTIONARY write support
+    * [PARQUET-489] - Add visibility macros to be used for public and internal APIs of libparquet
+    * [PARQUET-542] - Support memory allocation from external memory
+    * [PARQUET-437] - Incorporate googletest thirdparty dependency and add cmake tools (ADD_PARQUET_TEST) to simplify adding new unit tests
+    * [PARQUET-442] - Convert flat SchemaElement vector to implied nested schema data structure
+    * [PARQUET-866] - [C++] Account for API changes in ARROW-33
+    * [PARQUET-867] - [C++] Support writing sliced Arrow arrays
+    * [PARQUET-573] - C++: Create a public API for reading and writing file metadata
+    * [PARQUET-545] - Improve API to support Decimal type
+    * [PARQUET-434] - Add a ParquetFileReader class to encapsulate some low-level details of interacting with Parquet files
+    * [PARQUET-456] - Add zlib codec support
+    * [PARQUET-834] - C++: Support r/w of arrow::ListArray
+
+## Task
+    * [PARQUET-814] - C++: Remove Conda recipes
+    * [PARQUET-771] - C++: Sync KEYS file
+    * [PARQUET-503] - Re-enable parquet 2.0 encodings
+    * [PARQUET-169] - Parquet-cpp: Implement support for bulk reading and writing repetition/definition levels.
+    * [PARQUET-878] - C++: Remove setup_build_env from rc-verification script
+    * [PARQUET-881] - C++: Update Arrow hash to 0.2.0-rc2
+
+## Test
+    * [PARQUET-525] - Test coverage for malformed file failure modes on the read path
+    * [PARQUET-703] - [C++] Validate num_values metadata for columns with nulls
+    * [PARQUET-507] - Improve runtime of rle-test.cc
+    * [PARQUET-549] - Add scanner and column reader tests for dictionary data pages
+    * [PARQUET-457] - Add compressed data page unit tests
+
+
