@@ -18,7 +18,7 @@
 set(GTEST_VERSION "1.7.0")
 set(GBENCHMARK_VERSION "1.0.0")
 set(SNAPPY_VERSION "1.1.3")
-set(THRIFT_VERSION "0.9.1")
+set(THRIFT_VERSION "0.10.0")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
