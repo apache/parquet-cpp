@@ -42,9 +42,6 @@ set(EP_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC"
 find_package(Thrift)
 
 if (NOT THRIFT_FOUND)
-  if (APPLE)
-      message(FATAL_ERROR "thrift compilation under OSX is not currently supported.")
-  endif()
 
   set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
   set(THRIFT_HOME "${THRIFT_PREFIX}")
