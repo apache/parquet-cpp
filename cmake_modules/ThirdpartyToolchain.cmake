@@ -49,34 +49,40 @@ if (NOT THRIFT_FOUND)
   set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
   set(THRIFT_HOME "${THRIFT_PREFIX}")
   set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
-  set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
+  IF (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
+    set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthriftd.a")
+  ELSE()
+    set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
+  ENDIF()
   set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
   set(THRIFT_VENDORED 1)
-  set(THRIFT_CONFIGURE_COMMAND
-      ./configure "CFLAGS=${EP_C_FLAGS}" "CXXFLAGS=${EP_CXX_FLAGS}" --without-qt4 --without-c_glib --without-csharp --without-java --without-erlang --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-d --with-cpp "--prefix=${THRIFT_PREFIX}")
+  set(THRIFT_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                        "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
+                        "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
+                        "-DCMAKE_INSTALL_PREFIX=${THRIFT_PREFIX}"
+                        "-DCMAKE_INSTALL_RPATH=${THRIFT_PREFIX}/lib"
+                        "-DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}"
+                        "-DBUILD_SHARED_LIBS=OFF"
+                        "-DBUILD_TESTING=OFF"
+                        "-DWITH_QT4=OFF"
+                        "-DWITH_C_GLIB=OFF"
+                        "-DWITH_JAVA=OFF"
+                        "-DWITH_PYTHON=OFF"
+                        "-DWITH_CPP=ON"
+                        "-DWITH_STATIC_LIB=ON"
+                        )
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ${THRIFT_CONFIGURE_COMMAND}
-      BUILD_IN_SOURCE 1
-      # This is needed for 0.9.1 and can be removed for 0.9.3 again
-      BUILD_COMMAND make clean
-      INSTALL_COMMAND make install
-      INSTALL_DIR ${THRIFT_PREFIX}
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
-      )
+      CMAKE_ARGS ${THRIFT_CMAKE_ARGS})
   else()
     ExternalProject_Add(thrift_ep
-      CONFIGURE_COMMAND ${THRIFT_CONFIGURE_COMMAND}
-      BUILD_IN_SOURCE 1
-      # This is needed for 0.9.1 and can be removed for 0.9.3 again
-      BUILD_COMMAND make clean
-      INSTALL_COMMAND make install
-      INSTALL_DIR ${THRIFT_PREFIX}
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      )
+      BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
+      CMAKE_ARGS ${THRIFT_CMAKE_ARGS})
   endif()
     set(THRIFT_VENDORED 1)
 else()
