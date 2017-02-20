@@ -83,7 +83,6 @@ if (NOT THRIFT_FOUND)
                         "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
                         "-DCMAKE_INSTALL_PREFIX=${THRIFT_PREFIX}"
                         "-DCMAKE_INSTALL_RPATH=${THRIFT_PREFIX}/lib"
-                        "-DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}"
                         "-DBUILD_SHARED_LIBS=OFF"
                         "-DBUILD_TESTING=OFF"
                         "-DWITH_QT4=OFF"
