@@ -27,11 +27,32 @@ set(ARROW_VERSION "66f650cd359e13f3d5c3d4ef78d89f389d6bcecc")
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
 set(Boost_USE_MULTITHREADED ON)
-find_package(Boost REQUIRED)
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-set(LIBS ${LIBS} ${Boost_LIBRARIES})
+set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost COMPONENTS regex REQUIRED)
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
+  set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
+else()
+  set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
+endif()
+
+# Find shared Boost libraries.
+set(Boost_USE_STATIC_LIBS OFF)
+find_package(Boost COMPONENTS regex REQUIRED)
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
+  set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
+else()
+  set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
+endif()
+
 message(STATUS "Boost include dir: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
+add_library(boost_static_regex STATIC IMPORTED)
+set_target_properties(boost_static_regex PROPERTIES IMPORTED_LOCATION ${BOOST_STATIC_REGEX_LIBRARY})
+add_library(boost_shared_regex SHARED IMPORTED)
+set_target_properties(boost_shared_regex PROPERTIES IMPORTED_LOCATION ${BOOST_SHARED_REGEX_LIBRARY})
+
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${Boost_LIBRARIES})
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
 # Set -fPIC on all external projects and include the main CXX_FLAGS

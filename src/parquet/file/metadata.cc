@@ -16,7 +16,6 @@
 // under the License.
 
 #include <algorithm>
-#include <regex>
 #include <string>
 #include <vector>
 
@@ -28,6 +27,8 @@
 #include "parquet/util/memory.h"
 
 #include <boost/algorithm/string.hpp>
+#include <boost/regex.hpp>
+
 
 namespace parquet {
 
@@ -475,16 +476,16 @@ void FileMetaData::WriteTo(OutputStream* dst) {
 }
 
 ApplicationVersion::ApplicationVersion(const std::string& created_by) {
-  std::regex app_regex(ApplicationVersion::APPLICATION_FORMAT);
-  std::regex ver_regex(ApplicationVersion::VERSION_FORMAT);
-  std::smatch app_matches;
-  std::smatch ver_matches;
+  boost::regex app_regex{ApplicationVersion::APPLICATION_FORMAT};
+  boost::regex ver_regex{ApplicationVersion::VERSION_FORMAT};
+  boost::smatch app_matches;
+  boost::smatch ver_matches;
 
   std::string created_by_lower = created_by;
   std::transform(created_by_lower.begin(), created_by_lower.end(),
       created_by_lower.begin(), ::tolower);
 
-  bool app_success = std::regex_match(created_by_lower, app_matches, app_regex);
+  bool app_success = boost::regex_match(created_by_lower, app_matches, app_regex);
   bool ver_success = false;
   std::string version_str;
 
@@ -493,7 +494,7 @@ ApplicationVersion::ApplicationVersion(const std::string& created_by) {
     application_ = app_matches[1];
     version_str = app_matches[3];
     build_ = app_matches[4];
-    ver_success = std::regex_match(version_str, ver_matches, ver_regex);
+    ver_success = boost::regex_match(version_str, ver_matches, ver_regex);
   } else {
       application_ = "unknown";
   }

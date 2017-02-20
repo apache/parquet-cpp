@@ -76,6 +76,9 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_BENCHMARKS
     "Build the libparquet benchmark suite"
     OFF)
+  option(PARQUET_BOOST_USE_SHARED
+    "Rely on boost shared libraries where relevant"
+    ON)
   option(PARQUET_BUILD_TESTS
     "Build the libparquet test suite"
     ON)
@@ -434,6 +437,17 @@ if ("${PARQUET_GENERATE_COVERAGE}")
 endif()
 
 #############################################################
+# Boost linkage
+
+if (PARQUET_BOOST_USE_SHARED)
+  set(BOOST_LINK_LIBS
+    boost_shared_regex)
+else()
+  set(BOOST_LINK_LIBS
+    boost_static_regex)
+endif()
+
+#############################################################
 # Apache Arrow linkage
 
 if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
@@ -547,6 +561,7 @@ set(BUNDLED_STATIC_LIBS
 # Shared library linked libs
 set(LIBPARQUET_PRIVATE_LINK_LIBS
   ${ARROW_LINK_LIBS}
+  ${BOOST_LINK_LIBS}
   ${BUNDLED_STATIC_LIBS}
 )
 
