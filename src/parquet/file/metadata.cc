@@ -491,8 +491,8 @@ ApplicationVersion::ApplicationVersion(const std::string& created_by) {
   if (app_success && app_matches.size() >= 4) {
     // first match is the entire string. sub-matches start from second.
     application_ = app_matches[1];
-    version_str = app_matches[2];
-    build_ = app_matches[3];
+    version_str = app_matches[3];
+    build_ = app_matches[4];
     ver_success = std::regex_match(version_str, ver_matches, ver_regex);
   } else {
       application_ = "unknown";

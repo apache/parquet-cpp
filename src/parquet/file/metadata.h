@@ -57,7 +57,7 @@ class ApplicationVersion {
   // application_name version VERSION_FORMAT (build build_name)
   // Eg: parquet-cpp version 1.5.0ab-xyz5.5.0+cd (build abcd)
   static constexpr char const* APPLICATION_FORMAT =
-      "(.*?)\\s+version\\s*(?:([^(]*?)\\s*(?:\\(\\s*build\\s*([^)]*?)\\s*\\))?)?";
+      "(.*?)\\s*(?:(version\\s*(?:([^(]*?)\\s*(?:\\(\\s*build\\s*([^)]*?)\\s*\\))?)?)?)";
 
   // Application that wrote the file. e.g. "IMPALA"
   std::string application_;
