@@ -99,7 +99,6 @@ if (NOT THRIFT_FOUND)
   else()
     ExternalProject_Add(thrift_ep
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS})
   endif()
     set(THRIFT_VENDORED 1)
