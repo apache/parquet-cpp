@@ -25,6 +25,7 @@ set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
 set(ARROW_VERSION "66f650cd359e13f3d5c3d4ef78d89f389d6bcecc")
 
 # find boost headers and libs
+# Find shared Boost libraries.
 set(Boost_DEBUG TRUE)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_LIBS ON)
@@ -35,7 +36,7 @@ else()
   set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
 endif()
 
-# Find shared Boost libraries.
+# Find static Boost libraries.
 set(Boost_USE_STATIC_LIBS OFF)
 find_package(Boost COMPONENTS regex REQUIRED)
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
