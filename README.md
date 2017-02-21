@@ -31,6 +31,31 @@
   </tr>
 </table>
 
+## System Dependencies
+
+### Linux
+
+parquet-cpp requires gcc 4.8 or higher on Linux.
+
+To build parquet-cpp out of the box, you must install some build prerequisites
+for the thirdparty dependencies. On Debian/Ubuntu, these can be installed with:
+
+```
+sudo apt-get install libboost-dev libboost-filesystem-dev \
+                     libboost-program-options-dev libboost-regex-dev \
+                     libboost-system-dev libboost-test-dev \
+                     libssl-dev libtool bison flex pkg-config
+```
+
+### OS X
+
+You must use XCode 6 or higher. We recommend using Homebrew to install Boost,
+which is required for Thrift:
+
+```
+brew install boost
+```
+
 ## Third Party Dependencies
 
 - Apache Arrow (memory management, built-in IO, optional Array adapters)
@@ -42,13 +67,6 @@
 
 You can either install these dependencies separately, otherwise they will be
 built automatically as part of the build.
-
-Note that thrift will not be build inside the project on macOS. Instead you
-should install it via homebrew:
-
-```
-brew install thrift
-```
 
 ## Build
 
