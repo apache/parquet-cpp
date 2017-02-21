@@ -42,9 +42,9 @@ for the thirdparty dependencies. On Debian/Ubuntu, these can be installed with:
 
 ```
 sudo apt-get install libboost-dev libboost-filesystem-dev \
-     libboost-system-dev libboost-program-options-dev \
-     libboost-test-dev libssl-dev libtool bison flex \
-     pkg-config
+                     libboost-program-options-dev libboost-regex-dev \
+                     libboost-system-dev libboost-test-dev \
+                     libssl-dev libtool bison flex pkg-config
 ```
 
 ### OS X
