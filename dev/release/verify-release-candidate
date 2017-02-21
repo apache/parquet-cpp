@@ -27,7 +27,7 @@ download_dist_file() {
 }
 
 download_rc_file() {
-  download_dist_file ${verify_version}/$1
+  download_dist_file ${verify_version}-rc${verify_rc_num}/$1
 }
 
 import_gpg_keys() {
@@ -50,7 +50,7 @@ run_tests() {
   # Build
   mkdir -p build
   cd build
-  cmake -DPARQUET_ARROW=ON ..
+  cmake -DPARQUET_ARROW=ON -DPARQUET_ARROW_LINKAGE=static ..
   make -j5
 
   # Test
@@ -67,7 +67,8 @@ setup_tempdir() {
 }
 
 case $# in
-  1) verify_version="$1"
+  2) verify_version="$1"
+     verify_rc_num="$2"
      ;;
 
   *) echo "Usage: $0 RC_VERSION"
