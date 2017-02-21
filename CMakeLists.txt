@@ -70,6 +70,8 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     ON)
   set(PARQUET_ARROW_LINKAGE "shared" CACHE STRING
     "Libraries to link for Apache Arrow. static|shared (default shared)")
+  set(PARQUET_CXXFLAGS "" CACHE STRING
+    "Compiler flags to use when compiling Parquet")
   option(PARQUET_USE_SSE
     "Build with SSE4 optimizations"
     OFF)
@@ -333,7 +335,7 @@ endif ()
 
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -fno-strict-aliasing")
+SET(CMAKE_CXX_FLAGS "${PARQUET_CXXFLAGS} ${CMAKE_CXX_FLAGS} -std=c++11 -Wall -fno-strict-aliasing")
 
 if (PARQUET_USE_SSE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
