@@ -14,7 +14,7 @@
 
 if [ $TRAVIS_OS_NAME == "osx" ]; then
   brew update > /dev/null
-  brew install thrift
+  brew install boost
 else
   # Use a C++11 compiler on Linux
   export CC="gcc-4.9"
