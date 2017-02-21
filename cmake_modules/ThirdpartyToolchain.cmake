@@ -77,7 +77,7 @@ if (NOT THRIFT_FOUND)
   set(THRIFT_VENDORED 1)
   set(THRIFT_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                         "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
-                        "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
+                        "-DCMAKE_C_FLAGS=${EP_C_FLAGS}"
                         "-DCMAKE_INSTALL_PREFIX=${THRIFT_PREFIX}"
                         "-DCMAKE_INSTALL_RPATH=${THRIFT_PREFIX}/lib"
                         "-DBUILD_SHARED_LIBS=OFF"
