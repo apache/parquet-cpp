@@ -24,19 +24,17 @@
 message(STATUS "THRIFT_HOME: $ENV{THRIFT_HOME}")
 find_path(THRIFT_INCLUDE_DIR thrift/Thrift.h HINTS
   $ENV{THRIFT_HOME}/include/
-  /usr/local/include/
-  /opt/local/include/
+  NO_DEFAULT_PATH
 )
 
 find_path(THRIFT_CONTRIB_DIR share/fb303/if/fb303.thrift HINTS
   $ENV{THRIFT_HOME}
-  /usr/local/
+  NO_DEFAULT_PATH
 )
 
 set(THRIFT_LIB_PATHS
   $ENV{THRIFT_HOME}/lib
-  /usr/local/lib
-  /opt/local/lib)
+  NO_DEFAULT_PATH)
 
 find_path(THRIFT_STATIC_LIB_PATH libthrift.a PATHS ${THRIFT_LIB_PATHS})
 
@@ -45,8 +43,6 @@ find_library(THRIFT_LIB NAMES thrift HINTS ${THRIFT_LIB_PATHS})
 
 find_program(THRIFT_COMPILER thrift
   $ENV{THRIFT_HOME}/bin
-  /usr/local/bin
-  /usr/bin
   NO_DEFAULT_PATH
 )
 
