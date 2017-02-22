@@ -38,19 +38,16 @@ elseif ( Snappy_HOME )
     list( APPEND _snappy_roots ${Snappy_HOME} )
 endif()
 
-# Try the parameterized roots, if they exist
-if ( _snappy_roots )
-    find_path( SNAPPY_INCLUDE_DIR NAMES snappy.h
-        PATHS ${_snappy_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "include" )
-    find_library( SNAPPY_LIBRARIES NAMES snappy
-        PATHS ${_snappy_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "lib" )
-else ()
-    find_path( SNAPPY_INCLUDE_DIR NAMES snappy.h )
-    find_library( SNAPPY_LIBRARIES NAMES snappy )
-endif ()
+message(STATUS "SNAPPY_HOME: $ENV{SNAPPY_HOME}")
+find_path(SNAPPY_INCLUDE_DIR snappy.h HINTS
+  $ENV{SNAPPY_HOME}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "include")
 
+find_library( SNAPPY_LIBRARIES NAMES snappy PATHS
+  $ENV{SNAPPY_HOME}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "lib")
 
 if (SNAPPY_INCLUDE_DIR AND SNAPPY_LIBRARIES)
   set(SNAPPY_FOUND TRUE)

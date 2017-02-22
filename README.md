@@ -68,6 +68,13 @@ brew install boost
 You can either install these dependencies separately, otherwise they will be
 built automatically as part of the build.
 
+Symbols from Thrift, Snappy, and ZLib are statically-linked into the
+`libparquet` shared library, so these dependencies must be build with `-fPIC`
+on Linux and OS X. Since Linux package managers do not consistently compile the
+static libraries for these components with `-fPIC`, you may experience issues
+with Linux packages such as `libsnappy-dev`. It may be easier for you to depend
+on the thirdparty toolchain that parquet-cpp builds automatically.
+
 ## Build
 
 - `cmake .`
