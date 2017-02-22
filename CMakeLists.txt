@@ -548,9 +548,6 @@ set(LIBPARQUET_SRCS
   src/parquet/util/memory.cc
 )
 
-set(LIBPARQUET_LINK_LIBS
-)
-
 set(BUNDLED_STATIC_LIBS
   brotlistatic_dec
   brotlistatic_enc
@@ -560,8 +557,11 @@ set(BUNDLED_STATIC_LIBS
   zlibstatic
 )
 
-# Shared library linked libs
-set(LIBPARQUET_PRIVATE_LINK_LIBS
+# These are libraries that we will link privately with parquet_shared (as they
+# do not need to be linked transitively by other linkers), but publicly with
+# parquet_static (because internal users need to transitively link all
+# dependencies)
+set(LIBPARQUET_INTERFACE_LINK_LIBS
   ${ARROW_LINK_LIBS}
   ${BOOST_LINK_LIBS}
   ${BUNDLED_STATIC_LIBS}
@@ -580,8 +580,7 @@ add_dependencies(parquet_objlib thrift-deps)
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
 add_dependencies(parquet_objlib
-  ${LIBPARQUET_LINK_LIBS}
-  ${LIBPARQUET_PRIVATE_LINK_LIBS})
+  ${LIBPARQUET_INTERFACE_LINK_LIBS})
 
 set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -602,8 +601,7 @@ if (PARQUET_BUILD_SHARED)
       LINK_FLAGS "${SHARED_LINK_FLAGS}"
       OUTPUT_NAME "parquet")
     target_link_libraries(parquet_shared
-      LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
-      LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+      LINK_PRIVATE ${LIBPARQUET_INTERFACE_LINK_LIBS})
     if (APPLE)
       set_target_properties(parquet_shared
         PROPERTIES
@@ -619,8 +617,7 @@ if (PARQUET_BUILD_STATIC)
       LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
       OUTPUT_NAME "parquet")
     target_link_libraries(parquet_static
-      LINK_PUBLIC ${LIBPARQUET_LINK_LIBS}
-      LINK_PRIVATE ${LIBPARQUET_PRIVATE_LINK_LIBS})
+      LINK_PUBLIC ${LIBPARQUET_INTERFACE_LINK_LIBS})
 endif()
 
 add_subdirectory(src/parquet)
