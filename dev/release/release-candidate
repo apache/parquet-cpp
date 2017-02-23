@@ -136,13 +136,19 @@ fi
 
 # Add the rc tag to the current version
 rc_version="${current_version}-rc${rc_number}"
-rc_version_tag="rel/${rc_version}"
+version_tag="apache-parquet-cpp-${current_version}"
+rc_version_tag="apache-parquet-cpp-${rc_version}"
 
 echo
-echo "Generating release candidate ${rc_version}"
+echo "Generating release candidate ${rc_version_tag}"
 echo
 
 # Make sure the tag does not exist
+if git rev-parse ${version_tag} >/dev/null 2>&1; then
+  echo "ERROR: tag ${version_tag} exists."
+  exit 1
+fi
+
 if git rev-parse ${rc_version_tag} >/dev/null 2>&1; then
   echo "ERROR: tag ${rc_version_tag} exists."
   exit 1
@@ -156,7 +162,8 @@ To roll back your local repo you will need to run:
 
   git checkout master
   git reset --hard ${current_git_rev}
-  git tag -D ${rc_version_tag}
+  git tag -d ${rc_version_tag}
+  git branch -D stage_${rc_version}
 EOF
 }
 
@@ -186,18 +193,18 @@ git add .parquetcppversion
 git commit -m "Incrementing snapshot version to ${new_snapshot_version}."
 
 echo "Creating ${rc_version} staging branch"
-git checkout -b "stage_${rc_version_tag}"
+git checkout -b "stage_${rc_version}"
 
 echo "Updating .parquetcppversion on staging branch"
 # Increment the version and create a branch
-echo ${rc_version} > .parquetcppversion
+echo ${current_version} > .parquetcppversion
 git add .parquetcppversion
-git commit -m "Updating .parquetcppversion to ${rc_version}."
+git commit -m "Updating .parquetcppversion to ${current_version}."
 
 # Build the source distribution from the new branch
 echo "Building the source distribution"
 dist_dir=dist
-dist_name="apache-parquet-cpp-${rc_version}"
+dist_name="${version_tag}"
 
 mkdir -p ${dist_dir}
 git archive --prefix=${dist_name}/ -o ${dist_dir}/${dist_name}.tar.gz HEAD
@@ -217,16 +224,16 @@ parquet_svn_rc_url="${parquet_svn_dist_url}/${rc_version}"
 # Publish release candidate to svn and commit and push the new git tag
 if [[ $publish == 1 ]]; then
   echo "Publishing release candidate to ${parquet_svn_rc_url}"
-  svn mkdir ${parquet_svn_rc_url} -m "parquet-cpp-${current_version} release candidate ${rc_version_tag}"
+  svn mkdir ${parquet_svn_rc_url} -m "parquet-cpp-${current_version} release candidate ${rc_version}"
   svn co --depth=empty ${parquet_svn_rc_url} ${dist_dir}
   pushd ${dist_dir}
   svn add ${dist_name}*
-  svn ci -m "parquet-cpp-${current_version} release candidate ${rc_version_tag}"
+  svn ci -m "parquet-cpp-${current_version} release candidate ${rc_version}"
   popd
 
   echo "Creating tag ${rc_version_tag}"
   git tag -s ${rc_version_tag} \
-    -m "Apache Parquet C++ ${current_version} release candidate ${rc_version_tag}"
+    -m "Apache Parquet C++ ${current_version} release candidate ${rc_version}"
   git push origin "${rc_version_tag}"
 
   echo "Pushing updated .parquetcppversion to master"
@@ -256,9 +263,6 @@ Apache Parquet C++ ${current_version} release.
 
 Parquet C++ ${rc_version} includes the following:
 ---
-The RELEASE NOTES for the release are available at:
-${parquetcpp_git_web_url}&f=RELEASE-NOTES.md&hb=${rc_version_tag}
-
 The CHANGELOG for the release is available at:
 ${parquetcpp_git_web_url}&f=CHANGELOG&hb=${rc_version_tag}
 
@@ -276,6 +280,8 @@ ${parquet_svn_rc_url}/${dist_name}.tar.gz.asc
 
 The GPG key used to sign the release are available at:
 ${parquet_svn_dist_url}/KEYS
+
+The release is based on the commit hash ${current_git_rev}.
 
 Please download, verify, and test.
 
