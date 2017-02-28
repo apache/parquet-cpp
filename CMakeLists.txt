@@ -96,6 +96,9 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_ZLIB_VENDORED
     "Build our own zlib (some libz.a aren't configured for static linking)"
     ON)
+  option(PARQUET_RPATH_ORIGIN
+    "Build Parquet libraries with RATH set to \$ORIGIN"
+    OFF)
 endif()
 
 if (PARQUET_BUILD_TESTS OR PARQUET_BUILD_EXECUTABLES OR PARQUET_BUILD_BENCHMARKS)
@@ -602,7 +605,15 @@ if (PARQUET_BUILD_SHARED)
       OUTPUT_NAME "parquet")
     target_link_libraries(parquet_shared
       LINK_PRIVATE ${LIBPARQUET_INTERFACE_LINK_LIBS})
-    if (APPLE)
+    if (PARQUET_RPATH_ORIGIN)
+        if (APPLE)
+            set(_lib_install_rpath "@loader_path")
+        else()
+            set(_lib_install_rpath "\$ORIGIN")
+        endif()
+        set_target_properties(parquet_shared PROPERTIES
+            INSTALL_RPATH ${_lib_install_rpath})
+    elseif (APPLE)
       set_target_properties(parquet_shared
         PROPERTIES
         BUILD_WITH_INSTALL_RPATH ON
