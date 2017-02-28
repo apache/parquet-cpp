@@ -219,7 +219,7 @@ pushd ${dist_dir}
   shasum ${dist_name}.tar.gz > ${dist_name}.tar.gz.sha
 popd
 
-parquet_svn_rc_url="${parquet_svn_dist_url}/${rc_version}"
+parquet_svn_rc_url="${parquet_svn_dist_url}/apache-parquet-cpp-${rc_version}"
 
 # Publish release candidate to svn and commit and push the new git tag
 if [[ $publish == 1 ]]; then
