@@ -57,7 +57,7 @@ typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type NonNullA
 
 template <class ArrowType>
 typename std::enable_if<
-    is_arrow_int<ArrowType>::value and not is_arrow_date<ArrowType>::value, Status>::type
+    is_arrow_int<ArrowType>::value && !is_arrow_date<ArrowType>::value, Status>::type
 NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   std::vector<typename ArrowType::c_type> values;
   ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
@@ -128,7 +128,7 @@ typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type Nullable
 // This helper function only supports (size/2) nulls.
 template <typename ArrowType>
 typename std::enable_if<
-    is_arrow_int<ArrowType>::value and not is_arrow_date<ArrowType>::value, Status>::type
+    is_arrow_int<ArrowType>::value && !is_arrow_date<ArrowType>::value, Status>::type
 NullableArray(size_t size, size_t num_nulls, uint32_t seed, std::shared_ptr<Array>* out) {
   std::vector<typename ArrowType::c_type> values;
 
