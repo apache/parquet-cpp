@@ -85,7 +85,8 @@ int64_t ColumnWriter::RleEncodeLevels(std::shared_ptr<ResizableBuffer> dest_buff
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(rle_size));
   }
   level_encoder_.Init(Encoding::RLE, max_level, num_buffered_values_,
-      dest_buffer->mutable_data() + sizeof(int32_t), dest_buffer->size() - sizeof(int32_t));
+      dest_buffer->mutable_data() + sizeof(int32_t),
+      dest_buffer->size() - sizeof(int32_t));
   int encoded = level_encoder_.Encode(
       num_buffered_values_, reinterpret_cast<const int16_t*>(src_buffer));
   DCHECK_EQ(encoded, num_buffered_values_);
