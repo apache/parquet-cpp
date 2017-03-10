@@ -45,7 +45,7 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type
       dictionary_page_offset_(0),
       data_page_offset_(0),
       total_uncompressed_size_(0),
-      total_compressed_size_(0) {
+      total_compressed_size_(0) { 
   compressor_ = Codec::Create(codec);
 }
 
@@ -70,22 +70,26 @@ void SerializedPageWriter::Close(bool has_dictionary, bool fallback) {
   metadata_->WriteTo(sink_);
 }
 
-std::shared_ptr<Buffer> SerializedPageWriter::Compress(
-    const std::shared_ptr<Buffer>& buffer) {
+void SerializedPageWriter::Compress(
+    const std::shared_ptr<Buffer>& src_buffer, std::shared_ptr<ResizableBuffer>& dest_buffer) {
   // Fast path, no compressor available.
-  if (!compressor_) return buffer;
+  if (!compressor_) {
+    DCHECK(dest_buffer->size() == src_buffer->size());
+    memcpy(dest_buffer->mutable_data(), src_buffer->data(), src_buffer->size());
+    return;
+  }
 
   // Compress the data
   int64_t max_compressed_size =
-      compressor_->MaxCompressedLen(buffer->size(), buffer->data());
+      compressor_->MaxCompressedLen(src_buffer->size(), src_buffer->data());
 
-  std::shared_ptr<PoolBuffer> compression_buffer =
-      AllocateBuffer(pool_, max_compressed_size);
+  // Use Arrow::Buffer::shrink_to_fit = false
+  // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
+  PARQUET_THROW_NOT_OK(dest_buffer->Resize(max_compressed_size, false));
 
-  int64_t compressed_size = compressor_->Compress(buffer->size(), buffer->data(),
-      max_compressed_size, compression_buffer->mutable_data());
-  PARQUET_THROW_NOT_OK(compression_buffer->Resize(compressed_size));
-  return compression_buffer;
+  int64_t compressed_size = compressor_->Compress(src_buffer->size(), src_buffer->data(),
+      max_compressed_size, dest_buffer->mutable_data());
+  PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size));
 }
 
 int64_t SerializedPageWriter::WriteDataPage(const CompressedDataPage& page) {
@@ -124,7 +128,8 @@ int64_t SerializedPageWriter::WriteDataPage(const CompressedDataPage& page) {
 
 int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   int64_t uncompressed_size = page.size();
-  std::shared_ptr<Buffer> compressed_data = Compress(page.buffer());
+  std::shared_ptr<ResizableBuffer> compressed_data = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(pool_, uncompressed_size));
+  Compress(page.buffer(), compressed_data);
 
   format::DictionaryPageHeader dict_page_header;
   dict_page_header.__set_num_values(page.num_values());
