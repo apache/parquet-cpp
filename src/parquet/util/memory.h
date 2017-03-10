@@ -341,7 +341,7 @@ class PARQUET_EXPORT InMemoryOutputStream : public OutputStream {
   virtual void Write(const uint8_t* data, int64_t length);
 
   // Clears the stream
-  void Clear() {}
+  void Clear();
 
   // Get pointer to the underlying buffer
   const uint8_t* GetBufferPtr();

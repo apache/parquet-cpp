@@ -90,7 +90,7 @@ class PARQUET_EXPORT ColumnWriter {
   void WriteRepetitionLevels(int64_t num_levels, const int16_t* levels);
 
   std::shared_ptr<Buffer> RleEncodeLevels(
-      const std::shared_ptr<Buffer>& buffer, int16_t max_level);
+      const uint8_t* buffer, int16_t max_level);
 
   // Serialize the buffered Data Pages
   void FlushBufferedDataPages();
