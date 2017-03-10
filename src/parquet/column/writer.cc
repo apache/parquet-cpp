@@ -54,6 +54,8 @@ ColumnWriter::ColumnWriter(ColumnChunkMetaDataBuilder* metadata,
       fallback_(false) {
   definition_levels_sink_.reset(new InMemoryOutputStream(allocator_));
   repetition_levels_sink_.reset(new InMemoryOutputStream(allocator_));
+  definition_levels_rle_ = AllocateBuffer(allocator_, 0);
+  repetition_levels_rle_ = AllocateBuffer(allocator_, 0);
 }
 
 void ColumnWriter::InitSinks() {
@@ -73,60 +75,54 @@ void ColumnWriter::WriteRepetitionLevels(int64_t num_levels, const int16_t* leve
       reinterpret_cast<const uint8_t*>(levels), sizeof(int16_t) * num_levels);
 }
 
-std::shared_ptr<Buffer> ColumnWriter::RleEncodeLevels(
-    const uint8_t* buffer, int16_t max_level) {
+int64_t ColumnWriter::RleEncodeLevels(std::shared_ptr<ResizableBuffer> dest_buffer,
+    const uint8_t* src_buffer, int16_t max_level) {
   // TODO: This only works with due to some RLE specifics
   int64_t rle_size =
       LevelEncoder::MaxBufferSize(Encoding::RLE, max_level, num_buffered_values_) +
       sizeof(int32_t);
-  std::shared_ptr<PoolBuffer> buffer_rle = AllocateBuffer(allocator_, rle_size);
+  if (dest_buffer->size() < rle_size) {
+    PARQUET_THROW_NOT_OK(dest_buffer->Resize(rle_size));
+  }
   level_encoder_.Init(Encoding::RLE, max_level, num_buffered_values_,
-      buffer_rle->mutable_data() + sizeof(int32_t), buffer_rle->size() - sizeof(int32_t));
+      dest_buffer->mutable_data() + sizeof(int32_t), dest_buffer->size() - sizeof(int32_t));
   int encoded = level_encoder_.Encode(
-      num_buffered_values_, reinterpret_cast<const int16_t*>(buffer));
+      num_buffered_values_, reinterpret_cast<const int16_t*>(src_buffer));
   DCHECK_EQ(encoded, num_buffered_values_);
-  reinterpret_cast<int32_t*>(buffer_rle->mutable_data())[0] = level_encoder_.len();
+  reinterpret_cast<int32_t*>(dest_buffer->mutable_data())[0] = level_encoder_.len();
   int64_t encoded_size = level_encoder_.len() + sizeof(int32_t);
-  DCHECK(rle_size >= encoded_size);
-  PARQUET_THROW_NOT_OK(buffer_rle->Resize(encoded_size));
-  return std::static_pointer_cast<Buffer>(buffer_rle);
+  return encoded_size;
 }
 
 void ColumnWriter::AddDataPage() {
-  const uint8_t *definition_levels_ptr = nullptr;
-  int64_t definition_levels_size = 0;
-  const uint8_t *repetition_levels_ptr = nullptr;
-  int64_t repetition_levels_size = 0;
+  int64_t definition_levels_rle_size = 0;
+  int64_t repetition_levels_rle_size = 0;
 
-  std::shared_ptr<Buffer> definition_levels;
-  std::shared_ptr<Buffer> repetition_levels;
   std::shared_ptr<Buffer> values = GetValuesBuffer();
 
   if (descr_->max_definition_level() > 0) {
-    definition_levels =
-        RleEncodeLevels(definition_levels_sink_->GetBufferPtr(), descr_->max_definition_level());
-    definition_levels_ptr = definition_levels->data();
-    definition_levels_size = definition_levels->size();
+    definition_levels_rle_size =
+        RleEncodeLevels(std::static_pointer_cast<ResizableBuffer>(definition_levels_rle_),
+            definition_levels_sink_->GetBufferPtr(), descr_->max_definition_level());
   }
 
   if (descr_->max_repetition_level() > 0) {
-    repetition_levels =
-        RleEncodeLevels(repetition_levels_sink_->GetBufferPtr(), descr_->max_repetition_level());
-    repetition_levels_ptr = repetition_levels->data();
-    repetition_levels_size = repetition_levels->size();
+    repetition_levels_rle_size =
+        RleEncodeLevels(std::static_pointer_cast<ResizableBuffer>(repetition_levels_rle_),
+            repetition_levels_sink_->GetBufferPtr(), descr_->max_repetition_level());
   }
 
   int64_t uncompressed_size =
-      definition_levels_size + repetition_levels_size + values->size();
+      definition_levels_rle_size + repetition_levels_rle_size + values->size();
 
   // Concatenate data into a single buffer
   std::shared_ptr<PoolBuffer> uncompressed_data =
       AllocateBuffer(allocator_, uncompressed_size);
   uint8_t* uncompressed_ptr = uncompressed_data->mutable_data();
-  memcpy(uncompressed_ptr, repetition_levels_ptr, repetition_levels_size);
-  uncompressed_ptr += repetition_levels_size;
-  memcpy(uncompressed_ptr, definition_levels_ptr, definition_levels_size);
-  uncompressed_ptr += definition_levels_size;
+  memcpy(uncompressed_ptr, repetition_levels_rle_->data(), repetition_levels_rle_size);
+  uncompressed_ptr += repetition_levels_rle_size;
+  memcpy(uncompressed_ptr, definition_levels_rle_->data(), definition_levels_rle_size);
+  uncompressed_ptr += definition_levels_rle_size;
   memcpy(uncompressed_ptr, values->data(), values->size());
 
   EncodedStatistics page_stats = GetPageStatistics();
