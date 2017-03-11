@@ -27,7 +27,7 @@ download_dist_file() {
 }
 
 download_rc_file() {
-  download_dist_file ${verify_version}-rc${verify_rc_num}/$1
+  download_dist_file apache-parquet-cpp-${verify_version}-rc${verify_rc_num}/$1
 }
 
 import_gpg_keys() {
