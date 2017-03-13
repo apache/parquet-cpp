@@ -113,6 +113,12 @@ static Status FromInt32(const PrimitiveNode* node, TypePtr* out) {
     case LogicalType::DECIMAL:
       *out = MakeDecimalType(node);
       break;
+    case LogicalType::TIME_MILLIS:
+      *out = ::arrow::time(::arrow::TimeUnit::MILLI);
+      break;
+    case LogicalType::TIME_MICROS:
+      *out = ::arrow::time(::arrow::TimeUnit::MICRO);
+      break;
     default:
       std::stringstream ss;
       ss << "Unhandled logical type " << LogicalTypeToString(node->logical_type())
@@ -391,9 +397,22 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
       type = ParquetType::INT64;
       logical_type = LogicalType::TIMESTAMP_MILLIS;
     } break;
-    case ArrowType::TIME:
-      type = ParquetType::INT64;
-      logical_type = LogicalType::TIME_MILLIS;
+    case ArrowType::TIME: {
+      auto time_type = static_cast<::arrow::TimeType*>(field->type.get());
+      switch (time_type->unit) {
+        case ::arrow::TimeUnit::MILLI:
+          logical_type = LogicalType::TIME_MILLIS;
+          type = ParquetType::INT32;
+          break;
+        case ::arrow::TimeUnit::MICRO:
+          logical_type = LogicalType::TIME_MICROS;
+          type = ParquetType::INT64;
+          break;
+        default:
+          return Status::NotImplemented(
+            "Only MILLI and MICRO TimeUnit are supported");
+          }
+      }
       break;
     case ArrowType::STRUCT: {
       auto struct_type = std::static_pointer_cast<::arrow::StructType>(field->type);

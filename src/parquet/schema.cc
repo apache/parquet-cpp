@@ -143,6 +143,7 @@ PrimitiveNode::PrimitiveNode(const std::string& name, Repetition::type repetitio
       if (type != Type::INT32) {
         ss << LogicalTypeToString(logical_type);
         ss << " can only annotate INT32";
+        ss << " (was " << TypeToString(type) << ")";
         throw ParquetException(ss.str());
       }
       break;
