@@ -45,7 +45,7 @@ SerializedPageWriter::SerializedPageWriter(OutputStream* sink, Compression::type
       dictionary_page_offset_(0),
       data_page_offset_(0),
       total_uncompressed_size_(0),
-      total_compressed_size_(0) { 
+      total_compressed_size_(0) {
   compressor_ = Codec::Create(codec);
 }
 
@@ -70,8 +70,8 @@ void SerializedPageWriter::Close(bool has_dictionary, bool fallback) {
   metadata_->WriteTo(sink_);
 }
 
-void SerializedPageWriter::Compress(
-    const std::shared_ptr<Buffer>& src_buffer, std::shared_ptr<ResizableBuffer>& dest_buffer) {
+void SerializedPageWriter::Compress(const std::shared_ptr<Buffer>& src_buffer,
+    std::shared_ptr<ResizableBuffer>& dest_buffer) {
   // Fast path, no compressor available.
   if (!compressor_) {
     DCHECK(dest_buffer->size() == src_buffer->size());
@@ -128,7 +128,8 @@ int64_t SerializedPageWriter::WriteDataPage(const CompressedDataPage& page) {
 
 int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   int64_t uncompressed_size = page.size();
-  std::shared_ptr<ResizableBuffer> compressed_data = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(pool_, uncompressed_size));
+  std::shared_ptr<ResizableBuffer> compressed_data =
+      std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(pool_, uncompressed_size));
   Compress(page.buffer(), compressed_data);
 
   format::DictionaryPageHeader dict_page_header;

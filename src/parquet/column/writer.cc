@@ -54,10 +54,14 @@ ColumnWriter::ColumnWriter(ColumnChunkMetaDataBuilder* metadata,
       fallback_(false) {
   definition_levels_sink_.reset(new InMemoryOutputStream(allocator_));
   repetition_levels_sink_.reset(new InMemoryOutputStream(allocator_));
-  definition_levels_rle_ = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
-  repetition_levels_rle_ = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
-  uncompressed_data_ = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
-  compressed_data_ = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
+  definition_levels_rle_ =
+      std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
+  repetition_levels_rle_ =
+      std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
+  uncompressed_data_ =
+      std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
+  compressed_data_ =
+      std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
 }
 
 void ColumnWriter::InitSinks() {
@@ -107,15 +111,13 @@ void ColumnWriter::AddDataPage() {
   std::shared_ptr<Buffer> values = GetValuesBuffer();
 
   if (descr_->max_definition_level() > 0) {
-    definition_levels_rle_size =
-        RleEncodeLevels(definition_levels_rle_,
-            definition_levels_sink_->GetBufferPtr(), descr_->max_definition_level());
+    definition_levels_rle_size = RleEncodeLevels(definition_levels_rle_,
+        definition_levels_sink_->GetBufferPtr(), descr_->max_definition_level());
   }
 
   if (descr_->max_repetition_level() > 0) {
-    repetition_levels_rle_size =
-        RleEncodeLevels(repetition_levels_rle_,
-            repetition_levels_sink_->GetBufferPtr(), descr_->max_repetition_level());
+    repetition_levels_rle_size = RleEncodeLevels(repetition_levels_rle_,
+        repetition_levels_sink_->GetBufferPtr(), descr_->max_repetition_level());
   }
 
   int64_t uncompressed_size =
@@ -142,13 +144,14 @@ void ColumnWriter::AddDataPage() {
   // if dictionary encoding has fallen back to PLAIN
   if (has_dictionary_ && !fallback_) {  // Save pages until end of dictionary encoding
     std::shared_ptr<Buffer> compressed_data_copy;
-    compressed_data_->Copy(0, compressed_data_->size(), allocator_, &compressed_data_copy);
-    CompressedDataPage page(compressed_data_copy, num_buffered_values_, encoding_, Encoding::RLE,
-        Encoding::RLE, uncompressed_size, page_stats);
+    compressed_data_->Copy(
+        0, compressed_data_->size(), allocator_, &compressed_data_copy);
+    CompressedDataPage page(compressed_data_copy, num_buffered_values_, encoding_,
+        Encoding::RLE, Encoding::RLE, uncompressed_size, page_stats);
     data_pages_.push_back(std::move(page));
   } else {  // Eagerly write pages
-    CompressedDataPage page(compressed_data_, num_buffered_values_, encoding_, Encoding::RLE,
-        Encoding::RLE, uncompressed_size, page_stats);
+    CompressedDataPage page(compressed_data_, num_buffered_values_, encoding_,
+        Encoding::RLE, Encoding::RLE, uncompressed_size, page_stats);
     WriteDataPage(page);
   }
 
