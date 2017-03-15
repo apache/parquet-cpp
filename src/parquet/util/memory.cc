@@ -430,14 +430,6 @@ uint8_t* InMemoryOutputStream::Head() {
   return buffer_->mutable_data() + size_;
 }
 
-const uint8_t* InMemoryOutputStream::GetBufferPtr() {
-  return buffer_->data();
-}
-
-void InMemoryOutputStream::Clear() {
-  size_ = 0;
-}
-
 void InMemoryOutputStream::Write(const uint8_t* data, int64_t length) {
   if (size_ + length > capacity_) {
     int64_t new_capacity = capacity_ * 2;

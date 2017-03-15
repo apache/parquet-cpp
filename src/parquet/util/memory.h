@@ -341,10 +341,10 @@ class PARQUET_EXPORT InMemoryOutputStream : public OutputStream {
   virtual void Write(const uint8_t* data, int64_t length);
 
   // Clears the stream
-  void Clear();
+  void Clear() { size_ = 0; }
 
   // Get pointer to the underlying buffer
-  const uint8_t* GetBufferPtr();
+  std::shared_ptr<Buffer> GetBufferRef() const { return buffer_; }
 
   // Return complete stream as Buffer
   std::shared_ptr<Buffer> GetBuffer();

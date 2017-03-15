@@ -85,7 +85,7 @@ void ColumnWriter::WriteRepetitionLevels(int64_t num_levels, const int16_t* leve
 
 // return the size of the encoded buffer
 int64_t ColumnWriter::RleEncodeLevels(std::shared_ptr<ResizableBuffer>& dest_buffer,
-    const uint8_t* src_buffer, int16_t max_level) {
+    const std::shared_ptr<Buffer>& src_buffer, int16_t max_level) {
   // TODO: This only works with due to some RLE specifics
   int64_t rle_size =
       LevelEncoder::MaxBufferSize(Encoding::RLE, max_level, num_buffered_values_) +
@@ -99,7 +99,7 @@ int64_t ColumnWriter::RleEncodeLevels(std::shared_ptr<ResizableBuffer>& dest_buf
       dest_buffer->mutable_data() + sizeof(int32_t),
       dest_buffer->size() - sizeof(int32_t));
   int encoded = level_encoder_.Encode(
-      num_buffered_values_, reinterpret_cast<const int16_t*>(src_buffer));
+      num_buffered_values_, reinterpret_cast<const int16_t*>(src_buffer->data()));
   DCHECK_EQ(encoded, num_buffered_values_);
   reinterpret_cast<int32_t*>(dest_buffer->mutable_data())[0] = level_encoder_.len();
   int64_t encoded_size = level_encoder_.len() + sizeof(int32_t);
@@ -114,12 +114,12 @@ void ColumnWriter::AddDataPage() {
 
   if (descr_->max_definition_level() > 0) {
     definition_levels_rle_size = RleEncodeLevels(definition_levels_rle_,
-        definition_levels_sink_->GetBufferPtr(), descr_->max_definition_level());
+        definition_levels_sink_->GetBufferRef(), descr_->max_definition_level());
   }
 
   if (descr_->max_repetition_level() > 0) {
     repetition_levels_rle_size = RleEncodeLevels(repetition_levels_rle_,
-        repetition_levels_sink_->GetBufferPtr(), descr_->max_repetition_level());
+        repetition_levels_sink_->GetBufferRef(), descr_->max_repetition_level());
   }
 
   int64_t uncompressed_size =
