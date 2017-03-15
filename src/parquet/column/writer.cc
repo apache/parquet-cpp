@@ -60,8 +60,10 @@ ColumnWriter::ColumnWriter(ColumnChunkMetaDataBuilder* metadata,
       std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
   uncompressed_data_ =
       std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
-  compressed_data_ =
-      std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
+  if (pager_->has_compressor()) {
+    compressed_data_ =
+        std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(allocator_, 0));
+  }
 }
 
 void ColumnWriter::InitSinks() {
@@ -123,10 +125,9 @@ void ColumnWriter::AddDataPage() {
   int64_t uncompressed_size =
       definition_levels_rle_size + repetition_levels_rle_size + values->size();
 
-  // Use Arrow:Buffer::shrink_to_fit = false
+  // Use Arrow::Buffer::shrink_to_fit = false
   // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
   PARQUET_THROW_NOT_OK(uncompressed_data_->Resize(uncompressed_size, false));
-  PARQUET_THROW_NOT_OK(compressed_data_->Resize(uncompressed_size, false));
 
   // Concatenate data into a single buffer
   uint8_t* uncompressed_ptr = uncompressed_data_->mutable_data();
@@ -138,19 +139,29 @@ void ColumnWriter::AddDataPage() {
 
   EncodedStatistics page_stats = GetPageStatistics();
   ResetPageStatistics();
-  pager_->Compress(uncompressed_data_, compressed_data_);
+  
+  std::shared_ptr<Buffer> compressed_data;
+  if (pager_->has_compressor()) {
+    // Use Arrow::Buffer::shrink_to_fit = false
+    // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
+    PARQUET_THROW_NOT_OK(compressed_data_->Resize(uncompressed_size, false));
+    pager_->Compress(uncompressed_data_, compressed_data_);
+    compressed_data = compressed_data_;
+  } else {
+    compressed_data = uncompressed_data_;
+  }
 
   // Write the page to OutputStream eagerly if there is no dictionary or
   // if dictionary encoding has fallen back to PLAIN
   if (has_dictionary_ && !fallback_) {  // Save pages until end of dictionary encoding
     std::shared_ptr<Buffer> compressed_data_copy;
-    compressed_data_->Copy(
-        0, compressed_data_->size(), allocator_, &compressed_data_copy);
+    compressed_data->Copy(
+        0, compressed_data->size(), allocator_, &compressed_data_copy);
     CompressedDataPage page(compressed_data_copy, num_buffered_values_, encoding_,
         Encoding::RLE, Encoding::RLE, uncompressed_size, page_stats);
     data_pages_.push_back(std::move(page));
   } else {  // Eagerly write pages
-    CompressedDataPage page(compressed_data_, num_buffered_values_, encoding_,
+    CompressedDataPage page(compressed_data, num_buffered_values_, encoding_,
         Encoding::RLE, Encoding::RLE, uncompressed_size, page_stats);
     WriteDataPage(page);
   }

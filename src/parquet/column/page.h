@@ -190,6 +190,8 @@ class PageWriter {
   virtual int64_t WriteDataPage(const CompressedDataPage& page) = 0;
 
   virtual int64_t WriteDictionaryPage(const DictionaryPage& page) = 0;
+  
+  virtual bool has_compressor() = 0;
 
   virtual void Compress(const std::shared_ptr<Buffer>& src_buffer,
       std::shared_ptr<ResizableBuffer>& dest_buffer) = 0;

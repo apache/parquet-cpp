@@ -444,7 +444,7 @@ void InMemoryOutputStream::Write(const uint8_t* data, int64_t length) {
     while (new_capacity < size_ + length) {
       new_capacity *= 2;
     }
-    PARQUET_THROW_NOT_OK(buffer_->Resize(new_capacity, false));
+    PARQUET_THROW_NOT_OK(buffer_->Resize(new_capacity));
     capacity_ = new_capacity;
   }
   memcpy(Head(), data, length);
