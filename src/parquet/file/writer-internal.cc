@@ -84,7 +84,7 @@ void SerializedPageWriter::Compress(const std::shared_ptr<Buffer>& src_buffer,
 
   int64_t compressed_size = compressor_->Compress(src_buffer->size(), src_buffer->data(),
       max_compressed_size, dest_buffer->mutable_data());
-  PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size));
+  PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size, false));
 }
 
 int64_t SerializedPageWriter::WriteDataPage(const CompressedDataPage& page) {
