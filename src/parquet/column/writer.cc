@@ -139,7 +139,7 @@ void ColumnWriter::AddDataPage() {
 
   EncodedStatistics page_stats = GetPageStatistics();
   ResetPageStatistics();
-  
+
   std::shared_ptr<Buffer> compressed_data;
   if (pager_->has_compressor()) {
     // Use Arrow::Buffer::shrink_to_fit = false
@@ -155,8 +155,7 @@ void ColumnWriter::AddDataPage() {
   // if dictionary encoding has fallen back to PLAIN
   if (has_dictionary_ && !fallback_) {  // Save pages until end of dictionary encoding
     std::shared_ptr<Buffer> compressed_data_copy;
-    compressed_data->Copy(
-        0, compressed_data->size(), allocator_, &compressed_data_copy);
+    compressed_data->Copy(0, compressed_data->size(), allocator_, &compressed_data_copy);
     CompressedDataPage page(compressed_data_copy, num_buffered_values_, encoding_,
         Encoding::RLE, Encoding::RLE, uncompressed_size, page_stats);
     data_pages_.push_back(std::move(page));

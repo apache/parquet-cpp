@@ -125,7 +125,8 @@ int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   int64_t uncompressed_size = page.size();
   std::shared_ptr<Buffer> compressed_data = nullptr;
   if (has_compressor()) {
-    auto buffer = std::static_pointer_cast<ResizableBuffer>(AllocateBuffer(pool_, uncompressed_size));
+    auto buffer = std::static_pointer_cast<ResizableBuffer>(
+        AllocateBuffer(pool_, uncompressed_size));
     Compress(page.buffer(), buffer);
     compressed_data = std::static_pointer_cast<Buffer>(buffer);
   } else {
