@@ -90,8 +90,8 @@ class PARQUET_EXPORT ColumnWriter {
   void WriteRepetitionLevels(int64_t num_levels, const int16_t* levels);
 
   // RLE encode the src_buffer into dest_buffer and return the encoded size
-  int64_t RleEncodeLevels(std::shared_ptr<ResizableBuffer>& dest_buffer,
-      const std::shared_ptr<Buffer>& src_buffer, int16_t max_level);
+  int64_t RleEncodeLevels(
+      const Buffer& src_buffer, ResizableBuffer* dest_buffer, int16_t max_level);
 
   // Serialize the buffered Data Pages
   void FlushBufferedDataPages();

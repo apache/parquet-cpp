@@ -70,19 +70,19 @@ void SerializedPageWriter::Close(bool has_dictionary, bool fallback) {
   metadata_->WriteTo(sink_);
 }
 
-void SerializedPageWriter::Compress(const std::shared_ptr<Buffer>& src_buffer,
-    std::shared_ptr<ResizableBuffer>& dest_buffer) {
+void SerializedPageWriter::Compress(
+    const Buffer& src_buffer, ResizableBuffer* dest_buffer) {
   DCHECK(compressor_ != nullptr);
 
   // Compress the data
   int64_t max_compressed_size =
-      compressor_->MaxCompressedLen(src_buffer->size(), src_buffer->data());
+      compressor_->MaxCompressedLen(src_buffer.size(), src_buffer.data());
 
   // Use Arrow::Buffer::shrink_to_fit = false
   // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
   PARQUET_THROW_NOT_OK(dest_buffer->Resize(max_compressed_size, false));
 
-  int64_t compressed_size = compressor_->Compress(src_buffer->size(), src_buffer->data(),
+  int64_t compressed_size = compressor_->Compress(src_buffer.size(), src_buffer.data(),
       max_compressed_size, dest_buffer->mutable_data());
   PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size, false));
 }
@@ -127,7 +127,7 @@ int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
   if (has_compressor()) {
     auto buffer = std::static_pointer_cast<ResizableBuffer>(
         AllocateBuffer(pool_, uncompressed_size));
-    Compress(page.buffer(), buffer);
+    Compress(*(page.buffer().get()), buffer.get());
     compressed_data = std::static_pointer_cast<Buffer>(buffer);
   } else {
     compressed_data = page.buffer();

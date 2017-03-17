@@ -193,8 +193,7 @@ class PageWriter {
 
   virtual bool has_compressor() = 0;
 
-  virtual void Compress(const std::shared_ptr<Buffer>& src_buffer,
-      std::shared_ptr<ResizableBuffer>& dest_buffer) = 0;
+  virtual void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) = 0;
 };
 
 }  // namespace parquet

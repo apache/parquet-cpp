@@ -344,7 +344,7 @@ class PARQUET_EXPORT InMemoryOutputStream : public OutputStream {
   void Clear() { size_ = 0; }
 
   // Get pointer to the underlying buffer
-  std::shared_ptr<Buffer> GetBufferRef() const { return buffer_; }
+  const Buffer& GetBufferRef() const { return *buffer_; }
 
   // Return complete stream as Buffer
   std::shared_ptr<Buffer> GetBuffer();

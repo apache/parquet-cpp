@@ -48,8 +48,7 @@ class SerializedPageWriter : public PageWriter {
   /**
    * Compress a buffer.
    */
-  void Compress(const std::shared_ptr<Buffer>& src_buffer,
-      std::shared_ptr<ResizableBuffer>& dest_buffer) override;
+  void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) override;
 
   bool has_compressor() override { return (compressor_ != nullptr); }
 
