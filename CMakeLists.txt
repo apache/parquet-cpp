@@ -92,7 +92,7 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     ON)
   option(PARQUET_ARROW
     "Build the Arrow support"
-    OFF)
+    ON)
   option(PARQUET_ZLIB_VENDORED
     "Build our own zlib (some libz.a aren't configured for static linking)"
     ON)
