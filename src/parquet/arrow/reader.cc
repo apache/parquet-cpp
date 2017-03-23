@@ -868,6 +868,27 @@ Status ColumnReader::Impl::TypedReadBatch<::arrow::StringType, ByteArrayType>(
     return TypedReadBatch<ArrowType, ParquetType>(batch_size, out); \
     break;
 
+static inline Status UnsupportedTimeUnit(::arrow::TimeUnit unit) {
+  std::stringstream ss;
+  ss << "TimeUnit::";
+  switch (unit) {
+    case ::arrow::TimeUnit::SECOND:
+      ss << "SECOND";
+      break;
+    case ::arrow::TimeUnit::MILLI:
+      ss << "MILLI";
+      break;
+    case ::arrow::TimeUnit::MICRO:
+      ss << "MICRO";
+      break;
+    case ::arrow::TimeUnit::NANO:
+      ss << "NANO";
+      break;
+  }
+  ss << " is not supported";
+  return Status::NotImplemented(ss.str());
+}
+
 Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
   if (!column_reader_) {
     // Exhausted all row groups.
@@ -901,7 +922,7 @@ Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out
           return TypedReadBatch<::arrow::TimestampType, Int96Type>(batch_size, out);
           break;
         default:
-          return Status::NotImplemented("TimeUnit not supported");
+          return UnsupportedTimeUnit(timestamp_type->unit);
       }
       break;
     }

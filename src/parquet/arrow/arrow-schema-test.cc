@@ -407,6 +407,14 @@ TEST_F(TestConvertArrowSchema, ParquetFlatPrimitives) {
   //     ParquetType::INT64, LogicalType::TIMESTAMP_MICROS));
   // arrow_fields.push_back(std::make_shared<Field>("timestamp", TIMESTAMP_US, false));
 
+  parquet_fields.push_back(PrimitiveNode::Make("time_ms", Repetition::REQUIRED,
+      ParquetType::INT32, LogicalType::TIME_MILLIS));
+  arrow_fields.push_back(std::make_shared<Field>("time_ms", ::arrow::time(::arrow::TimeUnit::MILLI), false));
+
+  parquet_fields.push_back(PrimitiveNode::Make("time_us", Repetition::REQUIRED,
+      ParquetType::INT64, LogicalType::TIME_MICROS));
+  arrow_fields.push_back(std::make_shared<Field>("time_us", ::arrow::time(::arrow::TimeUnit::MICRO), false));
+
   parquet_fields.push_back(
       PrimitiveNode::Make("float", Repetition::OPTIONAL, ParquetType::FLOAT));
   arrow_fields.push_back(std::make_shared<Field>("float", FLOAT));
