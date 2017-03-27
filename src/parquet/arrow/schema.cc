@@ -19,6 +19,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "parquet/api/schema.h"
 
@@ -183,12 +184,26 @@ Status FromPrimitive(const PrimitiveNode* primitive, TypePtr* out) {
   return Status::OK();
 }
 
-Status StructFromGroup(const GroupNode* group, TypePtr* out) {
-  std::vector<std::shared_ptr<Field>> fields(group->field_count());
+// Forward declaration
+Status NodeToFieldInternal(const NodePtr& node,
+    const std::unordered_set<NodePtr>* needed_nodes, std::shared_ptr<Field>* out);
+
+Status StructFromGroup(const GroupNode* group,
+    const std::unordered_set<NodePtr>* needed_nodes, TypePtr* out) {
+  std::vector<std::shared_ptr<Field>> fields;
+  std::shared_ptr<Field> field;
+
+  *out = nullptr;
+
   for (int i = 0; i < group->field_count(); i++) {
-    RETURN_NOT_OK(NodeToField(group->field(i), &fields[i]));
+    RETURN_NOT_OK(NodeToFieldInternal(group->field(i), needed_nodes, &field));
+    if (field != nullptr) {
+      fields.push_back(field);
+    }
   }
-  *out = std::make_shared<::arrow::StructType>(fields);
+  if (fields.size() > 0) {
+    *out = std::make_shared<::arrow::StructType>(fields);
+  }
   return Status::OK();
 }
 
@@ -197,7 +212,9 @@ bool str_endswith_tuple(const std::string& str) {
   return false;
 }
 
-Status NodeToList(const GroupNode* group, TypePtr* out) {
+Status NodeToList(const GroupNode* group,
+    const std::unordered_set<NodePtr>* needed_nodes, TypePtr* out) {
+  *out = nullptr;
   if (group->field_count() == 1) {
     // This attempts to resolve the preferred 3-level list encoding.
     NodePtr list_node = group->field(0);
@@ -210,22 +227,29 @@ Status NodeToList(const GroupNode* group, TypePtr* out) {
           !str_endswith_tuple(list_node->name())) {
         // List of primitive type
         std::shared_ptr<Field> item_field;
-        RETURN_NOT_OK(NodeToField(list_group->field(0), &item_field));
-        *out = ::arrow::list(item_field);
+        RETURN_NOT_OK(NodeToFieldInternal(list_group->field(0), needed_nodes, &item_field));
+        if (item_field != nullptr) {
+          *out = ::arrow::list(item_field);
+        }
       } else {
         // List of struct
         std::shared_ptr<::arrow::DataType> inner_type;
-        RETURN_NOT_OK(StructFromGroup(list_group, &inner_type));
-        auto item_field = std::make_shared<Field>(list_node->name(), inner_type, false);
-        *out = ::arrow::list(item_field);
+        RETURN_NOT_OK(StructFromGroup(list_group, needed_nodes, &inner_type));
+        if (inner_type != nullptr) {
+          auto item_field = std::make_shared<Field>(list_node->name(), inner_type, false);
+          *out = ::arrow::list(item_field);
+        }
       }
     } else if (list_node->is_repeated()) {
       // repeated primitive node
       std::shared_ptr<::arrow::DataType> inner_type;
-      const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(list_node.get());
-      RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
-      auto item_field = std::make_shared<Field>(list_node->name(), inner_type, false);
-      *out = ::arrow::list(item_field);
+      PrimitiveNode* primitive = static_cast<PrimitiveNode*>(list_node.get());
+      if ((needed_nodes == nullptr) ||
+          (needed_nodes->count(static_cast<NodePtr>(primitive)) > 0)) {
+        RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
+        auto item_field = std::make_shared<Field>(list_node->name(), inner_type, false);
+        *out = ::arrow::list(item_field);
+      }
     } else {
       return Status::NotImplemented(
           "Non-repeated groups in a LIST-annotated group are not supported.");
@@ -238,31 +262,46 @@ Status NodeToList(const GroupNode* group, TypePtr* out) {
 }
 
 Status NodeToField(const NodePtr& node, std::shared_ptr<Field>* out) {
-  std::shared_ptr<::arrow::DataType> type;
+  return NodeToFieldInternal(node, nullptr, out);
+}
+
+Status NodeToFieldInternal(const NodePtr& node,
+    const std::unordered_set<NodePtr>* needed_nodes, std::shared_ptr<Field>* out) {
+
+  std::shared_ptr<::arrow::DataType> type = nullptr;
   bool nullable = !node->is_required();
+
+  *out = nullptr;
 
   if (node->is_repeated()) {
     // 1-level LIST encoding fields are required
     std::shared_ptr<::arrow::DataType> inner_type;
-    const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
-    RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
-    auto item_field = std::make_shared<Field>(node->name(), inner_type, false);
-    type = ::arrow::list(item_field);
-    nullable = false;
+    if ((needed_nodes == nullptr) ||
+        (needed_nodes->count(static_cast<NodePtr>(node)) > 0)) {
+      const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
+      RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
+      auto item_field = std::make_shared<Field>(node->name(), inner_type, false);
+      type = ::arrow::list(item_field);
+      nullable = false;
+    }
   } else if (node->is_group()) {
     const GroupNode* group = static_cast<const GroupNode*>(node.get());
     if (node->logical_type() == LogicalType::LIST) {
-      RETURN_NOT_OK(NodeToList(group, &type));
+      RETURN_NOT_OK(NodeToList(group, needed_nodes, &type));
     } else {
-      RETURN_NOT_OK(StructFromGroup(group, &type));
+      RETURN_NOT_OK(StructFromGroup(group, needed_nodes, &type));
     }
   } else {
     // Primitive (leaf) node
-    const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
-    RETURN_NOT_OK(FromPrimitive(primitive, &type));
+    if ((needed_nodes == nullptr) ||
+        (needed_nodes->count(static_cast<NodePtr>(node)) > 0)) {
+      const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
+      RETURN_NOT_OK(FromPrimitive(primitive, &type));
+    }
   }
-
-  *out = std::make_shared<Field>(node->name(), type, nullable);
+  if (type != nullptr) {
+    *out = std::make_shared<Field>(node->name(), type, nullable);
+  }
   return Status::OK();
 }
 
@@ -270,8 +309,9 @@ Status FromParquetSchema(
     const SchemaDescriptor* parquet_schema, std::shared_ptr<::arrow::Schema>* out) {
   const GroupNode* schema_node = parquet_schema->group_node();
 
-  std::vector<std::shared_ptr<Field>> fields(schema_node->field_count());
-  for (int i = 0; i < schema_node->field_count(); i++) {
+  int num_fields = static_cast<int>(schema_node->field_count());
+  std::vector<std::shared_ptr<Field>> fields(num_fields);
+  for (int i = 0; i < num_fields; i++) {
     RETURN_NOT_OK(NodeToField(schema_node->field(i), &fields[i]));
   }
 
@@ -285,11 +325,21 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
   // from the root Parquet node
   const GroupNode* schema_node = parquet_schema->group_node();
 
-  int num_fields = static_cast<int>(column_indices.size());
+  // Put the right leaf nodes in an unordered set
+  int num_columns = static_cast<int>(column_indices.size());
+  std::unordered_set<NodePtr> needed_nodes(num_columns);
+  for (int i = 0; i < num_columns; i++) {
+    auto column_desc = parquet_schema->Column(column_indices[i]);
+    needed_nodes.insert(column_desc->schema_node());
+  }
 
-  std::vector<std::shared_ptr<Field>> fields(num_fields);
-  for (int i = 0; i < num_fields; i++) {
-    RETURN_NOT_OK(NodeToField(schema_node->field(column_indices[i]), &fields[i]));
+  std::vector<std::shared_ptr<Field>> fields;
+  std::shared_ptr<Field> field;
+  for (int i = 0; i < schema_node->field_count(); i++) {
+    RETURN_NOT_OK(NodeToFieldInternal(schema_node->field(i), &needed_nodes, &field));
+    if (field != nullptr) {
+      fields.push_back(field);
+    }
   }
 
   *out = std::make_shared<::arrow::Schema>(fields);
