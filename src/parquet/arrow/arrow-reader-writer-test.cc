@@ -894,8 +894,7 @@ class TestNestedSchemaRead : public ::testing::Test {
     auto parquet_reader = ParquetFileReader::OpenFile(example_nested());
     reader_ = std::make_shared<FileReader>(
       ::arrow::default_memory_pool(),
-      std::move(parquet_reader)
-    );
+      std::move(parquet_reader));
   }
 
   void TearDown() {}
@@ -910,8 +909,7 @@ TEST_F(TestNestedSchemaRead, FromParquetSchemaFull) {
   ASSERT_OK_NO_THROW(
     FromParquetSchema(
       parquet_schema,
-      &schema)
-  );
+      &schema));
   ASSERT_EQ(schema->num_fields(), 3);
 }
 
@@ -923,8 +921,7 @@ TEST_F(TestNestedSchemaRead, FromParquetSchemaPartial) {
     FromParquetSchema(
       parquet_schema,
       indices,
-      &schema)
-  );
+      &schema));
   ASSERT_EQ(schema->num_fields(), 2);
 }
 

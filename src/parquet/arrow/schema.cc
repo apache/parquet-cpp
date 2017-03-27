@@ -188,6 +188,11 @@ Status FromPrimitive(const PrimitiveNode* primitive, TypePtr* out) {
 Status NodeToFieldInternal(const NodePtr& node,
     const std::unordered_set<NodePtr>* needed_nodes, std::shared_ptr<Field>* out);
 
+bool IsNeededNode(const NodePtr& node, const std::unordered_set<NodePtr>* needed_nodes) {
+  return ((needed_nodes == nullptr) ||
+          (needed_nodes->count(node) > 0));
+}
+
 Status StructFromGroup(const GroupNode* group,
     const std::unordered_set<NodePtr>* needed_nodes, TypePtr* out) {
   std::vector<std::shared_ptr<Field>> fields;
@@ -227,7 +232,8 @@ Status NodeToList(const GroupNode* group,
           !str_endswith_tuple(list_node->name())) {
         // List of primitive type
         std::shared_ptr<Field> item_field;
-        RETURN_NOT_OK(NodeToFieldInternal(list_group->field(0), needed_nodes, &item_field));
+        RETURN_NOT_OK(NodeToFieldInternal(
+          list_group->field(0), needed_nodes, &item_field));
         if (item_field != nullptr) {
           *out = ::arrow::list(item_field);
         }
@@ -243,9 +249,9 @@ Status NodeToList(const GroupNode* group,
     } else if (list_node->is_repeated()) {
       // repeated primitive node
       std::shared_ptr<::arrow::DataType> inner_type;
-      PrimitiveNode* primitive = static_cast<PrimitiveNode*>(list_node.get());
-      if ((needed_nodes == nullptr) ||
-          (needed_nodes->count(static_cast<NodePtr>(primitive)) > 0)) {
+      if (IsNeededNode(static_cast<NodePtr>(list_node), needed_nodes)) {
+        const PrimitiveNode* primitive =
+          static_cast<const PrimitiveNode*>(list_node.get());
         RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
         auto item_field = std::make_shared<Field>(list_node->name(), inner_type, false);
         *out = ::arrow::list(item_field);
@@ -276,8 +282,7 @@ Status NodeToFieldInternal(const NodePtr& node,
   if (node->is_repeated()) {
     // 1-level LIST encoding fields are required
     std::shared_ptr<::arrow::DataType> inner_type;
-    if ((needed_nodes == nullptr) ||
-        (needed_nodes->count(static_cast<NodePtr>(node)) > 0)) {
+    if (IsNeededNode(static_cast<NodePtr>(node), needed_nodes)) {
       const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
       RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
       auto item_field = std::make_shared<Field>(node->name(), inner_type, false);
@@ -293,8 +298,7 @@ Status NodeToFieldInternal(const NodePtr& node,
     }
   } else {
     // Primitive (leaf) node
-    if ((needed_nodes == nullptr) ||
-        (needed_nodes->count(static_cast<NodePtr>(node)) > 0)) {
+    if (IsNeededNode(static_cast<NodePtr>(node), needed_nodes)) {
       const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
       RETURN_NOT_OK(FromPrimitive(primitive, &type));
     }
