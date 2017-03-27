@@ -25,6 +25,7 @@
 #include "parquet/arrow/reader.h"
 #include "parquet/arrow/test-util.h"
 #include "parquet/arrow/writer.h"
+#include "parquet/arrow/schema.h"
 
 #include "arrow/api.h"
 #include "arrow/test-util.h"
@@ -45,6 +46,7 @@ using ParquetType = parquet::Type;
 using parquet::schema::GroupNode;
 using parquet::schema::NodePtr;
 using parquet::schema::PrimitiveNode;
+using parquet::arrow::FromParquetSchema;
 
 namespace parquet {
 namespace arrow {
@@ -53,6 +55,17 @@ const int SMALL_SIZE = 100;
 const int LARGE_SIZE = 10000;
 
 constexpr uint32_t kDefaultSeed = 0;
+
+const char* data_dir = std::getenv("PARQUET_TEST_DATA");
+
+
+std::string example_nested() {
+  std::string dir_string(data_dir);
+  std::stringstream ss;
+  ss << dir_string << "/"
+     << "nested.snappy.parquet";
+  return ss.str();
+}
 
 template <typename TestType>
 struct test_traits {};
@@ -875,5 +888,61 @@ TEST(TestArrowReadWrite, ReadColumnSubset) {
   ASSERT_TRUE(result->Equals(expected));
 }
 
+class TestNestedSchemaRead : public ::testing::Test {
+ public:
+  void SetUp() {
+    auto parquet_reader = ParquetFileReader::OpenFile(example_nested());
+    reader_ = std::make_shared<FileReader>(
+      ::arrow::default_memory_pool(),
+      std::move(parquet_reader)
+    );
+  }
+
+  void TearDown() {}
+
+ protected:
+  std::shared_ptr<FileReader> reader_;
+};
+
+TEST_F(TestNestedSchemaRead, FromParquetSchemaFull) {
+  auto parquet_schema = reader_->parquet_reader()->metadata()->schema();
+  std::shared_ptr<::arrow::Schema> schema;
+  ASSERT_OK_NO_THROW(
+    FromParquetSchema(
+      parquet_schema,
+      &schema)
+  );
+  ASSERT_EQ(schema->num_fields(), 3);
+}
+
+TEST_F(TestNestedSchemaRead, FromParquetSchemaPartial) {
+  auto parquet_schema = reader_->parquet_reader()->metadata()->schema();
+  std::shared_ptr<::arrow::Schema> schema;
+  std::vector<int> indices = {0, 1, 4};
+  ASSERT_OK_NO_THROW(
+    FromParquetSchema(
+      parquet_schema,
+      indices,
+      &schema)
+  );
+  ASSERT_EQ(schema->num_fields(), 2);
+}
+
+TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
+  std::shared_ptr<Table> table;
+  ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
+  ASSERT_EQ(table->num_rows(), 3);
+  ASSERT_EQ(table->num_columns(), 3);
+}
+
+TEST_F(TestNestedSchemaRead, ReadTablePartial) {
+  std::shared_ptr<Table> table;
+  std::vector<int> indices = {0, 1, 4};
+  ASSERT_OK_NO_THROW(reader_->ReadTable(indices, &table));
+  ASSERT_EQ(table->num_rows(), 3);
+  ASSERT_EQ(table->num_columns(), 2);
+}
+
 }  // namespace arrow
+
 }  // namespace parquet
