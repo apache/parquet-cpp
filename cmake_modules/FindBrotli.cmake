@@ -60,9 +60,11 @@ endif ()
 set(BROTLI_LIBRARIES ${BROTLI_LIBRARY_ENC} ${BROTLI_LIBRARY_DEC}
     ${BROTLI_LIBRARY_COMMON})
 
-if (BROTLI_INCLUDE_DIR AND BROTLI_LIBRARIES)
+if (BROTLI_INCLUDE_DIR AND (PARQUET_MINIMAL_DEPENDENCY OR BROTLI_LIBRARIES))
   set(BROTLI_FOUND TRUE)
   get_filename_component( BROTLI_LIBS ${BROTLI_LIBRARY_ENC} PATH )
+  set(BROTLI_HEADER_NAME brotli.h)
+  set(BROTLI_HEADER ${BROTLI_INCLUDE_DIR}/${BROTLI_HEADER_NAME})
   set(BROTLI_LIB_NAME libbrotli)
   set(BROTLI_STATIC_LIB
       ${BROTLI_LIBS}/${BROTLI_LIB_NAME}enc.a
@@ -78,7 +80,11 @@ endif ()
 
 if (BROTLI_FOUND)
   if (NOT Brotli_FIND_QUIETLY)
-    message(STATUS "Found the Brotli library: ${BROTLI_LIBRARIES}")
+    if (PARQUET_MINIMAL_DEPENDENCY)
+      message(STATUS "Found the Brotli header: ${BROTLI_HEADER}")
+    else ()
+      message(STATUS "Found the Brotli library: ${BROTLI_LIBRARIES}")
+    endif ()
   endif ()
 else ()
   if (NOT Brotli_FIND_QUIETLY)

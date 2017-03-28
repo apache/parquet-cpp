@@ -251,7 +251,7 @@ if (ZLIB_VENDORED)
 endif()
 
 ## GTest
-if(PARQUET_BUILD_TESTS)
+if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
   add_custom_target(unittest ctest -L unittest)
 
   if("$ENV{GTEST_HOME}" STREQUAL "")
@@ -308,7 +308,7 @@ if ("$ENV{GBENCHMARK_HOME}" STREQUAL "")
   set(GBENCHMARK_HOME ${THIRDPARTY_DIR}/installed)
 endif()
 
-if(PARQUET_BUILD_BENCHMARKS)
+if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
   add_custom_target(runbenchmark ctest -L benchmark)
 
   if("$ENV{GBENCHMARK_HOME}" STREQUAL "")
