@@ -18,6 +18,9 @@
 cmake_minimum_required(VERSION 2.6)
 project(parquet-cpp)
 
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/.parquetcppversion" PARQUET_VERSION)
+string(REPLACE "\n" "" PARQUET_VERSION "${PARQUET_VERSION}")
+
 include(ExternalProject)
 include(FindPkgConfig)
 
