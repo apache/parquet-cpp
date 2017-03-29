@@ -903,28 +903,6 @@ class TestNestedSchemaRead : public ::testing::Test {
   std::shared_ptr<FileReader> reader_;
 };
 
-TEST_F(TestNestedSchemaRead, FromParquetSchemaFull) {
-  auto parquet_schema = reader_->parquet_reader()->metadata()->schema();
-  std::shared_ptr<::arrow::Schema> schema;
-  ASSERT_OK_NO_THROW(
-    FromParquetSchema(
-      parquet_schema,
-      &schema));
-  ASSERT_EQ(schema->num_fields(), 3);
-}
-
-TEST_F(TestNestedSchemaRead, FromParquetSchemaPartial) {
-  auto parquet_schema = reader_->parquet_reader()->metadata()->schema();
-  std::shared_ptr<::arrow::Schema> schema;
-  std::vector<int> indices = {0, 1, 4};
-  ASSERT_OK_NO_THROW(
-    FromParquetSchema(
-      parquet_schema,
-      indices,
-      &schema));
-  ASSERT_EQ(schema->num_fields(), 2);
-}
-
 TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   std::shared_ptr<Table> table;
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));

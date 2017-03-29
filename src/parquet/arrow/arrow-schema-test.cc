@@ -73,6 +73,13 @@ class TestConvertParquetSchema : public ::testing::Test {
     return FromParquetSchema(&descr_, &result_schema_);
   }
 
+  ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes,
+        const std::vector<int>& column_indices) {
+    NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
+    descr_.Init(schema);
+    return FromParquetSchema(&descr_, column_indices, &result_schema_);
+  }
+
  protected:
   SchemaDescriptor descr_;
   std::shared_ptr<::arrow::Schema> result_schema_;
@@ -346,6 +353,94 @@ TEST_F(TestConvertParquetSchema, UnsupportedThings) {
   for (const NodePtr& node : unsupported_nodes) {
     ASSERT_RAISES(NotImplemented, ConvertSchema({node}));
   }
+}
+
+TEST_F(TestConvertParquetSchema, ParuqetNestedSchema) {
+  std::vector<NodePtr> parquet_fields;
+  std::vector<std::shared_ptr<Field>> arrow_fields;
+
+  // required group group1 {
+  //   required bool leaf1;
+  //   required int32 leaf2;
+  // }
+  // required int64 leaf3;
+  {
+    parquet_fields.push_back(
+        GroupNode::Make("group1", Repetition::REQUIRED, {
+          PrimitiveNode::Make(
+            "leaf1", Repetition::REQUIRED, ParquetType::BOOLEAN),
+          PrimitiveNode::Make(
+            "leaf2", Repetition::REQUIRED, ParquetType::INT32)}));
+    parquet_fields.push_back(PrimitiveNode::Make(
+        "leaf3", Repetition::REQUIRED, ParquetType::INT64));
+
+    auto group1_fields = {
+      std::make_shared<Field>("leaf1", BOOL, false),
+      std::make_shared<Field>("leaf2", INT32, false)};
+    auto arrow_group1_type = std::make_shared<::arrow::StructType>(group1_fields);
+    arrow_fields.push_back(std::make_shared<Field>("group1", arrow_group1_type, false));
+    arrow_fields.push_back(std::make_shared<Field>("leaf3", INT64, false));
+  }
+
+  auto arrow_schema = std::make_shared<::arrow::Schema>(arrow_fields);
+  ASSERT_OK(ConvertSchema(parquet_fields));
+
+  CheckFlatSchema(arrow_schema);
+}
+
+TEST_F(TestConvertParquetSchema, ParuqetNestedSchemaPartial) {
+  std::vector<NodePtr> parquet_fields;
+  std::vector<std::shared_ptr<Field>> arrow_fields;
+
+  // Full Parquet Schema:
+  // required group group1 {
+  //   required int64 leaf1;
+  //   required int64 leaf2;
+  // }
+  // required group group2 {
+  //   required int64 leaf3;
+  //   required int64 leaf4;
+  // }
+  // required int64 leaf5;
+  //
+  // Expected partial arrow schema (columns 0, 3, 4):
+  // required group group1 {
+  //   required int64 leaf1;
+  // }
+  // required group group2 {
+  //   required int64 leaf4;
+  // }
+  // required int64 leaf5;
+  {
+    parquet_fields.push_back(
+        GroupNode::Make("group1", Repetition::REQUIRED, {
+          PrimitiveNode::Make(
+            "leaf1", Repetition::REQUIRED, ParquetType::INT64),
+          PrimitiveNode::Make(
+            "leaf2", Repetition::REQUIRED, ParquetType::INT64)}));
+    parquet_fields.push_back(
+        GroupNode::Make("group2", Repetition::REQUIRED, {
+          PrimitiveNode::Make(
+            "leaf3", Repetition::REQUIRED, ParquetType::INT64),
+          PrimitiveNode::Make(
+            "leaf4", Repetition::REQUIRED, ParquetType::INT64)}));
+    parquet_fields.push_back(PrimitiveNode::Make(
+        "leaf5", Repetition::REQUIRED, ParquetType::INT64));
+
+    auto group1_fields = {std::make_shared<Field>("leaf1", INT64, false)};
+    auto arrow_group1_type = std::make_shared<::arrow::StructType>(group1_fields);
+    auto group2_fields = {std::make_shared<Field>("leaf4", INT64, false)};
+    auto arrow_group2_type = std::make_shared<::arrow::StructType>(group2_fields);
+
+    arrow_fields.push_back(std::make_shared<Field>("group1", arrow_group1_type, false));
+    arrow_fields.push_back(std::make_shared<Field>("group2", arrow_group2_type, false));
+    arrow_fields.push_back(std::make_shared<Field>("leaf5", INT64, false));
+  }
+
+  auto arrow_schema = std::make_shared<::arrow::Schema>(arrow_fields);
+  ASSERT_OK(ConvertSchema(parquet_fields, {0, 3, 4}));
+
+  CheckFlatSchema(arrow_schema);
 }
 
 class TestConvertArrowSchema : public ::testing::Test {
