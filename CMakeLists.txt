@@ -19,6 +19,7 @@ cmake_minimum_required(VERSION 2.6)
 project(parquet-cpp)
 
 include(ExternalProject)
+include(FindPkgConfig)
 
 if (NOT "$ENV{PARQUET_GCC_ROOT}" STREQUAL "")
   set(GCC_ROOT $ENV{PARQUET_GCC_ROOT})
