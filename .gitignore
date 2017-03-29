@@ -11,3 +11,5 @@ cmake_install.cmake
 Makefile
 
 thirdparty
+
+*.pc
