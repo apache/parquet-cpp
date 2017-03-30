@@ -311,6 +311,7 @@ enable_testing()
 
 if (PARQUET_MINIMAL_DEPENDENCY)
     set(IGNORE_OPTIONAL_PACKAGES ON)
+    message(STATUS "Build using minimal dependencies")
 else()
     set(IGNORE_OPTIONAL_PACKAGES OFF)
 endif()
