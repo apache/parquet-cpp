@@ -16,7 +16,7 @@
 # under the License.
 
 set(GTEST_VERSION "1.7.0")
-set(GBENCHMARK_VERSION "1.0.0")
+set(GBENCHMARK_VERSION "1.1.0")
 set(SNAPPY_VERSION "1.1.3")
 set(THRIFT_VERSION "0.10.0")
 
@@ -311,7 +311,14 @@ endif()
 if(PARQUET_BUILD_BENCHMARKS)
   add_custom_target(runbenchmark ctest -L benchmark)
 
+
   if("$ENV{GBENCHMARK_HOME}" STREQUAL "")
+    if(APPLE)
+      set(GBENCHMARK_CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++")
+    else()
+      set(GBENCHMARK_CMAKE_CXX_FLAGS "--std=c++11")
+    endif()
+
     set(GBENCHMARK_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/gbenchmark_ep/src/gbenchmark_ep-install")
     set(GBENCHMARK_INCLUDE_DIR "${GBENCHMARK_PREFIX}/include")
     set(GBENCHMARK_STATIC_LIB "${GBENCHMARK_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}benchmark${CMAKE_STATIC_LIBRARY_SUFFIX}")
@@ -319,7 +326,11 @@ if(PARQUET_BUILD_BENCHMARKS)
     set(GBENCHMARK_CMAKE_ARGS
           "-DCMAKE_BUILD_TYPE=Release"
           "-DCMAKE_INSTALL_PREFIX:PATH=${GBENCHMARK_PREFIX}"
-          "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}")
+          "-DBENCHMARK_ENABLE_TESTING=OFF"
+          "-DCMAKE_CXX_FLAGS=-fPIC ${GBENCHMARK_CMAKE_CXX_FLAGS}")
+    if (APPLE)
+      set(GBENCHMARK_CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS} "-DBENCHMARK_USE_LIBCXX=ON")
+    endif()
     if (CMAKE_VERSION VERSION_GREATER "3.2")
       # BUILD_BYPRODUCTS is a 3.2+ feature
       ExternalProject_Add(gbenchmark_ep
