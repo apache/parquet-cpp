@@ -194,8 +194,11 @@ Status NodeToFieldInternal(const NodePtr& node,
  */
 inline bool IsIncludedLeaf(const NodePtr& node,
     const std::unordered_set<NodePtr>* included_leaf_nodes) {
-  return ((included_leaf_nodes == nullptr) ||
-          (included_leaf_nodes->count(node) > 0));
+  if (included_leaf_nodes == nullptr) {
+    return true;
+  }
+  auto search = included_leaf_nodes->find(node);
+  return (search != included_leaf_nodes->end());
 }
 
 Status StructFromGroup(const GroupNode* group,
