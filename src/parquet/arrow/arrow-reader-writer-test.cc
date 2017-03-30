@@ -27,6 +27,8 @@
 #include "parquet/arrow/writer.h"
 #include "parquet/arrow/schema.h"
 
+#include "parquet/file/writer.h"
+
 #include "arrow/api.h"
 #include "arrow/test-util.h"
 
@@ -55,17 +57,6 @@ const int SMALL_SIZE = 100;
 const int LARGE_SIZE = 10000;
 
 constexpr uint32_t kDefaultSeed = 0;
-
-const char* data_dir = std::getenv("PARQUET_TEST_DATA");
-
-
-std::string example_nested() {
-  std::string dir_string(data_dir);
-  std::stringstream ss;
-  ss << dir_string << "/"
-     << "nested.snappy.parquet";
-  return ss.str();
-}
 
 template <typename TestType>
 struct test_traits {};
@@ -889,33 +880,103 @@ TEST(TestArrowReadWrite, ReadColumnSubset) {
 }
 
 class TestNestedSchemaRead : public ::testing::Test {
- public:
-  void SetUp() {
-    auto parquet_reader = ParquetFileReader::OpenFile(example_nested());
-    reader_ = std::make_shared<FileReader>(
-      ::arrow::default_memory_pool(),
-      std::move(parquet_reader));
+ protected:
+  virtual void SetUp() {
+    // We are using parquet low-level file api to create the nested parquet
+    CreateNestedParquet();
+    InitReader(&reader_);
   }
 
-  void TearDown() {}
+  void InitReader(std::shared_ptr<FileReader>* out) {
+    std::shared_ptr<Buffer> buffer = nested_parquet_->GetBuffer();
+    std::unique_ptr<FileReader> reader;
+    ASSERT_OK_NO_THROW(OpenFile(
+      std::make_shared<BufferReader>(buffer), ::arrow::default_memory_pool(),
+      ::parquet::default_reader_properties(), nullptr, &reader));
 
- protected:
+    *out = std::move(reader);
+  }
+
+  void InitNewParquetFile(const std::shared_ptr<GroupNode>& schema, int num_rows) {
+    nested_parquet_ = std::make_shared<InMemoryOutputStream>();
+    writer_ = parquet::ParquetFileWriter::Open(nested_parquet_,
+       schema, default_writer_properties());
+    row_group_writer_ = writer_->AppendRowGroup(num_rows);
+  }
+
+  void FinalizeParquetFile() {
+    row_group_writer_->Close();
+    writer_->Close();
+  }
+
+  void CreateNestedParquet() {
+    std::vector<NodePtr> parquet_fields;
+    std::shared_ptr<Array> values;
+
+    // create the schema:
+    // required group group1 {
+    //   required int32 leaf1;
+    //   required int32 leaf2;
+    // }
+    // required int32 leaf3;
+
+    parquet_fields.push_back(
+        GroupNode::Make("group1", Repetition::REQUIRED, {
+          PrimitiveNode::Make(
+            "leaf1", Repetition::REQUIRED, ParquetType::INT32),
+          PrimitiveNode::Make(
+            "leaf2", Repetition::REQUIRED, ParquetType::INT32)}));
+    parquet_fields.push_back(PrimitiveNode::Make(
+        "leaf3", Repetition::REQUIRED, ParquetType::INT32));
+
+    const int num_columns = 3;
+    auto schema_node = GroupNode::Make("schema", Repetition::REQUIRED, parquet_fields);
+
+    InitNewParquetFile(std::static_pointer_cast<GroupNode>(schema_node), 0);
+
+    for (int i = 0; i < num_columns; i++) {
+      auto column_writer = row_group_writer_->NextColumn();
+      auto typed_writer = reinterpret_cast<TypedColumnWriter<Int32Type>*>(column_writer);
+      typed_writer->WriteBatch(0, nullptr, nullptr, nullptr);
+    }
+
+    FinalizeParquetFile();
+  }
+
+  std::shared_ptr<InMemoryOutputStream> nested_parquet_;
   std::shared_ptr<FileReader> reader_;
+  std::unique_ptr<ParquetFileWriter> writer_;
+  RowGroupWriter* row_group_writer_;
 };
 
 TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   std::shared_ptr<Table> table;
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
-  ASSERT_EQ(table->num_rows(), 3);
-  ASSERT_EQ(table->num_columns(), 3);
+  ASSERT_EQ(table->num_rows(), 0);
+  ASSERT_EQ(table->num_columns(), 2);
+  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 2);
 }
 
 TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   std::shared_ptr<Table> table;
-  std::vector<int> indices = {0, 1, 4};
-  ASSERT_OK_NO_THROW(reader_->ReadTable(indices, &table));
-  ASSERT_EQ(table->num_rows(), 3);
+
+  // columns: {group1.leaf1, leaf3}
+  ASSERT_OK_NO_THROW(reader_->ReadTable({0, 2}, &table));
+  ASSERT_EQ(table->num_rows(), 0);
   ASSERT_EQ(table->num_columns(), 2);
+  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 1);
+
+  // columns: {group1.leaf1, group1.leaf2}
+  ASSERT_OK_NO_THROW(reader_->ReadTable({0, 1}, &table));
+  ASSERT_EQ(table->num_rows(), 0);
+  ASSERT_EQ(table->num_columns(), 1);
+  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 2);
+
+  // columns: {leaf3}
+  ASSERT_OK_NO_THROW(reader_->ReadTable({2}, &table));
+  ASSERT_EQ(table->num_rows(), 0);
+  ASSERT_EQ(table->num_columns(), 1);
+  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 0);
 }
 
 }  // namespace arrow
