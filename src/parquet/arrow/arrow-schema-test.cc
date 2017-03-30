@@ -355,7 +355,7 @@ TEST_F(TestConvertParquetSchema, UnsupportedThings) {
   }
 }
 
-TEST_F(TestConvertParquetSchema, ParuqetNestedSchema) {
+TEST_F(TestConvertParquetSchema, ParquetNestedSchema) {
   std::vector<NodePtr> parquet_fields;
   std::vector<std::shared_ptr<Field>> arrow_fields;
 
@@ -388,7 +388,7 @@ TEST_F(TestConvertParquetSchema, ParuqetNestedSchema) {
   CheckFlatSchema(arrow_schema);
 }
 
-TEST_F(TestConvertParquetSchema, ParuqetNestedSchemaPartial) {
+TEST_F(TestConvertParquetSchema, ParquetNestedSchemaPartial) {
   std::vector<NodePtr> parquet_fields;
   std::vector<std::shared_ptr<Field>> arrow_fields;
 
