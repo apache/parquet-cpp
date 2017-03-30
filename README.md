@@ -102,6 +102,10 @@ To disable the testing (which requires `googletest`), pass
 For release-level builds (enable optimizations and disable debugging), pass
 `-DCMAKE_BUILD_TYPE=Release` to `cmake`.
 
+To build only the library with minimal dependencies, pass
+`-DPARQUET_MINIMAL_DEPENDENCY=ON` to `cmake`.
+Note that the executables, tests, and benchmarks should be disabled as well.
+
 Incremental builds can be done afterwords with just `make`.
 
 ## Using with Apache Arrow
