@@ -16,13 +16,13 @@
 # under the License.
 
 set(GTEST_VERSION "1.7.0")
-set(GBENCHMARK_VERSION "1.0.0")
+set(GBENCHMARK_VERSION "1.1.0")
 set(SNAPPY_VERSION "1.1.3")
 set(THRIFT_VERSION "0.10.0")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
-set(ARROW_VERSION "c7947dc2d08a0a2295016d34db201cc38a38360c")
+set(ARROW_VERSION "15b874e47e3975c5240290ec7ed105bf8d1b56bc")
 
 # find boost headers and libs
 # Find shared Boost libraries.
@@ -311,6 +311,7 @@ endif()
 if(PARQUET_BUILD_BENCHMARKS)
   add_custom_target(runbenchmark ctest -L benchmark)
 
+
   if("$ENV{GBENCHMARK_HOME}" STREQUAL "")
     set(GBENCHMARK_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/gbenchmark_ep/src/gbenchmark_ep-install")
     set(GBENCHMARK_INCLUDE_DIR "${GBENCHMARK_PREFIX}/include")
@@ -319,7 +320,11 @@ if(PARQUET_BUILD_BENCHMARKS)
     set(GBENCHMARK_CMAKE_ARGS
           "-DCMAKE_BUILD_TYPE=Release"
           "-DCMAKE_INSTALL_PREFIX:PATH=${GBENCHMARK_PREFIX}"
+          "-DBENCHMARK_ENABLE_TESTING=OFF"
           "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}")
+    if (APPLE)
+      set(GBENCHMARK_CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS} "-DBENCHMARK_USE_LIBCXX=ON")
+    endif()
     if (CMAKE_VERSION VERSION_GREATER "3.2")
       # BUILD_BYPRODUCTS is a 3.2+ feature
       ExternalProject_Add(gbenchmark_ep
