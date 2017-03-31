@@ -24,6 +24,13 @@ string(REPLACE "\n" "" PARQUET_VERSION "${PARQUET_VERSION}")
 include(ExternalProject)
 include(FindPkgConfig)
 
+if(CMAKE_MAJOR_VERSION LESS 3)
+  set(CMAKE_INSTALL_INCLUDEDIR "include")
+  set(CMAKE_INSTALL_LIBDIR "lib")
+else()
+  include(GNUInstallDirs)
+endif()
+
 if (NOT "$ENV{PARQUET_GCC_ROOT}" STREQUAL "")
   set(GCC_ROOT $ENV{PARQUET_GCC_ROOT})
   set(CMAKE_C_COMPILER ${GCC_ROOT}/bin/gcc)
@@ -659,11 +666,11 @@ add_custom_target(clean-all
 
 if (PARQUET_BUILD_STATIC)
     install(TARGETS parquet_static
-      ARCHIVE DESTINATION lib
-      LIBRARY DESTINATION lib)
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 if (PARQUET_BUILD_SHARED)
     install(TARGETS parquet_shared
-      ARCHIVE DESTINATION lib
-      LIBRARY DESTINATION lib)
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
