@@ -22,7 +22,7 @@
 #
 #  ZLIB_HOME - When set, this path is inspected instead of standard library
 #             locations as the root of the ZLIB installation.
-#             The environment variable ZLIB_HOME overrides this veriable.
+#             The environment variable ZLIB_HOME overrides this variable.
 #
 # - Find ZLIB (zlib.h, libz.a, libz.so, and libz.so.1)
 # This module defines
@@ -54,9 +54,11 @@ else ()
 endif ()
 
 
-if (ZLIB_INCLUDE_DIR AND ZLIB_LIBRARIES)
+if (ZLIB_INCLUDE_DIR AND (PARQUET_MINIMAL_DEPENDENCY OR ZLIB_LIBRARIES))
   set(ZLIB_FOUND TRUE)
   get_filename_component( ZLIB_LIBS ${ZLIB_LIBRARIES} PATH )
+  set(ZLIB_HEADER_NAME zlib.h)
+  set(ZLIB_HEADER ${ZLIB_INCLUDE_DIR}/${ZLIB_HEADER_NAME})
   set(ZLIB_LIB_NAME libz)
   set(ZLIB_STATIC_LIB ${ZLIB_LIBS}/${ZLIB_LIB_NAME}.a)
   set(ZLIB_SHARED_LIB ${ZLIB_LIBS}/${ZLIB_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
@@ -66,7 +68,11 @@ endif ()
 
 if (ZLIB_FOUND)
   if (NOT ZLIB_FIND_QUIETLY)
-    message(STATUS "Found the ZLIB library: ${ZLIB_LIBRARIES}")
+    if (PARQUET_MINIMAL_DEPENDENCY)
+      message(STATUS "Found the ZLIB header: ${ZLIB_HEADER}")
+    else()
+      message(STATUS "Found the ZLIB library: ${ZLIB_LIBRARIES}")
+    endif ()
   endif ()
 else ()
   if (NOT ZLIB_FIND_QUIETLY)

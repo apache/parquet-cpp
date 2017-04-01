@@ -113,10 +113,14 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_RPATH_ORIGIN
     "Build Parquet libraries with RATH set to \$ORIGIN"
     OFF)
+  option(PARQUET_MINIMAL_DEPENDENCY
+    "Depend only on Thirdparty headers to build libparquet. Always OFF if building binaries"
+    OFF)
 endif()
 
 if (PARQUET_BUILD_TESTS OR PARQUET_BUILD_EXECUTABLES OR PARQUET_BUILD_BENCHMARKS)
   set(PARQUET_BUILD_STATIC ON)
+  set(PARQUET_MINIMAL_DEPENDENCY OFF)
 endif()
 
 # If build in-source, create the latest symlink. If build out-of-source, which is
@@ -315,6 +319,12 @@ enable_testing()
 # Dependencies
 ############################################################
 
+if (PARQUET_MINIMAL_DEPENDENCY)
+    set(IGNORE_OPTIONAL_PACKAGES ON)
+    message(STATUS "Build using minimal dependencies")
+else()
+    set(IGNORE_OPTIONAL_PACKAGES OFF)
+endif()
 include(ThirdpartyToolchain)
 
 # Thrift requires these definitions for some types that we use
@@ -574,16 +584,6 @@ set(BUNDLED_STATIC_LIBS
   zlibstatic
 )
 
-# These are libraries that we will link privately with parquet_shared (as they
-# do not need to be linked transitively by other linkers), but publicly with
-# parquet_static (because internal users need to transitively link all
-# dependencies)
-set(LIBPARQUET_INTERFACE_LINK_LIBS
-  ${ARROW_LINK_LIBS}
-  ${BOOST_LINK_LIBS}
-  ${BUNDLED_STATIC_LIBS}
-)
-
 add_library(parquet_objlib OBJECT
   ${LIBPARQUET_SRCS}
 )
@@ -594,10 +594,21 @@ add_custom_target(thrift-deps ALL
   DEPENDS ${THRIFT_OUTPUT_FILES})
 add_dependencies(parquet_objlib thrift-deps)
 
+if (NOT PARQUET_MINIMAL_DEPENDENCY)
+# These are libraries that we will link privately with parquet_shared (as they
+# do not need to be linked transitively by other linkers), but publicly with
+# parquet_static (because internal users need to transitively link all
+# dependencies)
+  set(LIBPARQUET_INTERFACE_LINK_LIBS
+    ${ARROW_LINK_LIBS}
+    ${BOOST_LINK_LIBS}
+    ${BUNDLED_STATIC_LIBS}
+  )
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
-add_dependencies(parquet_objlib
-  ${LIBPARQUET_INTERFACE_LINK_LIBS})
+  add_dependencies(parquet_objlib
+    ${LIBPARQUET_INTERFACE_LINK_LIBS})
+endif()
 
 set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
