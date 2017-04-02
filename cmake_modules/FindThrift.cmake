@@ -13,6 +13,14 @@
 # limitations under the License.
 
 # - Find Thrift (a cross platform RPC lib/tool)
+#
+# Variables used by this module, they can change the default behaviour and need
+# to be set before calling find_package:
+#
+#  Thrift_HOME - When set, this path is inspected instead of standard library
+#                locations as the root of the Thrift installation.
+#                The environment variable THRIFT_HOME overrides this variable.
+#
 # This module defines
 #  THRIFT_VERSION, version string of ant if found
 #  THRIFT_INCLUDE_DIR, where to find THRIFT headers
@@ -21,35 +29,48 @@
 #  THRIFT_FOUND, If false, do not try to use ant
 
 # prefer the thrift version supplied in THRIFT_HOME
+if( NOT "$ENV{THRIFT_HOME}" STREQUAL "")
+    file( TO_CMAKE_PATH "$ENV{THRIFT_HOME}" _native_path )
+    list( APPEND _thrift_roots ${_native_path} )
+elseif ( Thrift_HOME )
+    list( APPEND _thrift_roots ${Thrift_HOME} )
+endif()
+
 message(STATUS "THRIFT_HOME: $ENV{THRIFT_HOME}")
 find_path(THRIFT_INCLUDE_DIR thrift/Thrift.h HINTS
-  $ENV{THRIFT_HOME}/include/
+  ${_thrift_roots}
   NO_DEFAULT_PATH
+  PATH_SUFFIXES "include"
 )
 
 find_path(THRIFT_CONTRIB_DIR share/fb303/if/fb303.thrift HINTS
-  $ENV{THRIFT_HOME}
+  ${_thrift_roots}
   NO_DEFAULT_PATH
 )
 
-set(THRIFT_LIB_PATHS
-  $ENV{THRIFT_HOME}/lib
-  NO_DEFAULT_PATH)
-
-find_path(THRIFT_STATIC_LIB_PATH libthrift.a PATHS ${THRIFT_LIB_PATHS})
-
-# prefer the thrift version supplied in THRIFT_HOME
-find_library(THRIFT_LIB NAMES thrift HINTS ${THRIFT_LIB_PATHS})
-
-find_program(THRIFT_COMPILER thrift
-  $ENV{THRIFT_HOME}/bin
+find_library(THRIFT_STATIC_LIB
+  ${CMAKE_STATIC_LIBRARY_PREFIX}thrift${CMAKE_STATIC_LIBRARY_SUFFIX}
+  HINTS ${_thrift_roots}
   NO_DEFAULT_PATH
+  PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib"
+)
+
+find_library(THRIFT_LIB NAMES
+  ${CMAKE_SHARED_LIBRARY_PREFIX}thrift${CMAKE_SHARED_LIBRARY_SUFFIX}
+  HINTS ${_thrift_roots}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib"
+)
+
+find_program(THRIFT_COMPILER thrift HINTS
+  ${_thrift_roots}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "bin"
 )
 
 if (THRIFT_LIB)
   set(THRIFT_FOUND TRUE)
   set(THRIFT_LIBS ${THRIFT_LIB})
-  set(THRIFT_STATIC_LIB ${THRIFT_STATIC_LIB_PATH}/libthrift.a)
   exec_program(${THRIFT_COMPILER}
     ARGS -version OUTPUT_VARIABLE THRIFT_VERSION RETURN_VALUE THRIFT_RETURN)
 else ()
