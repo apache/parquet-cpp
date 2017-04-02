@@ -40,12 +40,12 @@ endif()
 
 message(STATUS "SNAPPY_HOME: $ENV{SNAPPY_HOME}")
 find_path(SNAPPY_INCLUDE_DIR snappy.h HINTS
-  $ENV{SNAPPY_HOME}
+  ${_snappy_roots}
   NO_DEFAULT_PATH
   PATH_SUFFIXES "include")
 
 find_library( SNAPPY_LIBRARIES NAMES snappy PATHS
-  $ENV{SNAPPY_HOME}
+  ${_snappy_roots}
   NO_DEFAULT_PATH
   PATH_SUFFIXES "lib")
 
