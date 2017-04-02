@@ -22,7 +22,7 @@
 #
 #  Snappy_HOME - When set, this path is inspected instead of standard library
 #                locations as the root of the Snappy installation.
-#                The environment variable SNAPPY_HOME overrides this veriable.
+#                The environment variable SNAPPY_HOME overrides this variable.
 #
 # This module defines
 #  SNAPPY_INCLUDE_DIR, directory containing headers
