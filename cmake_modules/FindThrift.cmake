@@ -25,7 +25,7 @@
 #  THRIFT_VERSION, version string of ant if found
 #  THRIFT_INCLUDE_DIR, where to find THRIFT headers
 #  THRIFT_CONTRIB_DIR, where contrib thrift files (e.g. fb303.thrift) are installed
-#  THRIFT_LIBS, THRIFT libraries
+#  THRIFT_STATIC_LIB, THRIFT static library
 #  THRIFT_FOUND, If false, do not try to use ant
 
 # prefer the thrift version supplied in THRIFT_HOME
@@ -55,22 +55,14 @@ find_library(THRIFT_STATIC_LIB NAMES
   PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib"
 )
 
-find_library(THRIFT_SHARED_LIB NAMES
-  ${CMAKE_SHARED_LIBRARY_PREFIX}thrift${CMAKE_SHARED_LIBRARY_SUFFIX}
-  HINTS ${_thrift_roots}
-  NO_DEFAULT_PATH
-  PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib"
-)
-
 find_program(THRIFT_COMPILER thrift HINTS
   ${_thrift_roots}
   NO_DEFAULT_PATH
   PATH_SUFFIXES "bin"
 )
 
-if (THRIFT_SHARED_LIB OR THRIFT_STATIC_LIB)
+if (THRIFT_STATIC_LIB)
   set(THRIFT_FOUND TRUE)
-  set(THRIFT_LIBS ${THRIFT_STATIC_LIB} ${THRIFT_SHARED_LIB})
   exec_program(${THRIFT_COMPILER}
     ARGS -version OUTPUT_VARIABLE THRIFT_VERSION RETURN_VALUE THRIFT_RETURN)
 else ()
@@ -84,12 +76,12 @@ if (THRIFT_FOUND)
 else ()
   message(STATUS "Thrift compiler/libraries NOT found. "
           "Thrift support will be disabled (${THRIFT_RETURN}, "
-          "${THRIFT_INCLUDE_DIR}, ${THRIFT_LIB})")
+          "${THRIFT_INCLUDE_DIR}, ${THRIFT_STATIC_LIB})")
 endif ()
 
 
 mark_as_advanced(
-  THRIFT_LIB
+  THRIFT_STATIC_LIB
   THRIFT_COMPILER
   THRIFT_INCLUDE_DIR
 )
