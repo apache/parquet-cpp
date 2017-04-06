@@ -109,6 +109,8 @@ class FileColumnIterator {
         reader_(reader),
         schema_(reader->metadata()->schema()) {}
 
+  virtual ~FileColumnIterator() {}
+
   virtual std::shared_ptr<::parquet::ColumnReader> Next() = 0;
 
   const SchemaDescriptor* schema() const { return schema_; }
