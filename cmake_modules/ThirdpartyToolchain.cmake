@@ -22,7 +22,7 @@ set(THRIFT_VERSION "0.10.0")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
-set(ARROW_VERSION "d1a9aff2937efe54fe3a5c80f7fbe19851cb71f3")
+set(ARROW_VERSION "c2f28cd07413e262fa0b741c286f86d5c7277c56")
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -362,7 +362,7 @@ pkg_check_modules(ARROW arrow)
 if (ARROW_FOUND)
   set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
 
-  if (COMMAND pkg_get_variable)
+q  if (COMMAND pkg_get_variable)
     pkg_get_variable(ARROW_ABI_VERSION arrow abi_version)
   else()
     set(ARROW_ABI_VERSION "")
@@ -399,7 +399,7 @@ if (NOT ARROW_FOUND)
     ExternalProject_Add(arrow_ep
       GIT_REPOSITORY https://github.com/apache/arrow.git
       GIT_TAG ${ARROW_VERSION}
-      BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_IO_SHARED_LIB}" "${ARROW_IO_STATIC_LIB}" "${ARROW_STATIC_LIB}"
+      BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
       # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
       # to specify that the CMakeLists.txt of Arrow is located in cpp/
       #
