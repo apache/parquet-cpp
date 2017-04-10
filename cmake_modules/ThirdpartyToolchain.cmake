@@ -362,7 +362,7 @@ pkg_check_modules(ARROW arrow)
 if (ARROW_FOUND)
   set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
 
-q  if (COMMAND pkg_get_variable)
+  if (COMMAND pkg_get_variable)
     pkg_get_variable(ARROW_ABI_VERSION arrow abi_version)
   else()
     set(ARROW_ABI_VERSION "")
