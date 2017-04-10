@@ -954,7 +954,7 @@ TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
   ASSERT_EQ(table->num_rows(), 0);
   ASSERT_EQ(table->num_columns(), 2);
-  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 2);
+  ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
 }
 
 TEST_F(TestNestedSchemaRead, ReadTablePartial) {
@@ -964,19 +964,19 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_OK_NO_THROW(reader_->ReadTable({0, 2}, &table));
   ASSERT_EQ(table->num_rows(), 0);
   ASSERT_EQ(table->num_columns(), 2);
-  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 1);
+  ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 1);
 
   // columns: {group1.leaf1, group1.leaf2}
   ASSERT_OK_NO_THROW(reader_->ReadTable({0, 1}, &table));
   ASSERT_EQ(table->num_rows(), 0);
   ASSERT_EQ(table->num_columns(), 1);
-  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 2);
+  ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
 
   // columns: {leaf3}
   ASSERT_OK_NO_THROW(reader_->ReadTable({2}, &table));
   ASSERT_EQ(table->num_rows(), 0);
   ASSERT_EQ(table->num_columns(), 1);
-  ASSERT_EQ(table->schema()->field(0)->type->num_children(), 0);
+  ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 0);
 }
 
 }  // namespace arrow
