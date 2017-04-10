@@ -397,8 +397,7 @@ if (NOT ARROW_FOUND)
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(arrow_ep
-      GIT_REPOSITORY https://github.com/apache/arrow.git
-      GIT_TAG ${ARROW_VERSION}
+      URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
       # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
       # to specify that the CMakeLists.txt of Arrow is located in cpp/
@@ -408,8 +407,7 @@ if (NOT ARROW_FOUND)
       CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   else()
     ExternalProject_Add(arrow_ep
-      GIT_REPOSITORY https://github.com/apache/arrow.git
-      GIT_TAG ${ARROW_VERSION}
+      URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
       CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
       CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   endif()
