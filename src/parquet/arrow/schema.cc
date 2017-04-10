@@ -291,9 +291,14 @@ Status NodeToFieldInternal(const NodePtr& node,
   if (node->is_repeated()) {
     // 1-level LIST encoding fields are required
     std::shared_ptr<::arrow::DataType> inner_type;
-    if (IsIncludedLeaf(static_cast<NodePtr>(node), included_leaf_nodes)) {
+    if (node->is_group()) {
+      const GroupNode* group = static_cast<const GroupNode*>(node.get());
+      RETURN_NOT_OK(StructFromGroup(group, included_leaf_nodes, &inner_type));
+    } else if (IsIncludedLeaf(static_cast<NodePtr>(node), included_leaf_nodes)) {
       const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
       RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
+    }
+    if (inner_type != nullptr) {
       auto item_field = std::make_shared<Field>(node->name(), inner_type, false);
       type = ::arrow::list(item_field);
       nullable = false;
