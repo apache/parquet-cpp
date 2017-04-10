@@ -46,30 +46,21 @@ find_library(ARROW_LIB_PATH NAMES arrow
   ${ARROW_SEARCH_LIB_PATH}
   NO_DEFAULT_PATH)
 
-find_library(ARROW_IO_LIB_PATH NAMES arrow_io
-  PATHS
-  ${ARROW_SEARCH_LIB_PATH}
-  NO_DEFAULT_PATH)
-
 if (ARROW_INCLUDE_DIR AND (PARQUET_MINIMAL_DEPENDENCY OR ARROW_LIB_PATH))
   set(ARROW_FOUND TRUE)
   set(ARROW_HEADER_NAME arrow/api.h)
   set(ARROW_HEADER ${ARROW_INCLUDE_DIR}/${ARROW_HEADER_NAME})
   set(ARROW_LIB_NAME libarrow)
-  set(ARROW_IO_LIB_NAME libarrow_io)
 
   get_filename_component(ARROW_LIBS ${ARROW_LIB_PATH} DIRECTORY)
   set(ARROW_STATIC_LIB ${ARROW_LIBS}/${ARROW_LIB_NAME}.a)
   set(ARROW_SHARED_LIB ${ARROW_LIBS}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
 
-  set(ARROW_IO_STATIC_LIB ${ARROW_LIBS}/${ARROW_IO_LIB_NAME}.a)
-  set(ARROW_IO_SHARED_LIB ${ARROW_LIBS}/${ARROW_IO_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
   if (NOT Arrow_FIND_QUIETLY)
     if (PARQUET_MINIMAL_DEPENDENCY)
-      message(STATUS "Found the Arrow core and IO header: ${ARROW_HEADER}")
+      message(STATUS "Found the Arrow header: ${ARROW_HEADER}")
     else ()
-      message(STATUS "Found the Arrow core library: ${ARROW_LIB_PATH}")
-      message(STATUS "Found the Arrow IO library: ${ARROW_IO_LIB_PATH}")
+      message(STATUS "Found the Arrow library: ${ARROW_LIB_PATH}")
     endif ()
   endif ()
 else ()
@@ -92,6 +83,4 @@ mark_as_advanced(
   ARROW_LIBS
   ARROW_STATIC_LIB
   ARROW_SHARED_LIB
-  ARROW_IO_STATIC_LIB
-  ARROW_IO_SHARED_LIB
 )

@@ -481,12 +481,10 @@ endif()
 
 if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
   set(ARROW_LINK_LIBS
-    arrow
-    arrow_io)
+    arrow)
 else()
   set(ARROW_LINK_LIBS
-    arrow_static
-    arrow_io_static)
+    arrow_static)
 endif()
 
 #############################################################

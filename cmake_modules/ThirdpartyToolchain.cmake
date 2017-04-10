@@ -22,7 +22,7 @@ set(THRIFT_VERSION "0.10.0")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
-set(ARROW_VERSION "15b874e47e3975c5240290ec7ed105bf8d1b56bc")
+set(ARROW_VERSION "c2f28cd07413e262fa0b741c286f86d5c7277c56")
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -359,36 +359,25 @@ endif()
 
 ## Apache Arrow
 pkg_check_modules(ARROW arrow)
-pkg_check_modules(ARROW_IO arrow-io)
-if (ARROW_FOUND AND ARROW_IO_FOUND)
+if (ARROW_FOUND)
   set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
 
   if (COMMAND pkg_get_variable)
     pkg_get_variable(ARROW_ABI_VERSION arrow abi_version)
-    pkg_get_variable(ARROW_IO_ABI_VERSION arrow-io abi_version)
   else()
     set(ARROW_ABI_VERSION "")
-    set(ARROW_IO_ABI_VERSION "")
   endif()
   if (ARROW_ABI_VERSION STREQUAL "")
     set(ARROW_SHARED_LIB_SUFFIX "")
   else()
     set(ARROW_SHARED_LIB_SUFFIX ".${ARROW_ABI_VERSION}")
   endif()
-  if (ARROW_IO_ABI_VERSION STREQUAL "")
-    set(ARROW_IO_SHARED_LIB_SUFFIX "")
-  else()
-    set(ARROW_IO_SHARED_LIB_SUFFIX ".${ARROW_ABI_VERSION}")
-  endif()
 
   set(ARROW_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}arrow)
-  set(ARROW_IO_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}arrow_io)
 
   set(ARROW_SHARED_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}${ARROW_SHARED_LIB_SUFFIX})
   set(ARROW_STATIC_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-  set(ARROW_IO_SHARED_LIB ${ARROW_LIBDIR}/${ARROW_IO_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}${ARROW_IO_SHARED_LIB_SUFFIX})
-  set(ARROW_IO_STATIC_LIB ${ARROW_LIBDIR}/${ARROW_IO_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
 else()
   find_package(Arrow)
 endif()
@@ -397,9 +386,7 @@ if (NOT ARROW_FOUND)
   set(ARROW_HOME "${ARROW_PREFIX}")
   set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
   set(ARROW_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set(ARROW_IO_SHARED_LIB "${ARROW_PREFIX}/lib/libarrow_io${CMAKE_SHARED_LIBRARY_SUFFIX}")
   set(ARROW_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow.a")
-  set(ARROW_IO_STATIC_LIB "${ARROW_PREFIX}/lib/libarrow_io.a")
   set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
@@ -412,7 +399,7 @@ if (NOT ARROW_FOUND)
     ExternalProject_Add(arrow_ep
       GIT_REPOSITORY https://github.com/apache/arrow.git
       GIT_TAG ${ARROW_VERSION}
-      BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_IO_SHARED_LIB}" "${ARROW_IO_STATIC_LIB}" "${ARROW_STATIC_LIB}"
+      BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
       # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
       # to specify that the CMakeLists.txt of Arrow is located in cpp/
       #
@@ -434,16 +421,10 @@ endif()
 include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
 add_library(arrow SHARED IMPORTED)
 set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
-add_library(arrow_io SHARED IMPORTED)
-set_target_properties(arrow_io PROPERTIES IMPORTED_LOCATION ${ARROW_IO_SHARED_LIB})
 add_library(arrow_static STATIC IMPORTED)
 set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
-add_library(arrow_io_static STATIC IMPORTED)
-set_target_properties(arrow_io_static PROPERTIES IMPORTED_LOCATION ${ARROW_IO_STATIC_LIB})
 
 if (ARROW_VENDORED)
   add_dependencies(arrow arrow_ep)
-  add_dependencies(arrow_io arrow_ep)
   add_dependencies(arrow_static arrow_ep)
-  add_dependencies(arrow_io_static arrow_ep)
 endif()
