@@ -22,7 +22,7 @@ set(THRIFT_VERSION "0.10.0")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
-set(ARROW_VERSION "15b874e47e3975c5240290ec7ed105bf8d1b56bc")
+set(ARROW_VERSION "d1a9aff2937efe54fe3a5c80f7fbe19851cb71f3")
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
