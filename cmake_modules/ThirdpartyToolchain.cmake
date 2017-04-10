@@ -22,7 +22,6 @@ set(THRIFT_VERSION "0.10.0")
 
 # Brotli 0.5.2 does not install headers/libraries yet, but 0.6.0.dev does
 set(BROTLI_VERSION "5db62dcc9d386579609540cdf8869e95ad334bbd")
-set(ARROW_VERSION "c2f28cd07413e262fa0b741c286f86d5c7277c56")
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -394,10 +393,13 @@ if (NOT ARROW_FOUND)
     -DARROW_JEMALLOC=OFF
     -DARROW_BUILD_TESTS=OFF)
 
+  set(ARROW_VERSION "c2f28cd07413e262fa0b741c286f86d5c7277c56")
+  set(ARROW_URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz")
+
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(arrow_ep
-      URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
+      URL ${ARROW_URL}
       BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
       # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
       # to specify that the CMakeLists.txt of Arrow is located in cpp/
@@ -407,7 +409,7 @@ if (NOT ARROW_FOUND)
       CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   else()
     ExternalProject_Add(arrow_ep
-      URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz"
+      URL ${ARROW_URL}
       CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
       CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   endif()
