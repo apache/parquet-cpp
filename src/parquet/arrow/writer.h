@@ -31,6 +31,7 @@ class Array;
 class MemoryPool;
 class PrimitiveArray;
 class RowBatch;
+class Schema;
 class Status;
 class StringArray;
 class Table;
@@ -47,7 +48,22 @@ namespace arrow {
  */
 class PARQUET_EXPORT FileWriter {
  public:
-  FileWriter(::arrow::MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer);
+  static ::arrow::Status Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool,
+      const std::shared_ptr<OutputStream>& sink,
+      const std::shared_ptr<WriterProperties>& properties,
+      std::unique_ptr<FileWriter>* writer);
+
+  static ::arrow::Status Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool,
+      const std::shared_ptr<::arrow::io::OutputStream>& sink,
+      const std::shared_ptr<WriterProperties>& properties,
+      std::unique_ptr<FileWriter>* writer);
+
+  /**
+   * Write a Table to Parquet.
+   *
+   * The table shall only consist of columns of primitive type or of primitive lists.
+   */
+  ::arrow::Status WriteTable(const ::arrow::Table& table, int64_t chunk_size);
 
   ::arrow::Status NewRowGroup(int64_t chunk_size);
   ::arrow::Status WriteColumnChunk(const ::arrow::Array& data);
@@ -58,6 +74,8 @@ class PARQUET_EXPORT FileWriter {
   ::arrow::MemoryPool* memory_pool() const;
 
  private:
+  FileWriter(::arrow::MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer);
+
   class PARQUET_NO_EXPORT Impl;
   std::unique_ptr<Impl> impl_;
 };
@@ -78,7 +96,6 @@ class PARQUET_EXPORT FileWriter {
     const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 
 }  // namespace arrow
-
 }  // namespace parquet
 
 #endif  // PARQUET_ARROW_WRITER_H
