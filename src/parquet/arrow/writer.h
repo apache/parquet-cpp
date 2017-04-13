@@ -47,6 +47,8 @@ namespace arrow {
  */
 class PARQUET_EXPORT FileWriter {
  public:
+  FileWriter(::arrow::MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer);
+
   static ::arrow::Status Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool,
       const std::shared_ptr<OutputStream>& sink,
       const std::shared_ptr<WriterProperties>& properties,
@@ -73,8 +75,6 @@ class PARQUET_EXPORT FileWriter {
   ::arrow::MemoryPool* memory_pool() const;
 
  private:
-  FileWriter(::arrow::MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writer);
-
   class PARQUET_NO_EXPORT Impl;
   std::unique_ptr<Impl> impl_;
 };
