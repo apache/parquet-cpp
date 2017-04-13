@@ -35,10 +35,9 @@ class Schema;
 class Status;
 class StringArray;
 class Table;
-}
+}  // namespace arrow
 
 namespace parquet {
-
 namespace arrow {
 
 /**
