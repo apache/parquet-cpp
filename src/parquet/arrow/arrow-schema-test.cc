@@ -62,8 +62,8 @@ class TestConvertParquetSchema : public ::testing::Test {
     for (int i = 0; i < expected_schema->num_fields(); ++i) {
       auto lhs = result_schema_->field(i);
       auto rhs = expected_schema->field(i);
-      EXPECT_TRUE(lhs->Equals(rhs)) << i << " " << lhs->ToString()
-                                    << " != " << rhs->ToString();
+      EXPECT_TRUE(lhs->Equals(rhs))
+          << i << " " << lhs->ToString() << " != " << rhs->ToString();
     }
   }
 
@@ -458,11 +458,11 @@ TEST_F(TestConvertParquetSchema, ParquetNestedSchemaPartialOrdering) {
   // }
   {
     parquet_fields.push_back(GroupNode::Make("group1", Repetition::REQUIRED,
-                                             {PrimitiveNode::Make("leaf1", Repetition::REQUIRED, ParquetType::INT64),
-                                              PrimitiveNode::Make("leaf2", Repetition::REQUIRED, ParquetType::INT64)}));
+        {PrimitiveNode::Make("leaf1", Repetition::REQUIRED, ParquetType::INT64),
+            PrimitiveNode::Make("leaf2", Repetition::REQUIRED, ParquetType::INT64)}));
     parquet_fields.push_back(GroupNode::Make("group2", Repetition::REQUIRED,
-                                             {PrimitiveNode::Make("leaf3", Repetition::REQUIRED, ParquetType::INT64),
-                                              PrimitiveNode::Make("leaf4", Repetition::REQUIRED, ParquetType::INT64)}));
+        {PrimitiveNode::Make("leaf3", Repetition::REQUIRED, ParquetType::INT64),
+            PrimitiveNode::Make("leaf4", Repetition::REQUIRED, ParquetType::INT64)}));
     parquet_fields.push_back(
         PrimitiveNode::Make("leaf5", Repetition::REQUIRED, ParquetType::INT64));
 

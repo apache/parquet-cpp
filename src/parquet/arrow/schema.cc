@@ -332,28 +332,24 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
   // from the root Parquet node
 
   // Put the right leaf nodes in an unordered set
-  // Index in column_indices should be unique, duplicate indices are merged into one and ordering by
-  // its first appearing.
+  // Index in column_indices should be unique, duplicate indices are merged into one and
+  // ordering by its first appearing.
   int num_columns = static_cast<int>(column_indices.size());
-  std::unordered_set<NodePtr> top_nodes; // to deduplicate the top nodes
-  std::vector<NodePtr> base_nodes; // to keep the ordering
+  std::unordered_set<NodePtr> top_nodes;  // to deduplicate the top nodes
+  std::vector<NodePtr> base_nodes;        // to keep the ordering
   std::unordered_set<NodePtr> included_leaf_nodes(num_columns);
   for (int i = 0; i < num_columns; i++) {
     auto column_desc = parquet_schema->Column(column_indices[i]);
     included_leaf_nodes.insert(column_desc->schema_node());
     auto column_root = parquet_schema->GetColumnRoot(column_indices[i]);
     auto insertion = top_nodes.insert(column_root);
-    if (insertion.second) {
-      base_nodes.push_back(column_root);
-    }
+    if (insertion.second) { base_nodes.push_back(column_root); }
   }
-
 
   std::vector<std::shared_ptr<Field>> fields;
   std::shared_ptr<Field> field;
   for (auto node : base_nodes) {
-    RETURN_NOT_OK(
-        NodeToFieldInternal(node, &included_leaf_nodes, &field));
+    RETURN_NOT_OK(NodeToFieldInternal(node, &included_leaf_nodes, &field));
     if (field != nullptr) { fields.push_back(field); }
   }
 
