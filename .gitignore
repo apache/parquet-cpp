@@ -13,3 +13,4 @@ Makefile
 thirdparty
 
 *.pc
+.idea/
