@@ -357,7 +357,14 @@ if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
 endif()
 
 ## Apache Arrow
-pkg_check_modules(ARROW arrow)
+if ("$ENV{ARROW_HOME}" STREQUAL "")
+  # PARQUET-955. If the user has set $ARROW_HOME in the environment, we respect
+  # this, otherwise try to locate the pkgconfig in the system environment
+  pkg_check_modules(ARROW arrow)
+else()
+  set(ARROW_FOUND FALSE)
+endif()
+
 if (ARROW_FOUND)
   set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
 
