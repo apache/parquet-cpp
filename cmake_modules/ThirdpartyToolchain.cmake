@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set(GTEST_VERSION "1.7.0")
+set(GTEST_VERSION "1.8.0")
 set(GBENCHMARK_VERSION "1.1.0")
 set(SNAPPY_VERSION "1.1.3")
 set(THRIFT_VERSION "0.10.0")
@@ -267,29 +267,26 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
 
     set(GTEST_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/googletest_ep-prefix/src/googletest_ep")
     set(GTEST_INCLUDE_DIR "${GTEST_PREFIX}/include")
-    set(GTEST_STATIC_LIB "${GTEST_PREFIX}/${CMAKE_CFG_INTDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(GTEST_STATIC_LIB
+      "${GTEST_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(GTEST_MAIN_STATIC_LIB
+      "${GTEST_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}gtest_main${CMAKE_STATIC_LIBRARY_SUFFIX}")
     set(GTEST_VENDORED 1)
+
+    set(GTEST_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                         -DCMAKE_INSTALL_PREFIX=${GTEST_PREFIX}
+                         -Dgtest_force_shared_crt=ON
+                         -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS})
 
     if (CMAKE_VERSION VERSION_GREATER "3.2")
       # BUILD_BYPRODUCTS is a 3.2+ feature
       ExternalProject_Add(googletest_ep
         URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-        CMAKE_ARGS -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS} -Dgtest_force_shared_crt=ON
-        # googletest doesn't define install rules, so just build in the
-        # source dir and don't try to install.  See its README for
-        # details.
-        BUILD_IN_SOURCE 1
-        BUILD_BYPRODUCTS "${GTEST_STATIC_LIB}"
-        INSTALL_COMMAND "")
+        CMAKE_ARGS ${GTEST_CMAKE_ARGS})
     else()
       ExternalProject_Add(googletest_ep
         URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-        CMAKE_ARGS -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS} -Dgtest_force_shared_crt=ON
-        # googletest doesn't define install rules, so just build in the
-        # source dir and don't try to install.  See its README for
-        # details.
-        BUILD_IN_SOURCE 1
-        INSTALL_COMMAND "")
+        CMAKE_ARGS ${GTEST_CMAKE_ARGS})
     endif()
   else()
     find_package(GTest REQUIRED)
@@ -299,11 +296,17 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
   message(STATUS "GTest include dir: ${GTEST_INCLUDE_DIR}")
   message(STATUS "GTest static library: ${GTEST_STATIC_LIB}")
   include_directories(SYSTEM ${GTEST_INCLUDE_DIR})
+
   add_library(gtest STATIC IMPORTED)
   set_target_properties(gtest PROPERTIES IMPORTED_LOCATION ${GTEST_STATIC_LIB})
 
+  add_library(gtest_main STATIC IMPORTED)
+  set_target_properties(gtest_main PROPERTIES IMPORTED_LOCATION
+    ${GTEST_MAIN_STATIC_LIB})
+
   if(GTEST_VENDORED)
     add_dependencies(gtest googletest_ep)
+    add_dependencies(gtest_main googletest_ep)
   endif()
 endif()
 
