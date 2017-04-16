@@ -18,69 +18,96 @@
 # - Find ARROW (arrow/api.h, libarrow.a, libarrow.so)
 # This module defines
 #  ARROW_INCLUDE_DIR, directory containing headers
-#  ARROW_LIBS, directory containing arrow libraries
 #  ARROW_STATIC_LIB, path to libarrow.a
 #  ARROW_SHARED_LIB, path to libarrow's shared library
 #  ARROW_FOUND, whether arrow has been found
 
-if( NOT "$ENV{ARROW_HOME}" STREQUAL "")
-  set(ARROW_HOME "$ENV{ARROW_HOME}")
+if ("$ENV{ARROW_HOME}" STREQUAL "")
+  # PARQUET-955. If the user has set $ARROW_HOME in the environment, we respect
+  # this, otherwise try to locate the pkgconfig in the system environment
+  pkg_check_modules(ARROW arrow)
+else()
+  set(ARROW_FOUND FALSE)
 endif()
 
-set(ARROW_SEARCH_HEADER_PATHS
-  ${ARROW_HOME}/include
-)
+if (ARROW_FOUND)
+  set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
 
-set(ARROW_SEARCH_LIB_PATH
-  ${ARROW_HOME}/lib
-)
+  if (COMMAND pkg_get_variable)
+    pkg_get_variable(ARROW_ABI_VERSION arrow abi_version)
+  else()
+    set(ARROW_ABI_VERSION "")
+  endif()
+  if (ARROW_ABI_VERSION STREQUAL "")
+    set(ARROW_SHARED_LIB_SUFFIX "")
+  else()
+    set(ARROW_SHARED_LIB_SUFFIX ".${ARROW_ABI_VERSION}")
+  endif()
 
-find_path(ARROW_INCLUDE_DIR arrow/array.h PATHS
-  ${ARROW_SEARCH_HEADER_PATHS}
-  # make sure we don't accidentally pick up a different version
-  NO_DEFAULT_PATH
-)
+  set(ARROW_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}arrow)
 
-find_library(ARROW_LIB_PATH NAMES arrow
-  PATHS
-  ${ARROW_SEARCH_LIB_PATH}
-  NO_DEFAULT_PATH)
+  set(ARROW_SHARED_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}${ARROW_SHARED_LIB_SUFFIX})
+  set(ARROW_STATIC_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-if (ARROW_INCLUDE_DIR AND (PARQUET_MINIMAL_DEPENDENCY OR ARROW_LIB_PATH))
-  set(ARROW_FOUND TRUE)
-  set(ARROW_HEADER_NAME arrow/api.h)
-  set(ARROW_HEADER ${ARROW_INCLUDE_DIR}/${ARROW_HEADER_NAME})
-  set(ARROW_LIB_NAME libarrow)
+else()
+  if( NOT "$ENV{ARROW_HOME}" STREQUAL "")
+    set(ARROW_HOME "$ENV{ARROW_HOME}")
+  endif()
 
-  get_filename_component(ARROW_LIBS ${ARROW_LIB_PATH} DIRECTORY)
-  set(ARROW_STATIC_LIB ${ARROW_LIBS}/${ARROW_LIB_NAME}.a)
-  set(ARROW_SHARED_LIB ${ARROW_LIBS}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(ARROW_SEARCH_HEADER_PATHS
+    ${ARROW_HOME}/include
+    )
 
-  if (NOT Arrow_FIND_QUIETLY)
-    if (PARQUET_MINIMAL_DEPENDENCY)
-      message(STATUS "Found the Arrow header: ${ARROW_HEADER}")
-    else ()
-      message(STATUS "Found the Arrow library: ${ARROW_LIB_PATH}")
+  set(ARROW_SEARCH_LIB_PATH
+    ${ARROW_HOME}/lib
+    )
+
+  find_path(ARROW_INCLUDE_DIR arrow/array.h PATHS
+    ${ARROW_SEARCH_HEADER_PATHS}
+    # make sure we don't accidentally pick up a different version
+    NO_DEFAULT_PATH
+    )
+
+  find_library(ARROW_LIB_PATH NAMES arrow
+    PATHS
+    ${ARROW_SEARCH_LIB_PATH}
+    NO_DEFAULT_PATH)
+
+  if (ARROW_INCLUDE_DIR AND (PARQUET_MINIMAL_DEPENDENCY OR ARROW_LIB_PATH))
+    set(ARROW_FOUND TRUE)
+    set(ARROW_HEADER_NAME arrow/api.h)
+    set(ARROW_HEADER ${ARROW_INCLUDE_DIR}/${ARROW_HEADER_NAME})
+    set(ARROW_LIB_NAME libarrow)
+
+    get_filename_component(ARROW_LIBS ${ARROW_LIB_PATH} DIRECTORY)
+    set(ARROW_STATIC_LIB ${ARROW_LIBS}/${ARROW_LIB_NAME}.a)
+    set(ARROW_SHARED_LIB ${ARROW_LIBS}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
+
+    if (NOT Arrow_FIND_QUIETLY)
+      if (PARQUET_MINIMAL_DEPENDENCY)
+        message(STATUS "Found the Arrow header: ${ARROW_HEADER}")
+      else ()
+        message(STATUS "Found the Arrow library: ${ARROW_LIB_PATH}")
+      endif ()
     endif ()
+  else ()
+    if (NOT Arrow_FIND_QUIETLY)
+      set(ARROW_ERR_MSG "Could not find the Arrow library. Looked for headers")
+      set(ARROW_ERR_MSG "${ARROW_ERR_MSG} in ${ARROW_SEARCH_HEADER_PATHS}, and for libs")
+      set(ARROW_ERR_MSG "${ARROW_ERR_MSG} in ${ARROW_SEARCH_LIB_PATH}")
+      if (Arrow_FIND_REQUIRED)
+        message(FATAL_ERROR "${ARROW_ERR_MSG}")
+      else (Arrow_FIND_REQUIRED)
+        message(STATUS "${ARROW_ERR_MSG}")
+      endif (Arrow_FIND_REQUIRED)
+    endif ()
+    set(ARROW_FOUND FALSE)
   endif ()
-else ()
-  if (NOT Arrow_FIND_QUIETLY)
-    set(ARROW_ERR_MSG "Could not find the Arrow library. Looked for headers")
-    set(ARROW_ERR_MSG "${ARROW_ERR_MSG} in ${ARROW_SEARCH_HEADER_PATHS}, and for libs")
-    set(ARROW_ERR_MSG "${ARROW_ERR_MSG} in ${ARROW_SEARCH_LIB_PATH}")
-    if (Arrow_FIND_REQUIRED)
-      message(FATAL_ERROR "${ARROW_ERR_MSG}")
-    else (Arrow_FIND_REQUIRED)
-      message(STATUS "${ARROW_ERR_MSG}")
-    endif (Arrow_FIND_REQUIRED)
-  endif ()
-  set(ARROW_FOUND FALSE)
-endif ()
+endif()
 
 mark_as_advanced(
   ARROW_FOUND
   ARROW_INCLUDE_DIR
-  ARROW_LIBS
   ARROW_STATIC_LIB
   ARROW_SHARED_LIB
 )
