@@ -42,8 +42,9 @@ matrix:
     os: linux
   - compiler: clang
     os: linux
-  - os: osx
-    compiler: clang
+  - compiler: clang
+    os: osx
+    osx_image: xcode6.4
     addons:
     before_install:
     - mkdir $TRAVIS_BUILD_DIR/parquet-build

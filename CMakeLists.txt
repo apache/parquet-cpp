@@ -491,7 +491,19 @@ endif()
 # Test linking
 
 set(PARQUET_MIN_TEST_LIBS
-  parquet_test_main)
+  gtest
+  gtest_main)
+
+if (APPLE)
+  set(PARQUET_MIN_TEST_LIBS
+    ${PARQUET_MIN_TEST_LIBS}
+    ${CMAKE_DL_LIBS})
+elseif(NOT MSVC)
+  set(PARQUET_MIN_TEST_LIBS
+    ${PARQUET_MIN_TEST_LIBS}
+    pthread
+    ${CMAKE_DL_LIBS})
+endif()
 
 set(PARQUET_TEST_LINK_LIBS ${PARQUET_MIN_TEST_LIBS}
   ${ARROW_LINK_LIBS}

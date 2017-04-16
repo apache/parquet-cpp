@@ -15,6 +15,9 @@
 if [ $TRAVIS_OS_NAME == "osx" ]; then
   brew update > /dev/null
   brew install boost
+  brew install openssl
+  export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+  export LD_LIBRARY_PATH=/usr/local/opt/openssl/lib:$LD_LIBRARY_PATH
 else
   # Use a C++11 compiler on Linux
   export CC="gcc-4.9"
