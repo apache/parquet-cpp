@@ -26,30 +26,29 @@ if ("$ENV{ARROW_HOME}" STREQUAL "")
   # PARQUET-955. If the user has set $ARROW_HOME in the environment, we respect
   # this, otherwise try to locate the pkgconfig in the system environment
   pkg_check_modules(ARROW arrow)
+  if (ARROW_FOUND)
+    # We found the pkgconfig
+    set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
+
+    if (COMMAND pkg_get_variable)
+      pkg_get_variable(ARROW_ABI_VERSION arrow abi_version)
+    else()
+      set(ARROW_ABI_VERSION "")
+    endif()
+    if (ARROW_ABI_VERSION STREQUAL "")
+      set(ARROW_SHARED_LIB_SUFFIX "")
+    else()
+      set(ARROW_SHARED_LIB_SUFFIX ".${ARROW_ABI_VERSION}")
+    endif()
+
+    set(ARROW_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}arrow)
+
+    set(ARROW_SHARED_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}${ARROW_SHARED_LIB_SUFFIX})
+    set(ARROW_STATIC_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
+  endif()
 else()
-  set(ARROW_FOUND FALSE)
   set(ARROW_HOME "$ENV{ARROW_HOME}")
-endif()
 
-if (ARROW_FOUND)
-  set(ARROW_INCLUDE_DIR ${ARROW_INCLUDE_DIRS})
-
-  if (COMMAND pkg_get_variable)
-    pkg_get_variable(ARROW_ABI_VERSION arrow abi_version)
-  else()
-    set(ARROW_ABI_VERSION "")
-  endif()
-  if (ARROW_ABI_VERSION STREQUAL "")
-    set(ARROW_SHARED_LIB_SUFFIX "")
-  else()
-    set(ARROW_SHARED_LIB_SUFFIX ".${ARROW_ABI_VERSION}")
-  endif()
-
-  set(ARROW_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}arrow)
-
-  set(ARROW_SHARED_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}${ARROW_SHARED_LIB_SUFFIX})
-  set(ARROW_STATIC_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
-else()
   set(ARROW_SEARCH_HEADER_PATHS
     ${ARROW_HOME}/include
     )
