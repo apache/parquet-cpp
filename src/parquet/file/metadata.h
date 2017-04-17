@@ -178,6 +178,8 @@ class PARQUET_EXPORT FileMetaData {
   // Return const-pointer to make it clear that this object is not to be copied
   const SchemaDescriptor* schema() const;
 
+  std::unordered_map<std::string, std::string> key_value_metadata() const;
+
  private:
   friend FileMetaDataBuilder;
   explicit FileMetaData(const uint8_t* serialized_metadata, uint32_t* metadata_len);
@@ -250,7 +252,8 @@ class PARQUET_EXPORT FileMetaDataBuilder {
  public:
   // API convenience to get a MetaData reader
   static std::unique_ptr<FileMetaDataBuilder> Make(
-      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
+      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props,
+      const std::unordered_map<std::string, std::string>& key_value_metadata = {});
 
   ~FileMetaDataBuilder();
 
@@ -261,7 +264,8 @@ class PARQUET_EXPORT FileMetaDataBuilder {
 
  private:
   explicit FileMetaDataBuilder(
-      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props);
+      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props,
+      const std::unordered_map<std::string, std::string>& key_value_metadata = {});
   // PIMPL Idiom
   class FileMetaDataBuilderImpl;
   std::unique_ptr<FileMetaDataBuilderImpl> impl_;
