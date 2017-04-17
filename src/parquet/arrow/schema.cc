@@ -322,8 +322,22 @@ Status NodeToFieldInternal(const NodePtr& node,
   return Status::OK();
 }
 
-Status FromParquetSchema(
-    const SchemaDescriptor* parquet_schema, std::shared_ptr<::arrow::Schema>* out) {
+static void ParquetMetadataToArrowMetadata(
+    const KeyValueMetadata& parquet_metadata,
+    std::unordered_map<std::string, std::vector<uint8_t>>* arrow_metadata) {
+  arrow_metadata->reserve(parquet_metadata.size());
+
+  for (auto pair = parquet_metadata.cbegin(); pair != parquet_metadata.cend(); ++pair) {
+    auto first = pair->first;
+    auto second = pair->second;
+    arrow_metadata->insert(
+        std::make_pair(first, std::vector<uint8_t>(second.cbegin(), second.cend())));
+  }
+}
+
+Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
+    const KeyValueMetadata& key_value_metadata,
+    std::shared_ptr<::arrow::Schema>* out) {
   const GroupNode* schema_node = parquet_schema->group_node();
 
   int num_fields = static_cast<int>(schema_node->field_count());
@@ -332,12 +346,17 @@ Status FromParquetSchema(
     RETURN_NOT_OK(NodeToField(schema_node->field(i), &fields[i]));
   }
 
-  *out = std::make_shared<::arrow::Schema>(fields);
+  std::unordered_map<std::string, std::vector<uint8_t>> arrow_custom_metadata;
+  ParquetMetadataToArrowMetadata(key_value_metadata, &arrow_custom_metadata);
+
+  *out = std::make_shared<::arrow::Schema>(fields, arrow_custom_metadata);
   return Status::OK();
 }
 
 Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
-    const std::vector<int>& column_indices, std::shared_ptr<::arrow::Schema>* out) {
+    const std::vector<int>& column_indices,
+    const KeyValueMetadata& key_value_metadata,
+    std::shared_ptr<::arrow::Schema>* out) {
   // TODO(wesm): Consider adding an arrow::Schema name attribute, which comes
   // from the root Parquet node
 
@@ -363,7 +382,9 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
     if (field != nullptr) { fields.push_back(field); }
   }
 
-  *out = std::make_shared<::arrow::Schema>(fields);
+  std::unordered_map<std::string, std::vector<uint8_t>> arrow_custom_metadata;
+  ParquetMetadataToArrowMetadata(key_value_metadata, &arrow_custom_metadata);
+  *out = std::make_shared<::arrow::Schema>(fields, arrow_custom_metadata);
   return Status::OK();
 }
 

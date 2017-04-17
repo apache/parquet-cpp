@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "parquet/column/properties.h"
 #include "parquet/schema.h"
@@ -28,9 +29,17 @@
 
 namespace parquet {
 
+typedef std::unordered_map<std::string, std::string> KeyValueMetadata;
+
 class ColumnWriter;
 class PageWriter;
 class OutputStream;
+
+namespace schema {
+
+class GroupNode;
+
+}  // namespace schema
 
 class PARQUET_EXPORT RowGroupWriter {
  public:
@@ -80,6 +89,11 @@ class PARQUET_EXPORT ParquetFileWriter {
   // easily create test fixtures
   // An implementation of the Contents class is defined in the .cc file
   struct Contents {
+    Contents(const std::shared_ptr<::parquet::schema::GroupNode>& schema,
+        const KeyValueMetadata& key_value_metadata)
+        : schema_(), key_value_metadata_(key_value_metadata) {
+      schema_.Init(schema);
+    }
     virtual ~Contents() {}
     // Perform any cleanup associated with the file contents
     virtual void Close() = 0;
@@ -92,9 +106,17 @@ class PARQUET_EXPORT ParquetFileWriter {
 
     virtual const std::shared_ptr<WriterProperties>& properties() const = 0;
 
+    const KeyValueMetadata& key_value_metadata() const {
+      return key_value_metadata_;
+    }
+
     // Return const-pointer to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const { return &schema_; }
+
     SchemaDescriptor schema_;
+
+    /// This should be the only place this is stored. Everything else is a const reference
+    KeyValueMetadata key_value_metadata_;
   };
 
   ParquetFileWriter();
@@ -103,12 +125,14 @@ class PARQUET_EXPORT ParquetFileWriter {
   static std::unique_ptr<ParquetFileWriter> Open(
       const std::shared_ptr<::arrow::io::OutputStream>& sink,
       const std::shared_ptr<schema::GroupNode>& schema,
-      const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
+      const std::shared_ptr<WriterProperties>& properties = default_writer_properties(),
+      const KeyValueMetadata& key_value_metadata = KeyValueMetadata());
 
   static std::unique_ptr<ParquetFileWriter> Open(
       const std::shared_ptr<OutputStream>& sink,
       const std::shared_ptr<schema::GroupNode>& schema,
-      const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
+      const std::shared_ptr<WriterProperties>& properties = default_writer_properties(),
+      const KeyValueMetadata& key_value_metadata = KeyValueMetadata());
 
   void Open(std::unique_ptr<Contents> contents);
   void Close();
@@ -157,6 +181,11 @@ class PARQUET_EXPORT ParquetFileWriter {
    * Returns a column descriptor in schema
    */
   const ColumnDescriptor* descr(int i) const;
+
+  /**
+   * Returns the file custom metadata
+   */
+  const KeyValueMetadata& key_value_metadata() const;
 
  private:
   // Holds a pointer to an instance of Contents implementation
