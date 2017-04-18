@@ -374,7 +374,13 @@ if (NOT ARROW_FOUND)
     -DARROW_JEMALLOC=OFF
     -DARROW_BUILD_TESTS=OFF)
 
-  set(ARROW_VERSION "c2f28cd07413e262fa0b741c286f86d5c7277c56")
+  if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
+    set(ARROW_VERSION "bb8514cc9d7068c8b62d346577370751d68221d8")
+  else()
+    set(ARROW_VERSION "$ENV{PARQUET_ARROW_VERSION}")
+  endif()
+  message(STATUS "Building Apache Arrow from commit: ${ARROW_VERSION}")
+
   set(ARROW_URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz")
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
