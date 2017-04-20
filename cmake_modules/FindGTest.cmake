@@ -28,6 +28,7 @@
 #  GTEST_INCLUDE_DIR, directory containing headers
 #  GTEST_LIBS, directory containing gtest libraries
 #  GTEST_STATIC_LIB, path to libgtest.a
+#  GTEST_MAIN_STATIC_LIB, path to libgtest_main.a
 #  GTEST_SHARED_LIB, path to libgtest's shared library
 #  GTEST_FOUND, whether gtest has been found
 
@@ -43,7 +44,7 @@ if ( _gtest_roots )
     find_path( GTEST_INCLUDE_DIR NAMES gtest/gtest.h
         PATHS ${_gtest_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "include" )
-    find_library( GTEST_LIBRARIES NAMES gtest
+    find_library( GTEST_LIBRARIES NAMES gtest gtest_main
         PATHS ${_gtest_roots} NO_DEFAULT_PATH
         PATH_SUFFIXES "lib" )
 else ()
@@ -57,6 +58,7 @@ if (GTEST_INCLUDE_DIR AND GTEST_LIBRARIES)
   get_filename_component( GTEST_LIBS ${GTEST_LIBRARIES} PATH )
   set(GTEST_LIB_NAME libgtest)
   set(GTEST_STATIC_LIB ${GTEST_LIBS}/${GTEST_LIB_NAME}.a)
+  set(GTEST_MAIN_STATIC_LIB ${GTEST_LIBS}/${GTEST_LIB_NAME}_main.a)
   set(GTEST_SHARED_LIB ${GTEST_LIBS}/${GTEST_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
 else ()
   set(GTEST_FOUND FALSE)
