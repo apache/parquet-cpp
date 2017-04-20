@@ -342,10 +342,11 @@ add_definitions(-fPIC)
 #   Same as DEBUG, except with -O1
 # For CMAKE_BUILD_TYPE=Release
 #   -O3: Enable all compiler optimizations
-#   -g: Enable symbols for profiler tools (TODO: remove for shipping)
+#   Debug symbols are stripped for reduced binary size. Add
+#   -DPARQUET_CXXFLAGS="-g" to include them
 set(CXX_FLAGS_DEBUG "-ggdb -O0")
 set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
-set(CXX_FLAGS_RELEASE "-O3 -g")
+set(CXX_FLAGS_RELEASE "-O3")
 
 string (TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 
