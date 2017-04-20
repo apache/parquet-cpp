@@ -22,7 +22,7 @@
 #  ARROW_SHARED_LIB, path to libarrow's shared library
 #  ARROW_FOUND, whether arrow has been found
 
-if ("$ENV{ARROW_HOME}" STREQUAL "")
+if ("${ARROW_HOME}" STREQUAL "")
   # PARQUET-955. If the user has set $ARROW_HOME in the environment, we respect
   # this, otherwise try to locate the pkgconfig in the system environment
   pkg_check_modules(ARROW arrow)
@@ -47,7 +47,7 @@ if ("$ENV{ARROW_HOME}" STREQUAL "")
     set(ARROW_STATIC_LIB ${ARROW_LIBDIR}/${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX})
   endif()
 else()
-  set(ARROW_HOME "$ENV{ARROW_HOME}")
+  set(ARROW_HOME "${ARROW_HOME}")
 
   set(ARROW_SEARCH_HEADER_PATHS
     ${ARROW_HOME}/include

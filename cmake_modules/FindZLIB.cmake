@@ -32,8 +32,8 @@
 #  ZLIB_SHARED_LIB, path to libz's shared library
 #  ZLIB_FOUND, whether zlib has been found
 
-if( NOT "$ENV{ZLIB_HOME}" STREQUAL "")
-    file( TO_CMAKE_PATH "$ENV{ZLIB_HOME}" _native_path )
+if( NOT "${ZLIB_HOME}" STREQUAL "")
+    file( TO_CMAKE_PATH "${ZLIB_HOME}" _native_path )
     list( APPEND _zlib_roots ${_native_path} )
 elseif ( ZLIB_HOME )
     list( APPEND _zlib_roots ${ZLIB_HOME} )

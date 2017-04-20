@@ -31,14 +31,14 @@
 #  SNAPPY_SHARED_LIB, path to libsnappy's shared library
 #  SNAPPY_FOUND, whether snappy has been found
 
-if( NOT "$ENV{SNAPPY_HOME}" STREQUAL "")
-    file( TO_CMAKE_PATH "$ENV{SNAPPY_HOME}" _native_path )
+if( NOT "${SNAPPY_HOME}" STREQUAL "")
+    file( TO_CMAKE_PATH "${SNAPPY_HOME}" _native_path )
     list( APPEND _snappy_roots ${_native_path} )
 elseif ( Snappy_HOME )
     list( APPEND _snappy_roots ${Snappy_HOME} )
 endif()
 
-message(STATUS "SNAPPY_HOME: $ENV{SNAPPY_HOME}")
+message(STATUS "SNAPPY_HOME: ${SNAPPY_HOME}")
 find_path(SNAPPY_INCLUDE_DIR snappy.h HINTS
   ${_snappy_roots}
   NO_DEFAULT_PATH

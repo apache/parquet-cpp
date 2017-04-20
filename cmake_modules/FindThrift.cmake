@@ -29,14 +29,14 @@
 #  THRIFT_FOUND, If false, do not try to use ant
 
 # prefer the thrift version supplied in THRIFT_HOME
-if( NOT "$ENV{THRIFT_HOME}" STREQUAL "")
-    file( TO_CMAKE_PATH "$ENV{THRIFT_HOME}" _native_path )
+if( NOT "${THRIFT_HOME}" STREQUAL "")
+    file( TO_CMAKE_PATH "${THRIFT_HOME}" _native_path )
     list( APPEND _thrift_roots ${_native_path} )
 elseif ( Thrift_HOME )
     list( APPEND _thrift_roots ${Thrift_HOME} )
 endif()
 
-message(STATUS "THRIFT_HOME: $ENV{THRIFT_HOME}")
+message(STATUS "THRIFT_HOME: ${THRIFT_HOME}")
 find_path(THRIFT_INCLUDE_DIR thrift/Thrift.h HINTS
   ${_thrift_roots}
   NO_DEFAULT_PATH
