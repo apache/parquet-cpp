@@ -572,6 +572,7 @@ set(LIBPARQUET_SRCS
   src/parquet/compression.cc
 
   src/parquet/file/metadata.cc
+  src/parquet/file/printer.cc
   src/parquet/file/reader.cc
   src/parquet/file/reader-internal.cc
   src/parquet/file/writer.cc
