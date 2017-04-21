@@ -19,8 +19,52 @@ set(GTEST_VERSION "1.8.0")
 set(GBENCHMARK_VERSION "1.1.0")
 set(SNAPPY_VERSION "1.1.3")
 set(THRIFT_VERSION "0.10.0")
-
 set(BROTLI_VERSION "v0.6.0")
+
+string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
+# Set -fPIC on all external projects and include the main CXX_FLAGS
+set(EP_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+set(EP_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+
+# ----------------------------------------------------------------------
+# Configure toolchain with environment variables, if the exist
+
+if (NOT "$ENV{PARQUET_BUILD_TOOLCHAIN}" STREQUAL "")
+  set(THRIFT_HOME "$ENV{PARQUET_BUILD_TOOLCHAIN}")
+  set(SNAPPY_HOME "$ENV{PARQUET_BUILD_TOOLCHAIN}")
+  set(ZLIB_HOME "$ENV{PARQUET_BUILD_TOOLCHAIN}")
+  set(BROTLI_HOME "$ENV{PARQUET_BUILD_TOOLCHAIN}")
+  set(ARROW_HOME "$ENV{PARQUET_BUILD_TOOLCHAIN}")
+
+  if (NOT DEFINED ENV{BOOST_ROOT})
+    # Since we have to set this in the environment, we check whether
+    # $BOOST_ROOT is defined inside here
+    set(ENV{BOOST_ROOT} "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  endif()
+endif()
+
+if (DEFINED ENV{THRIFT_HOME})
+  set(THRIFT_HOME "$ENV{THRIFT_HOME}")
+endif()
+
+if (DEFINED ENV{SNAPPY_HOME})
+  set(SNAPPY_HOME "$ENV{SNAPPY_HOME}")
+endif()
+
+if (DEFINED ENV{ZLIB_HOME})
+  set(ZLIB_HOME "$ENV{ZLIB_HOME}")
+endif()
+
+if (DEFINED ENV{BROTLI_HOME})
+  set(BROTLI_HOME "$ENV{BROTLI_HOME}")
+endif()
+
+if (DEFINED ENV{ARROW_HOME})
+  set(ARROW_HOME "$ENV{ARROW_HOME}")
+endif()
+
+# ----------------------------------------------------------------------
+# Boost
 
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
@@ -58,10 +102,8 @@ endif()
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${Boost_LIBRARIES})
 
-string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
-# Set -fPIC on all external projects and include the main CXX_FLAGS
-set(EP_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
-set(EP_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+# ----------------------------------------------------------------------
+# Thrift
 
 # find thrift headers and libs
 find_package(Thrift)
@@ -120,6 +162,9 @@ if (THRIFT_VENDORED)
   add_dependencies(thriftstatic thrift_ep)
 endif()
 
+# ----------------------------------------------------------------------
+# Snappy
+
 ## Snappy
 find_package(Snappy)
 if (NOT SNAPPY_FOUND)
@@ -168,7 +213,9 @@ if (SNAPPY_VENDORED)
   add_dependencies(snappystatic snappy_ep)
 endif()
 
-## Brotli
+# ----------------------------------------------------------------------
+# Brotli
+
 find_package(Brotli)
 if (NOT BROTLI_FOUND)
   set(BROTLI_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/brotli_ep/src/brotli_ep-install")
@@ -214,7 +261,9 @@ if (BROTLI_VENDORED)
   add_dependencies(brotlistatic_common brotli_ep)
 endif()
 
-## ZLIB
+# ----------------------------------------------------------------------
+# ZLIB
+
 if (NOT PARQUET_ZLIB_VENDORED)
   find_package(ZLIB)
 endif()
@@ -359,7 +408,9 @@ if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
   endif()
 endif()
 
-## Apache Arrow
+# ----------------------------------------------------------------------
+# Apache Arrow
+
 find_package(Arrow)
 if (NOT ARROW_FOUND)
   set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep/src/arrow_ep-install")
