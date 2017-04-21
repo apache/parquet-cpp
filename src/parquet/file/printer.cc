@@ -140,4 +140,97 @@ void ParquetFilePrinter::DebugPrint(
   }
 }
 
+void ParquetFilePrinter::JSONPrint(
+    std::ostream& stream, std::list<int> selected_columns, const char* filename) {
+  const FileMetaData* file_metadata = fileReader->metadata().get();
+  stream << "{\n";
+  stream << "  \"FileName\": \"" << filename << "\",\n";
+  stream << "  \"Version\": \"" << file_metadata->version() << "\",\n";
+  stream << "  \"CreatedBy\": \"" << file_metadata->created_by() << "\",\n";
+  stream << "  \"TotalRows\": \"" << file_metadata->num_rows() << "\",\n";
+  stream << "  \"NumberOfRowGroups\": \"" << file_metadata->num_row_groups() << "\",\n";
+  stream << "  \"NumberOfRealColumns\": \""
+         << file_metadata->schema()->group_node()->field_count() << "\",\n";
+  stream << "  \"NumberOfColumns\": \"" << file_metadata->num_columns() << "\",\n";
+
+  if (selected_columns.size() == 0) {
+    for (int i = 0; i < file_metadata->num_columns(); i++) {
+      selected_columns.push_back(i);
+    }
+  } else {
+    for (auto i : selected_columns) {
+      if (i < 0 || i >= file_metadata->num_columns()) {
+        throw ParquetException("Selected column is out of range");
+      }
+    }
+  }
+
+  stream << "  \"Columns\": [\n";
+  int c = 0;
+  for (auto i : selected_columns) {
+    const ColumnDescriptor* descr = file_metadata->schema()->Column(i);
+    stream << "     { \"Id\": \"" << i << "\", \"Name\": \"" << descr->name() << "\","
+           << " \"PhysicalType\": \"" << TypeToString(descr->physical_type()) << "\","
+           << " \"LogicalType\": \"" << LogicalTypeToString(descr->logical_type())
+           << "\" }";
+    c++;
+    if (c != static_cast<int>(selected_columns.size())) { stream << ",\n";}
+  }
+
+  stream << "\n  ],\n  \"RowGroups\": [\n";
+  for (int r = 0; r < file_metadata->num_row_groups(); ++r) {
+    stream << "     {\n       \"Id\": \""<< r << "\", ";
+
+    auto group_reader = fileReader->RowGroup(r);
+    std::unique_ptr<RowGroupMetaData> group_metadata = file_metadata->RowGroup(r);
+
+    stream << " \"TotalBytes\": \"" << group_metadata->total_byte_size() << "\", ";
+    stream << " \"Rows\": \"" << group_metadata->num_rows() << "\",\n";
+
+    // Print column metadata
+    stream << "       \"ColumnChunks\": [\n";
+    int c1 = 0;
+    for (auto i : selected_columns) {
+      auto column_chunk = group_metadata->ColumnChunk(i);
+      std::shared_ptr<RowGroupStatistics> stats = column_chunk->statistics();
+
+      const ColumnDescriptor* descr = file_metadata->schema()->Column(i);
+      stream << "          {\"Id\": \"" << i << "\", \"Values\": \""
+             << column_chunk->num_values() << "\", "
+             << "\"StatsSet\": ";
+      if (column_chunk->is_stats_set()) {
+        stream << "\"True\", \"Stats\": {";
+        std::string min = stats->EncodeMin(), max = stats->EncodeMax();
+        stream << "\"NumNulls\": \"" << stats->null_count() << "\", "
+               << "\"DistinctValues\": \"" << stats->distinct_count() << "\", "
+               << "\"Max\": \"" << FormatStatValue(descr->physical_type(), max.c_str())
+               << "\", "
+               << "\"Min\": \"" << FormatStatValue(descr->physical_type(), min.c_str())
+               << "\" }, ";
+      } else {
+        stream << "\"False\", ";
+      }
+        stream << "\n           \"Compression\": \""
+               << CompressionToString(column_chunk->compression())
+               << "\", \"Encodings\": \"";
+      for (auto encoding : column_chunk->encodings()) {
+        stream  << EncodingToString(encoding) << " ";
+      }
+      stream << "\", "
+             << "\"UncompressedSize\": \"" << column_chunk->total_uncompressed_size()
+             << "\", \"CompressedSize\": \"" << column_chunk->total_compressed_size();
+
+      // end of a ColumnChunk
+      stream << "\" }";
+      c1++;
+      if (c1 != static_cast<int>(selected_columns.size())) { stream << ",\n";}
+    }
+
+    stream << "\n        ]\n     }";
+    if ((r + 1) != static_cast<int>(file_metadata->num_row_groups())) { stream << ",\n";}
+  }
+  stream << "\n  ]\n}\n";
+}
+
+
 }  // namespace parquet

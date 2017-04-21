@@ -38,6 +38,9 @@ class PARQUET_EXPORT ParquetFilePrinter {
 
   void DebugPrint(
       std::ostream& stream, std::list<int> selected_columns, bool print_values = true);
+
+  void JSONPrint(
+      std::ostream& stream, std::list<int> selected_columns, const char* filename);
 };
 
 }  // namespace parquet
