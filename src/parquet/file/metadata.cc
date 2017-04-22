@@ -413,7 +413,8 @@ class FileMetaData::FileMetaDataImpl {
     if (metadata_->__isset.key_value_metadata) {
       auto file_metadata = metadata_->key_value_metadata;
       key_value_metadata_.reserve(file_metadata.size());
-      for (auto key_value = file_metadata.cbegin(); key_value != file_metadata.cend(); ++key_value) {
+      for (auto key_value = file_metadata.cbegin(); key_value != file_metadata.cend();
+           ++key_value) {
         auto key = key_value->key;
         auto value = key_value->value;
         key_value_metadata_.insert(std::make_pair(key, value));
@@ -790,8 +791,8 @@ void RowGroupMetaDataBuilder::Finish(int64_t total_bytes_written) {
 // TODO(PARQUET-595) Support key_value_metadata
 class FileMetaDataBuilder::FileMetaDataBuilderImpl {
  public:
-  explicit FileMetaDataBuilderImpl(
-      const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props,
+  explicit FileMetaDataBuilderImpl(const SchemaDescriptor* schema,
+      const std::shared_ptr<WriterProperties>& props,
       const std::unordered_map<std::string, std::string>& key_value_metadata)
       : properties_(props), schema_(schema), key_value_metadata_(key_value_metadata) {
     metadata_.reset(new format::FileMetaData());
@@ -822,7 +823,8 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
 
     std::vector<format::KeyValue> key_value_pairs;
     key_value_pairs.reserve(key_value_metadata_.size());
-    for (auto pair = key_value_metadata_.cbegin(); pair != key_value_metadata_.cend(); ++pair) {
+    for (auto pair = key_value_metadata_.cbegin(); pair != key_value_metadata_.cend();
+         ++pair) {
       format::KeyValue kv_pair;
       kv_pair.__set_key(pair->first);
       kv_pair.__set_value(pair->second);
@@ -866,12 +868,13 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
 
 std::unique_ptr<FileMetaDataBuilder> FileMetaDataBuilder::Make(
     const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props,
-const std::unordered_map<std::string, std::string>& key_value_metadata) {
-  return std::unique_ptr<FileMetaDataBuilder>(new FileMetaDataBuilder(schema, props, key_value_metadata));
+    const std::unordered_map<std::string, std::string>& key_value_metadata) {
+  return std::unique_ptr<FileMetaDataBuilder>(
+      new FileMetaDataBuilder(schema, props, key_value_metadata));
 }
 
-FileMetaDataBuilder::FileMetaDataBuilder(
-    const SchemaDescriptor* schema, const std::shared_ptr<WriterProperties>& props,
+FileMetaDataBuilder::FileMetaDataBuilder(const SchemaDescriptor* schema,
+    const std::shared_ptr<WriterProperties>& props,
     const std::unordered_map<std::string, std::string>& key_value_metadata)
     : impl_{std::unique_ptr<FileMetaDataBuilderImpl>(
           new FileMetaDataBuilderImpl(schema, props, key_value_metadata))} {}

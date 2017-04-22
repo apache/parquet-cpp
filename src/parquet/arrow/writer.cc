@@ -506,8 +506,8 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
 
   int current_column_idx = row_group_writer_->current_column();
   std::shared_ptr<::arrow::Schema> arrow_schema;
-  RETURN_NOT_OK(
-      FromParquetSchema(writer_->schema(), {current_column_idx - 1}, writer_->key_value_metadata(), &arrow_schema));
+  RETURN_NOT_OK(FromParquetSchema(writer_->schema(), {current_column_idx - 1},
+      writer_->key_value_metadata(), &arrow_schema));
   LevelBuilder level_builder(pool_);
   std::shared_ptr<Buffer> def_levels_buffer;
   std::shared_ptr<Buffer> rep_levels_buffer;
@@ -601,10 +601,12 @@ Status FileWriter::Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool
   std::unordered_map<std::string, std::string> key_value_metadata;
   key_value_metadata.reserve(arrow_custom_metadata.size());
 
-  for (auto pair = arrow_custom_metadata.cbegin(); pair != arrow_custom_metadata.cend(); ++pair) {
+  for (auto pair = arrow_custom_metadata.cbegin(); pair != arrow_custom_metadata.cend();
+       ++pair) {
     auto first = pair->first;
     auto second = pair->second;
-    key_value_metadata.insert(std::make_pair(first, std::string(second.cbegin(), second.cend())));
+    key_value_metadata.insert(
+        std::make_pair(first, std::string(second.cbegin(), second.cend())));
   }
   std::unique_ptr<ParquetFileWriter> base_writer =
       ParquetFileWriter::Open(sink, schema_node, properties, key_value_metadata);

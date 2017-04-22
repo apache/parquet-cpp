@@ -87,9 +87,11 @@ class PARQUET_EXPORT ParquetFileWriter {
   // easily create test fixtures
   // An implementation of the Contents class is defined in the .cc file
   struct Contents {
-    Contents(const std::shared_ptr<::parquet::schema::GroupNode>& schema, const std::unordered_map<std::string, std::string>& key_value_metadata) :
-        schema_(),
-        key_value_metadata_(key_value_metadata) { schema_.Init(schema); }
+    Contents(const std::shared_ptr<::parquet::schema::GroupNode>& schema,
+        const std::unordered_map<std::string, std::string>& key_value_metadata)
+        : schema_(), key_value_metadata_(key_value_metadata) {
+      schema_.Init(schema);
+    }
     virtual ~Contents() {}
     // Perform any cleanup associated with the file contents
     virtual void Close() = 0;
@@ -102,7 +104,9 @@ class PARQUET_EXPORT ParquetFileWriter {
 
     virtual const std::shared_ptr<WriterProperties>& properties() const = 0;
 
-    const std::unordered_map<std::string, std::string>& key_value_metadata() const { return key_value_metadata_; };
+    const std::unordered_map<std::string, std::string>& key_value_metadata() const {
+      return key_value_metadata_;
+    };
 
     // Return const-pointer to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const { return &schema_; }

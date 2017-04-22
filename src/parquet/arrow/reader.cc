@@ -719,8 +719,8 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     const int16_t* rep_levels, int64_t total_levels_read, std::shared_ptr<Array>* array) {
   if (descr_->max_repetition_level() > 0) {
     std::shared_ptr<::arrow::Schema> arrow_schema;
-    RETURN_NOT_OK(
-        FromParquetSchema(input_->schema(), {input_->column_index()}, input_->metadata()->key_value_metadata(), &arrow_schema));
+    RETURN_NOT_OK(FromParquetSchema(input_->schema(), {input_->column_index()},
+        input_->metadata()->key_value_metadata(), &arrow_schema));
 
     // Walk downwards to extract nullability
     std::shared_ptr<Field> current_field = arrow_schema->field(0);

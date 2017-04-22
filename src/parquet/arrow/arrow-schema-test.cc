@@ -62,8 +62,8 @@ class TestConvertParquetSchema : public ::testing::Test {
     for (int i = 0; i < expected_schema->num_fields(); ++i) {
       auto lhs = result_schema_->field(i);
       auto rhs = expected_schema->field(i);
-      EXPECT_TRUE(lhs->Equals(rhs))
-          << i << " " << lhs->ToString() << " != " << rhs->ToString();
+      EXPECT_TRUE(lhs->Equals(rhs)) << i << " " << lhs->ToString()
+                                    << " != " << rhs->ToString();
     }
   }
 
@@ -80,8 +80,8 @@ class TestConvertParquetSchema : public ::testing::Test {
     return FromParquetSchema(&descr_, column_indices, {}, &result_schema_);
   }
 
-  ::arrow::Status ConvertSchema(
-      const std::vector<NodePtr>& nodes, const std::unordered_map<std::string, std::string>& key_value_metadata) {
+  ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes,
+      const std::unordered_map<std::string, std::string>& key_value_metadata) {
     NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     descr_.Init(schema);
     return FromParquetSchema(&descr_, {}, key_value_metadata, &result_schema_);
@@ -147,7 +147,6 @@ TEST_F(TestConvertParquetSchema, ParquetFlatPrimitives) {
 }
 
 TEST_F(TestConvertParquetSchema, ParquetKeyValueMetadata) {
-
   std::vector<NodePtr> parquet_fields;
   std::vector<std::shared_ptr<Field>> arrow_fields;
 
@@ -159,7 +158,8 @@ TEST_F(TestConvertParquetSchema, ParquetKeyValueMetadata) {
       PrimitiveNode::Make("int32", Repetition::REQUIRED, ParquetType::INT32));
   arrow_fields.push_back(std::make_shared<Field>("int32", INT32, false));
 
-  std::unordered_map<std::string, std::string> key_value_metadata = {{"foo", "bar"}, {"biz", "baz"}};
+  std::unordered_map<std::string, std::string> key_value_metadata = {
+      {"foo", "bar"}, {"biz", "baz"}};
 
   ASSERT_OK(ConvertSchema(parquet_fields, key_value_metadata));
 
@@ -167,7 +167,6 @@ TEST_F(TestConvertParquetSchema, ParquetKeyValueMetadata) {
   ASSERT_EQ(arrow_metadata.at("foo"), std::vector<uint8_t>({'b', 'a', 'r'}));
   ASSERT_EQ(arrow_metadata.at("biz"), std::vector<uint8_t>({'b', 'a', 'z'}));
 }
-
 
 TEST_F(TestConvertParquetSchema, ParquetFlatDecimals) {
   std::vector<NodePtr> parquet_fields;

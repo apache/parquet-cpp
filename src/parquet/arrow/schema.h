@@ -47,11 +47,12 @@ namespace arrow {
 /// \param out the corresponding arrow schema
 /// \return Status::OK() on a successful conversion.
 ::arrow::Status PARQUET_EXPORT FromParquetSchema(const SchemaDescriptor* parquet_schema,
-    const std::vector<int>& column_indices, const std::unordered_map<std::string, std::string>& key_value_metadata,
-                                                 std::shared_ptr<::arrow::Schema>* out);
+    const std::vector<int>& column_indices,
+    const std::unordered_map<std::string, std::string>& key_value_metadata,
+    std::shared_ptr<::arrow::Schema>* out);
 
-::arrow::Status PARQUET_EXPORT FromParquetSchema(
-    const SchemaDescriptor* parquet_schema, const std::unordered_map<std::string, std::string>& key_value_metadata,
+::arrow::Status PARQUET_EXPORT FromParquetSchema(const SchemaDescriptor* parquet_schema,
+    const std::unordered_map<std::string, std::string>& key_value_metadata,
     std::shared_ptr<::arrow::Schema>* out);
 
 ::arrow::Status PARQUET_EXPORT FieldToNode(const std::shared_ptr<::arrow::Field>& field,
