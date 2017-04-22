@@ -54,7 +54,7 @@ TEST(Metadata, TestBuildAccess) {
       .set_min(std::string(reinterpret_cast<const char*>(&float_min), 4))
       .set_max(std::string(reinterpret_cast<const char*>(&float_max), 4));
 
-  auto f_builder = FileMetaDataBuilder::Make(&schema, props);
+  auto f_builder = FileMetaDataBuilder::Make(&schema, props, {});
   auto rg1_builder = f_builder->AppendRowGroup(nrows / 2);
   auto rg2_builder = f_builder->AppendRowGroup(nrows / 2);
 
@@ -172,7 +172,7 @@ TEST(Metadata, TestV1Version) {
   root = parquet::schema::GroupNode::Make("schema", Repetition::REPEATED, fields);
   schema.Init(root);
 
-  auto f_builder = FileMetaDataBuilder::Make(&schema, props);
+  auto f_builder = FileMetaDataBuilder::Make(&schema, props, {});
 
   // Read the metadata
   auto f_accessor = f_builder->Finish();
