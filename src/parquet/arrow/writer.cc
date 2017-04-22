@@ -18,6 +18,7 @@
 #include "parquet/arrow/writer.h"
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "parquet/util/bit-util.h"
