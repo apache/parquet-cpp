@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include "parquet/column/properties.h"
@@ -106,7 +107,7 @@ class PARQUET_EXPORT ParquetFileWriter {
 
     const std::unordered_map<std::string, std::string>& key_value_metadata() const {
       return key_value_metadata_;
-    };
+    }
 
     // Return const-pointer to make it clear that this object is not to be copied
     const SchemaDescriptor* schema() const { return &schema_; }
