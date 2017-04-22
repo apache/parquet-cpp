@@ -253,7 +253,7 @@ class PARQUET_EXPORT FileMetaDataBuilder {
   // API convenience to get a MetaData reader
   static std::unique_ptr<FileMetaDataBuilder> Make(const SchemaDescriptor* schema,
       const std::shared_ptr<WriterProperties>& props,
-      const std::unordered_map<std::string, std::string>& key_value_metadata = {});
+      const std::unordered_map<std::string, std::string>& key_value_metadata);
 
   ~FileMetaDataBuilder();
 
@@ -265,7 +265,7 @@ class PARQUET_EXPORT FileMetaDataBuilder {
  private:
   explicit FileMetaDataBuilder(const SchemaDescriptor* schema,
       const std::shared_ptr<WriterProperties>& props,
-      const std::unordered_map<std::string, std::string>& key_value_metadata = {});
+      const std::unordered_map<std::string, std::string>& key_value_metadata);
   // PIMPL Idiom
   class FileMetaDataBuilderImpl;
   std::unique_ptr<FileMetaDataBuilderImpl> impl_;
