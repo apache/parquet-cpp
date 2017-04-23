@@ -599,7 +599,7 @@ Status FileWriter::Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool
 
   auto schema_node = std::static_pointer_cast<GroupNode>(parquet_schema->schema_root());
   auto arrow_custom_metadata = schema.custom_metadata();
-  std::unordered_map<std::string, std::string> key_value_metadata;
+  KeyValueMetadata key_value_metadata;
   key_value_metadata.reserve(arrow_custom_metadata.size());
 
   for (auto pair = arrow_custom_metadata.cbegin(); pair != arrow_custom_metadata.cend();

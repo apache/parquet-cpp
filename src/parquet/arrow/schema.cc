@@ -313,7 +313,7 @@ Status NodeToFieldInternal(const NodePtr& node,
 }
 
 static void ParquetMetadataToArrowMetadata(
-    const std::unordered_map<std::string, std::string>& parquet_metadata,
+    const KeyValueMetadata& parquet_metadata,
     std::unordered_map<std::string, std::vector<uint8_t>>* arrow_metadata) {
   arrow_metadata->reserve(parquet_metadata.size());
 
@@ -326,7 +326,7 @@ static void ParquetMetadataToArrowMetadata(
 }
 
 Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
-    const std::unordered_map<std::string, std::string>& key_value_metadata,
+    const KeyValueMetadata& key_value_metadata,
     std::shared_ptr<::arrow::Schema>* out) {
   const GroupNode* schema_node = parquet_schema->group_node();
 
@@ -345,7 +345,7 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
 
 Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
     const std::vector<int>& column_indices,
-    const std::unordered_map<std::string, std::string>& key_value_metadata,
+    const KeyValueMetadata& key_value_metadata,
     std::shared_ptr<::arrow::Schema>* out) {
   // TODO(wesm): Consider adding an arrow::Schema name attribute, which comes
   // from the root Parquet node

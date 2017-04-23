@@ -60,7 +60,7 @@ std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
     const std::shared_ptr<::arrow::io::OutputStream>& sink,
     const std::shared_ptr<GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties,
-    const std::unordered_map<std::string, std::string>& key_value_metadata) {
+    const KeyValueMetadata& key_value_metadata) {
   return Open(
       std::make_shared<ArrowOutputStream>(sink), schema, properties, key_value_metadata);
 }
@@ -69,7 +69,7 @@ std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
     const std::shared_ptr<OutputStream>& sink,
     const std::shared_ptr<schema::GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties,
-    const std::unordered_map<std::string, std::string>& key_value_metadata) {
+    const KeyValueMetadata& key_value_metadata) {
   auto contents = FileSerializer::Open(sink, schema, properties, key_value_metadata);
   std::unique_ptr<ParquetFileWriter> result(new ParquetFileWriter());
   result->Open(std::move(contents));
@@ -84,7 +84,7 @@ const ColumnDescriptor* ParquetFileWriter::descr(int i) const {
   return contents_->schema()->Column(i);
 }
 
-const std::unordered_map<std::string, std::string>&
+const KeyValueMetadata&
 ParquetFileWriter::key_value_metadata() const {
   return contents_->key_value_metadata();
 }
