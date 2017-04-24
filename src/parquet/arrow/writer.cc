@@ -80,6 +80,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   PRIMITIVE_VISIT(Double)
   PRIMITIVE_VISIT(String)
   PRIMITIVE_VISIT(Binary)
+  PRIMITIVE_VISIT(Date32)
   PRIMITIVE_VISIT(Date64)
   PRIMITIVE_VISIT(Time32)
   PRIMITIVE_VISIT(Time64)
@@ -357,8 +358,11 @@ Status FileWriter::Impl::WriteNonNullableBatch<Int32Type, ::arrow::Date64Type>(
   }
 
 NONNULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Int32Type, int32_t)
+NONNULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Date32Type, int32_t)
+NONNULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Time32Type, int32_t)
 NONNULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::Int64Type, int64_t)
 NONNULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::TimestampType, int64_t)
+NONNULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::Time64Type, int64_t)
 NONNULLABLE_BATCH_FAST_PATH(FloatType, ::arrow::FloatType, float)
 NONNULLABLE_BATCH_FAST_PATH(DoubleType, ::arrow::DoubleType, double)
 
@@ -417,8 +421,11 @@ Status FileWriter::Impl::WriteNullableBatch<Int32Type, ::arrow::Date64Type>(
   }
 
 NULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Int32Type, int32_t)
+NULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Date32Type, int32_t)
+NULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Time32Type, int32_t)
 NULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::Int64Type, int64_t)
 NULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::TimestampType, int64_t)
+NULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::Time64Type, int64_t)
 NULLABLE_BATCH_FAST_PATH(FloatType, ::arrow::FloatType, float)
 NULLABLE_BATCH_FAST_PATH(DoubleType, ::arrow::DoubleType, double)
 
@@ -553,14 +560,17 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
       WRITE_BATCH_CASE(INT16, Int16Type, Int32Type)
       WRITE_BATCH_CASE(UINT16, UInt16Type, Int32Type)
       WRITE_BATCH_CASE(INT32, Int32Type, Int32Type)
-      WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
       WRITE_BATCH_CASE(INT64, Int64Type, Int64Type)
-      WRITE_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
       WRITE_BATCH_CASE(UINT64, UInt64Type, Int64Type)
       WRITE_BATCH_CASE(FLOAT, FloatType, FloatType)
       WRITE_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
       WRITE_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
       WRITE_BATCH_CASE(STRING, BinaryType, ByteArrayType)
+      WRITE_BATCH_CASE(DATE32, Date32Type, Int32Type)
+      WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
+      WRITE_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
+      WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)
+      WRITE_BATCH_CASE(TIME64, Time64Type, Int64Type)
     default:
       std::stringstream ss;
       ss << "Data type not supported as list value: " << values_array->type()->ToString();
