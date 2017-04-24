@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
     if (format_json) {
       printer.JSONPrint(std::cout, columns, filename.c_str());
     } else {
-      printer.DebugPrint(std::cout, columns, print_values);
+      printer.DebugPrint(std::cout, columns, print_values, filename.c_str());
     }
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: " << e.what() << std::endl;

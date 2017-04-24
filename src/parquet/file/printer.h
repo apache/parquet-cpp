@@ -38,10 +38,12 @@ class PARQUET_EXPORT ParquetFilePrinter {
   ~ParquetFilePrinter() {}
 
   void DebugPrint(
-      std::ostream& stream, std::list<int> selected_columns, bool print_values = true);
+      std::ostream& stream, std::list<int> selected_columns, bool print_values = true,
+      const char* fileame = "No Name");
 
   void JSONPrint(
-      std::ostream& stream, std::list<int> selected_columns, const char* filename);
+      std::ostream& stream, std::list<int> selected_columns,
+      const char* filename = "No Name");
 };
 
 }  // namespace parquet
