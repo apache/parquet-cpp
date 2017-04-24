@@ -206,9 +206,9 @@ void ParquetFilePrinter::JSONPrint(
                << "\"Max\": \"" << FormatStatValue(descr->physical_type(), max.c_str())
                << "\", "
                << "\"Min\": \"" << FormatStatValue(descr->physical_type(), min.c_str())
-               << "\" }, ";
+               << "\" },";
       } else {
-        stream << "\"False\", ";
+        stream << "\"False\",";
       }
       stream << "\n           \"Compression\": \""
              << CompressionToString(column_chunk->compression())
