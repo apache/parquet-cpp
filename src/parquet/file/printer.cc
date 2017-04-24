@@ -174,12 +174,12 @@ void ParquetFilePrinter::JSONPrint(
            << " \"LogicalType\": \"" << LogicalTypeToString(descr->logical_type())
            << "\" }";
     c++;
-    if (c != static_cast<int>(selected_columns.size())) { stream << ",\n";}
+    if (c != static_cast<int>(selected_columns.size())) { stream << ",\n"; }
   }
 
   stream << "\n  ],\n  \"RowGroups\": [\n";
   for (int r = 0; r < file_metadata->num_row_groups(); ++r) {
-    stream << "     {\n       \"Id\": \""<< r << "\", ";
+    stream << "     {\n       \"Id\": \"" << r << "\", ";
 
     auto group_reader = fileReader->RowGroup(r);
     std::unique_ptr<RowGroupMetaData> group_metadata = file_metadata->RowGroup(r);
@@ -210,11 +210,11 @@ void ParquetFilePrinter::JSONPrint(
       } else {
         stream << "\"False\", ";
       }
-        stream << "\n           \"Compression\": \""
-               << CompressionToString(column_chunk->compression())
-               << "\", \"Encodings\": \"";
+      stream << "\n           \"Compression\": \""
+             << CompressionToString(column_chunk->compression())
+             << "\", \"Encodings\": \"";
       for (auto encoding : column_chunk->encodings()) {
-        stream  << EncodingToString(encoding) << " ";
+        stream << EncodingToString(encoding) << " ";
       }
       stream << "\", "
              << "\"UncompressedSize\": \"" << column_chunk->total_uncompressed_size()
@@ -223,14 +223,13 @@ void ParquetFilePrinter::JSONPrint(
       // end of a ColumnChunk
       stream << "\" }";
       c1++;
-      if (c1 != static_cast<int>(selected_columns.size())) { stream << ",\n";}
+      if (c1 != static_cast<int>(selected_columns.size())) { stream << ",\n"; }
     }
 
     stream << "\n        ]\n     }";
-    if ((r + 1) != static_cast<int>(file_metadata->num_row_groups())) { stream << ",\n";}
+    if ((r + 1) != static_cast<int>(file_metadata->num_row_groups())) { stream << ",\n"; }
   }
   stream << "\n  ]\n}\n";
 }
-
 
 }  // namespace parquet

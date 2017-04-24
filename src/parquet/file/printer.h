@@ -32,6 +32,7 @@ namespace parquet {
 class PARQUET_EXPORT ParquetFilePrinter {
  private:
   ParquetFileReader* fileReader;
+
  public:
   explicit ParquetFilePrinter(ParquetFileReader* reader) : fileReader(reader) {}
   ~ParquetFilePrinter() {}

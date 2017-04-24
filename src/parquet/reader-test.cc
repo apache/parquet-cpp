@@ -256,4 +256,70 @@ TEST(TestFileReaderAdHoc, NationDictTruncatedDataPage) {
   ASSERT_EQ(ss2.str(), ss.str());
 }
 
+TEST_F(TestJSONWithLocalFile, JSONOutput) {
+  std::string jsonOutput =
+      "{\n\
+  \"FileName\": \"alltypes_plain.parquet\",\n\
+  \"Version\": \"0\",\n\
+  \"CreatedBy\": \"impala version 1.3.0-INTERNAL (build 8a48ddb1eff84592b3fc06bc6f51ec120e1fffc9)\",\n\
+  \"TotalRows\": \"8\",\n\
+  \"NumberOfRowGroups\": \"1\",\n\
+  \"NumberOfRealColumns\": \"11\",\n\
+  \"NumberOfColumns\": \"11\",\n\
+  \"Columns\": [\n\
+     { \"Id\": \"0\", \"Name\": \"id\", \"PhysicalType\": \"INT32\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"1\", \"Name\": \"bool_col\", \"PhysicalType\": \"BOOLEAN\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"2\", \"Name\": \"tinyint_col\", \"PhysicalType\": \"INT32\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"3\", \"Name\": \"smallint_col\", \"PhysicalType\": \"INT32\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"4\", \"Name\": \"int_col\", \"PhysicalType\": \"INT32\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"5\", \"Name\": \"bigint_col\", \"PhysicalType\": \"INT64\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"6\", \"Name\": \"float_col\", \"PhysicalType\": \"FLOAT\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"7\", \"Name\": \"double_col\", \"PhysicalType\": \"DOUBLE\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"8\", \"Name\": \"date_string_col\", \"PhysicalType\": \"BYTE_ARRAY\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"9\", \"Name\": \"string_col\", \"PhysicalType\": \"BYTE_ARRAY\", \"LogicalType\": \"NONE\" },\n\
+     { \"Id\": \"10\", \"Name\": \"timestamp_col\", \"PhysicalType\": \"INT96\", \"LogicalType\": \"NONE\" }\n\
+  ],\n\
+  \"RowGroups\": [\n\
+     {\n\
+       \"Id\": \"0\",  \"TotalBytes\": \"671\",  \"Rows\": \"8\",\n\
+       \"ColumnChunks\": [\n\
+          {\"Id\": \"0\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"73\", \"CompressedSize\": \"73\" },\n\
+          {\"Id\": \"1\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"24\", \"CompressedSize\": \"24\" },\n\
+          {\"Id\": \"2\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"47\", \"CompressedSize\": \"47\" },\n\
+          {\"Id\": \"3\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"47\", \"CompressedSize\": \"47\" },\n\
+          {\"Id\": \"4\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"47\", \"CompressedSize\": \"47\" },\n\
+          {\"Id\": \"5\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"55\", \"CompressedSize\": \"55\" },\n\
+          {\"Id\": \"6\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"47\", \"CompressedSize\": \"47\" },\n\
+          {\"Id\": \"7\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"55\", \"CompressedSize\": \"55\" },\n\
+          {\"Id\": \"8\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"88\", \"CompressedSize\": \"88\" },\n\
+          {\"Id\": \"9\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"49\", \"CompressedSize\": \"49\" },\n\
+          {\"Id\": \"10\", \"Values\": \"8\", \"StatsSet\": \"False\", \n\
+           \"Compression\": \"UNCOMPRESSED\", \"Encodings\": \"RLE PLAIN_DICTIONARY PLAIN \", \"UncompressedSize\": \"139\", \"CompressedSize\": \"139\" }\n\
+        ]\n\
+     }\n\
+  ]\n\
+}\n";
+
+  std::stringstream ss;
+  // empty list means print all
+  std::list<int> columns;
+
+  auto reader =
+      ParquetFileReader::OpenFile(alltypes_plain(), false, default_reader_properties());
+  ParquetFilePrinter printer(reader.get());
+  printer.JSONPrint(ss, columns, "alltypes_plain.parquet");
+
+  ASSERT_EQ(jsonOutput, ss.str());
+}
+
 }  // namespace parquet
