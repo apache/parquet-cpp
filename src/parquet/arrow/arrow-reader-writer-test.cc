@@ -911,6 +911,42 @@ TEST(TestArrowReadWrite, DateTimeTypes) {
   ASSERT_TRUE(table->Equals(*result));
 }
 
+TEST(TestArrowReadWrite, ConvertedDateTimeTypes) {
+  using ::arrow::ArrayFromVector;
+
+  std::vector<bool> is_valid = {true, true, true, false, true, true};
+
+  auto f0 = field("f0", ::arrow::date64());
+  std::shared_ptr<::arrow::Schema> schema(new ::arrow::Schema({f0}));
+
+  std::vector<int64_t> t64_values = {
+    1489190400000, 1489276800000, 1489363200000, 1489449600000,
+    1489536000000, 1489622400000};
+
+  // Expected schema and values
+  auto f1 = field("f0", ::arrow::date32());
+  std::shared_ptr<::arrow::Schema> ex_schema(new ::arrow::Schema({f1}));
+  std::vector<int32_t> ex_values = {17236, 17237, 17238, 17239, 17240, 17241};
+
+  std::shared_ptr<Array> a0, a1;
+  ArrayFromVector<::arrow::Date64Type, int64_t>(f0->type(), is_valid, t64_values, &a0);
+  ArrayFromVector<::arrow::Date32Type, int32_t>(f1->type(), is_valid, ex_values, &a1);
+
+  std::vector<std::shared_ptr<::arrow::Column>> columns = {
+      std::make_shared<Column>("f0", a0)};
+
+  std::vector<std::shared_ptr<::arrow::Column>> ex_columns = {
+      std::make_shared<Column>("f0", a1)};
+
+  auto table = std::make_shared<::arrow::Table>(schema, columns);
+  auto ex_table = std::make_shared<::arrow::Table>(ex_schema, ex_columns);
+
+  std::shared_ptr<Table> result;
+  DoSimpleRoundtrip(table, 1, table->num_rows(), {}, &result);
+
+  ASSERT_TRUE(result->Equals(*ex_table));
+}
+
 void MakeDoubleTable(
     int num_columns, int num_rows, int nchunks, std::shared_ptr<Table>* out) {
   std::shared_ptr<::arrow::Column> column;
