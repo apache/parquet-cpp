@@ -60,8 +60,8 @@ class TestConvertParquetSchema : public ::testing::Test {
     for (int i = 0; i < expected_schema->num_fields(); ++i) {
       auto lhs = result_schema_->field(i);
       auto rhs = expected_schema->field(i);
-      EXPECT_TRUE(lhs->Equals(rhs))
-          << i << " " << lhs->ToString() << " != " << rhs->ToString();
+      EXPECT_TRUE(lhs->Equals(rhs)) << i << " " << lhs->ToString()
+                                    << " != " << rhs->ToString();
     }
   }
 
@@ -114,12 +114,12 @@ TEST_F(TestConvertParquetSchema, ParquetFlatPrimitives) {
   parquet_fields.push_back(PrimitiveNode::Make(
       "time32", Repetition::REQUIRED, ParquetType::INT32, LogicalType::TIME_MILLIS));
   arrow_fields.push_back(std::make_shared<Field>(
-          "time32", ::arrow::time32(::arrow::TimeUnit::MILLI), false));
+      "time32", ::arrow::time32(::arrow::TimeUnit::MILLI), false));
 
   parquet_fields.push_back(PrimitiveNode::Make(
       "time64", Repetition::REQUIRED, ParquetType::INT64, LogicalType::TIME_MICROS));
   arrow_fields.push_back(std::make_shared<Field>(
-          "time64", ::arrow::time64(::arrow::TimeUnit::MICRO), false));
+      "time64", ::arrow::time64(::arrow::TimeUnit::MICRO), false));
 
   parquet_fields.push_back(
       PrimitiveNode::Make("timestamp96", Repetition::REQUIRED, ParquetType::INT96));

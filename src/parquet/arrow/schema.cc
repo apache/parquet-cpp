@@ -477,7 +477,7 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
       }
     } break;
     case ArrowType::TIME32:
-      type = ParquetType::INT64;
+      type = ParquetType::INT32;
       logical_type = LogicalType::TIME_MILLIS;
       break;
     case ArrowType::TIME64:

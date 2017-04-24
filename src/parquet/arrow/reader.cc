@@ -1070,8 +1070,8 @@ Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out
       }
       break;
     }
-    TYPED_BATCH_CASE(TIME32, ::arrow::Time32Type, Int32Type)
-    TYPED_BATCH_CASE(TIME64, ::arrow::Time64Type, Int64Type)
+      TYPED_BATCH_CASE(TIME32, ::arrow::Time32Type, Int32Type)
+      TYPED_BATCH_CASE(TIME64, ::arrow::Time64Type, Int64Type)
     default:
       std::stringstream ss;
       ss << "No support for reading columns of type " << field_->type()->ToString();

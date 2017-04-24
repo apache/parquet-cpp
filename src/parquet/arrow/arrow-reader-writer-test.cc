@@ -43,6 +43,7 @@ using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
 using arrow::Status;
 using arrow::Table;
+using arrow::TimeUnit;
 
 using ArrowId = ::arrow::Type;
 using ParquetType = parquet::Type;
@@ -86,13 +87,13 @@ LogicalType::type get_logical_type(const ::arrow::DataType& type) {
     case ArrowId::TIMESTAMP: {
       const auto& ts_type = static_cast<const ::arrow::TimestampType&>(type);
       switch (ts_type.unit()) {
-        case ::arrow::TimeUnit::MILLI:
+        case TimeUnit::MILLI:
           return LogicalType::TIMESTAMP_MILLIS;
-        case ::arrow::TimeUnit::MICRO:
+        case TimeUnit::MICRO:
           return LogicalType::TIMESTAMP_MICROS;
         default:
-          DCHECK(false)
-            << "Only MILLI and MICRO units supported for Arrow timestamps with Parquet.";
+          DCHECK(false) << "Only MILLI and MICRO units supported for Arrow timestamps "
+                           "with Parquet.";
       }
     }
     case ArrowId::TIME32:
@@ -305,10 +306,10 @@ void DoSimpleRoundtrip(const std::shared_ptr<Table>& table, int num_threads,
 
 static std::shared_ptr<GroupNode> MakeSimpleSchema(
     const ::arrow::DataType& type, Repetition::type repetition) {
-  auto pnode = PrimitiveNode::Make("column1", repetition,
-      get_physical_type(type), get_logical_type(type));
+  auto pnode = PrimitiveNode::Make(
+      "column1", repetition, get_physical_type(type), get_logical_type(type));
   NodePtr node_ =
-    GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
+      GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
   return std::static_pointer_cast<GroupNode>(node_);
 }
 
@@ -421,8 +422,8 @@ class TestParquetIO : public ::testing::Test {
 
 typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type,
     ::arrow::UInt16Type, ::arrow::Int16Type, ::arrow::Int32Type, ::arrow::UInt64Type,
-    ::arrow::Int64Type, ::arrow::TimestampType, ::arrow::Date32Type, ::arrow::FloatType,
-    ::arrow::DoubleType, ::arrow::StringType, ::arrow::BinaryType>
+    ::arrow::Int64Type, ::arrow::Date32Type, ::arrow::FloatType, ::arrow::DoubleType,
+    ::arrow::StringType, ::arrow::BinaryType>
     TestTypes;
 
 TYPED_TEST_CASE(TestParquetIO, TestTypes);
@@ -431,8 +432,8 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredWrite) {
   std::shared_ptr<Array> values;
   ASSERT_OK(NonNullArray<TypeParam>(SMALL_SIZE, &values));
 
-  std::shared_ptr<GroupNode> schema = MakeSimpleSchema(
-      *values->type(), Repetition::REQUIRED);
+  std::shared_ptr<GroupNode> schema =
+      MakeSimpleSchema(*values->type(), Repetition::REQUIRED);
   this->WriteColumn(schema, values);
 
   this->ReadAndCheckSingleColumnFile(values.get());
@@ -464,8 +465,8 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalReadWrite) {
 
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
 
-  std::shared_ptr<GroupNode> schema = MakeSimpleSchema(
-      *values->type(), Repetition::OPTIONAL);
+  std::shared_ptr<GroupNode> schema =
+      MakeSimpleSchema(*values->type(), Repetition::OPTIONAL);
   this->WriteColumn(schema, values);
 
   this->ReadAndCheckSingleColumnFile(values.get());
@@ -474,8 +475,8 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalReadWrite) {
 TYPED_TEST(TestParquetIO, SingleColumnRequiredSliceWrite) {
   std::shared_ptr<Array> values;
   ASSERT_OK(NonNullArray<TypeParam>(2 * SMALL_SIZE, &values));
-  std::shared_ptr<GroupNode> schema = MakeSimpleSchema(
-      *values->type(), Repetition::REQUIRED);
+  std::shared_ptr<GroupNode> schema =
+      MakeSimpleSchema(*values->type(), Repetition::REQUIRED);
 
   std::shared_ptr<Array> sliced_values = values->Slice(SMALL_SIZE / 2, SMALL_SIZE);
   this->WriteColumn(schema, sliced_values);
@@ -490,8 +491,8 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredSliceWrite) {
 TYPED_TEST(TestParquetIO, SingleColumnOptionalSliceWrite) {
   std::shared_ptr<Array> values;
   ASSERT_OK(NullableArray<TypeParam>(2 * SMALL_SIZE, SMALL_SIZE, kDefaultSeed, &values));
-  std::shared_ptr<GroupNode> schema = MakeSimpleSchema(
-      *values->type(), Repetition::OPTIONAL);
+  std::shared_ptr<GroupNode> schema =
+      MakeSimpleSchema(*values->type(), Repetition::OPTIONAL);
 
   std::shared_ptr<Array> sliced_values = values->Slice(SMALL_SIZE / 2, SMALL_SIZE);
   this->WriteColumn(schema, sliced_values);
@@ -547,8 +548,8 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
   ASSERT_OK(NonNullArray<TypeParam>(SMALL_SIZE, &values));
   int64_t chunk_size = values->length() / 4;
 
-  std::shared_ptr<GroupNode> schema = MakeSimpleSchema(
-      *values->type(), Repetition::REQUIRED);
+  std::shared_ptr<GroupNode> schema =
+      MakeSimpleSchema(*values->type(), Repetition::REQUIRED);
   FileWriter writer(default_memory_pool(), this->MakeWriter(schema));
   for (int i = 0; i < 4; i++) {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(chunk_size));
@@ -609,8 +610,8 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalChunkedWrite) {
 
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
 
-  std::shared_ptr<GroupNode> schema = MakeSimpleSchema(
-      *values->type(), Repetition::OPTIONAL);
+  std::shared_ptr<GroupNode> schema =
+      MakeSimpleSchema(*values->type(), Repetition::OPTIONAL);
   FileWriter writer(::arrow::default_memory_pool(), this->MakeWriter(schema));
   for (int i = 0; i < 4; i++) {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(chunk_size));
@@ -680,7 +681,7 @@ TEST_F(TestInt96ParquetIO, ReadIntoTimestamp) {
   writer->Close();
 
   ::arrow::TimestampBuilder builder(
-      default_memory_pool(), ::arrow::timestamp(::arrow::TimeUnit::NANO));
+      default_memory_pool(), ::arrow::timestamp(TimeUnit::NANO));
   builder.Append(val);
   std::shared_ptr<Array> values;
   ASSERT_OK(builder.Finish(&values));
@@ -866,6 +867,48 @@ TYPED_TEST(TestPrimitiveParquetIO, SingleColumnRequiredChunkedRead) {
 
 TYPED_TEST(TestPrimitiveParquetIO, SingleColumnRequiredChunkedTableRead) {
   this->CheckSingleColumnRequiredTableRead(4);
+}
+
+void MakeDateTimeTypesTable(std::shared_ptr<Table>* out) {
+  using ::arrow::ArrayFromVector;
+
+  std::vector<bool> is_valid = {true, true, true, false, true, true};
+
+  // These are only types that roundtrip without modification
+  auto f0 = field("f0", ::arrow::date32());
+  auto f1 = field("f1", ::arrow::timestamp(TimeUnit::MILLI));
+  auto f2 = field("f2", ::arrow::timestamp(TimeUnit::MICRO));
+  auto f3 = field("f3", ::arrow::time32(TimeUnit::MILLI));
+  auto f4 = field("f4", ::arrow::time64(TimeUnit::MICRO));
+  std::shared_ptr<::arrow::Schema> schema(new ::arrow::Schema({f0, f1, f2, f3, f4}));
+
+  std::vector<int32_t> t32_values = {
+      1489269000, 1489270000, 1489271000, 1489272000, 1489272000, 1489273000};
+  std::vector<int64_t> t64_values = {1489269000000, 1489270000000, 1489271000000,
+      1489272000000, 1489272000000, 1489273000000};
+
+  std::shared_ptr<Array> a0, a1, a2, a3, a4;
+  ArrayFromVector<::arrow::Date32Type, int32_t>(f0->type(), is_valid, t32_values, &a0);
+  ArrayFromVector<::arrow::TimestampType, int64_t>(f1->type(), is_valid, t64_values, &a1);
+  ArrayFromVector<::arrow::TimestampType, int64_t>(f2->type(), is_valid, t64_values, &a2);
+  ArrayFromVector<::arrow::Time32Type, int32_t>(f3->type(), is_valid, t32_values, &a3);
+  ArrayFromVector<::arrow::Time64Type, int64_t>(f4->type(), is_valid, t64_values, &a4);
+
+  std::vector<std::shared_ptr<::arrow::Column>> columns = {
+      std::make_shared<Column>("f0", a0), std::make_shared<Column>("f1", a1),
+      std::make_shared<Column>("f2", a2), std::make_shared<Column>("f3", a3),
+      std::make_shared<Column>("f4", a4)};
+  *out = std::make_shared<::arrow::Table>(schema, columns);
+}
+
+TEST(TestArrowReadWrite, DateTimeTypes) {
+  std::shared_ptr<Table> table;
+  MakeDateTimeTypesTable(&table);
+
+  std::shared_ptr<Table> result;
+  DoSimpleRoundtrip(table, 1, table->num_rows(), {}, &result);
+
+  ASSERT_TRUE(table->Equals(*result));
 }
 
 void MakeDoubleTable(
