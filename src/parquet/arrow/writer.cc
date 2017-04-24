@@ -26,6 +26,7 @@
 #include "parquet/arrow/schema.h"
 
 #include "arrow/api.h"
+#include "arrow/visitor_inline.h"
 
 using arrow::Array;
 using arrow::BinaryArray;
@@ -49,45 +50,34 @@ namespace arrow {
 
 namespace BitUtil = ::arrow::BitUtil;
 
-class LevelBuilder : public ::arrow::ArrayVisitor {
+class LevelBuilder {
  public:
   explicit LevelBuilder(MemoryPool* pool)
       : def_levels_(pool, ::arrow::int16()), rep_levels_(pool, ::arrow::int16()) {
     def_levels_buffer_ = std::make_shared<PoolBuffer>(pool);
   }
 
-#define PRIMITIVE_VISIT(ArrowTypePrefix)                                \
-  Status Visit(const ::arrow::ArrowTypePrefix##Array& array) override { \
-    array_offsets_.push_back(array.offset());                           \
-    valid_bitmaps_.push_back(array.null_bitmap_data());                 \
-    null_counts_.push_back(array.null_count());                         \
-    values_type_ = array.type_id();                                     \
-    values_array_ = &array;                                             \
-    return Status::OK();                                                \
+  Status VisitInline(const Array& array);
+
+  Status Visit(const ::arrow::PrimitiveArray& array) {
+    array_offsets_.push_back(array.offset());
+    valid_bitmaps_.push_back(array.null_bitmap_data());
+    null_counts_.push_back(array.null_count());
+    values_type_ = array.type_id();
+    values_array_ = &array;
+    return Status::OK();
   }
 
-  PRIMITIVE_VISIT(Boolean)
-  PRIMITIVE_VISIT(Int8)
-  PRIMITIVE_VISIT(Int16)
-  PRIMITIVE_VISIT(Int32)
-  PRIMITIVE_VISIT(Int64)
-  PRIMITIVE_VISIT(UInt8)
-  PRIMITIVE_VISIT(UInt16)
-  PRIMITIVE_VISIT(UInt32)
-  PRIMITIVE_VISIT(UInt64)
-  PRIMITIVE_VISIT(HalfFloat)
-  PRIMITIVE_VISIT(Float)
-  PRIMITIVE_VISIT(Double)
-  PRIMITIVE_VISIT(String)
-  PRIMITIVE_VISIT(Binary)
-  PRIMITIVE_VISIT(Date32)
-  PRIMITIVE_VISIT(Date64)
-  PRIMITIVE_VISIT(Time32)
-  PRIMITIVE_VISIT(Time64)
-  PRIMITIVE_VISIT(Timestamp)
-  PRIMITIVE_VISIT(Interval)
+  Status Visit(const ::arrow::BinaryArray& array) {
+    array_offsets_.push_back(array.offset());
+    valid_bitmaps_.push_back(array.null_bitmap_data());
+    null_counts_.push_back(array.null_count());
+    values_type_ = array.type_id();
+    values_array_ = &array;
+    return Status::OK();
+  }
 
-  Status Visit(const ListArray& array) override {
+  Status Visit(const ListArray& array) {
     array_offsets_.push_back(array.offset());
     valid_bitmaps_.push_back(array.null_bitmap_data());
     null_counts_.push_back(array.null_count());
@@ -96,13 +86,13 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
     min_offset_idx_ = array.value_offset(min_offset_idx_);
     max_offset_idx_ = array.value_offset(max_offset_idx_);
 
-    return array.values()->Accept(this);
+    return VisitInline(*array.values());
   }
 
-#define NOT_IMPLEMENTED_VIST(ArrowTypePrefix)                           \
-  Status Visit(const ::arrow::ArrowTypePrefix##Array& array) override { \
-    return Status::NotImplemented(                                      \
-        "Level generation for ArrowTypePrefix not supported yet");      \
+#define NOT_IMPLEMENTED_VIST(ArrowTypePrefix)                       \
+  Status Visit(const ::arrow::ArrowTypePrefix##Array& array) {      \
+    return Status::NotImplemented(                                  \
+        "Level generation for ArrowTypePrefix not supported yet");  \
   };
 
   NOT_IMPLEMENTED_VIST(Null)
@@ -110,6 +100,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   NOT_IMPLEMENTED_VIST(Union)
   NOT_IMPLEMENTED_VIST(Decimal)
   NOT_IMPLEMENTED_VIST(Dictionary)
+  NOT_IMPLEMENTED_VIST(Interval)
 
   Status GenerateLevels(const Array& array, const std::shared_ptr<Field>& field,
       int64_t* values_offset, ::arrow::Type::type* values_type, int64_t* num_values,
@@ -118,7 +109,7 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
     // Work downwards to extract bitmaps and offsets
     min_offset_idx_ = 0;
     max_offset_idx_ = array.length();
-    RETURN_NOT_OK(array.Accept(this));
+    RETURN_NOT_OK(VisitInline(array));
     *num_values = max_offset_idx_ - min_offset_idx_;
     *values_offset = min_offset_idx_;
     *values_type = values_type_;
@@ -247,6 +238,10 @@ class LevelBuilder : public ::arrow::ArrayVisitor {
   ::arrow::Type::type values_type_;
   const Array* values_array_;
 };
+
+Status LevelBuilder::VisitInline(const Array& array) {
+  return VisitArrayInline(array, this);
+}
 
 class FileWriter::Impl {
  public:
