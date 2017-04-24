@@ -455,12 +455,16 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
       break;
     case ArrowType::TIMESTAMP: {
       auto timestamp_type = static_cast<::arrow::TimestampType*>(field->type().get());
-      if (timestamp_type->unit() != ::arrow::TimestampType::Unit::MILLI) {
-        return Status::NotImplemented(
-            "Other timestamp units than millisecond are not yet support with parquet.");
-      }
+      auto unit = timestamp_type->unit();
       type = ParquetType::INT64;
-      logical_type = LogicalType::TIMESTAMP_MILLIS;
+      if (unit == ::arrow::TimeUnit::MILLI) {
+        logical_type = LogicalType::TIMESTAMP_MILLIS;
+      } else if (unit == ::arrow::TimeUnit::MICRO) {
+        logical_type = LogicalType::TIMESTAMP_MICROS;
+      } else {
+        return Status::NotImplemented(
+            "Only MILLI and MICRO units supported for Arrow timestamps with Parquet.");
+      }
     } break;
     case ArrowType::TIME32:
       type = ParquetType::INT64;
