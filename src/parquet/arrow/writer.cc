@@ -93,7 +93,7 @@ class LevelBuilder {
   Status Visit(const ::arrow::ArrowTypePrefix##Array& array) {     \
     return Status::NotImplemented(                                 \
         "Level generation for ArrowTypePrefix not supported yet"); \
-  };
+  }
 
   NOT_IMPLEMENTED_VIST(Null)
   NOT_IMPLEMENTED_VIST(Struct)
