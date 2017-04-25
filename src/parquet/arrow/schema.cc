@@ -480,10 +480,15 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
       type = ParquetType::INT32;
       logical_type = LogicalType::TIME_MILLIS;
       break;
-    case ArrowType::TIME64:
+    case ArrowType::TIME64: {
+      auto time_type = static_cast<::arrow::Time64Type*>(field->type().get());
+      if (time_type->unit() == ::arrow::TimeUnit::NANO) {
+        return Status::NotImplemented(
+            "Nanosecond time not supported in Parquet.");
+      }
       type = ParquetType::INT64;
       logical_type = LogicalType::TIME_MICROS;
-      break;
+    } break;
     case ArrowType::STRUCT: {
       auto struct_type = std::static_pointer_cast<::arrow::StructType>(field->type());
       return StructToNode(struct_type, field->name(), field->nullable(), properties, out);

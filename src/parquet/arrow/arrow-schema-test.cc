@@ -26,6 +26,7 @@
 #include "arrow/test-util.h"
 
 using arrow::Field;
+using arrow::TimeUnit;
 
 using ParquetType = parquet::Type;
 using parquet::LogicalType;
@@ -45,9 +46,9 @@ const auto INT64 = ::arrow::int64();
 const auto FLOAT = ::arrow::float32();
 const auto DOUBLE = ::arrow::float64();
 const auto UTF8 = ::arrow::utf8();
-const auto TIMESTAMP_MS = ::arrow::timestamp(::arrow::TimeUnit::MILLI);
-const auto TIMESTAMP_US = ::arrow::timestamp(::arrow::TimeUnit::MICRO);
-const auto TIMESTAMP_NS = ::arrow::timestamp(::arrow::TimeUnit::NANO);
+const auto TIMESTAMP_MS = ::arrow::timestamp(TimeUnit::MILLI);
+const auto TIMESTAMP_US = ::arrow::timestamp(TimeUnit::MICRO);
+const auto TIMESTAMP_NS = ::arrow::timestamp(TimeUnit::NANO);
 const auto BINARY = ::arrow::binary();
 const auto DECIMAL_8_4 = std::make_shared<::arrow::DecimalType>(8, 4);
 
@@ -114,12 +115,12 @@ TEST_F(TestConvertParquetSchema, ParquetFlatPrimitives) {
   parquet_fields.push_back(PrimitiveNode::Make(
       "time32", Repetition::REQUIRED, ParquetType::INT32, LogicalType::TIME_MILLIS));
   arrow_fields.push_back(std::make_shared<Field>(
-      "time32", ::arrow::time32(::arrow::TimeUnit::MILLI), false));
+      "time32", ::arrow::time32(TimeUnit::MILLI), false));
 
   parquet_fields.push_back(PrimitiveNode::Make(
       "time64", Repetition::REQUIRED, ParquetType::INT64, LogicalType::TIME_MICROS));
   arrow_fields.push_back(std::make_shared<Field>(
-      "time64", ::arrow::time64(::arrow::TimeUnit::MICRO), false));
+      "time64", ::arrow::time64(TimeUnit::MICRO), false));
 
   parquet_fields.push_back(
       PrimitiveNode::Make("timestamp96", Repetition::REQUIRED, ParquetType::INT96));
@@ -660,6 +661,16 @@ TEST_F(TestConvertArrowSchema, ParquetLists) {
   CheckFlatSchema(parquet_fields);
 }
 
+TEST_F(TestConvertArrowSchema, UnsupportedTypes) {
+  std::vector<std::shared_ptr<Field>> unsupported_fields = {
+    ::arrow::field("f0", ::arrow::time64(TimeUnit::NANO))
+  };
+
+  for (const auto& field : unsupported_fields) {
+    ASSERT_RAISES(NotImplemented, ConvertSchema({field}));
+  }
+}
+
 TEST_F(TestConvertArrowSchema, ParquetFlatDecimals) {
   std::vector<NodePtr> parquet_fields;
   std::vector<std::shared_ptr<Field>> arrow_fields;
@@ -671,8 +682,5 @@ TEST_F(TestConvertArrowSchema, ParquetFlatDecimals) {
   CheckFlatSchema(parquet_fields);
 }
 
-TEST(TestNodeConversion, DateAndTime) {}
-
 }  // namespace arrow
-
 }  // namespace parquet
