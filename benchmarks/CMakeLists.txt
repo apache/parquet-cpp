@@ -19,7 +19,7 @@ SET(LINK_LIBS
   snappystatic
   thriftstatic)
 
-if (PARQUET_BUILD_EXECUTABLES)
+if (PARQUET_BUILD_BENCHMARKS)
   add_executable(decode_benchmark decode_benchmark.cc)
 
   # This uses private APIs
