@@ -69,14 +69,21 @@ class TestConvertParquetSchema : public ::testing::Test {
   ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes) {
     NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     descr_.Init(schema);
-    return FromParquetSchema(&descr_, &result_schema_);
+    return FromParquetSchema(&descr_, {}, &result_schema_);
   }
 
   ::arrow::Status ConvertSchema(
       const std::vector<NodePtr>& nodes, const std::vector<int>& column_indices) {
     NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     descr_.Init(schema);
-    return FromParquetSchema(&descr_, column_indices, &result_schema_);
+    return FromParquetSchema(&descr_, column_indices, {}, &result_schema_);
+  }
+
+  ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes,
+      const KeyValueMetadata& key_value_metadata) {
+    NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
+    descr_.Init(schema);
+    return FromParquetSchema(&descr_, {}, key_value_metadata, &result_schema_);
   }
 
  protected:
@@ -150,6 +157,28 @@ TEST_F(TestConvertParquetSchema, ParquetFlatPrimitives) {
   ASSERT_OK(ConvertSchema(parquet_fields));
 
   CheckFlatSchema(arrow_schema);
+}
+
+TEST_F(TestConvertParquetSchema, ParquetKeyValueMetadata) {
+  std::vector<NodePtr> parquet_fields;
+  std::vector<std::shared_ptr<Field>> arrow_fields;
+
+  parquet_fields.push_back(
+      PrimitiveNode::Make("boolean", Repetition::REQUIRED, ParquetType::BOOLEAN));
+  arrow_fields.push_back(std::make_shared<Field>("boolean", BOOL, false));
+
+  parquet_fields.push_back(
+      PrimitiveNode::Make("int32", Repetition::REQUIRED, ParquetType::INT32));
+  arrow_fields.push_back(std::make_shared<Field>("int32", INT32, false));
+
+  KeyValueMetadata key_value_metadata = {
+      {"foo", "bar"}, {"biz", "baz"}};
+
+  ASSERT_OK(ConvertSchema(parquet_fields, key_value_metadata));
+
+  auto arrow_metadata = result_schema_->custom_metadata();
+  ASSERT_EQ(arrow_metadata.at("foo"), std::vector<uint8_t>({'b', 'a', 'r'}));
+  ASSERT_EQ(arrow_metadata.at("biz"), std::vector<uint8_t>({'b', 'a', 'z'}));
 }
 
 TEST_F(TestConvertParquetSchema, ParquetFlatDecimals) {
@@ -441,7 +470,7 @@ TEST_F(TestConvertParquetSchema, ParquetNestedSchemaPartial) {
   }
 
   auto arrow_schema = std::make_shared<::arrow::Schema>(arrow_fields);
-  ASSERT_OK(ConvertSchema(parquet_fields, {0, 3, 4}));
+  ASSERT_OK(ConvertSchema(parquet_fields, std::vector<int>{0, 3, 4}));
 
   CheckFlatSchema(arrow_schema);
 }
@@ -490,7 +519,7 @@ TEST_F(TestConvertParquetSchema, ParquetNestedSchemaPartialOrdering) {
   }
 
   auto arrow_schema = std::make_shared<::arrow::Schema>(arrow_fields);
-  ASSERT_OK(ConvertSchema(parquet_fields, {3, 4, 0}));
+  ASSERT_OK(ConvertSchema(parquet_fields, std::vector<int>{3, 4, 0}));
 
   CheckFlatSchema(arrow_schema);
 }

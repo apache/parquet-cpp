@@ -14,3 +14,4 @@ thirdparty
 
 *.pc
 .idea/
+*-build/

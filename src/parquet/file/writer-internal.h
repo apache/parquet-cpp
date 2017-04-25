@@ -19,6 +19,7 @@
 #define PARQUET_FILE_WRITER_INTERNAL_H
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "parquet/column/page.h"
@@ -106,7 +107,8 @@ class FileSerializer : public ParquetFileWriter::Contents {
   static std::unique_ptr<ParquetFileWriter::Contents> Open(
       const std::shared_ptr<OutputStream>& sink,
       const std::shared_ptr<schema::GroupNode>& schema,
-      const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
+      const std::shared_ptr<WriterProperties>& properties = default_writer_properties(),
+      const KeyValueMetadata& key_value_metadata = KeyValueMetadata());
 
   void Close() override;
 
@@ -123,7 +125,8 @@ class FileSerializer : public ParquetFileWriter::Contents {
  private:
   explicit FileSerializer(const std::shared_ptr<OutputStream>& sink,
       const std::shared_ptr<schema::GroupNode>& schema,
-      const std::shared_ptr<WriterProperties>& properties);
+      const std::shared_ptr<WriterProperties>& properties,
+      const KeyValueMetadata& key_value_metadata);
 
   std::shared_ptr<OutputStream> sink_;
   bool is_open_;
