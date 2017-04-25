@@ -620,6 +620,15 @@ const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
   return &leaves_[i];
 }
 
+int SchemaDescriptor::ColumnIndex(const NodePtr& node) const {
+  for (uint i = 0; i < leaves_.size(); i++) {
+    if (leaves_[i].schema_node()->Equals(node.get())) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 const schema::NodePtr& SchemaDescriptor::GetColumnRoot(int i) const {
   DCHECK(i >= 0 && i < static_cast<int>(leaves_.size()));
   return leaf_to_base_.find(i)->second;

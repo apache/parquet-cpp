@@ -99,10 +99,18 @@ class PARQUET_EXPORT FileReader {
   // Read column as a whole into an Array.
   ::arrow::Status ReadColumn(int i, std::shared_ptr<::arrow::Array>* out);
 
-  // Read a table of flat columns into a Table.
+  // Reads a specific top level schema field into an Array
+  ::arrow::Status ReadSchemaField(int i, std::shared_ptr<::arrow::Array>* out);
+
+  // Reads a specific top level schema field into an Array
+  // Read only the indicated child columns
+  ::arrow::Status ReadSchemaField(int i, const std::vector<int>& indices,
+      std::shared_ptr<::arrow::Array>* out);
+
+  // Read a table of columns into a Table
   ::arrow::Status ReadTable(std::shared_ptr<::arrow::Table>* out);
 
-  // Read a table of flat columns into a Table. Read only the indicated column
+  // Read a table of columns into a Table. Read only the indicated column
   // indices (relative to the schema)
   ::arrow::Status ReadTable(
       const std::vector<int>& column_indices, std::shared_ptr<::arrow::Table>* out);
@@ -154,6 +162,8 @@ class PARQUET_EXPORT ColumnReader {
   explicit ColumnReader(std::unique_ptr<Impl> impl);
 
   friend class FileReader;
+  friend class PrimitiveImpl;
+  friend class StructImpl;
 };
 
 // Helper function to create a file reader from an implementation of an Arrow

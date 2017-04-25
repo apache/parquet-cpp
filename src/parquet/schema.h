@@ -362,6 +362,9 @@ class PARQUET_EXPORT SchemaDescriptor {
 
   const ColumnDescriptor* Column(int i) const;
 
+  // Get the index of a node, or negative value if not found
+  int ColumnIndex(const schema::NodePtr& node) const;
+
   bool Equals(const SchemaDescriptor& other) const;
 
   // The number of physical columns appearing in the file
