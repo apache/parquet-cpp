@@ -322,21 +322,8 @@ Status NodeToFieldInternal(const NodePtr& node,
   return Status::OK();
 }
 
-static void ParquetMetadataToArrowMetadata(
-    const KeyValueMetadata& parquet_metadata,
-    std::unordered_map<std::string, std::vector<uint8_t>>* arrow_metadata) {
-  arrow_metadata->reserve(parquet_metadata.size());
-
-  for (auto pair = parquet_metadata.cbegin(); pair != parquet_metadata.cend(); ++pair) {
-    auto first = pair->first;
-    auto second = pair->second;
-    arrow_metadata->insert(
-        std::make_pair(first, std::vector<uint8_t>(second.cbegin(), second.cend())));
-  }
-}
-
 Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
-    const KeyValueMetadata& key_value_metadata,
+    const std::shared_ptr<const KeyValueMetadata>& key_value_metadata,
     std::shared_ptr<::arrow::Schema>* out) {
   const GroupNode* schema_node = parquet_schema->group_node();
 
@@ -346,16 +333,13 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
     RETURN_NOT_OK(NodeToField(schema_node->field(i), &fields[i]));
   }
 
-  std::unordered_map<std::string, std::vector<uint8_t>> arrow_custom_metadata;
-  ParquetMetadataToArrowMetadata(key_value_metadata, &arrow_custom_metadata);
-
-  *out = std::make_shared<::arrow::Schema>(fields, arrow_custom_metadata);
+  *out = std::make_shared<::arrow::Schema>(fields, key_value_metadata);
   return Status::OK();
 }
 
 Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
     const std::vector<int>& column_indices,
-    const KeyValueMetadata& key_value_metadata,
+    const std::shared_ptr<const KeyValueMetadata>& key_value_metadata,
     std::shared_ptr<::arrow::Schema>* out) {
   // TODO(wesm): Consider adding an arrow::Schema name attribute, which comes
   // from the root Parquet node
@@ -382,9 +366,7 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
     if (field != nullptr) { fields.push_back(field); }
   }
 
-  std::unordered_map<std::string, std::vector<uint8_t>> arrow_custom_metadata;
-  ParquetMetadataToArrowMetadata(key_value_metadata, &arrow_custom_metadata);
-  *out = std::make_shared<::arrow::Schema>(fields, arrow_custom_metadata);
+  *out = std::make_shared<::arrow::Schema>(fields, key_value_metadata);
   return Status::OK();
 }
 
@@ -504,8 +486,7 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
     case ArrowType::TIME64: {
       auto time_type = static_cast<::arrow::Time64Type*>(field->type().get());
       if (time_type->unit() == ::arrow::TimeUnit::NANO) {
-        return Status::NotImplemented(
-            "Nanosecond time not supported in Parquet.");
+        return Status::NotImplemented("Nanosecond time not supported in Parquet.");
       }
       type = ParquetType::INT64;
       logical_type = LogicalType::TIME_MICROS;

@@ -20,8 +20,9 @@
 
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
+
+#include "arrow/util/key_value_metadata.h"
 
 #include "parquet/column/properties.h"
 #include "parquet/column/statistics.h"
@@ -33,7 +34,7 @@
 
 namespace parquet {
 
-typedef std::unordered_map<std::string, std::string> KeyValueMetadata;
+using KeyValueMetadata = ::arrow::KeyValueMetadata;
 
 // Reference:
 // parquet-mr/parquet-hadoop/src/main/java/org/apache/parquet/
@@ -181,7 +182,7 @@ class PARQUET_EXPORT FileMetaData {
   // Return const-pointer to make it clear that this object is not to be copied
   const SchemaDescriptor* schema() const;
 
-  KeyValueMetadata key_value_metadata() const;
+  std::shared_ptr<const KeyValueMetadata> key_value_metadata() const;
 
  private:
   friend FileMetaDataBuilder;
@@ -256,7 +257,7 @@ class PARQUET_EXPORT FileMetaDataBuilder {
   // API convenience to get a MetaData reader
   static std::unique_ptr<FileMetaDataBuilder> Make(const SchemaDescriptor* schema,
       const std::shared_ptr<WriterProperties>& props,
-      const KeyValueMetadata& key_value_metadata = KeyValueMetadata());
+      const std::shared_ptr<const KeyValueMetadata>& key_value_metadata = nullptr);
 
   ~FileMetaDataBuilder();
 
@@ -268,7 +269,7 @@ class PARQUET_EXPORT FileMetaDataBuilder {
  private:
   explicit FileMetaDataBuilder(const SchemaDescriptor* schema,
       const std::shared_ptr<WriterProperties>& props,
-      const KeyValueMetadata& key_value_metadata = KeyValueMetadata());
+      const std::shared_ptr<const KeyValueMetadata>& key_value_metadata = nullptr);
   // PIMPL Idiom
   class FileMetaDataBuilderImpl;
   std::unique_ptr<FileMetaDataBuilderImpl> impl_;

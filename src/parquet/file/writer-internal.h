@@ -108,7 +108,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
       const std::shared_ptr<OutputStream>& sink,
       const std::shared_ptr<schema::GroupNode>& schema,
       const std::shared_ptr<WriterProperties>& properties = default_writer_properties(),
-      const KeyValueMetadata& key_value_metadata = KeyValueMetadata());
+      const std::shared_ptr<const KeyValueMetadata>& key_value_metadata = nullptr);
 
   void Close() override;
 
@@ -126,7 +126,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
   explicit FileSerializer(const std::shared_ptr<OutputStream>& sink,
       const std::shared_ptr<schema::GroupNode>& schema,
       const std::shared_ptr<WriterProperties>& properties,
-      const KeyValueMetadata& key_value_metadata);
+      const std::shared_ptr<const KeyValueMetadata>& key_value_metadata);
 
   std::shared_ptr<OutputStream> sink_;
   bool is_open_;

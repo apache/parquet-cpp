@@ -726,14 +726,12 @@ Status ColumnReader::Impl::InitValidBits(int batch_size) {
 Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
     const int16_t* rep_levels, int64_t total_levels_read, std::shared_ptr<Array>* array) {
   std::shared_ptr<::arrow::Schema> arrow_schema;
-  RETURN_NOT_OK(
-      FromParquetSchema(input_->schema(), {input_->column_index()},
-          input_->metadata()->key_value_metadata(), &arrow_schema));
+  RETURN_NOT_OK(FromParquetSchema(input_->schema(), {input_->column_index()},
+      input_->metadata()->key_value_metadata(), &arrow_schema));
   std::shared_ptr<Field> current_field = arrow_schema->field(0);
 
   if (current_field->type()->id() == ::arrow::Type::STRUCT) {
-    return Status::NotImplemented(
-        "Structs are not yet supported.");
+    return Status::NotImplemented("Structs are not yet supported.");
   }
 
   if (descr_->max_repetition_level() > 0) {

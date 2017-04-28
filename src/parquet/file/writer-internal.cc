@@ -206,7 +206,7 @@ void RowGroupSerializer::Close() {
 std::unique_ptr<ParquetFileWriter::Contents> FileSerializer::Open(
     const std::shared_ptr<OutputStream>& sink, const std::shared_ptr<GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties,
-    const KeyValueMetadata& key_value_metadata) {
+    const std::shared_ptr<const KeyValueMetadata>& key_value_metadata) {
   std::unique_ptr<ParquetFileWriter::Contents> result(
       new FileSerializer(sink, schema, properties, key_value_metadata));
 
@@ -276,7 +276,7 @@ void FileSerializer::WriteMetaData() {
 FileSerializer::FileSerializer(const std::shared_ptr<OutputStream>& sink,
     const std::shared_ptr<GroupNode>& schema,
     const std::shared_ptr<WriterProperties>& properties,
-    const KeyValueMetadata& key_value_metadata)
+    const std::shared_ptr<const KeyValueMetadata>& key_value_metadata)
     : ParquetFileWriter::Contents(schema, key_value_metadata),
       sink_(sink),
       is_open_(true),

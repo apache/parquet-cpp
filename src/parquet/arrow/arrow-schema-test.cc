@@ -80,7 +80,7 @@ class TestConvertParquetSchema : public ::testing::Test {
   }
 
   ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes,
-      const KeyValueMetadata& key_value_metadata) {
+      const std::shared_ptr<const KeyValueMetadata>& key_value_metadata) {
     NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     descr_.Init(schema);
     return FromParquetSchema(&descr_, {}, key_value_metadata, &result_schema_);
@@ -121,13 +121,13 @@ TEST_F(TestConvertParquetSchema, ParquetFlatPrimitives) {
 
   parquet_fields.push_back(PrimitiveNode::Make(
       "time32", Repetition::REQUIRED, ParquetType::INT32, LogicalType::TIME_MILLIS));
-  arrow_fields.push_back(std::make_shared<Field>(
-      "time32", ::arrow::time32(TimeUnit::MILLI), false));
+  arrow_fields.push_back(
+      std::make_shared<Field>("time32", ::arrow::time32(TimeUnit::MILLI), false));
 
   parquet_fields.push_back(PrimitiveNode::Make(
       "time64", Repetition::REQUIRED, ParquetType::INT64, LogicalType::TIME_MICROS));
-  arrow_fields.push_back(std::make_shared<Field>(
-      "time64", ::arrow::time64(TimeUnit::MICRO), false));
+  arrow_fields.push_back(
+      std::make_shared<Field>("time64", ::arrow::time64(TimeUnit::MICRO), false));
 
   parquet_fields.push_back(
       PrimitiveNode::Make("timestamp96", Repetition::REQUIRED, ParquetType::INT96));
@@ -171,14 +171,16 @@ TEST_F(TestConvertParquetSchema, ParquetKeyValueMetadata) {
       PrimitiveNode::Make("int32", Repetition::REQUIRED, ParquetType::INT32));
   arrow_fields.push_back(std::make_shared<Field>("int32", INT32, false));
 
-  KeyValueMetadata key_value_metadata = {
-      {"foo", "bar"}, {"biz", "baz"}};
-
+  auto key_value_metadata = std::make_shared<KeyValueMetadata>();
+  key_value_metadata->Append("foo", "bar");
+  key_value_metadata->Append("biz", "baz");
   ASSERT_OK(ConvertSchema(parquet_fields, key_value_metadata));
 
-  auto arrow_metadata = result_schema_->custom_metadata();
-  ASSERT_EQ(arrow_metadata.at("foo"), std::vector<uint8_t>({'b', 'a', 'r'}));
-  ASSERT_EQ(arrow_metadata.at("biz"), std::vector<uint8_t>({'b', 'a', 'z'}));
+  auto arrow_metadata = result_schema_->metadata();
+  ASSERT_EQ("foo", arrow_metadata->key(0));
+  ASSERT_EQ("bar", arrow_metadata->value(0));
+  ASSERT_EQ("biz", arrow_metadata->key(1));
+  ASSERT_EQ("baz", arrow_metadata->value(1));
 }
 
 TEST_F(TestConvertParquetSchema, ParquetFlatDecimals) {
@@ -692,8 +694,7 @@ TEST_F(TestConvertArrowSchema, ParquetLists) {
 
 TEST_F(TestConvertArrowSchema, UnsupportedTypes) {
   std::vector<std::shared_ptr<Field>> unsupported_fields = {
-    ::arrow::field("f0", ::arrow::time64(TimeUnit::NANO))
-  };
+      ::arrow::field("f0", ::arrow::time64(TimeUnit::NANO))};
 
   for (const auto& field : unsupported_fields) {
     ASSERT_RAISES(NotImplemented, ConvertSchema({field}));
