@@ -19,7 +19,6 @@
 #define PARQUET_FILE_WRITER_INTERNAL_H
 
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "parquet/column/page.h"

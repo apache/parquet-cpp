@@ -20,7 +20,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 
 #include "parquet/column/properties.h"
 #include "parquet/file/metadata.h"
