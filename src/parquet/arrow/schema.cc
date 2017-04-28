@@ -370,6 +370,17 @@ Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
   return Status::OK();
 }
 
+Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
+    const std::vector<int>& column_indices,
+    std::shared_ptr<::arrow::Schema>* out) {
+  return FromParquetSchema(parquet_schema, column_indices, nullptr, out);
+}
+
+Status FromParquetSchema(const SchemaDescriptor* parquet_schema,
+    std::shared_ptr<::arrow::Schema>* out) {
+  return FromParquetSchema(parquet_schema, nullptr, out);
+}
+
 Status ListToNode(const std::shared_ptr<::arrow::ListType>& type, const std::string& name,
     bool nullable, const WriterProperties& properties, NodePtr* out) {
   Repetition::type repetition = nullable ? Repetition::OPTIONAL : Repetition::REQUIRED;

@@ -69,14 +69,14 @@ class TestConvertParquetSchema : public ::testing::Test {
   ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes) {
     NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     descr_.Init(schema);
-    return FromParquetSchema(&descr_, {}, &result_schema_);
+    return FromParquetSchema(&descr_, &result_schema_);
   }
 
   ::arrow::Status ConvertSchema(
       const std::vector<NodePtr>& nodes, const std::vector<int>& column_indices) {
     NodePtr schema = GroupNode::Make("schema", Repetition::REPEATED, nodes);
     descr_.Init(schema);
-    return FromParquetSchema(&descr_, column_indices, {}, &result_schema_);
+    return FromParquetSchema(&descr_, column_indices, &result_schema_);
   }
 
   ::arrow::Status ConvertSchema(const std::vector<NodePtr>& nodes,
