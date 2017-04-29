@@ -28,6 +28,7 @@
 
 #include "parquet/arrow/schema.h"
 #include "parquet/util/bit-util.h"
+#include "parquet/util/schema-util.h"
 
 #include "arrow/api.h"
 
@@ -342,9 +343,6 @@ Status FileReader::Impl::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
 
 // TODO(itaiin): The aux. functions are to be deleted once repeated structs are supported
 
-// str_endswith_tuple function is implemented in schema.cc
-bool str_endswith_tuple(const std::string& str);
-
 bool IsSimpleStruct(const NodePtr& node) {
   if (!node->is_group()) return false;
   if (node->is_repeated()) return false;
@@ -353,8 +351,7 @@ bool IsSimpleStruct(const NodePtr& node) {
     //   If the name is array or ends in _tuple, this should be a list of struct
     //   even for single child elements.
   schema::GroupNode* group = static_cast<schema::GroupNode*>(node.get());
-  if (group->field_count() == 1 && group->name() != "array" &&
-          !str_endswith_tuple(group->name())) return false;
+  if (group->field_count() == 1 && HasStructListName(group)) return false;
 
   return true;
 }
@@ -373,7 +370,7 @@ Status FileReader::Impl::GetReaderForNode(int index, const NodePtr& node,
       // TODO(itaiin): Remove the -1 index hack when all types of nested reads
       // are supported. This currently just signals the lower level reader resolution
       // to abort
-      RETURN_NOT_OK(GetReaderForNode(-1, group->field(i), indices,
+      RETURN_NOT_OK(GetReaderForNode(index, group->field(i), indices,
         def_level + 1, &child_reader));
       if (child_reader != nullptr) {
         children.push_back(std::move(child_reader));
@@ -384,28 +381,27 @@ Status FileReader::Impl::GetReaderForNode(int index, const NodePtr& node,
       *out = std::unique_ptr<ColumnReader::Impl>(
         new StructImpl(children, def_level, pool_, node));
     }
-  } else if (node->is_primitive()) {
-    // Try a flat reader
-    auto index = reader_->metadata()->schema()->ColumnIndex(node);
-    if (index < 0) {
-      return Status::Invalid("Invalid node - not in schema or not a leaf node");
+  } else {
+    // This should be a flat field case - translate the field index to
+    // the correct column index by walking down to the leaf node
+    NodePtr walker = node;
+    while (!walker->is_primitive()) {
+      DCHECK(walker->is_group());
+      auto group = static_cast<GroupNode*>(walker.get());
+      if (group->field_count() != 1) {
+        return Status::NotImplemented(
+          "lists with structs are not supported.");
+      }
+      walker = group->field(0);
     }
+    auto column_index = reader_->metadata()->schema()->ColumnIndex(walker);
 
-    if (std::find(indices.begin(), indices.end(), index) != indices.end()) {
+    if (std::find(indices.begin(), indices.end(), column_index) != indices.end()) {
       // The index of the column is found, therefore a reader is needed
       std::unique_ptr<ColumnReader> reader;
-      RETURN_NOT_OK(GetColumn(index, &reader));
+      RETURN_NOT_OK(GetColumn(column_index, &reader));
       *out = std::move(reader->impl_);
     }
-  } else {
-    // Repeated field and others - Fallback to older code
-    if (index < 0) {
-      // Looks like a nested repeated field
-      return Status::NotImplemented("Current schema reading is unsupported");
-    }
-    std::unique_ptr<ColumnReader> reader;
-    RETURN_NOT_OK(GetColumn(index, &reader));
-    *out = std::move(reader->impl_);
   }
 
   return Status::OK();
@@ -429,12 +425,12 @@ Status FileReader::Impl::ReadSchemaField(int i, const std::vector<int>& indices,
   std::unique_ptr<ColumnReader::Impl> reader_impl;
 
   RETURN_NOT_OK(GetReaderForNode(i, node, indices, 1, &reader_impl));
-
-  std::unique_ptr<ColumnReader> reader(new ColumnReader(std::move(reader_impl)));
-  if (reader == nullptr) {
+  if (reader_impl == nullptr) {
     *out = nullptr;
     return Status::OK();
   }
+
+  std::unique_ptr<ColumnReader> reader(new ColumnReader(std::move(reader_impl)));
 
   int64_t batch_size = 0;
   for (int j = 0; j < reader_->metadata()->num_row_groups(); j++) {
@@ -509,16 +505,10 @@ Status FileReader::Impl::ReadRowGroup(int row_group_index,
 Status FileReader::Impl::ColumnIndicesToFieldIndices(const std::vector<int>& indices,
     std::vector<int>* out) {
   auto descr = reader_->metadata()->schema();
-  int full_schema_fields_num = descr->group_node()->field_count();
-  std::vector<bool> fields_to_read(full_schema_fields_num, false);
-  int field_idx = 0;
+  std::vector<bool> fields_to_read(descr->group_node()->field_count(), false);
   for (auto& column_index : indices) {
-    auto root_node = descr->GetColumnRoot(column_index);
-    while ((field_idx < full_schema_fields_num) &&
-           (descr->group_node()->field(field_idx) != root_node)) {
-      field_idx++;
-    }
-    if (field_idx == full_schema_fields_num) {
+    int field_idx = ColumnIndexToSchemaFieldIndex(descr, column_index);
+    if (field_idx < 0) {
       return Status::Invalid("Invalid column index");
     }
     fields_to_read[field_idx] = true;
@@ -941,10 +931,6 @@ Status PrimitiveImpl::WrapIntoListArray(const int16_t* def_levels,
   std::shared_ptr<Field> current_field = arrow_schema->field(0);
 
   if (descr_->max_repetition_level() > 0) {
-    if (current_field->type()->id() == ::arrow::Type::STRUCT) {
-      return Status::NotImplemented(
-          "lists with structs are not supported.");
-    }
     // Walk downwards to extract nullability
     std::vector<bool> nullable;
     std::vector<std::shared_ptr<::arrow::Int32Builder>> offset_builders;

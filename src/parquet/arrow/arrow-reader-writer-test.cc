@@ -50,6 +50,7 @@ using arrow::PrimitiveArray;
 using arrow::Status;
 using arrow::Table;
 using arrow::TimeUnit;
+using arrow::ArrayVisitor;
 
 using ArrowId = ::arrow::Type;
 using ParquetType = parquet::Type;
@@ -1080,10 +1081,10 @@ TEST(TestArrowWrite, CheckChunkSize) {
       Invalid, WriteTable(*table, ::arrow::default_memory_pool(), sink, chunk_size));
 }
 
-class TestNestedSchemaRead : public ::testing::Test {
+class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
  protected:
   // make it *3 to make it easily divisible by 3
-  const int num_test_rows = SMALL_SIZE * 3;
+  const int NUM_SIMPLE_TEST_ROWS = SMALL_SIZE * 3;
   std::shared_ptr<::arrow::Int32Array> values_array_ = nullptr;
 
   void InitReader() {
@@ -1106,6 +1107,12 @@ class TestNestedSchemaRead : public ::testing::Test {
   void FinalizeParquetFile() {
     row_group_writer_->Close();
     writer_->Close();
+  }
+
+  void MakeValues(int num_rows) {
+    std::shared_ptr<Array> arr;
+    ASSERT_OK(NullableArray<::arrow::Int32Type>(num_rows, 0, kDefaultSeed, &arr));
+    values_array_ = std::dynamic_pointer_cast<::arrow::Int32Array>(arr);
   }
 
   void WriteColumnData(size_t num_rows, int16_t* def_levels,
@@ -1142,13 +1149,14 @@ class TestNestedSchemaRead : public ::testing::Test {
     }
   }
 
-  void CreateNestedParquet(Repetition::type struct_repetition) {
+  // A parquet with a simple nested schema
+  void CreateSimpleNestedParquet(Repetition::type struct_repetition) {
     std::vector<NodePtr> parquet_fields;
     // TODO(itaiin): We are using parquet low-level file api to create the nested parquet
     // this needs to change when a nested writes are implemented
 
     // create the schema:
-    // <required/optional/repeated> group group1 {
+    // <struct_repetition> group group1 {
     //   required int32 leaf1;
     //   optional int32 leaf2;
     // }
@@ -1164,41 +1172,146 @@ class TestNestedSchemaRead : public ::testing::Test {
 
     // Create definition levels for the different columns that contain interleaved
     // nulls and values at all nesting levels
-    int16_t default_def_levels[num_test_rows];
-    memset(default_def_levels, 0, sizeof(default_def_levels));
-    int16_t default_rep_levels[num_test_rows];
-    memset(default_rep_levels, 0, sizeof(default_rep_levels));
+
     //  definition levels for optional fields
-    int16_t leaf1_def_levels[num_test_rows];
-    int16_t leaf2_def_levels[num_test_rows];
-    for (int i = 0; i < num_test_rows; i++)  {
+    int16_t leaf1_def_levels[NUM_SIMPLE_TEST_ROWS];
+    int16_t leaf2_def_levels[NUM_SIMPLE_TEST_ROWS];
+    int16_t leaf3_def_levels[NUM_SIMPLE_TEST_ROWS];
+    for (int i = 0; i < NUM_SIMPLE_TEST_ROWS; i++)  {
       // leaf1 is required within the optional group1, so it is only null
       // when the group is null
       leaf1_def_levels[i] = (i % 3 == 0) ? 0 : 1;
       // leaf2 is optional, can be null in the primitive (def-level 1) or
       // struct level (def-level 0)
       leaf2_def_levels[i] = i % 3;
+      // leaf3 is required
+      leaf3_def_levels[i] = 0;
     }
 
+    int16_t rep_levels[NUM_SIMPLE_TEST_ROWS];
+    memset(rep_levels, 0, sizeof(rep_levels));
+
     // Produce values for the columns
-    std::shared_ptr<Array> arr;
-    ASSERT_OK(NullableArray<::arrow::Int32Type>(num_test_rows, 0, kDefaultSeed, &arr));
-    values_array_ = std::dynamic_pointer_cast<::arrow::Int32Array>(arr);
+    MakeValues(NUM_SIMPLE_TEST_ROWS);
     int32_t* values = reinterpret_cast<int32_t*>(values_array_->data()->mutable_data());
 
     // Create the actual parquet file
-    InitNewParquetFile(std::static_pointer_cast<GroupNode>(schema_node), num_test_rows);
+    InitNewParquetFile(std::static_pointer_cast<GroupNode>(schema_node),
+      NUM_SIMPLE_TEST_ROWS);
 
     // leaf1 column
-    WriteColumnData(num_test_rows, leaf1_def_levels, default_rep_levels, values);
+    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf1_def_levels, rep_levels, values);
     // leaf2 column
-    WriteColumnData(num_test_rows, leaf2_def_levels, default_rep_levels, values);
+    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf2_def_levels, rep_levels, values);
     // leaf3 column
-    WriteColumnData(num_test_rows, default_def_levels, default_rep_levels, values);
+    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf3_def_levels, rep_levels, values);
 
     FinalizeParquetFile();
     InitReader();
   }
+
+  NodePtr CreateDeepGroup(int depth, int num_children, Repetition::type node_repetition) {
+    std::vector<NodePtr> children;
+
+    for (int i = 0; i < num_children; i++) {
+      if (depth <= 1) {
+        children.push_back(PrimitiveNode::Make("leaf",
+          node_repetition, ParquetType::INT32));
+      } else {
+        children.push_back(CreateDeepGroup(depth - 1, num_children, node_repetition));
+      }
+    }
+
+    return NodePtr(GroupNode::Make("group", node_repetition, children));
+  }
+
+  // A deeply nested schema
+  void CreateMultiLevelNestedParquet(int num_trees, int tree_depth,
+      int num_children, int num_rows, Repetition::type node_repetition) {
+    // Create the schema
+    std::vector<NodePtr> parquet_fields;
+    for (int i = 0; i < num_trees; i++) {
+      parquet_fields.push_back(CreateDeepGroup(tree_depth, num_children,
+        node_repetition));
+    }
+    auto schema_node = GroupNode::Make("schema", Repetition::OPTIONAL, parquet_fields);
+
+    int num_columns = num_trees * std::pow(num_children, tree_depth);
+
+    int16_t def_levels[num_rows];
+    int16_t rep_levels[num_rows];
+    for (int i = 0; i < num_rows; i++) {
+      if (node_repetition == Repetition::REQUIRED) {
+        def_levels[i] = 0; // all is required
+      } else {
+        def_levels[i] = i % tree_depth; // all is optional
+      }
+      rep_levels[i] = 0; // none is repeated
+    }
+
+    // Produce values for the columns
+    MakeValues(num_rows);
+    int32_t* values = reinterpret_cast<int32_t*>(values_array_->data()->mutable_data());
+
+    // Create the actual parquet file
+    InitNewParquetFile(std::static_pointer_cast<GroupNode>(schema_node), num_rows);
+
+    for (int i = 0; i < num_columns; i++) {
+      WriteColumnData(num_rows, def_levels, rep_levels, values);
+    }
+    FinalizeParquetFile();
+    InitReader();
+  }
+
+  class DeepParquetTestVisitor : public ArrayVisitor {
+   public:
+    DeepParquetTestVisitor(Repetition::type node_repetition,
+      std::shared_ptr<::arrow::Int32Array> expected) :
+      node_repetition_(node_repetition), expected_(expected) {}
+
+    Status Validate(std::shared_ptr<Array> tree) {
+      return tree->Accept(this);
+    }
+
+    virtual Status Visit(const ::arrow::Int32Array& array) {
+      if (node_repetition_ == Repetition::REQUIRED) {
+        if (!array.Equals(expected_)) {
+          return Status::Invalid("leaf array data mismatch");
+        }
+      } else if (node_repetition_ == Repetition::OPTIONAL) {
+        if (array.length() != expected_->length()) {
+          return Status::Invalid("Bad leaf array length");
+        }
+        // expect only 1 value every `depth` row
+        if (array.null_count() != SMALL_SIZE) {
+          return Status::Invalid("Unexpected null count");
+        }
+      } else {
+        return Status::NotImplemented("Unsupported repetition");
+      }
+      return Status::OK();
+    }
+
+    virtual Status Visit(const ::arrow::StructArray& array) {
+      for (auto& child : array.fields()) {
+        if (node_repetition_ == Repetition::REQUIRED) {
+          RETURN_NOT_OK(child->Accept(this));
+        } else if (node_repetition_ == Repetition::OPTIONAL) {
+          // Null count Must be a multiple of SMALL_SIZE
+          if (array.null_count() % SMALL_SIZE != 0) {
+            return Status::Invalid("Unexpected struct null count");
+          }
+        } else {
+          return Status::NotImplemented("Unsupported repetition");
+        }
+      }
+      return Status::OK();
+    }
+
+   private:
+    Repetition::type node_repetition_;
+    std::shared_ptr<::arrow::Int32Array> expected_;
+  };
 
   std::shared_ptr<InMemoryOutputStream> nested_parquet_;
   std::shared_ptr<FileReader> reader_;
@@ -1207,11 +1320,11 @@ class TestNestedSchemaRead : public ::testing::Test {
 };
 
 TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
-  CreateNestedParquet(Repetition::OPTIONAL);
+  CreateSimpleNestedParquet(Repetition::OPTIONAL);
 
   std::shared_ptr<Table> table;
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
-  ASSERT_EQ(table->num_rows(), num_test_rows);
+  ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 2);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
 
@@ -1227,43 +1340,64 @@ TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   // validate struct and leaf arrays
 
   // validate struct array
-  ValidateArray(struct_field_array, num_test_rows / 3);
+  ValidateArray(struct_field_array, NUM_SIMPLE_TEST_ROWS / 3);
   // validate leaf1
-  ValidateColumnArray(leaf1_array, num_test_rows / 3);
+  ValidateColumnArray(leaf1_array, NUM_SIMPLE_TEST_ROWS / 3);
   // validate leaf2
-  ValidateColumnArray(leaf2_array, num_test_rows * 2/ 3);
+  ValidateColumnArray(leaf2_array, NUM_SIMPLE_TEST_ROWS * 2/ 3);
   // validate leaf3
   ValidateColumnArray(leaf3_array, 0);
 }
 
 TEST_F(TestNestedSchemaRead, ReadTablePartial) {
-  CreateNestedParquet(Repetition::OPTIONAL);
+  CreateSimpleNestedParquet(Repetition::OPTIONAL);
   std::shared_ptr<Table> table;
 
   // columns: {group1.leaf1, leaf3}
   ASSERT_OK_NO_THROW(reader_->ReadTable({0, 2}, &table));
-  ASSERT_EQ(table->num_rows(), num_test_rows);
+  ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 2);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 1);
 
   // columns: {group1.leaf1, group1.leaf2}
   ASSERT_OK_NO_THROW(reader_->ReadTable({0, 1}, &table));
-  ASSERT_EQ(table->num_rows(), num_test_rows);
+  ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
 
   // columns: {leaf3}
   ASSERT_OK_NO_THROW(reader_->ReadTable({2}, &table));
-  ASSERT_EQ(table->num_rows(), num_test_rows);
+  ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 0);
 }
 
 TEST_F(TestNestedSchemaRead, StructAndListTogetherUnsupported) {
-  CreateNestedParquet(Repetition::REPEATED);
+  CreateSimpleNestedParquet(Repetition::REPEATED);
   std::shared_ptr<Table> table;
   ASSERT_RAISES(NotImplemented, reader_->ReadTable(&table));
 }
+
+TEST_P(TestNestedSchemaRead, DeepNestedSchemaRead) {
+  const int num_trees = 10;
+  const int depth = 5;
+  const int num_children = 3;
+  int num_rows = SMALL_SIZE * depth;
+  CreateMultiLevelNestedParquet(num_trees, depth, num_children, num_rows, GetParam());
+  std::shared_ptr<Table> table;
+  ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
+  ASSERT_EQ(table->num_columns(), num_trees);
+  ASSERT_EQ(table->num_rows(), num_rows);
+
+  DeepParquetTestVisitor visitor(GetParam(), values_array_);
+  for (int i = 0; i < table->num_columns(); i++) {
+    auto tree = table->column(i)->data()->chunk(0);
+    ASSERT_OK_NO_THROW(visitor.Validate(tree));
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(Repetition_type, TestNestedSchemaRead,
+  ::testing::Values(Repetition::REQUIRED, Repetition::OPTIONAL));
 
 TEST(TestArrowReaderAdHoc, Int96BadMemoryAccess) {
   // PARQUET-995
