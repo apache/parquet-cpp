@@ -226,6 +226,9 @@ class ColumnReader::Impl {
   Status ReadByteArrayBatch(int batch_size, std::shared_ptr<Array>* out);
 
   template <typename ArrowType>
+  Status ReadFLBABatch(int batch_size, int byte_width, std::shared_ptr<Array>* out);
+
+  template <typename ArrowType>
   Status InitDataBuffer(int batch_size);
   Status InitValidBits(int batch_size);
   template <typename ArrowType, typename ParquetType>
@@ -728,8 +731,7 @@ Status ColumnReader::Impl::WrapIntoListArray(const int16_t* def_levels,
   std::shared_ptr<Field> current_field = arrow_schema->field(0);
 
   if (current_field->type()->id() == ::arrow::Type::STRUCT) {
-    return Status::NotImplemented(
-        "Structs are not yet supported.");
+    return Status::NotImplemented("Structs are not yet supported.");
   }
 
   if (descr_->max_repetition_level() > 0) {
@@ -1017,6 +1019,59 @@ Status ColumnReader::Impl::ReadByteArrayBatch(
   return WrapIntoListArray(def_levels, rep_levels, total_levels_read, out);
 }
 
+// Decimal will be stored as FixedLenByteArray?  Create the ReadFLBABatch code path
+template <typename ArrowType>
+Status ColumnReader::Impl::ReadFLBABatch(
+    int batch_size, int byte_width, std::shared_ptr<Array>* out) {
+  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
+  int total_levels_read = 0;
+  if (descr_->max_definition_level() > 0) {
+    RETURN_NOT_OK(def_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+  }
+  if (descr_->max_repetition_level() > 0) {
+    RETURN_NOT_OK(rep_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+  }
+  int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
+  int16_t* rep_levels = reinterpret_cast<int16_t*>(rep_levels_buffer_.mutable_data());
+
+  int values_to_read = batch_size;
+  BuilderType builder(pool_, ::arrow::fixed_size_binary(byte_width));
+  while ((values_to_read > 0) && column_reader_) {
+    RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(FLBA), false));
+    auto reader = dynamic_cast<TypedColumnReader<FLBAType>*>(column_reader_.get());
+    int64_t values_read;
+    int64_t levels_read;
+    auto values = reinterpret_cast<FLBA*>(values_buffer_.mutable_data());
+    PARQUET_CATCH_NOT_OK(
+        levels_read = reader->ReadBatch(values_to_read, def_levels + total_levels_read,
+            rep_levels + total_levels_read, values, &values_read));
+    values_to_read -= levels_read;
+    if (descr_->max_definition_level() == 0) {
+      for (int64_t i = 0; i < levels_read; i++) {
+        RETURN_NOT_OK(builder.Append(values[i].ptr));
+      }
+    } else {
+      int values_idx = 0;
+      int nullable_elements = descr_->schema_node()->is_optional();
+      for (int64_t i = 0; i < levels_read; i++) {
+        if (nullable_elements &&
+            (def_levels[i + total_levels_read] == (descr_->max_definition_level() - 1))) {
+          RETURN_NOT_OK(builder.AppendNull());
+        } else if (def_levels[i + total_levels_read] == descr_->max_definition_level()) {
+          RETURN_NOT_OK(builder.Append(values[values_idx].ptr));
+          values_idx++;
+        }
+      }
+      total_levels_read += levels_read;
+    }
+    if (!column_reader_->HasNext()) { NextRowGroup(); }
+  }
+
+  RETURN_NOT_OK(builder.Finish(out));
+  // Check if we should transform this array into an list array.
+  return WrapIntoListArray(def_levels, rep_levels, total_levels_read, out);
+}
+
 template <>
 Status ColumnReader::Impl::TypedReadBatch<::arrow::BinaryType, ByteArrayType>(
     int batch_size, std::shared_ptr<Array>* out) {
@@ -1057,6 +1112,12 @@ Status ColumnReader::Impl::NextBatch(int batch_size, std::shared_ptr<Array>* out
     TYPED_BATCH_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
     TYPED_BATCH_CASE(DATE32, ::arrow::Date32Type, Int32Type)
     TYPED_BATCH_CASE(DATE64, ::arrow::Date64Type, Int32Type)
+    case ::arrow::Type::FIXED_SIZE_BINARY: {
+      int32_t byte_width =
+          static_cast<::arrow::FixedSizeBinaryType*>(field_->type().get())->byte_width();
+      return ReadFLBABatch<::arrow::FixedSizeBinaryType>(batch_size, byte_width, out);
+      break;
+    }
     case ::arrow::Type::TIMESTAMP: {
       ::arrow::TimestampType* timestamp_type =
           static_cast<::arrow::TimestampType*>(field_->type().get());
