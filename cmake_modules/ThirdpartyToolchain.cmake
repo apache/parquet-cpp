@@ -72,6 +72,15 @@ set(Boost_USE_MULTITHREADED ON)
 if (PARQUET_BOOST_USE_SHARED)
   # Find shared Boost libraries.
   set(Boost_USE_STATIC_LIBS OFF)
+
+  if (MSVC)
+    # disable autolinking in boost
+    add_definitions(-DBOOST_ALL_NO_LIB)
+
+    # force all boost libraries to dynamic link
+    add_definitions(-DBOOST_ALL_DYN_LINK)
+  endif()
+
   find_package(Boost COMPONENTS regex REQUIRED)
   if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
     set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
@@ -93,7 +102,13 @@ message(STATUS "Boost include dir: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost libraries: " ${Boost_LIBRARIES})
 if (PARQUET_BOOST_USE_SHARED)
   add_library(boost_shared_regex SHARED IMPORTED)
-  set_target_properties(boost_shared_regex PROPERTIES IMPORTED_LOCATION ${BOOST_SHARED_REGEX_LIBRARY})
+  if (MSVC)
+    set_target_properties(boost_shared_regex
+                          PROPERTIES IMPORTED_IMPLIB "${BOOST_SHARED_REGEX_LIBRARY}")
+  else()
+    set_target_properties(boost_shared_regex
+                          PROPERTIES IMPORTED_LOCATION "${BOOST_SHARED_REGEX_LIBRARY}")
+  endif()
 else()
   add_library(boost_static_regex STATIC IMPORTED)
   set_target_properties(boost_static_regex PROPERTIES IMPORTED_LOCATION ${BOOST_STATIC_REGEX_LIBRARY})
@@ -101,6 +116,52 @@ endif()
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${Boost_LIBRARIES})
+
+# ----------------------------------------------------------------------
+# ZLIB
+
+if (NOT PARQUET_ZLIB_VENDORED)
+  find_package(ZLIB)
+endif()
+
+if (NOT ZLIB_FOUND)
+  set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
+  set(ZLIB_HOME "${ZLIB_PREFIX}")
+  set(ZLIB_INCLUDE_DIRS "${ZLIB_PREFIX}/include")
+  if (MSVC)
+    set(ZLIB_STATIC_LIB_NAME zlibstatic.lib)
+  else()
+    set(ZLIB_STATIC_LIB_NAME libz.a)
+  endif()
+  set(ZLIB_STATIC_LIB "${ZLIB_PREFIX}/lib/${ZLIB_STATIC_LIB_NAME}")
+  set(ZLIB_VENDORED 1)
+  set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                      -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
+                      -DCMAKE_C_FLAGS=${EP_C_FLAGS}
+                      -DBUILD_SHARED_LIBS=OFF)
+
+  if (CMAKE_VERSION VERSION_GREATER "3.2")
+    # BUILD_BYPRODUCTS is a 3.2+ feature
+    ExternalProject_Add(zlib_ep
+      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
+      BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
+      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
+  else()
+    ExternalProject_Add(zlib_ep
+      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
+      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
+  endif()
+else()
+  set(ZLIB_VENDORED 0)
+endif()
+
+include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
+add_library(zlibstatic STATIC IMPORTED)
+set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
+
+if (ZLIB_VENDORED)
+  add_dependencies(zlibstatic zlib_ep)
+endif()
 
 # ----------------------------------------------------------------------
 # Thrift
@@ -116,7 +177,11 @@ if (NOT THRIFT_FOUND)
   IF (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
     set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthriftd.a")
   ELSE()
-    set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
+    IF (MSVC)
+      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/thriftmd.lib")
+    ELSE()
+      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
+    ENDIF()
   ENDIF()
   set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
   set(THRIFT_VENDORED 1)
@@ -134,21 +199,64 @@ if (NOT THRIFT_FOUND)
                         "-DWITH_CPP=ON"
                         "-DWITH_STATIC_LIB=ON"
                         )
+  if (MSVC)
+    set (THRIFT_CMAKE_ARGS "-DLIBEVENT_ROOT=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/src/Libevent-release-2.1.7-rc"
+                           "-DFLEX_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/dist/winflexbison/win_flex.exe"
+                           "-DBISON_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/dist/winflexbison/win_bison.exe"
+                           "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}"
+                           "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
+                           "-DWITH_SHARED_LIB=OFF"
+                           ${THRIFT_CMAKE_ARGS})
+  endif()
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     # BUILD_BYPRODUCTS is a 3.2+ feature
     ExternalProject_Add(thrift_ep
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
-      CMAKE_ARGS ${THRIFT_CMAKE_ARGS})
+      CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
+      STEP_TARGETS flex_step libevent_step)
   else()
     ExternalProject_Add(thrift_ep
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      CMAKE_ARGS ${THRIFT_CMAKE_ARGS})
+      CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
+      STEP_TARGETS flex_step libevent_step)
   endif()
     set(THRIFT_VENDORED 1)
 else()
     set(THRIFT_VENDORED 0)
+endif()
+
+if (MSVC)
+  ExternalProject_Get_Property(thrift_ep SOURCE_DIR)
+
+  set(WINFLEXBISON_VERSION 2.4.9)
+  set(LIBEVENT_VERSION 2.1.7)
+
+  # Download and configure Windows build of Flex and Bison
+  ExternalProject_Add_Step(thrift_ep flex_step
+    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/dist/winflexbison &&
+            cd thirdparty/dist/winflexbison &&
+            curl -SLO https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip &&
+            ${CMAKE_COMMAND} -E tar xzf win_flex_bison-${WINFLEXBISON_VERSION}.zip
+    DEPENDERS configure
+    WORKING_DIRECTORY ${SOURCE_DIR})
+
+  # Download and build libevent
+  ExternalProject_Add_Step(thrift_ep libevent_step
+    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/src &&
+            cd thirdparty/src &&
+            curl -SLO https://github.com/nmathewson/Libevent/archive/release-${LIBEVENT_VERSION}-rc.zip &&
+            ${CMAKE_COMMAND} -E tar xzf release-${LIBEVENT_VERSION}-rc.zip &&
+            cd Libevent-release-${LIBEVENT_VERSION}-rc &&
+            nmake -f Makefile.nmake &&
+            ${CMAKE_COMMAND} -E make_directory lib &&
+            copy *.lib lib &&
+            xcopy /E /I /D WIN32-Code\\nmake include\\event2 &&
+            xcopy /E /I /D WIN32-Code\\nmake\\event2 include\\event2 &&
+            copy *.h include
+    DEPENDERS configure
+    WORKING_DIRECTORY ${SOURCE_DIR})
 endif()
 
 include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
@@ -171,8 +279,14 @@ if (NOT SNAPPY_FOUND)
   set(SNAPPY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/snappy_ep/src/snappy_ep-install")
   set(SNAPPY_HOME "${SNAPPY_PREFIX}")
   set(SNAPPY_INCLUDE_DIR "${SNAPPY_PREFIX}/include")
-  set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/libsnappy.a")
+  if (MSVC)
+    set(SNAPPY_STATIC_LIB_NAME snappystatic)
+  else()
+    set(SNAPPY_STATIC_LIB_NAME snappy)
+  endif()
+  set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${SNAPPY_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(SNAPPY_VENDORED 1)
+  set(SNAPPY_SRC_URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz")
 
   if (${UPPERCASE_BUILD_TYPE} EQUAL "RELEASE")
     if (APPLE)
@@ -182,24 +296,54 @@ if (NOT SNAPPY_FOUND)
     endif()
   endif()
 
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      INSTALL_DIR ${SNAPPY_PREFIX}
-      URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz"
-      BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}"
-      )
+  if (MSVC)
+    set(SNAPPY_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                          "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
+                          "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
+                          "-DCMAKE_INSTALL_PREFIX=${SNAPPY_PREFIX}")
+    set(SNAPPY_UPDATE_COMMAND ${CMAKE_COMMAND} -E copy
+                      ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyCMakeLists.txt
+                      ./CMakeLists.txt &&
+                      ${CMAKE_COMMAND} -E copy
+                      ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyConfig.h
+                      ./config.h)
+    if (CMAKE_VERSION VERSION_GREATER "3.2")
+      # BUILD_BYPRODUCTS is a 3.2+ feature
+      ExternalProject_Add(snappy_ep
+        UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
+        BUILD_IN_SOURCE 1
+        BUILD_COMMAND ${MAKE}
+        INSTALL_DIR ${SNAPPY_PREFIX}
+        URL ${SNAPPY_SRC_URL}
+        CMAKE_ARGS ${SNAPPY_CMAKE_ARGS}
+        BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
+    else()
+      ExternalProject_Add(snappy_ep
+        UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
+        BUILD_IN_SOURCE 1
+        BUILD_COMMAND ${MAKE}
+        INSTALL_DIR ${SNAPPY_PREFIX}
+        URL ${SNAPPY_SRC_URL}
+        CMAKE_ARGS ${SNAPPY_CMAKE_ARGS})
+    endif()
   else()
-    ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      INSTALL_DIR ${SNAPPY_PREFIX}
-      URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz"
-      )
+    if (CMAKE_VERSION VERSION_GREATER "3.2")
+      # BUILD_BYPRODUCTS is a 3.2+ feature
+      ExternalProject_Add(snappy_ep
+        CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
+        BUILD_IN_SOURCE 1
+        BUILD_COMMAND ${MAKE}
+        INSTALL_DIR ${SNAPPY_PREFIX}
+        URL ${SNAPPY_SRC_URL}
+        BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
+    else()
+      ExternalProject_Add(snappy_ep
+        CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
+        BUILD_IN_SOURCE 1
+        BUILD_COMMAND ${MAKE}
+        INSTALL_DIR ${SNAPPY_PREFIX}
+        URL ${SNAPPY_SRC_URL})
+    endif()
   endif()
 else()
     set(SNAPPY_VENDORED 0)
@@ -221,9 +365,14 @@ if (NOT BROTLI_FOUND)
   set(BROTLI_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/brotli_ep/src/brotli_ep-install")
   set(BROTLI_HOME "${BROTLI_PREFIX}")
   set(BROTLI_INCLUDE_DIR "${BROTLI_PREFIX}/include")
-  set(BROTLI_LIBRARY_ENC "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlienc.a")
-  set(BROTLI_LIBRARY_DEC "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlidec.a")
-  set(BROTLI_LIBRARY_COMMON "${BROTLI_PREFIX}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbrotlicommon.a")
+  if (MSVC)
+    set(BROTLI_LIB_DIR bin)
+  else()
+    set(BROTLI_LIB_DIR lib)
+  endif()
+  set(BROTLI_LIBRARY_ENC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlienc${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  set(BROTLI_LIBRARY_DEC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlidec${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  set(BROTLI_LIBRARY_COMMON "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlicommon${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BROTLI_VENDORED 1)
   set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                         "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
@@ -237,7 +386,8 @@ if (NOT BROTLI_FOUND)
     ExternalProject_Add(brotli_ep
       URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${BROTLI_LIBRARY_ENC}" "${BROTLI_LIBRARY_DEC}" "${BROTLI_LIBRARY_COMMON}"
-      CMAKE_ARGS ${BROTLI_CMAKE_ARGS})
+      CMAKE_ARGS ${BROTLI_CMAKE_ARGS}
+      STEP_TARGETS headers_copy)
   else()
     ExternalProject_Add(brotli_ep
       URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
@@ -245,6 +395,15 @@ if (NOT BROTLI_FOUND)
   endif()
 else()
   set(BROTLI_VENDORED 0)
+endif()
+
+if (MSVC)
+  ExternalProject_Get_Property(brotli_ep SOURCE_DIR)
+
+  ExternalProject_Add_Step(brotli_ep headers_copy
+    COMMAND xcopy /E /I include ..\\..\\..\\brotli_ep\\src\\brotli_ep-install\\include /Y
+    DEPENDEES build
+    WORKING_DIRECTORY ${SOURCE_DIR})
 endif()
 
 include_directories(SYSTEM ${BROTLI_INCLUDE_DIR})
@@ -259,47 +418,6 @@ if (BROTLI_VENDORED)
   add_dependencies(brotlistatic_enc brotli_ep)
   add_dependencies(brotlistatic_dec brotli_ep)
   add_dependencies(brotlistatic_common brotli_ep)
-endif()
-
-# ----------------------------------------------------------------------
-# ZLIB
-
-if (NOT PARQUET_ZLIB_VENDORED)
-  find_package(ZLIB)
-endif()
-
-if (NOT ZLIB_FOUND)
-  set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
-  set(ZLIB_HOME "${ZLIB_PREFIX}")
-  set(ZLIB_INCLUDE_DIR "${ZLIB_PREFIX}/include")
-  set(ZLIB_STATIC_LIB "${ZLIB_PREFIX}/lib/libz.a")
-  set(ZLIB_VENDORED 1)
-  set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                      -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
-                      -DCMAKE_C_FLAGS=${EP_C_FLAGS}
-                      -DBUILD_SHARED_LIBS=OFF)
-
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
-      BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
-      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-  else()
-    ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
-      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-  endif()
-else()
-    set(ZLIB_VENDORED 0)
-endif()
-
-include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
-add_library(zlibstatic STATIC IMPORTED)
-set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
-
-if (ZLIB_VENDORED)
-  add_dependencies(zlibstatic zlib_ep)
 endif()
 
 ## GTest
@@ -417,8 +535,16 @@ if (NOT ARROW_FOUND)
   set(ARROW_HOME "${ARROW_PREFIX}")
   set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
   set(ARROW_LIB_DIR "${ARROW_PREFIX}/lib")
-  set(ARROW_SHARED_LIB "${ARROW_LIB_DIR}/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set(ARROW_STATIC_LIB "${ARROW_LIB_DIR}/libarrow.a")
+  set(ARROW_BIN_DIR "${ARROW_PREFIX}/bin")
+  if (MSVC)
+    set(ARROW_SHARED_LIB "${ARROW_BIN_DIR}/arrow.dll")
+    set(ARROW_SHARED_IMPLIB "${ARROW_LIB_DIR}/arrow.lib")
+    set(ARROW_STATIC_LIB "${ARROW_LIB_DIR}/arrow_static.lib")
+  else()
+    set(ARROW_SHARED_LIB "${ARROW_LIB_DIR}/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(ARROW_STATIC_LIB "${ARROW_LIB_DIR}/libarrow.a")
+  endif()
+
   set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
@@ -427,6 +553,10 @@ if (NOT ARROW_FOUND)
     -DARROW_JEMALLOC=OFF
     -DARROW_IPC=OFF
     -DARROW_BUILD_TESTS=OFF)
+  
+  if (MSVC)
+    set(ARROW_CMAKE_ARGS -G "NMake Makefiles" ${ARROW_CMAKE_ARGS})
+  endif()
 
   if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
     set(ARROW_VERSION "f7ab7270bb07466dabf84c015a6db2a192eb3dad")
@@ -437,22 +567,54 @@ if (NOT ARROW_FOUND)
 
   set(ARROW_URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz")
 
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(arrow_ep
-      URL ${ARROW_URL}
-      BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
-      # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-      # to specify that the CMakeLists.txt of Arrow is located in cpp/
-      #
-      # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-      CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+  if (MSVC)
+    if (CMAKE_VERSION VERSION_GREATER "3.2")
+      # BUILD_BYPRODUCTS is a 3.2+ feature
+      ExternalProject_Add(arrow_ep
+        URL ${ARROW_URL}
+        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
+        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
+        # to specify that the CMakeLists.txt of Arrow is located in cpp/
+        #
+        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
+        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+        CMAKE_GENERATOR "NMake Makefiles"
+        CMAKE_GENERATOR_PLATFORM "x64"
+        BUILD_COMMAND nmake && nmake install
+        STEP_TARGETS copy_dll_step)
+    else()
+      ExternalProject_Add(arrow_ep
+        URL ${ARROW_URL}
+        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+        CMAKE_GENERATOR "NMake Makefiles"
+        CMAKE_GENERATOR_PLATFORM "x64"
+        BUILD_COMMAND nmake && nmake install
+        STEP_TARGETS copy_dll_step)
+    endif()
+
+    ExternalProject_Get_Property(arrow_ep SOURCE_DIR)
+    ExternalProject_Add_Step(arrow_ep copy_dll_step
+      COMMAND ${CMAKE_COMMAND} -E copy ${ARROW_SHARED_LIB} ${BUILD_OUTPUT_ROOT_DIRECTORY}
+      DEPENDEES build
+      WORKING_DIRECTORY ${SOURCE_DIR})
   else()
-    ExternalProject_Add(arrow_ep
-      URL ${ARROW_URL}
-      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-      CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+    if (CMAKE_VERSION VERSION_GREATER "3.2")
+      # BUILD_BYPRODUCTS is a 3.2+ feature
+      ExternalProject_Add(arrow_ep
+        URL ${ARROW_URL}
+        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
+        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
+        # to specify that the CMakeLists.txt of Arrow is located in cpp/
+        #
+        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
+        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+    else()
+      ExternalProject_Add(arrow_ep
+        URL ${ARROW_URL}
+        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+    endif()
   endif()
   set(ARROW_VENDORED 1)
 else()
@@ -461,7 +623,13 @@ endif()
 
 include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
 add_library(arrow SHARED IMPORTED)
-set_target_properties(arrow PROPERTIES IMPORTED_LOCATION ${ARROW_SHARED_LIB})
+if(MSVC)
+  set_target_properties(arrow
+                        PROPERTIES IMPORTED_IMPLIB "${ARROW_SHARED_IMPLIB}")
+else()
+  set_target_properties(arrow
+                        PROPERTIES IMPORTED_LOCATION "${ARROW_SHARED_LIB}")
+endif()
 add_library(arrow_static STATIC IMPORTED)
 set_target_properties(arrow_static PROPERTIES IMPORTED_LOCATION ${ARROW_STATIC_LIB})
 

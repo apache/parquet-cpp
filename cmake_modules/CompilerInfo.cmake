@@ -22,8 +22,11 @@ execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -v
 message(INFO " ${COMPILER_VERSION_FULL}")
 string(TOLOWER "${COMPILER_VERSION_FULL}" COMPILER_VERSION_FULL_LOWER)
 
+if(MSVC)
+  set(COMPILER_FAMILY "msvc")
+
 # clang on Linux and Mac OS X before 10.9
-if("${COMPILER_VERSION_FULL}" MATCHES ".*clang version.*")
+elseif("${COMPILER_VERSION_FULL}" MATCHES ".*clang version.*")
   set(COMPILER_FAMILY "clang")
   string(REGEX REPLACE ".*clang version ([0-9]+\\.[0-9]+).*" "\\1"
     COMPILER_VERSION "${COMPILER_VERSION_FULL}")

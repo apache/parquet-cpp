@@ -111,12 +111,14 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Build our own zlib (some libz.a aren't configured for static linking)"
     ON)
   option(PARQUET_RPATH_ORIGIN
-    "Build Parquet libraries with RATH set to \$ORIGIN"
+    "Build Parquet libraries with RPATH set to \$ORIGIN"
     OFF)
   option(PARQUET_MINIMAL_DEPENDENCY
     "Depend only on Thirdparty headers to build libparquet. Always OFF if building binaries"
     OFF)
 endif()
+
+include(BuildUtils)
 
 if (PARQUET_BUILD_TESTS OR PARQUET_BUILD_EXECUTABLES OR PARQUET_BUILD_BENCHMARKS)
   set(PARQUET_BUILD_STATIC ON)
@@ -283,6 +285,8 @@ function(ADD_PARQUET_TEST REL_TEST_NAME)
       COMPILE_FLAGS " -DPARQUET_VALGRIND")
     add_test(${TEST_NAME}
       valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ${TEST_PATH})
+  elseif(MSVC)
+    add_test(${TEST_NAME} ${TEST_PATH})
   else()
     add_test(${TEST_NAME}
         ${BUILD_SUPPORT_DIR}/run-test.sh ${CMAKE_BINARY_DIR} test ${TEST_PATH})
@@ -328,8 +332,12 @@ endif()
 include(ThirdpartyToolchain)
 
 # Thrift requires these definitions for some types that we use
-add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETINET_IN_H -DHAVE_NETDB_H)
-add_definitions(-fPIC)
+add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETDB_H)
+if (MSVC)
+  add_definitions(-DNOMINMAX)
+else()
+  add_definitions(-DHAVE_NETINET_IN_H -fPIC)
+endif()
 
 #############################################################
 # Compiler flags and release types
@@ -535,8 +543,10 @@ set(THRIFT_SRCS
   src/parquet/parquet_constants.cpp
   src/parquet/parquet_types.cpp)
 
-set_source_files_properties(src/parquet/parquet_types.cpp PROPERTIES
-  COMPILE_FLAGS -Wno-unused-variable)
+if (NOT MSVC)
+  set_source_files_properties(src/parquet/parquet_types.cpp PROPERTIES
+    COMPILE_FLAGS -Wno-unused-variable)
+endif()
 
 # List of thrift output targets
 set(THRIFT_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/parquet)
@@ -598,15 +608,11 @@ set(BUNDLED_STATIC_LIBS
   zlibstatic
 )
 
-add_library(parquet_objlib OBJECT
-  ${LIBPARQUET_SRCS}
-)
-
 # # Ensure that thrift compilation is done before using its generated headers
 # # in parquet code.
 add_custom_target(thrift-deps ALL
   DEPENDS ${THRIFT_OUTPUT_FILES})
-add_dependencies(parquet_objlib thrift-deps)
+set(PARQUET_DEPENDENCIES ${PARQUET_DEPENDENCIES} thrift-deps)
 
 if (NOT PARQUET_MINIMAL_DEPENDENCY)
 # These are libraries that we will link privately with parquet_shared (as they
@@ -620,57 +626,28 @@ if (NOT PARQUET_MINIMAL_DEPENDENCY)
   )
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
-  add_dependencies(parquet_objlib
-    ${LIBPARQUET_INTERFACE_LINK_LIBS})
+  set(PARQUET_DEPENDENCIES ${PARQUET_DEPENDENCIES} ${LIBPARQUET_INTERFACE_LINK_LIBS})
 endif()
 
-set_property(TARGET parquet_objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
-
-if(APPLE)
-  set(SHARED_LINK_FLAGS "-undefined dynamic_lookup")
-elseif()
+if(NOT APPLE AND NOT MSVC)
   # Localize thirdparty symbols using a linker version script. This hides them
   # from the client application. The OS X linker does not support the
   # version-script option.
   set(SHARED_LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/parquet/symbols.map")
 endif()
 
-if (PARQUET_BUILD_SHARED)
-    add_library(parquet_shared SHARED $<TARGET_OBJECTS:parquet_objlib>)
-    set_target_properties(parquet_shared
-      PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
-      LINK_FLAGS "${SHARED_LINK_FLAGS}"
-      OUTPUT_NAME "parquet"
-      VERSION "${PARQUET_ABI_VERSION}"
-      SOVERSION "${PARQUET_SO_VERSION}")
-    target_link_libraries(parquet_shared
-      LINK_PRIVATE ${LIBPARQUET_INTERFACE_LINK_LIBS})
-    if (PARQUET_RPATH_ORIGIN)
-        if (APPLE)
-            set(_lib_install_rpath "@loader_path")
-        else()
-            set(_lib_install_rpath "\$ORIGIN")
-        endif()
-        set_target_properties(parquet_shared PROPERTIES
-            INSTALL_RPATH ${_lib_install_rpath})
-    elseif (APPLE)
-      set_target_properties(parquet_shared
-        PROPERTIES
-        BUILD_WITH_INSTALL_RPATH ON
-        INSTALL_NAME_DIR "@rpath")
-    endif()
-endif()
-
-if (PARQUET_BUILD_STATIC)
-    add_library(parquet_static STATIC $<TARGET_OBJECTS:parquet_objlib>)
-    set_target_properties(parquet_static
-      PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}"
-      OUTPUT_NAME "parquet")
-    target_link_libraries(parquet_static
-      LINK_PUBLIC ${LIBPARQUET_INTERFACE_LINK_LIBS})
-endif()
+ADD_LIB(parquet
+        SOURCES ${LIBPARQUET_SRCS}
+        LIB_BUILD_SHARED ${PARQUET_BUILD_SHARED}
+        LIB_BUILD_STATIC ${PARQUET_BUILD_STATIC}
+        DEPENDENCIES ${PARQUET_DEPENDENCIES}
+        SHARED_LINK_FLAGS ${SHARED_LINK_FLAGS}
+        SHARED_PRIVATE_LINK_LIBS ${LIBPARQUET_INTERFACE_LINK_LIBS}
+        STATIC_LINK_LIBS ${LIBPARQUET_INTERFACE_LINK_LIBS}
+        ABI_VERSION ${PARQUET_ABI_VERSION}
+        SO_VERSION ${PARQUET_SO_VERSION}
+        LIB_RPATH_ORIGIN ${PARQUET_RPATH_ORIGIN}
+)
 
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
@@ -678,7 +655,9 @@ add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/util)
 
-add_subdirectory(benchmarks)
+if (NOT MSVC)
+  add_subdirectory(benchmarks)
+endif()
 add_subdirectory(examples)
 add_subdirectory(tools)
 
@@ -691,16 +670,3 @@ add_custom_target(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND ${CMAKE_COMMAND} -P cmake_modules/clean-all.cmake
 )
-
-# installation
-
-if (PARQUET_BUILD_STATIC)
-    install(TARGETS parquet_static
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif()
-if (PARQUET_BUILD_SHARED)
-    install(TARGETS parquet_shared
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif()
