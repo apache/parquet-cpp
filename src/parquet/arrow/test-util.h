@@ -105,7 +105,8 @@ template <typename ArrowType>
 typename std::enable_if<is_arrow_fixed_size_binary<ArrowType>::value, Status>::type
 NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
-  // set byte_width to the length of "fixed":
+  // set byte_width to the length of "fixed": 5
+  // todo: find a way to generate test data with more diversity.
   BuilderType builder(::arrow::default_memory_pool(), ::arrow::fixed_size_binary(5));
   for (size_t i = 0; i < size; i++) {
     builder.Append("fixed");

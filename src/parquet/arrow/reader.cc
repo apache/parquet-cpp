@@ -1019,7 +1019,6 @@ Status ColumnReader::Impl::ReadByteArrayBatch(
   return WrapIntoListArray(def_levels, rep_levels, total_levels_read, out);
 }
 
-// Decimal will be stored as FixedLenByteArray?  Create the ReadFLBABatch code path
 template <typename ArrowType>
 Status ColumnReader::Impl::ReadFLBABatch(
     int batch_size, int byte_width, std::shared_ptr<Array>* out) {

@@ -73,7 +73,6 @@ static Status FromByteArray(const PrimitiveNode* node, TypePtr* out) {
 static Status FromFLBA(const PrimitiveNode* node, TypePtr* out) {
   switch (node->logical_type()) {
     case LogicalType::NONE:
-      // use fixed_size_binary instead of binary?
       *out = ::arrow::fixed_size_binary(node->type_length());
       break;
     case LogicalType::DECIMAL:
