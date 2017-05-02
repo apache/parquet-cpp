@@ -263,3 +263,14 @@ This product includes code from the Google styleguide.
 Copyright: 2009 Google Inc. All rights reserved.
 Homepage: https://github.com/google/styleguide
 License: 3-clause BSD
+
+--------------------------------------------------------------------------------
+
+This product includes code from the Google snappy.
+
+* cmake_modules/SnappyCMakeLists.txt is based on the code from the Google snappy.
+* cmake_modules/SnappyConfig.h is based on the code from the Google snappy.
+
+Copyright: 2009 Google Inc. All rights reserved.
+Homepage: https://github.com/google/snappy
+License: 3-clause BSD

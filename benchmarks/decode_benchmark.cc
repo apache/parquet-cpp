@@ -195,9 +195,9 @@ uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_siz
   uint64_t result = 0;
   parquet::PlainDecoder<parquet::Int64Type> decoder(nullptr);
   decoder.SetData(num_values, data, num_values * sizeof(int64_t));
-  int64_t values[batch_size];
+  std::vector<int64_t> values(batch_size);
   for (int i = 0; i < num_values;) {
-    int n = decoder.Decode(values, batch_size);
+    int n = decoder.Decode(values.data(), batch_size);
     for (int j = 0; j < n; ++j) {
       result += values[j];
     }
@@ -247,13 +247,13 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
     printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / static_cast<float>(raw_len));
 
     uint64_t result = 0;
-    int64_t buf[benchmark_batch_size];
+    std::vector<int64_t> buf(benchmark_batch_size);
     parquet::StopWatch sw;
     sw.Start();
     for (int k = 0; k < benchmark_iters; ++k) {
       decoder.SetData(encoder.num_values(), buffer, len);
       for (size_t i = 0; i < values.size();) {
-        int n = decoder.Decode(buf, benchmark_batch_size);
+        int n = decoder.Decode(buf.data(), benchmark_batch_size);
         for (int j = 0; j < n; ++j) {
           result += buf[j];
         }

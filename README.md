@@ -56,6 +56,10 @@ which is required for Thrift:
 brew install boost
 ```
 
+### Windows
+
+Check [Windows developer guide][1] for instructions to build parquet-cpp on Windows.
+
 ## Third Party Dependencies
 
 - Apache Arrow (memory management, built-in IO, optional Array adapters)
@@ -265,3 +269,5 @@ coveralls -t $PARQUET_CPP_COVERAGE_TOKEN --gcov-options '\-l' -r $PARQUET_ROOT -
 
 Note that `gcov` throws off artifacts from the STL, so I excluded my toolchain
 root stored in `$NATIVE_TOOLCHAIN` to avoid a cluttered coverage report.
+
+[1]: https://github.com/apache/parquet-cpp/blob/master/docs/Windows.md
