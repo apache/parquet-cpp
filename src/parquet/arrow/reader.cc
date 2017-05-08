@@ -212,9 +212,6 @@ class FileReader::Impl {
   std::unique_ptr<ParquetFileReader> reader_;
 
   int num_threads_;
-
-  Status ColumnIndicesToFieldIndices(const std::vector<int>& indices,
-      std::vector<int>* out);
 };
 
 class ColumnReader::Impl {
@@ -339,21 +336,6 @@ Status FileReader::Impl::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
       new PrimitiveImpl(pool_, std::move(input)));
   *out = std::unique_ptr<ColumnReader>(new ColumnReader(std::move(impl)));
   return Status::OK();
-}
-
-// TODO(itaiin): The aux. functions are to be deleted once repeated structs are supported
-
-bool IsSimpleStruct(const NodePtr& node) {
-  if (!node->is_group()) return false;
-  if (node->is_repeated()) return false;
-  if (node->logical_type() == LogicalType::LIST) return false;
-  // Special case mentioned in the format spec:
-    //   If the name is array or ends in _tuple, this should be a list of struct
-    //   even for single child elements.
-  schema::GroupNode* group = static_cast<schema::GroupNode*>(node.get());
-  if (group->field_count() == 1 && HasStructListName(group)) return false;
-
-  return true;
 }
 
 Status FileReader::Impl::GetReaderForNode(int index, const NodePtr& node,
@@ -502,28 +484,6 @@ Status FileReader::Impl::ReadRowGroup(int row_group_index,
   return Status::OK();
 }
 
-Status FileReader::Impl::ColumnIndicesToFieldIndices(const std::vector<int>& indices,
-    std::vector<int>* out) {
-  auto descr = reader_->metadata()->schema();
-  std::vector<bool> fields_to_read(descr->group_node()->field_count(), false);
-  for (auto& column_index : indices) {
-    int field_idx = ColumnIndexToSchemaFieldIndex(descr, column_index);
-    if (field_idx < 0) {
-      return Status::Invalid("Invalid column index");
-    }
-    fields_to_read[field_idx] = true;
-  }
-  // Gather the indices of the relevant fields
-  out->clear();
-  for (uint i = 0; i < fields_to_read.size(); i++) {
-    if (fields_to_read[i]) {
-      out->push_back(i);
-    }
-  }
-
-  return Status::OK();
-}
-
 Status FileReader::Impl::ReadTable(
     const std::vector<int>& indices, std::shared_ptr<Table>* table) {
   std::shared_ptr<::arrow::Schema> schema;
@@ -536,7 +496,10 @@ Status FileReader::Impl::ReadTable(
   // We only need to read schema fields which have columns indicated
   // in the indices vector
   std::vector<int> field_indices;
-  RETURN_NOT_OK(ColumnIndicesToFieldIndices(indices, &field_indices));
+  if (!ColumnIndicesToFieldIndices(*reader_->metadata()->schema(),
+        indices, &field_indices)) {
+    return Status::Invalid("Invalid column index");
+  }
 
   auto ReadColumnFunc = [&indices, &field_indices, &schema, &columns, this](int i) {
     std::shared_ptr<Array> array;
@@ -1402,6 +1365,8 @@ Status StructImpl::DefLevelsToNullArray(
   return Status::OK();
 }
 
+// TODO(itaiin): Consider caching the results of this calculation -
+//   note that this is only used once for each read for now
 Status StructImpl::DefLevels(ValueLevelsPtr* out) {
   std::vector<std::shared_ptr<ValueLevels>> children_levels;
   for (auto& child : children_) {

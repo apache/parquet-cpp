@@ -38,6 +38,8 @@ class SchemaDescriptor;
 
 namespace schema {
 
+class Node;
+
 // List encodings: using the terminology from Impala to define different styles
 // of representing logical lists (a.k.a. ARRAY types) in Parquet schemas. Since
 // the converted type named in the Parquet metadata is ConvertedType::LIST we
@@ -87,6 +89,7 @@ class PARQUET_EXPORT ColumnPath {
   explicit ColumnPath(std::vector<std::string>&& path) : path_(path) {}
 
   static std::shared_ptr<ColumnPath> FromDotString(const std::string& dotstring);
+  static std::shared_ptr<ColumnPath> FromNode(const Node& node);
 
   std::shared_ptr<ColumnPath> extend(const std::string& node_name) const;
   std::string ToDotString() const;
@@ -138,6 +141,8 @@ class PARQUET_EXPORT Node {
   int id() const { return id_; }
 
   const Node* parent() const { return parent_; }
+
+  const std::shared_ptr<ColumnPath> path() const;
 
   // ToParquet returns an opaque void* to avoid exporting
   // parquet::SchemaElement into the public API
@@ -401,6 +406,9 @@ class PARQUET_EXPORT SchemaDescriptor {
   // -- -- -- c  |
   // -- -- -- -- d
   std::unordered_map<int, const schema::NodePtr> leaf_to_base_;
+
+  // Mapping between ColumnPath DotString to the column index
+  std::unordered_map<std::string, int> leaf_to_idx_;
 };
 
 }  // namespace parquet

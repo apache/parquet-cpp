@@ -1168,7 +1168,7 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     parquet_fields.push_back(
         PrimitiveNode::Make("leaf3", Repetition::REQUIRED, ParquetType::INT32));
 
-    auto schema_node = GroupNode::Make("schema", Repetition::OPTIONAL, parquet_fields);
+    auto schema_node = GroupNode::Make("schema", Repetition::REQUIRED, parquet_fields);
 
     // Create definition levels for the different columns that contain interleaved
     // nulls and values at all nesting levels
@@ -1210,19 +1210,23 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     InitReader();
   }
 
-  NodePtr CreateDeepGroup(int depth, int num_children, Repetition::type node_repetition) {
+  NodePtr CreateSingleTypedNestedGroup(int index, int depth, int num_children,
+      Repetition::type node_repetition, ParquetType::type leaf_type) {
     std::vector<NodePtr> children;
 
     for (int i = 0; i < num_children; i++) {
       if (depth <= 1) {
         children.push_back(PrimitiveNode::Make("leaf",
-          node_repetition, ParquetType::INT32));
+          node_repetition, leaf_type));
       } else {
-        children.push_back(CreateDeepGroup(depth - 1, num_children, node_repetition));
+        children.push_back(CreateSingleTypedNestedGroup(i, depth - 1, num_children,
+          node_repetition, leaf_type));
       }
     }
 
-    return NodePtr(GroupNode::Make("group", node_repetition, children));
+    std::stringstream ss;
+    ss << "group-" << depth << "-" << index;
+    return NodePtr(GroupNode::Make(ss.str(), node_repetition, children));
   }
 
   // A deeply nested schema
@@ -1231,10 +1235,10 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     // Create the schema
     std::vector<NodePtr> parquet_fields;
     for (int i = 0; i < num_trees; i++) {
-      parquet_fields.push_back(CreateDeepGroup(tree_depth, num_children,
-        node_repetition));
+      parquet_fields.push_back(CreateSingleTypedNestedGroup(i, tree_depth, num_children,
+        node_repetition, ParquetType::INT32));
     }
-    auto schema_node = GroupNode::Make("schema", Repetition::OPTIONAL, parquet_fields);
+    auto schema_node = GroupNode::Make("schema", Repetition::REQUIRED, parquet_fields);
 
     int num_columns = num_trees * std::pow(num_children, tree_depth);
 

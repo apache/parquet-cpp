@@ -648,6 +648,11 @@ TEST_F(TestSchemaDescriptor, BuildTree) {
   ASSERT_EQ(descr_.Column(4)->path()->ToDotString(), "bag.records.item2");
   ASSERT_EQ(descr_.Column(5)->path()->ToDotString(), "bag.records.item3");
 
+  for (int i = 0; i < nleaves; ++i) {
+      auto col = descr_.Column(i);
+      ASSERT_EQ(i, descr_.ColumnIndex(col->schema_node()));
+  }
+
   ASSERT_EQ(inta.get(), descr_.GetColumnRoot(0).get());
   ASSERT_EQ(bag.get(), descr_.GetColumnRoot(3).get());
   ASSERT_EQ(bag.get(), descr_.GetColumnRoot(4).get());

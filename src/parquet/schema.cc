@@ -44,6 +44,21 @@ std::shared_ptr<ColumnPath> ColumnPath::FromDotString(const std::string& dotstri
   return std::shared_ptr<ColumnPath>(new ColumnPath(std::move(path)));
 }
 
+std::shared_ptr<ColumnPath> ColumnPath::FromNode(const Node& node) {
+  // Build the path in reverse order as we traverse the nodes to the top
+  std::vector<std::string> rpath_;
+  const Node* cursor = &node;
+  // The schema node is not part of the ColumnPath
+  while (cursor->parent()) {
+    rpath_.push_back(cursor->name());
+    cursor = cursor->parent();
+  }
+
+  // Build ColumnPath in correct order
+  std::vector<std::string> path_(rpath_.crbegin(), rpath_.crend());
+  return std::make_shared<ColumnPath>(std::move(path_));
+}
+
 std::shared_ptr<ColumnPath> ColumnPath::extend(const std::string& node_name) const {
   std::vector<std::string> path;
   path.reserve(path_.size() + 1);
@@ -69,6 +84,12 @@ const std::vector<std::string>& ColumnPath::ToDotVector() const {
 
 // ----------------------------------------------------------------------
 // Base node
+
+const std::shared_ptr<ColumnPath> Node::path() const {
+  // TODO(itaiin): Cache the result, or more precisely, cache ->ToDotString()
+  //    since it is being used to access the leaf nodes
+  return ColumnPath::FromNode(*this);
+}
 
 bool Node::EqualsInternal(const Node* other) const {
   return type_ == other->type_ && name_ == other->name_ &&
@@ -595,6 +616,7 @@ void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
     // Primitive node, append to leaves
     leaves_.push_back(ColumnDescriptor(node, max_def_level, max_rep_level, this));
     leaf_to_base_.emplace(static_cast<int>(leaves_.size()) - 1, base);
+    leaf_to_idx_.emplace(node->path()->ToDotString(), leaves_.size() - 1);
   }
 }
 
@@ -621,12 +643,11 @@ const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
 }
 
 int SchemaDescriptor::ColumnIndex(const NodePtr& node) const {
-  for (uint i = 0; i < leaves_.size(); i++) {
-    if (leaves_[i].schema_node()->Equals(node.get())) {
-      return i;
-    }
+  auto search = leaf_to_idx_.find(node->path()->ToDotString());
+  if (search == leaf_to_idx_.end()) {
+    return -1;
   }
-  return -1;
+  return search->second;
 }
 
 const schema::NodePtr& SchemaDescriptor::GetColumnRoot(int i) const {
@@ -647,18 +668,7 @@ int ColumnDescriptor::type_length() const {
 }
 
 const std::shared_ptr<ColumnPath> ColumnDescriptor::path() const {
-  // Build the path in reverse order as we traverse the nodes to the top
-  std::vector<std::string> rpath_;
-  const Node* node = primitive_node_;
-  // The schema node is not part of the ColumnPath
-  while (node->parent()) {
-    rpath_.push_back(node->name());
-    node = node->parent();
-  }
-
-  // Build ColumnPath in correct order
-  std::vector<std::string> path_(rpath_.crbegin(), rpath_.crend());
-  return std::make_shared<ColumnPath>(std::move(path_));
+  return primitive_node_->path();
 }
 
 }  // namespace parquet
