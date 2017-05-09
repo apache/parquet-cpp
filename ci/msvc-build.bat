@@ -20,8 +20,16 @@
 mkdir build
 cd build
 
+SET PARQUET_TEST_DATA=%APPVEYOR_BUILD_FOLDER%\data
+
 cmake -G "%GENERATOR%" ^
-      -DCMAKE_BUILD_TYPE=Release ^
+      -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
+      -DPARQUET_BOOST_USE_SHARED=OFF ^
+      -DPARQUET_CXXFLAGS="/MP" ^
       .. || exit /B
 
-nmake || exit /B
+cmake --build . --config %CONFIGURATION% || exit /B
+
+if "%CONFIGURATION%" == "Release" (
+  ctest -VV || exit /B
+)
