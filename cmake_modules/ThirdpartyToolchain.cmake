@@ -82,7 +82,7 @@ if (PARQUET_BOOST_USE_SHARED)
   endif()
 
   find_package(Boost COMPONENTS regex REQUIRED)
-  if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
+  if ("${UPPERCASE_BUILD_TYPE}" STREQUAL "DEBUG")
     set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
   else()
     set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
@@ -91,7 +91,7 @@ else()
   # Find static Boost libraries.
   set(Boost_USE_STATIC_LIBS ON)
   find_package(Boost COMPONENTS regex REQUIRED)
-  if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
+  if ("${UPPERCASE_BUILD_TYPE}" STREQUAL "DEBUG")
     set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
   else()
     set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
@@ -129,7 +129,11 @@ if (NOT ZLIB_FOUND)
   set(ZLIB_HOME "${ZLIB_PREFIX}")
   set(ZLIB_INCLUDE_DIRS "${ZLIB_PREFIX}/include")
   if (MSVC)
-    set(ZLIB_STATIC_LIB_NAME zlibstatic.lib)
+    if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
+      set(ZLIB_STATIC_LIB_NAME zlibstaticd.lib)
+    else()
+      set(ZLIB_STATIC_LIB_NAME zlibstatic.lib)
+    endif()
   else()
     set(ZLIB_STATIC_LIB_NAME libz.a)
   endif()
@@ -175,7 +179,11 @@ if (NOT THRIFT_FOUND)
   set(THRIFT_HOME "${THRIFT_PREFIX}")
   set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
   IF (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
-    set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthriftd.a")
+    IF (MSVC)
+      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/thriftmdd.lib")
+    ELSE()
+      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthriftd.a")
+    ENDIF()
   ELSE()
     IF (MSVC)
       set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/thriftmd.lib")
@@ -206,7 +214,9 @@ if (NOT THRIFT_FOUND)
                            "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}"
                            "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
                            "-DWITH_SHARED_LIB=OFF"
+                           "-DWITH_PLUGIN=OFF"
                            ${THRIFT_CMAKE_ARGS})
+    set (THRIFT_DEPENDENCIES zlib_ep)
   endif()
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
@@ -215,12 +225,14 @@ if (NOT THRIFT_FOUND)
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS flex_step libevent_step)
+      STEP_TARGETS flex_step libevent_step
+      DEPENDS ${THRIFT_DEPENDENCIES})
   else()
     ExternalProject_Add(thrift_ep
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS flex_step libevent_step)
+      STEP_TARGETS flex_step libevent_step
+      DEPENDS ${THRIFT_DEPENDENCIES})
   endif()
     set(THRIFT_VENDORED 1)
 else()
@@ -235,27 +247,28 @@ if (MSVC)
 
   # Download and configure Windows build of Flex and Bison
   ExternalProject_Add_Step(thrift_ep flex_step
-    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/dist/winflexbison &&
-            cd thirdparty/dist/winflexbison &&
-            curl -SLO https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip &&
-            ${CMAKE_COMMAND} -E tar xzf win_flex_bison-${WINFLEXBISON_VERSION}.zip
+    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/dist/winflexbison
+    COMMAND cd thirdparty/dist/winflexbison
+    COMMAND curl -SLO https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
+    COMMAND ${CMAKE_COMMAND} -E tar xzf win_flex_bison-${WINFLEXBISON_VERSION}.zip
     DEPENDERS configure
+    DEPENDEES download
     WORKING_DIRECTORY ${SOURCE_DIR})
 
   # Download and build libevent
   ExternalProject_Add_Step(thrift_ep libevent_step
-    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/src &&
-            cd thirdparty/src &&
-            curl -SLO https://github.com/nmathewson/Libevent/archive/release-${LIBEVENT_VERSION}-rc.zip &&
-            ${CMAKE_COMMAND} -E tar xzf release-${LIBEVENT_VERSION}-rc.zip &&
-            cd Libevent-release-${LIBEVENT_VERSION}-rc &&
-            nmake -f Makefile.nmake &&
-            ${CMAKE_COMMAND} -E make_directory lib &&
-            copy *.lib lib &&
-            xcopy /E /I /D WIN32-Code\\nmake include\\event2 &&
-            xcopy /E /I /D WIN32-Code\\nmake\\event2 include\\event2 &&
-            copy *.h include
+    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/src
+    COMMAND cd thirdparty/src
+    COMMAND curl -SLO https://github.com/nmathewson/Libevent/archive/release-${LIBEVENT_VERSION}-rc.zip
+    COMMAND ${CMAKE_COMMAND} -E tar xzf release-${LIBEVENT_VERSION}-rc.zip
+    COMMAND cd Libevent-release-${LIBEVENT_VERSION}-rc
+    COMMAND ${CMAKE_COMMAND} -E make_directory build
+    COMMAND cd build
+    COMMAND ${CMAKE_COMMAND} -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=.. ..
+    COMMAND nmake
+    COMMAND nmake install
     DEPENDERS configure
+    DEPENDEES download
     WORKING_DIRECTORY ${SOURCE_DIR})
 endif()
 
@@ -554,13 +567,16 @@ if (NOT ARROW_FOUND)
     -DARROW_IPC=OFF
     -DARROW_BOOST_USE_SHARED=${PARQUET_BOOST_USE_SHARED}
     -DARROW_BUILD_TESTS=OFF)
-  
+
   if (MSVC)
-    set(ARROW_CMAKE_ARGS -G "NMake Makefiles" ${ARROW_CMAKE_ARGS})
+    set(ARROW_CMAKE_ARGS -G "NMake Makefiles" -DARROW_CXXFLAGS="/WX" ${ARROW_CMAKE_ARGS})
+    if (NOT PARQUET_BOOST_USE_SHARED)
+      set(ARROW_CMAKE_ARGS -DARROW_BOOST_USE_SHARED=OFF ${ARROW_CMAKE_ARGS})
+    endif()
   endif()
 
   if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
-    set(ARROW_VERSION "f7ab7270bb07466dabf84c015a6db2a192eb3dad")
+    set(ARROW_VERSION "2c3e111d45c056d429cef312533c9f3f96b08ae8")
   else()
     set(ARROW_VERSION "$ENV{PARQUET_ARROW_VERSION}")
   endif()
@@ -581,7 +597,7 @@ if (NOT ARROW_FOUND)
         CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
         CMAKE_GENERATOR "NMake Makefiles"
         CMAKE_GENERATOR_PLATFORM "x64"
-        BUILD_COMMAND nmake && nmake install
+        BUILD_COMMAND nmake COMMAND nmake install
         STEP_TARGETS copy_dll_step)
     else()
       ExternalProject_Add(arrow_ep
@@ -589,12 +605,13 @@ if (NOT ARROW_FOUND)
         CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
         CMAKE_GENERATOR "NMake Makefiles"
         CMAKE_GENERATOR_PLATFORM "x64"
-        BUILD_COMMAND nmake && nmake install
+        BUILD_COMMAND nmake COMMAND nmake install
         STEP_TARGETS copy_dll_step)
     endif()
 
     ExternalProject_Get_Property(arrow_ep SOURCE_DIR)
     ExternalProject_Add_Step(arrow_ep copy_dll_step
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_OUTPUT_ROOT_DIRECTORY}
       COMMAND ${CMAKE_COMMAND} -E copy ${ARROW_SHARED_LIB} ${BUILD_OUTPUT_ROOT_DIRECTORY}
       DEPENDEES build
       WORKING_DIRECTORY ${SOURCE_DIR})

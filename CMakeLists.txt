@@ -153,6 +153,17 @@ set(LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 # where to put generated binaries
 set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
+if (MSVC)
+  # define output directories to overwrite default Visual Studio generator output directories
+  FOREACH(BUILD_CONFIG ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${BUILD_CONFIG} UPPERCASE_BUILD_CONFIG)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${UPPERCASE_BUILD_CONFIG} ${BUILD_OUTPUT_ROOT_DIRECTORY})
+    set(CMAKE_PDB_OUTPUT_DIRECTORY_${UPPERCASE_BUILD_CONFIG} ${BUILD_OUTPUT_ROOT_DIRECTORY})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${UPPERCASE_BUILD_CONFIG} ${BUILD_OUTPUT_ROOT_DIRECTORY})
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${UPPERCASE_BUILD_CONFIG} ${BUILD_OUTPUT_ROOT_DIRECTORY})
+  ENDFOREACH()
+endif()
+
 ############################################################
 # Benchmarking
 ############################################################
@@ -353,6 +364,9 @@ endif()
 #   Debug symbols are stripped for reduced binary size. Add
 #   -DPARQUET_CXXFLAGS="-g" to include them
 set(CXX_FLAGS_DEBUG "-ggdb -O0")
+if (MSVC)
+  set(CXX_FLAGS_DEBUG "${CXX_FLAGS_DEBUG} /bigobj")
+endif()
 set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
 set(CXX_FLAGS_RELEASE "-O3")
 
