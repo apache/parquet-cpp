@@ -15,10 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# Sets COMPILER_FAMILY to 'clang' or 'gcc'
+# Sets COMPILER_FAMILY to 'clang' or 'gcc' or 'msvc'
 # Sets COMPILER_VERSION to the version
-execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -v
-                ERROR_VARIABLE COMPILER_VERSION_FULL)
+if(NOT MSVC)
+  set(COMPILER_VERSION_FLAG "-v")
+endif()
+execute_process(COMMAND "${CMAKE_CXX_COMPILER}" ${COMPILER_VERSION_FLAG}
+                OUTPUT_QUIET ERROR_VARIABLE COMPILER_VERSION_FULL)
 message(INFO " ${COMPILER_VERSION_FULL}")
 string(TOLOWER "${COMPILER_VERSION_FULL}" COMPILER_VERSION_FULL_LOWER)
 
