@@ -103,7 +103,7 @@ class PARQUET_EXPORT FileReader {
   ::arrow::Status ReadSchemaField(int i, std::shared_ptr<::arrow::Array>* out);
 
   // Reads a specific top level schema field into an Array
-  // Read only the indicated child columns
+  // Read only the indicated leaf columns
   ::arrow::Status ReadSchemaField(int i, const std::vector<int>& indices,
       std::shared_ptr<::arrow::Array>* out);
 

@@ -250,6 +250,21 @@ bool GroupNode::Equals(const Node* other) const {
   return EqualsInternal(static_cast<const GroupNode*>(other));
 }
 
+int GroupNode::FieldIndex(NodePtr& node) const {
+  auto search = field_name_to_idx_.find(node->name());
+  if (search == field_name_to_idx_.end()) {
+    // Not found
+    return -1;
+  }
+  int result = search->second;
+  DCHECK(result < field_count());
+  if (!node->Equals(field(result).get())) {
+    // Same name but not the same node
+    return -1;
+  }
+  return result;
+}
+
 void GroupNode::Visit(Node::Visitor* visitor) {
   visitor->Visit(this);
 }
@@ -645,9 +660,16 @@ const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
 int SchemaDescriptor::ColumnIndex(const NodePtr& node) const {
   auto search = leaf_to_idx_.find(node->path()->ToDotString());
   if (search == leaf_to_idx_.end()) {
+    // Not found
     return -1;
   }
-  return search->second;
+  int result = search->second;
+  DCHECK(result < num_columns());
+  if (!node->Equals(Column(result)->schema_node().get())) {
+    // Same path but not the same node
+    return -1;
+  }
+  return result;
 }
 
 const schema::NodePtr& SchemaDescriptor::GetColumnRoot(int i) const {

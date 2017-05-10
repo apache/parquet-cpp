@@ -254,6 +254,7 @@ class PARQUET_EXPORT GroupNode : public Node {
   bool Equals(const Node* other) const override;
 
   const NodePtr& field(int i) const { return fields_[i]; }
+  int FieldIndex(NodePtr& node) const;
 
   int field_count() const { return static_cast<int>(fields_.size()); }
 
@@ -266,16 +267,23 @@ class PARQUET_EXPORT GroupNode : public Node {
       const NodeVector& fields, LogicalType::type logical_type = LogicalType::NONE,
       int id = -1)
       : Node(Node::GROUP, name, repetition, logical_type, id), fields_(fields) {
+    field_name_to_idx_.clear();
+    auto field_idx = 0;
     for (NodePtr& field : fields_) {
       field->SetParent(this);
+      field_name_to_idx_[field->name()] = field_idx++;
     }
   }
 
   NodeVector fields_;
   bool EqualsInternal(const GroupNode* other) const;
 
+  // Mapping between field name to the field index
+  std::unordered_map<std::string, int> field_name_to_idx_;
+
   FRIEND_TEST(TestGroupNode, Attrs);
   FRIEND_TEST(TestGroupNode, Equals);
+  FRIEND_TEST(TestGroupNode, FieldIndex);
 };
 
 // ----------------------------------------------------------------------
@@ -407,7 +415,7 @@ class PARQUET_EXPORT SchemaDescriptor {
   // -- -- -- -- d
   std::unordered_map<int, const schema::NodePtr> leaf_to_base_;
 
-  // Mapping between ColumnPath DotString to the column index
+  // Mapping between ColumnPath DotString to the leaf index
   std::unordered_map<std::string, int> leaf_to_idx_;
 };
 

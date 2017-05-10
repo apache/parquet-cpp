@@ -333,6 +333,21 @@ TEST_F(TestGroupNode, Equals) {
   ASSERT_FALSE(group5.Equals(&group4));
 }
 
+TEST_F(TestGroupNode, FieldIndex) {
+  NodeVector fields = Fields1();
+  GroupNode group("group", Repetition::REQUIRED, fields);
+  for (size_t i = 0; i < fields.size(); i++) {
+      auto field = group.field(i);
+      ASSERT_EQ(i, group.FieldIndex(field));
+  }
+
+  // Test a non field node
+  auto non_field_alien = Int32("alien", Repetition::REQUIRED); // other name
+  auto non_field_familiar = Int32("one", Repetition::REPEATED); // other node
+  ASSERT_TRUE(group.FieldIndex(non_field_alien) < 0);
+  ASSERT_TRUE(group.FieldIndex(non_field_familiar) < 0);
+}
+
 // ----------------------------------------------------------------------
 // Test convert group
 
@@ -652,6 +667,12 @@ TEST_F(TestSchemaDescriptor, BuildTree) {
       auto col = descr_.Column(i);
       ASSERT_EQ(i, descr_.ColumnIndex(col->schema_node()));
   }
+
+  // Test non-column nodes find
+  NodePtr non_column_alien = Int32("alien", Repetition::REQUIRED); // other path
+  NodePtr non_column_familiar = Int32("a", Repetition::REPEATED); // other node
+  ASSERT_TRUE(descr_.ColumnIndex(non_column_alien) < 0);
+  ASSERT_TRUE(descr_.ColumnIndex(non_column_familiar) < 0);
 
   ASSERT_EQ(inta.get(), descr_.GetColumnRoot(0).get());
   ASSERT_EQ(bag.get(), descr_.GetColumnRoot(3).get());

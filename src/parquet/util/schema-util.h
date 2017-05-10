@@ -20,7 +20,7 @@
 
 #include <string>
 #include <vector>
-#include <algorithm>
+#include <unordered_set>
 
 #include "parquet/exception.h"
 #include "parquet/schema.h"
@@ -31,6 +31,7 @@ using parquet::ParquetException;
 using parquet::SchemaDescriptor;
 using parquet::schema::GroupNode;
 using parquet::schema::NodePtr;
+using parquet::schema::Node;
 using parquet::LogicalType;
 
 inline bool str_endswith_tuple(const std::string& str) {
@@ -65,35 +66,16 @@ inline bool IsSimpleStruct(const NodePtr& node) {
 inline bool ColumnIndicesToFieldIndices(const SchemaDescriptor& descr,
     const std::vector<int>& column_indices, std::vector<int>* out) {
   auto group = descr.group_node();
-  auto num_fields = group->field_count();
-  std::vector<bool> fields_to_read(descr.group_node()->field_count(), false);
-  // Copy the indices vector and then sort it.
-  // This ensures the corresponding schema field indices of the columns are
-  // monotonic too which enables a single-pass.
-  std::vector<int> sorted_column_indices = column_indices;
-  std::sort(sorted_column_indices.begin(), sorted_column_indices.end());
-  auto field_idx = 0;
-  for (auto& column_index : sorted_column_indices) {
-    auto field_node = descr.GetColumnRoot(column_index);
-    // look for the corresponding field index
-    while ((field_idx < num_fields) &&
-           (group->field(field_idx) != field_node)) {
-      field_idx++;
-    }
-
-    if (field_idx == num_fields) {
-      // not found
+  std::unordered_set<int> already_added;
+  out->clear();
+  for (auto& column_idx : column_indices) {
+    auto field_node = descr.GetColumnRoot(column_idx);
+    auto field_idx = group->FieldIndex(field_node);
+    if (field_idx < 0) {
       return false;
     }
-    fields_to_read[field_idx] = true;
-  }
-
-  // Gather the indices of the relevant fields
-  out->clear();
-  for (uint i = 0; i < fields_to_read.size(); i++) {
-    if (fields_to_read[i]) {
-      out->push_back(i);
-    }
+    auto insertion = already_added.insert(field_idx);
+    if (insertion.second) { out->push_back(field_idx); }
   }
 
   return true;
