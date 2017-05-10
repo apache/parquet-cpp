@@ -18,15 +18,24 @@
 # Sets COMPILER_FAMILY to 'clang' or 'gcc' or 'msvc'
 # Sets COMPILER_VERSION to the version
 if(NOT MSVC)
-  set(COMPILER_VERSION_FLAG "-v")
+  set(COMPILER_GET_VERSION_SWITCH "-v")
 endif()
-execute_process(COMMAND "${CMAKE_CXX_COMPILER}" ${COMPILER_VERSION_FLAG}
-                OUTPUT_QUIET ERROR_VARIABLE COMPILER_VERSION_FULL)
-message(INFO " ${COMPILER_VERSION_FULL}")
+
+execute_process(COMMAND "${CMAKE_CXX_COMPILER}" ${COMPILER_GET_VERSION_SWITCH}
+                OUTPUT_VARIABLE COMPILER_VERSION_FULL
+                ERROR_VARIABLE COMPILER_VERSION_FULL)
+message(STATUS "Compiler id: ${CMAKE_CXX_COMPILER_ID}")
 string(TOLOWER "${COMPILER_VERSION_FULL}" COMPILER_VERSION_FULL_LOWER)
 
 if(MSVC)
   set(COMPILER_FAMILY "msvc")
+  if ("${COMPILER_VERSION_FULL}" MATCHES ".*Microsoft \\(R\\) C/C\\+\\+ Optimizing Compiler Version 19.*x64")
+    string(REGEX REPLACE ".*Optimizing Compiler Version ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*" "\\1"
+      COMPILER_VERSION "${COMPILER_VERSION_FULL}")
+  elseif(NOT "${COMPILER_VERSION_FULL}" STREQUAL "")
+    message(FATAL_ERROR "Not supported MSVC compiler:\n${COMPILER_VERSION_FULL}\n"
+      "Supported MSVC versions: Visual Studio 2015 2017 x64")
+  endif()
 
 # clang on Linux and Mac OS X before 10.9
 elseif("${COMPILER_VERSION_FULL}" MATCHES ".*clang version.*")
