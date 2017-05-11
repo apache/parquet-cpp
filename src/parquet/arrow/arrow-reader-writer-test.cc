@@ -1174,9 +1174,9 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     // nulls and values at all nesting levels
 
     //  definition levels for optional fields
-    int16_t leaf1_def_levels[NUM_SIMPLE_TEST_ROWS];
-    int16_t leaf2_def_levels[NUM_SIMPLE_TEST_ROWS];
-    int16_t leaf3_def_levels[NUM_SIMPLE_TEST_ROWS];
+    std::vector<int16_t> leaf1_def_levels(NUM_SIMPLE_TEST_ROWS);
+    std::vector<int16_t> leaf2_def_levels(NUM_SIMPLE_TEST_ROWS);
+    std::vector<int16_t> leaf3_def_levels(NUM_SIMPLE_TEST_ROWS);
     for (int i = 0; i < NUM_SIMPLE_TEST_ROWS; i++)  {
       // leaf1 is required within the optional group1, so it is only null
       // when the group is null
@@ -1188,8 +1188,7 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
       leaf3_def_levels[i] = 0;
     }
 
-    int16_t rep_levels[NUM_SIMPLE_TEST_ROWS];
-    memset(rep_levels, 0, sizeof(rep_levels));
+    std::vector<int16_t> rep_levels(NUM_SIMPLE_TEST_ROWS, 0);
 
     // Produce values for the columns
     MakeValues(NUM_SIMPLE_TEST_ROWS);
@@ -1200,11 +1199,14 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
       NUM_SIMPLE_TEST_ROWS);
 
     // leaf1 column
-    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf1_def_levels, rep_levels, values);
+    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf1_def_levels.data(),
+      rep_levels.data(), values);
     // leaf2 column
-    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf2_def_levels, rep_levels, values);
+    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf2_def_levels.data(),
+      rep_levels.data(), values);
     // leaf3 column
-    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf3_def_levels, rep_levels, values);
+    WriteColumnData(NUM_SIMPLE_TEST_ROWS, leaf3_def_levels.data(),
+      rep_levels.data(), values);
 
     FinalizeParquetFile();
     InitReader();
@@ -1242,8 +1244,8 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
 
     int num_columns = num_trees * std::pow(num_children, tree_depth);
 
-    int16_t def_levels[num_rows];
-    int16_t rep_levels[num_rows];
+    std::vector<int16_t> def_levels(num_rows);
+    std::vector<int16_t> rep_levels(num_rows);
     for (int i = 0; i < num_rows; i++) {
       if (node_repetition == Repetition::REQUIRED) {
         def_levels[i] = 0; // all is required
@@ -1261,7 +1263,7 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     InitNewParquetFile(std::static_pointer_cast<GroupNode>(schema_node), num_rows);
 
     for (int i = 0; i < num_columns; i++) {
-      WriteColumnData(num_rows, def_levels, rep_levels, values);
+      WriteColumnData(num_rows, def_levels.data(), rep_levels.data(), values);
     }
     FinalizeParquetFile();
     InitReader();

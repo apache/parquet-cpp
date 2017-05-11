@@ -1352,7 +1352,7 @@ Status StructImpl::DefLevelsToNullArray(
 
   RETURN_NOT_OK(CreateBitmap(def_levels->size(), &null_bitmap));
   uint8_t* null_bitmap_ptr = null_bitmap->mutable_data();
-  for (uint i = 0; i < def_levels->size(); i++) {
+  for (size_t i = 0; i < def_levels->size(); i++) {
     if ((*def_levels)[i] < struct_def_level_) {
       // Mark null
       null_count += 1;
