@@ -363,12 +363,13 @@ endif()
 #   -O3: Enable all compiler optimizations
 #   Debug symbols are stripped for reduced binary size. Add
 #   -DPARQUET_CXXFLAGS="-g" to include them
-set(CXX_FLAGS_DEBUG "-ggdb -O0")
 if (MSVC)
-  set(CXX_FLAGS_DEBUG "${CXX_FLAGS_DEBUG} /bigobj")
+  set(CXX_FLAGS_DEBUG "${CXX_FLAGS_DEBUG} /bigobj") # TODO set /bigobj only for specific lib
+else()
+  set(CXX_FLAGS_DEBUG "-ggdb -O0")
+  set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
+  set(CXX_FLAGS_RELEASE "-O3")
 endif()
-set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
-set(CXX_FLAGS_RELEASE "-O3")
 
 string (TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 
@@ -385,7 +386,12 @@ endif ()
 
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
-SET(CMAKE_CXX_FLAGS "${PARQUET_CXXFLAGS} ${CMAKE_CXX_FLAGS} -std=c++11 -Wall -fno-strict-aliasing")
+set(CMAKE_CXX_FLAGS "${PARQUET_CXXFLAGS} ${CMAKE_CXX_FLAGS}")
+if (MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W3")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-strict-aliasing -Wall")
+endif()
 
 if (PARQUET_USE_SSE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")

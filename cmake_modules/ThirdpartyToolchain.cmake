@@ -22,9 +22,15 @@ set(THRIFT_VERSION "0.10.0")
 set(BROTLI_VERSION "v0.6.0")
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
-# Set -fPIC on all external projects and include the main CXX_FLAGS
-set(EP_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
-set(EP_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}} -fPIC")
+
+set(EP_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}}")
+set(EP_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}}")
+
+if (NOT MSVC)
+  # Set -fPIC on all external projects
+  set(EP_CXX_FLAGS "${EP_CXX_FLAGS} -fPIC")
+  set(EP_C_FLAGS "${EP_C_FLAGS} -fPIC")
+endif()
 
 # ----------------------------------------------------------------------
 # Configure toolchain with environment variables, if the exist
