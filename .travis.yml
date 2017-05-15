@@ -43,6 +43,7 @@ matrix:
   - compiler: gcc
     os: linux
     env: GROUP=toolchain
+    before_script:
     script:
     - $TRAVIS_BUILD_DIR/ci/travis_script_toolchain.sh
   - compiler: clang
