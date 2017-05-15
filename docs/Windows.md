@@ -30,29 +30,8 @@ We recommend using packages from [conda-forge][2].
 Launch cmd.exe and run following to bootstrap a build environment:
 
 ```shell
-conda create -n parquet-dev cmake git boost-cpp curl zlib snappy arrow-cpp brotli thrift-cpp -c conda-forge
+conda create -n parquet-dev cmake git boost-cpp curl zlib snappy -c conda-forge
 ```
-
-To allow cmake to pick up 3rd party dependencies, you should set
-`PARQUET_BUILD_TOOLCHAIN` environment variable to contain `Library` folder
-path of new created on previous step `parquet-dev` conda environment.
-For instance, if `Miniconda` was installed to default destination, `Library`
-folder path for `parquet-dev` conda environment will be as following:
-
-```shell
-C:\Users\YOUR_USER_NAME\Miniconda3\envs\parquet-dev\Library
-```
-
-As alternative to `PARQUET_BUILD_TOOLCHAIN`, it's possible to configure path
-to each 3rd party dependency separately by setting appropriate environment
-variable:
-
-`BOOST_ROOT` variable with path to `boost` installation  
-`THRIFT_HOME` variable with path to `thrift-cpp` installation  
-`SNAPPY_HOME` variable with path to `snappy` installation  
-`ZLIB_HOME` variable with path to `zlib` installation  
-`BROTLI_HOME` variable with path to `brotli` installation  
-`ARROW_HOME` variable with path to `arrow` installation
 
 ### Visual Studio
 
@@ -88,25 +67,6 @@ mkdir build
 cd build
 cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release ..
 nmake
-```
-
-## Building with Visual Studio cmake generator
-
-Activate your conda build environment:
-
-```
-activate parquet-dev
-```
-
-Change working directory in cmd.exe to the root directory of parquet-cpp and
-do an out of source build:
-
-```
-cd %PARQUET_ROOT_SOURCES_DIRECTORY%
-mkdir build
-cd build
-cmake -G "Visual Studio 14 2015 Win64" -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release
 ```
 
 When using conda, only release builds are currently supported.

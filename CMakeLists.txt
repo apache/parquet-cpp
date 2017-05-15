@@ -116,16 +116,6 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_MINIMAL_DEPENDENCY
     "Depend only on Thirdparty headers to build libparquet. Always OFF if building binaries"
     OFF)
-  set(ARROW_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
-    "Arrow static lib suffix used on Windows with MSVC (default _static)")
-  set(BROTLI_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
-    "Brotli static lib suffix used on Windows with MSVC (default _static)")
-  set(SNAPPY_MSVC_STATIC_LIB_SUFFIX "" CACHE STRING
-    "Snappy static lib suffix used on Windows with MSVC (default is empty string)")
-  set(THRIFT_MSVC_STATIC_LIB_SUFFIX "md" CACHE STRING
-    "Thrift static lib suffix used on Windows with MSVC (default md)")
-  set(ZLIB_MSVC_STATIC_LIB_SUFFIX "libstatic" CACHE STRING
-    "Zlib static lib suffix used on Windows with MSVC (default libstatic)")
 endif()
 
 include(BuildUtils)
