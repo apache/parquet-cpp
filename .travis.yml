@@ -40,6 +40,11 @@ matrix:
   include:
   - compiler: gcc
     os: linux
+  - compiler: gcc
+    os: linux
+    env: GROUP=toolchain
+    script:
+    - $TRAVIS_BUILD_DIR/ci/travis_script_toolchain.sh
   - compiler: clang
     os: linux
   - compiler: clang
