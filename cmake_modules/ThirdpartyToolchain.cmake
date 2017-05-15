@@ -240,43 +240,42 @@ if (NOT THRIFT_FOUND)
       STEP_TARGETS flex_step libevent_step
       DEPENDS ${THRIFT_DEPENDENCIES})
   endif()
-
-  if (MSVC)
-    ExternalProject_Get_Property(thrift_ep SOURCE_DIR)
-
-    set(WINFLEXBISON_VERSION 2.4.9)
-    set(LIBEVENT_VERSION 2.1.7)
-
-    # Download and configure Windows build of Flex and Bison
-    ExternalProject_Add_Step(thrift_ep flex_step
-      COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/dist/winflexbison
-      COMMAND cd thirdparty/dist/winflexbison
-      COMMAND curl -SLO https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
-      COMMAND ${CMAKE_COMMAND} -E tar xzf win_flex_bison-${WINFLEXBISON_VERSION}.zip
-      DEPENDERS configure
-      DEPENDEES download
-      WORKING_DIRECTORY ${SOURCE_DIR})
-
-    # Download and build libevent
-    ExternalProject_Add_Step(thrift_ep libevent_step
-      COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/src
-      COMMAND cd thirdparty/src
-      COMMAND curl -SLO https://github.com/nmathewson/Libevent/archive/release-${LIBEVENT_VERSION}-rc.zip
-      COMMAND ${CMAKE_COMMAND} -E tar xzf release-${LIBEVENT_VERSION}-rc.zip
-      COMMAND cd Libevent-release-${LIBEVENT_VERSION}-rc
-      COMMAND ${CMAKE_COMMAND} -E make_directory build
-      COMMAND cd build
-      COMMAND ${CMAKE_COMMAND} -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=.. ..
-      COMMAND nmake
-      COMMAND nmake install
-      DEPENDERS configure
-      DEPENDEES download
-      WORKING_DIRECTORY ${SOURCE_DIR})
-  endif()
-
-  set(THRIFT_VENDORED 1)
+    set(THRIFT_VENDORED 1)
 else()
-  set(THRIFT_VENDORED 0)
+    set(THRIFT_VENDORED 0)
+endif()
+
+if (MSVC)
+  ExternalProject_Get_Property(thrift_ep SOURCE_DIR)
+
+  set(WINFLEXBISON_VERSION 2.4.9)
+  set(LIBEVENT_VERSION 2.1.7)
+
+  # Download and configure Windows build of Flex and Bison
+  ExternalProject_Add_Step(thrift_ep flex_step
+    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/dist/winflexbison
+    COMMAND cd thirdparty/dist/winflexbison
+    COMMAND curl -SLO https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
+    COMMAND ${CMAKE_COMMAND} -E tar xzf win_flex_bison-${WINFLEXBISON_VERSION}.zip
+    DEPENDERS configure
+    DEPENDEES download
+    WORKING_DIRECTORY ${SOURCE_DIR})
+
+  # Download and build libevent
+  ExternalProject_Add_Step(thrift_ep libevent_step
+    COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/src
+    COMMAND cd thirdparty/src
+    COMMAND curl -SLO https://github.com/nmathewson/Libevent/archive/release-${LIBEVENT_VERSION}-rc.zip
+    COMMAND ${CMAKE_COMMAND} -E tar xzf release-${LIBEVENT_VERSION}-rc.zip
+    COMMAND cd Libevent-release-${LIBEVENT_VERSION}-rc
+    COMMAND ${CMAKE_COMMAND} -E make_directory build
+    COMMAND cd build
+    COMMAND ${CMAKE_COMMAND} -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=.. ..
+    COMMAND nmake
+    COMMAND nmake install
+    DEPENDERS configure
+    DEPENDEES download
+    WORKING_DIRECTORY ${SOURCE_DIR})
 endif()
 
 include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
@@ -413,16 +412,17 @@ if (NOT BROTLI_FOUND)
       URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
       CMAKE_ARGS ${BROTLI_CMAKE_ARGS})
   endif()
-  if (MSVC)
-    ExternalProject_Get_Property(brotli_ep SOURCE_DIR)
-
-    ExternalProject_Add_Step(brotli_ep headers_copy
-      COMMAND xcopy /E /I include ..\\..\\..\\brotli_ep\\src\\brotli_ep-install\\include /Y
-      DEPENDEES build
-      WORKING_DIRECTORY ${SOURCE_DIR})
-  endif()
 else()
   set(BROTLI_VENDORED 0)
+endif()
+
+if (MSVC)
+  ExternalProject_Get_Property(brotli_ep SOURCE_DIR)
+
+  ExternalProject_Add_Step(brotli_ep headers_copy
+    COMMAND xcopy /E /I include ..\\..\\..\\brotli_ep\\src\\brotli_ep-install\\include /Y
+    DEPENDEES build
+    WORKING_DIRECTORY ${SOURCE_DIR})
 endif()
 
 include_directories(SYSTEM ${BROTLI_INCLUDE_DIR})
