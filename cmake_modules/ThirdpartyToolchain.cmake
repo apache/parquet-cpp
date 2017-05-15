@@ -218,14 +218,13 @@ if (NOT THRIFT_FOUND)
       CONFIGURE_COMMAND "" BUILD_COMMAND "" INSTALL_COMMAND "")
     set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} winflexbison_ep)
 
-    set(THRIFT_CMAKE_ARGS "-DLIBEVENT_ROOT=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/src/Libevent-release-2.1.7-rc"
+    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
                           "-DFLEX_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_flex.exe"
                           "-DBISON_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_bison.exe"
                           "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}"
                           "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
                           "-DWITH_SHARED_LIB=OFF"
-                          "-DWITH_PLUGIN=OFF"
-                          ${THRIFT_CMAKE_ARGS})
+                          "-DWITH_PLUGIN=OFF")
     if (ZLIB_VENDORED)
       set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} zlib_ep)
     endif()
@@ -237,36 +236,12 @@ if (NOT THRIFT_FOUND)
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS libevent_step
       DEPENDS ${THRIFT_DEPENDENCIES})
   else()
     ExternalProject_Add(thrift_ep
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS libevent_step
       DEPENDS ${THRIFT_DEPENDENCIES})
-  endif()
-
-  if (MSVC)
-    ExternalProject_Get_Property(thrift_ep SOURCE_DIR)
-
-    set(LIBEVENT_VERSION 2.1.7)
-
-    # Download and build libevent
-    ExternalProject_Add_Step(thrift_ep libevent_step
-      COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/src
-      COMMAND cd thirdparty/src
-      COMMAND curl -SLO https://github.com/nmathewson/Libevent/archive/release-${LIBEVENT_VERSION}-rc.zip
-      COMMAND ${CMAKE_COMMAND} -E tar xzf release-${LIBEVENT_VERSION}-rc.zip
-      COMMAND cd Libevent-release-${LIBEVENT_VERSION}-rc
-      COMMAND ${CMAKE_COMMAND} -E make_directory build
-      COMMAND cd build
-      COMMAND ${CMAKE_COMMAND} -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=.. ..
-      COMMAND nmake
-      COMMAND nmake install
-      DEPENDERS configure
-      DEPENDEES download
-      WORKING_DIRECTORY ${SOURCE_DIR})
   endif()
 
   set(THRIFT_VENDORED 1)
