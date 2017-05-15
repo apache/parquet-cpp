@@ -70,13 +70,24 @@ else ()
 endif ()
 
 if (THRIFT_FOUND)
-  if (NOT THRIFT_FIND_QUIETLY)
+  if (NOT Thrift_FIND_QUIETLY)
     message(STATUS "Thrift version: ${THRIFT_VERSION}")
   endif ()
 else ()
-  message(STATUS "Thrift compiler/libraries NOT found. "
-          "Thrift support will be disabled (${THRIFT_RETURN}, "
-          "${THRIFT_INCLUDE_DIR}, ${THRIFT_STATIC_LIB})")
+  if (NOT Thrift_FIND_QUIETLY)
+    set(THRIFT_ERR_MSG "Thrift compiler/libraries NOT found: ${THRIFT_RETURN}")
+    set(THRIFT_ERR_MSG "${THRIFT_ERR_MSG} (${THRIFT_INCLUDE_DIR}, ${THRIFT_STATIC_LIB}).")
+    if ( _thrift_roots )
+      set(THRIFT_ERR_MSG "${THRIFT_ERR_MSG} Looked in ${_thrift_roots}.")
+    else ()
+      set(THRIFT_ERR_MSG "${THRIFT_ERR_MSG} Looked in system search paths.")
+    endif ()
+    if ( Thrift_FIND_REQUIRED )
+      message(FATAL_ERROR "${THRIFT_ERR_MSG}")
+    else ()
+      message(STATUS "${THRIFT_ERR_MSG}")
+    endif ()
+  endif ()
 endif ()
 
 
