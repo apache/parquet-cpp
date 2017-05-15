@@ -214,15 +214,27 @@ if (NOT THRIFT_FOUND)
                         "-DWITH_STATIC_LIB=ON"
                         )
   if (MSVC)
-    set (THRIFT_CMAKE_ARGS "-DLIBEVENT_ROOT=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/src/Libevent-release-2.1.7-rc"
-                           "-DFLEX_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/dist/winflexbison/win_flex.exe"
-                           "-DBISON_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/dist/winflexbison/win_bison.exe"
-                           "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}"
-                           "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
-                           "-DWITH_SHARED_LIB=OFF"
-                           "-DWITH_PLUGIN=OFF"
-                           ${THRIFT_CMAKE_ARGS})
-    set (THRIFT_DEPENDENCIES zlib_ep)
+    set(WINFLEXBISON_VERSION 2.4.9)
+
+    set(WINFLEXBISON_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/winflexbison_ep/src/winflexbison_ep-install")
+    ExternalProject_Add(winflexbison_ep
+      URL https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
+      URL_HASH MD5=a2e979ea9928fbf8567e995e9c0df765
+      SOURCE_DIR ${WINFLEXBISON_PREFIX}
+      CONFIGURE_COMMAND "" BUILD_COMMAND "" INSTALL_COMMAND "")
+    set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} winflexbison_ep)
+
+    set(THRIFT_CMAKE_ARGS "-DLIBEVENT_ROOT=${CMAKE_CURRENT_BINARY_DIR}/thrift_ep-prefix/src/thrift_ep/thirdparty/src/Libevent-release-2.1.7-rc"
+                          "-DFLEX_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_flex.exe"
+                          "-DBISON_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_bison.exe"
+                          "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}"
+                          "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
+                          "-DWITH_SHARED_LIB=OFF"
+                          "-DWITH_PLUGIN=OFF"
+                          ${THRIFT_CMAKE_ARGS})
+    if (ZLIB_VENDORED)
+      set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} zlib_ep)
+    endif()
   endif()
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
@@ -231,31 +243,20 @@ if (NOT THRIFT_FOUND)
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS flex_step libevent_step
+      STEP_TARGETS libevent_step
       DEPENDS ${THRIFT_DEPENDENCIES})
   else()
     ExternalProject_Add(thrift_ep
       URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
       CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS flex_step libevent_step
+      STEP_TARGETS libevent_step
       DEPENDS ${THRIFT_DEPENDENCIES})
   endif()
 
   if (MSVC)
     ExternalProject_Get_Property(thrift_ep SOURCE_DIR)
 
-    set(WINFLEXBISON_VERSION 2.4.9)
     set(LIBEVENT_VERSION 2.1.7)
-
-    # Download and configure Windows build of Flex and Bison
-    ExternalProject_Add_Step(thrift_ep flex_step
-      COMMAND ${CMAKE_COMMAND} -E make_directory thirdparty/dist/winflexbison
-      COMMAND cd thirdparty/dist/winflexbison
-      COMMAND curl -SLO https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
-      COMMAND ${CMAKE_COMMAND} -E tar xzf win_flex_bison-${WINFLEXBISON_VERSION}.zip
-      DEPENDERS configure
-      DEPENDEES download
-      WORKING_DIRECTORY ${SOURCE_DIR})
 
     # Download and build libevent
     ExternalProject_Add_Step(thrift_ep libevent_step
