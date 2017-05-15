@@ -22,14 +22,30 @@ cd build
 
 SET PARQUET_TEST_DATA=%APPVEYOR_BUILD_FOLDER%\data
 
-cmake -G "%GENERATOR%" ^
-      -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
+if "%CONFIGURATION%" == "Toolchain" (
+  set PARQUET_BUILD_TOOLCHAIN=%MINICONDA%/Library
+
+  cmake -G "%GENERATOR%" ^
+      -DCMAKE_BUILD_TYPE=Release ^
       -DPARQUET_BOOST_USE_SHARED=OFF ^
       -DPARQUET_CXXFLAGS="/MP" ^
+      -DPARQUET_ZLIB_VENDORED=OFF ^
       .. || exit /B
 
-cmake --build . --config %CONFIGURATION% || exit /B
-
-if "%CONFIGURATION%" == "Release" (
+  cmake --build . --config Release || exit /B
   ctest -VV || exit /B
+)
+
+if NOT "%CONFIGURATION%" == "Toolchain" (
+  cmake -G "%GENERATOR%" ^
+        -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
+        -DPARQUET_BOOST_USE_SHARED=OFF ^
+        -DPARQUET_CXXFLAGS="/MP" ^
+        .. || exit /B
+
+  cmake --build . --config %CONFIGURATION% || exit /B
+
+  if "%CONFIGURATION%" == "Release" (
+    ctest -VV || exit /B
+  )
 )
