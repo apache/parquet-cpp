@@ -250,15 +250,22 @@ bool GroupNode::Equals(const Node* other) const {
   return EqualsInternal(static_cast<const GroupNode*>(other));
 }
 
-int GroupNode::FieldIndex(NodePtr& node) const {
-  auto search = field_name_to_idx_.find(node->name());
+int GroupNode::FieldIndex(const std::string name) const {
+  auto search = field_name_to_idx_.find(name);
   if (search == field_name_to_idx_.end()) {
     // Not found
     return -1;
   }
-  int result = search->second;
+  return search->second;
+}
+
+int GroupNode::FieldIndex(const Node& node) const {
+  int result = FieldIndex(node.name());
+  if (result < 0) {
+    return -1;
+  }
   DCHECK(result < field_count());
-  if (!node->Equals(field(result).get())) {
+  if (!node.Equals(field(result).get())) {
     // Same name but not the same node
     return -1;
   }
@@ -657,15 +664,22 @@ const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
   return &leaves_[i];
 }
 
-int SchemaDescriptor::ColumnIndex(const NodePtr& node) const {
-  auto search = leaf_to_idx_.find(node->path()->ToDotString());
+int SchemaDescriptor::ColumnIndex(const std::string node_path) const {
+  auto search = leaf_to_idx_.find(node_path);
   if (search == leaf_to_idx_.end()) {
     // Not found
     return -1;
   }
-  int result = search->second;
+  return search->second;
+}
+
+int SchemaDescriptor::ColumnIndex(const Node& node) const {
+  int result = ColumnIndex(node.path()->ToDotString());
+  if (result < 0) {
+    return -1;
+  }
   DCHECK(result < num_columns());
-  if (!node->Equals(Column(result)->schema_node().get())) {
+  if (!node.Equals(Column(result)->schema_node().get())) {
     // Same path but not the same node
     return -1;
   }

@@ -18,7 +18,6 @@
 #include "parquet/column/levels.h"
 
 #include <cstdint>
-#include <vector>
 
 #include "parquet/util/rle-encoding.h"
 
@@ -140,29 +139,6 @@ int LevelDecoder::Decode(int batch_size, int16_t* levels) {
   }
   num_values_remaining_ -= num_decoded;
   return num_decoded;
-}
-
-ValueLevelsPtr StructDefLevels::Make(const std::vector<ValueLevelsPtr>& children) {
-  ValueLevelsPtr result = nullptr;;
-  size_t size = 0;
-  if (children.size() == 0) {
-    // empty struct
-    return result;
-  }
-
-  size = children[0]->size();
-  // copy the first
-  result = std::make_shared<ValueLevels>(*(children[0]));
-
-  // struct def level is the maximal value of the children def levels
-  for (auto child_iter = children.begin() + 1;
-       child_iter != children.end(); child_iter++) {
-    for (size_t i = 0; i < size; i++) {
-      (*result)[i] = std::max((*result)[i], (**child_iter)[i]);
-    }
-  }
-
-  return result;
 }
 
 }  // namespace parquet

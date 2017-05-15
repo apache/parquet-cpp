@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <vector>
 
 #include "parquet/exception.h"
 #include "parquet/types.h"
@@ -82,33 +81,6 @@ class PARQUET_EXPORT LevelDecoder {
   std::unique_ptr<RleDecoder> rle_decoder_;
   std::unique_ptr<BitReader> bit_packed_decoder_;
 };
-
-// ----------------------------------------------------------------------
-// Definition and Repetition level vectors
-
-typedef std::vector<int16_t> ValueLevels;
-typedef std::shared_ptr<std::vector<int16_t>> ValueLevelsPtr;
-
-// Concrete definition or repetition values vector for
-// primitive values
-class PARQUET_EXPORT PrimitiveValueLevels {
- public:
-  static ValueLevelsPtr Make(const std::vector<int16_t>& levels) {
-    return std::make_shared<ValueLevels>(levels);
-  }
-  static ValueLevelsPtr Make(int16_t* raw_levels, size_t len)  {
-    return std::make_shared<ValueLevels>(raw_levels, raw_levels + len);
-  }
-};
-
-// Definition levels of a struct type, derived from its children
-class PARQUET_EXPORT StructDefLevels {
- public:
-  static ValueLevelsPtr Make(const std::vector<ValueLevelsPtr>& children);
-};
-
-// TBD
-class PARQUET_EXPORT StructRepLevels {};
 
 }  // namespace parquet
 #endif  // PARQUET_COLUMN_LEVELS_H

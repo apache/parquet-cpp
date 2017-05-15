@@ -42,9 +42,9 @@ inline bool str_endswith_tuple(const std::string& str) {
 // Special case mentioned in the format spec:
 //   If the name is array or ends in _tuple, this should be a list of struct
 //   even for single child elements.
-inline bool HasStructListName(const GroupNode* node) {
-  return (node->name() == "array" ||
-          str_endswith_tuple(node->name()));
+inline bool HasStructListName(const GroupNode& node) {
+  return (node.name() == "array" ||
+          str_endswith_tuple(node.name()));
 }
 
 // TODO(itaiin): This aux. function is to be deleted once repeated structs are supported
@@ -55,8 +55,8 @@ inline bool IsSimpleStruct(const NodePtr& node) {
   // Special case mentioned in the format spec:
     //   If the name is array or ends in _tuple, this should be a list of struct
     //   even for single child elements.
-  GroupNode* group = static_cast<GroupNode*>(node.get());
-  if (group->field_count() == 1 && HasStructListName(group)) return false;
+  auto group = static_cast<const GroupNode*>(node.get());
+  if (group->field_count() == 1 && HasStructListName(*group)) return false;
 
   return true;
 }
@@ -65,12 +65,12 @@ inline bool IsSimpleStruct(const NodePtr& node) {
 // columns referred by a list of column indices
 inline bool ColumnIndicesToFieldIndices(const SchemaDescriptor& descr,
     const std::vector<int>& column_indices, std::vector<int>* out) {
-  auto group = descr.group_node();
+  const GroupNode* group = descr.group_node();
   std::unordered_set<int> already_added;
   out->clear();
   for (auto& column_idx : column_indices) {
     auto field_node = descr.GetColumnRoot(column_idx);
-    auto field_idx = group->FieldIndex(field_node);
+    auto field_idx = group->FieldIndex(field_node->name());
     if (field_idx < 0) {
       return false;
     }

@@ -214,12 +214,14 @@ class FileReader::Impl {
   int num_threads_;
 };
 
+typedef const int16_t* ValueLevelsPtr;
+
 class ColumnReader::Impl {
  public:
   virtual ~Impl() {}
   virtual Status NextBatch(int batch_size, std::shared_ptr<Array>* out) = 0;
-  virtual Status DefLevels(ValueLevelsPtr* out) = 0;
-  virtual Status RepLevels(ValueLevelsPtr* out) = 0;
+  virtual Status GetDefLevels(ValueLevelsPtr* data, size_t* length) = 0;
+  virtual Status GetRepLevels(ValueLevelsPtr* data, size_t* length) = 0;
   virtual const std::shared_ptr<Field> field() = 0;
 };
 
@@ -239,7 +241,7 @@ class PrimitiveImpl: public ColumnReader::Impl {
 
   virtual ~PrimitiveImpl() {}
 
-  virtual Status NextBatch(int batch_size, std::shared_ptr<Array>* out);
+  Status NextBatch(int batch_size, std::shared_ptr<Array>* out) override;
 
   template <typename ArrowType, typename ParquetType>
   Status TypedReadBatch(int batch_size, std::shared_ptr<Array>* out);
@@ -263,10 +265,10 @@ class PrimitiveImpl: public ColumnReader::Impl {
   Status WrapIntoListArray(const int16_t* def_levels, const int16_t* rep_levels,
       int64_t total_values_read, std::shared_ptr<Array>* array);
 
-  virtual Status DefLevels(ValueLevelsPtr* out);
-  virtual Status RepLevels(ValueLevelsPtr* out);
+  Status GetDefLevels(ValueLevelsPtr* data, size_t* length) override;
+  Status GetRepLevels(ValueLevelsPtr* data, size_t* length) override;
 
-  virtual const std::shared_ptr<Field> field() { return field_; }
+  const std::shared_ptr<Field> field() override { return field_; }
 
  private:
   void NextRowGroup();
@@ -302,22 +304,24 @@ class StructImpl: public ColumnReader::Impl {
  public:
   explicit StructImpl(const std::vector<std::shared_ptr<Impl>>& children,
       int16_t struct_def_level, MemoryPool* pool, const NodePtr& node)
-      : children_(children), struct_def_level_(struct_def_level), pool_(pool) {
+      : children_(children), struct_def_level_(struct_def_level), pool_(pool),
+        def_levels_buffer_(pool) {
     NodeToField(node, &field_);
   }
 
   virtual ~StructImpl() {}
 
-  virtual Status NextBatch(int batch_size, std::shared_ptr<Array>* out);
-  virtual Status DefLevels(ValueLevelsPtr* out);
-  virtual Status RepLevels(ValueLevelsPtr* out);
-  virtual const std::shared_ptr<Field> field() { return field_; }
+  Status NextBatch(int batch_size, std::shared_ptr<Array>* out) override;
+  Status GetDefLevels(ValueLevelsPtr* data, size_t* length) override;
+  Status GetRepLevels(ValueLevelsPtr* data, size_t* length) override;
+  const std::shared_ptr<Field> field() override { return field_; }
 
  private:
   std::vector<std::shared_ptr<Impl>> children_;
   int16_t struct_def_level_;
   MemoryPool* pool_;
   std::shared_ptr<Field> field_;
+  PoolBuffer def_levels_buffer_;
 
   Status CreateBitmap(size_t num_elements, std::shared_ptr<PoolBuffer>* null_bitmap_out);
   Status DefLevelsToNullArray(std::shared_ptr<PoolBuffer>* null_bitmap,
@@ -376,7 +380,7 @@ Status FileReader::Impl::GetReaderForNode(int index, const NodePtr& node,
       }
       walker = group->field(0);
     }
-    auto column_index = reader_->metadata()->schema()->ColumnIndex(walker);
+    auto column_index = reader_->metadata()->schema()->ColumnIndex(*walker.get());
 
     if (std::find(indices.begin(), indices.end(), column_index) != indices.end()) {
       // The index of the column is found, therefore a reader is needed
@@ -1311,14 +1315,15 @@ void PrimitiveImpl::NextRowGroup() {
   column_reader_ = input_->Next();
 }
 
-Status PrimitiveImpl::DefLevels(ValueLevelsPtr* out) {
-  int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
-  auto length = def_levels_buffer_.size() / sizeof(uint16_t);
-  *out = PrimitiveValueLevels::Make(def_levels, length);
+Status PrimitiveImpl::GetDefLevels(ValueLevelsPtr* data, size_t* length) {
+  *data = reinterpret_cast<ValueLevelsPtr>(def_levels_buffer_.data());
+  *length = def_levels_buffer_.size() / sizeof(int16_t);
   return Status::OK();
 }
 
-Status PrimitiveImpl::RepLevels(ValueLevelsPtr* out) {
+Status PrimitiveImpl::GetRepLevels(ValueLevelsPtr* data, size_t* length) {
+  *data = reinterpret_cast<ValueLevelsPtr>(rep_levels_buffer_.data());
+  *length = rep_levels_buffer_.size() / sizeof(int16_t);
   return Status::OK();
 }
 
@@ -1347,13 +1352,13 @@ Status StructImpl::DefLevelsToNullArray(
     int64_t* null_count_out) {
   std::shared_ptr<PoolBuffer> null_bitmap;
   auto null_count = 0;
-  ValueLevelsPtr def_levels;
-  RETURN_NOT_OK(DefLevels(&def_levels));
-
-  RETURN_NOT_OK(CreateBitmap(def_levels->size(), &null_bitmap));
+  ValueLevelsPtr def_levels_data;
+  size_t def_levels_length;
+  RETURN_NOT_OK(GetDefLevels(&def_levels_data, &def_levels_length));
+  RETURN_NOT_OK(CreateBitmap(def_levels_length, &null_bitmap));
   uint8_t* null_bitmap_ptr = null_bitmap->mutable_data();
-  for (size_t i = 0; i < def_levels->size(); i++) {
-    if ((*def_levels)[i] < struct_def_level_) {
+  for (size_t i = 0; i < def_levels_length; i++) {
+    if (def_levels_data[i] < struct_def_level_) {
       // Mark null
       null_count += 1;
       ::arrow::BitUtil::ClearBit(null_bitmap_ptr, i);
@@ -1367,25 +1372,46 @@ Status StructImpl::DefLevelsToNullArray(
 
 // TODO(itaiin): Consider caching the results of this calculation -
 //   note that this is only used once for each read for now
-Status StructImpl::DefLevels(ValueLevelsPtr* out) {
-  std::vector<std::shared_ptr<ValueLevels>> children_levels;
-  for (auto& child : children_) {
-    std::shared_ptr<ValueLevels> child_levels;
-    RETURN_NOT_OK(child->DefLevels(&child_levels));
-    children_levels.push_back(child_levels);
+Status StructImpl::GetDefLevels(ValueLevelsPtr* data, size_t* length) {
+  *data = nullptr;
+  if (children_.size() == 0) {
+    // Empty struct
+    *length = 0;
+    return Status::OK();
   }
-  *out = std::shared_ptr<ValueLevels>(StructDefLevels::Make(children_levels));
+
+  // We have at least one child
+  ValueLevelsPtr child_def_levels;
+  size_t child_length;
+  RETURN_NOT_OK(children_[0]->GetDefLevels(&child_def_levels, &child_length));
+  auto size = child_length * sizeof(int16_t);
+  def_levels_buffer_.Resize(size);
+  // Initialize with the minimal def level
+  std::memset(def_levels_buffer_.mutable_data(), 0, size);
+  auto result_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
+
+  // A struct is defined if at least one of its children is defined,
+  // so the definition level of a struct value is the max definition level
+  // of its children
+  for (auto& child : children_) {
+    size_t current_child_length;
+    RETURN_NOT_OK(child->GetDefLevels(&child_def_levels, &current_child_length));
+    DCHECK_EQ(child_length, current_child_length);
+    for (size_t i = 0; i < child_length; i++) {
+      result_levels[i] = std::max(result_levels[i], child_def_levels[i]);
+    }
+  }
+  *data = reinterpret_cast<ValueLevelsPtr>(def_levels_buffer_.data());
+  *length = child_length;
   return Status::OK();
 }
 
-Status StructImpl::RepLevels(ValueLevelsPtr* out) {
-  *out = nullptr;
-  return Status::OK();
+Status StructImpl::GetRepLevels(ValueLevelsPtr* data, size_t* length) {
+  return Status::NotImplemented("GetRepLevels is not implemented for struct");
 }
 
 Status StructImpl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
   std::vector<std::shared_ptr<Array>> children_arrays;
-  std::vector<std::shared_ptr<ValueLevels>> children_def_levels;
   std::shared_ptr<PoolBuffer> null_bitmap;
   int64_t null_count;
 

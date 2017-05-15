@@ -1089,12 +1089,9 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
 
   void InitReader() {
     std::shared_ptr<Buffer> buffer = nested_parquet_->GetBuffer();
-    std::unique_ptr<FileReader> reader;
     ASSERT_OK_NO_THROW(
         OpenFile(std::make_shared<BufferReader>(buffer), ::arrow::default_memory_pool(),
-            ::parquet::default_reader_properties(), nullptr, &reader));
-
-    reader_ = std::move(reader);
+            ::parquet::default_reader_properties(), nullptr, &reader_));
   }
 
   void InitNewParquetFile(const std::shared_ptr<GroupNode>& schema, int num_rows) {
@@ -1320,7 +1317,7 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
   };
 
   std::shared_ptr<InMemoryOutputStream> nested_parquet_;
-  std::shared_ptr<FileReader> reader_;
+  std::unique_ptr<FileReader> reader_;
   std::unique_ptr<ParquetFileWriter> writer_;
   RowGroupWriter* row_group_writer_;
 };
