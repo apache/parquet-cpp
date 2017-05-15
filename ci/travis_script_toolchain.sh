@@ -40,7 +40,7 @@ conda config --set remote_connect_timeout_secs 12
 conda info -a
 
 conda create -y -q -p $CPP_TOOLCHAIN \
-      boost-cpp arrow-cpp zlib thrift-cpp snappy brotli cmake git \
+      boost-cpp zlib thrift-cpp snappy brotli cmake git \
       -c conda-forge
 
 # ----------------------------------------------------------------------
