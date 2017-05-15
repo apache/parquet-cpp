@@ -37,8 +37,6 @@ addons:
     - pkg-config
 matrix:
   fast_finish: true
-  allow_failures:
-    - env: PARQUET_BUILD_GROUP=toolchain
   include:
   - compiler: gcc
     os: linux
