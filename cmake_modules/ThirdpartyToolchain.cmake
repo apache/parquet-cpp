@@ -45,7 +45,7 @@ if (NOT "$ENV{PARQUET_BUILD_TOOLCHAIN}" STREQUAL "")
   if (NOT DEFINED ENV{BOOST_ROOT})
     # Since we have to set this in the environment, we check whether
     # $BOOST_ROOT is defined inside here
-    set(ENV{BOOST_ROOT} "$ENV{ARROW_BUILD_TOOLCHAIN}")
+    set(ENV{BOOST_ROOT} "$ENV{PARQUET_BUILD_TOOLCHAIN}")
   endif()
 endif()
 
