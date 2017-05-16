@@ -34,11 +34,13 @@ environment:
 configuration:
   - Debug
   - Release
+  - Toolchain
 
 init:
   - set MINICONDA=C:\Miniconda35-x64
   - set PATH=%MINICONDA%;%MINICONDA%/Scripts;%MINICONDA%/Library/bin;%PATH%
   - if "%GENERATOR%"=="NMake Makefiles" call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
+  - if "%CONFIGURATION%"=="Toolchain" conda install -y boost-cpp=1.63 brotli=0.6.0 zlib=1.2.11 snappy=1.1.4 thrift-cpp=0.10.0 -c conda-forge
 
 build_script:
   - call ci\msvc-build.bat
