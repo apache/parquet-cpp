@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include "parquet/compression.h"
+
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -24,11 +26,12 @@
 #include <snappy.h>
 #include <zlib.h>
 
-#include "parquet/compression.h"
 #include "parquet/exception.h"
 #include "parquet/types.h"
 
 namespace parquet {
+
+Codec::~Codec() {}
 
 std::unique_ptr<Codec> Codec::Create(Compression::type codec_type) {
   std::unique_ptr<Codec> result;
@@ -247,6 +250,10 @@ int64_t GZipCodec::MaxCompressedLen(int64_t input_length, const uint8_t* input) 
 int64_t GZipCodec::Compress(
     int64_t input_length, const uint8_t* input, int64_t output_length, uint8_t* output) {
   return impl_->Compress(input_length, input, output_length, output);
+}
+
+const char* GZipCodec::name() const {
+  return "gzip";
 }
 
 // ----------------------------------------------------------------------

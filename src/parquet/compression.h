@@ -29,7 +29,7 @@ namespace parquet {
 
 class PARQUET_EXPORT Codec {
  public:
-  virtual ~Codec() {}
+  virtual ~Codec();
 
   static std::unique_ptr<Codec> Create(Compression::type codec);
 
@@ -47,15 +47,15 @@ class PARQUET_EXPORT Codec {
 // Snappy codec.
 class PARQUET_EXPORT SnappyCodec : public Codec {
  public:
-  virtual void Decompress(int64_t input_len, const uint8_t* input, int64_t output_len,
-      uint8_t* output_buffer);
+  void Decompress(int64_t input_len, const uint8_t* input, int64_t output_len,
+      uint8_t* output_buffer) override;
 
-  virtual int64_t Compress(int64_t input_len, const uint8_t* input,
-      int64_t output_buffer_len, uint8_t* output_buffer);
+  int64_t Compress(int64_t input_len, const uint8_t* input,
+      int64_t output_buffer_len, uint8_t* output_buffer) override;
 
-  virtual int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input);
+  int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input) override;
 
-  virtual const char* name() const { return "snappy"; }
+  const char* name() const { return "snappy"; }
 };
 
 // Brotli codec.
@@ -85,15 +85,15 @@ class PARQUET_EXPORT GZipCodec : public Codec {
   explicit GZipCodec(Format format = GZIP);
   virtual ~GZipCodec();
 
-  virtual void Decompress(int64_t input_len, const uint8_t* input, int64_t output_len,
-      uint8_t* output_buffer);
+  void Decompress(int64_t input_len, const uint8_t* input, int64_t output_len,
+      uint8_t* output_buffer) override;
 
-  virtual int64_t Compress(int64_t input_len, const uint8_t* input,
-      int64_t output_buffer_len, uint8_t* output_buffer);
+  int64_t Compress(int64_t input_len, const uint8_t* input,
+      int64_t output_buffer_len, uint8_t* output_buffer) override;
 
-  virtual int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input);
+  int64_t MaxCompressedLen(int64_t input_len, const uint8_t* input) override;
 
-  virtual const char* name() const { return "gzip"; }
+  const char* name() const override;
 
  private:
   // The gzip compressor is stateful
