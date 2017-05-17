@@ -1,3 +1,69 @@
+Parquet C++ 1.1.0
+--------------------------------------------------------------------------------
+## Bug
+    * [PARQUET-915] - Support Arrow Time Types in Schema
+    * [PARQUET-955] - [C++] pkg_check_modules will override $ARROW_HOME if it is set in the environment
+    * [PARQUET-949] - [C++] Arrow version pinning seems to not be working properly
+    * [PARQUET-936] - [C++] parquet::arrow::WriteTable can enter infinite loop if chunk_size is 0
+    * [PARQUET-933] - [C++] Account for Arrow Table API changes coming in ARROW-728
+    * [PARQUET-932] - [c++] Add option to build parquet library with minimal dependency
+    * [PARQUET-898] - [C++] Change Travis CI OS X image to Xcode 6.4 and fix our thirdparty build
+    * [PARQUET-948] - [C++] Account for API changes in ARROW-782
+    * [PARQUET-947] - [C++] Refactor to account for ARROW-795 Arrow core library consolidation
+    * [PARQUET-945] - [C++] Thrift static libraries are not used with recent patch
+    * [PARQUET-943] - [C++] Overflow build error on x86
+    * [PARQUET-938] - [C++] There is a typo in cmake_modules/FindSnappy.cmake comment
+    * [PARQUET-923] - [C++] Account for Time metadata changes in ARROW-686
+    * [PARQUET-925] - [C++] FindArrow.cmake sets the wrong library path after ARROW-648
+    * [PARQUET-919] - [C++] Account for API changes in ARROW-683
+    * [PARQUET-959] - [C++] Arrow thirdparty build fails on multiarch systems
+    * [PARQUET-956] - C++: BUILD_BYPRODUCTS not specified anymore for gtest
+    * [PARQUET-962] - [C++] GTEST_MAIN_STATIC_LIB is not defined in FindGTest.cmake
+    * [PARQUET-958] - [C++] Print Parquet metadata in JSON format
+    * [PARQUET-976] - [C++] Pass unit test suite with MSVC, build in Appveyor
+    * [PARQUET-918] - FromParquetSchema API crashes on nested schemas
+    * [PARQUET-987] - [C++] Fix regressions caused by PARQUET-981
+    * [PARQUET-965] - [C++] FIXED_LEN_BYTE_ARRAY types are unhandled in the Arrow reader
+    * [PARQUET-963] - [C++] Disallow reading struct types in Arrow reader for now
+    * [PARQUET-914] - [C++] Throw more informative exception when user writes too many values to a column in a row group
+    * [PARQUET-981] - Repair usage of *_HOME 3rd party dependencies environment variables during Windows build 
+    * [PARQUET-992] - [C++] parquet/compression.h leaks zlib.h
+
+## Improvement
+    * [PARQUET-508] - Add ParquetFilePrinter
+    * [PARQUET-954] - C++: Use Brolti 0.6 release
+    * [PARQUET-953] - [C++] Change arrow::FileWriter API to be initialized from a Schema, and provide for writing multiple tables
+    * [PARQUET-935] - [C++] Set shared library version for .deb packages
+    * [PARQUET-934] - [C++] Support multiarch on Debian
+    * [PARQUET-931] - [C++] Add option to pin thirdparty Arrow version used in ExternalProject
+    * [PARQUET-928] - [C++] Support pkg-config
+    * [PARQUET-927] - [C++] Specify shared library version of Apache Arrow
+    * [PARQUET-910] - C++: Support TIME logical type in parquet_arrow
+    * [PARQUET-909] - [CPP]: Reduce buffer allocations (mallocs) on critical path
+    * [PARQUET-941] - [C++] Stop needless Boost static library detection for CentOS 7 support
+    * [PARQUET-942] - [C++] Fix wrong variabe use in FindSnappy
+    * [PARQUET-940] - [C++] Fix Arrow library path detection
+    * [PARQUET-939] - [C++] Support Thrift_HOME CMake variable like FindSnappy does as Snappy_HOME
+    * [PARQUET-937] - [C++] Support CMake < 3.4 again for Arrow detection
+    * [PARQUET-926] - [C++] Use pkg-config to find Apache Arrow
+    * [PARQUET-917] - C++: Build parquet_arrow by default
+    * [PARQUET-961] - [C++] Strip debug symbols from libparquet libraries in release builds by default
+    * [PARQUET-957] - [C++] Add optional $PARQUET_BUILD_TOOLCHAIN environment variable option for configuring build environment
+    * [PARQUET-983] - C++: Update Thirdparty hash to Arrow 0.3.0
+    * [PARQUET-984] - C++: Add abi and so version to pkg-config
+    * [PARQUET-989] - [C++] Link dynamically to libarrow in toolchain build, set LD_LIBRARY_PATH
+    * [PARQUET-988] - [C++] Add Linux toolchain-based build to Travis CI
+    * [PARQUET-897] - [C++] Only use designated public headers from libarrow
+    * [PARQUET-977] - Improve MSVC build
+    * [PARQUET-679] - [C++] Build and unit tests support for MSVC on Windows
+    * [PARQUET-595] - Add API for key-value metadata
+
+## New Feature
+    * [PARQUET-946] - [C++] Refactoring in parquet::arrow::FileReader to be able to read a single row group
+    * [PARQUET-853] - [C++] Add option to link with shared boost libraries when building Arrow in the thirdparty toolchain
+    * [PARQUET-930] - [C++] Account for all Arrow date/time types 
+
+
 Parquet C++ 1.0.0
 --------------------------------------------------------------------------------
 ## Bug
