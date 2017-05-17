@@ -144,23 +144,19 @@ if (NOT ZLIB_FOUND)
     set(ZLIB_STATIC_LIB_NAME libz.a)
   endif()
   set(ZLIB_STATIC_LIB "${ZLIB_PREFIX}/lib/${ZLIB_STATIC_LIB_NAME}")
-  set(ZLIB_VENDORED 1)
   set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                       -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
                       -DCMAKE_C_FLAGS=${EP_C_FLAGS}
                       -DBUILD_SHARED_LIBS=OFF)
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
-      BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
-      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-  else()
-    ExternalProject_Add(zlib_ep
-      URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
-      CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
+    set(ZLIB_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}")
   endif()
+  ExternalProject_Add(zlib_ep
+    URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
+    ${ZLIB_BUILD_BYPRODUCTS}
+    CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
+  set(ZLIB_VENDORED 1)
 else()
   set(ZLIB_VENDORED 0)
 endif()
@@ -180,7 +176,6 @@ endif()
 find_package(Thrift)
 
 if (NOT THRIFT_FOUND)
-
   set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
   set(THRIFT_HOME "${THRIFT_PREFIX}")
   set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
@@ -198,7 +193,6 @@ if (NOT THRIFT_FOUND)
     ENDIF()
   ENDIF()
   set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
-  set(THRIFT_VENDORED 1)
   set(THRIFT_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                         "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
                         "-DCMAKE_C_FLAGS=${EP_C_FLAGS}"
@@ -226,20 +220,14 @@ if (NOT THRIFT_FOUND)
   endif()
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(thrift_ep
-      URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
-      CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS flex_step libevent_step
-      DEPENDS ${THRIFT_DEPENDENCIES})
-  else()
-    ExternalProject_Add(thrift_ep
-      URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-      CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-      STEP_TARGETS flex_step libevent_step
-      DEPENDS ${THRIFT_DEPENDENCIES})
+    set(THRIFT_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}")
   endif()
+  ExternalProject_Add(thrift_ep
+    URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
+    ${THRIFT_BUILD_BYPRODUCTS}
+    CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
+    STEP_TARGETS flex_step libevent_step
+    DEPENDS ${THRIFT_DEPENDENCIES})
 
   if (MSVC)
     ExternalProject_Get_Property(thrift_ep SOURCE_DIR)
@@ -305,7 +293,6 @@ if (NOT SNAPPY_FOUND)
     set(SNAPPY_STATIC_LIB_NAME snappy)
   endif()
   set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${SNAPPY_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(SNAPPY_VENDORED 1)
   set(SNAPPY_SRC_URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz")
 
   if (${UPPERCASE_BUILD_TYPE} EQUAL "RELEASE")
@@ -314,6 +301,10 @@ if (NOT SNAPPY_FOUND)
     else()
       set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O2'")
     endif()
+  endif()
+
+  if (CMAKE_VERSION VERSION_GREATER "3.2")
+    set(SNAPPY_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
   endif()
 
   if (MSVC)
@@ -327,46 +318,26 @@ if (NOT SNAPPY_FOUND)
                       ${CMAKE_COMMAND} -E copy
                       ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyConfig.h
                       ./config.h)
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(snappy_ep
-        UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
-        BUILD_IN_SOURCE 1
-        BUILD_COMMAND ${MAKE}
-        INSTALL_DIR ${SNAPPY_PREFIX}
-        URL ${SNAPPY_SRC_URL}
-        CMAKE_ARGS ${SNAPPY_CMAKE_ARGS}
-        BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
-    else()
-      ExternalProject_Add(snappy_ep
-        UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
-        BUILD_IN_SOURCE 1
-        BUILD_COMMAND ${MAKE}
-        INSTALL_DIR ${SNAPPY_PREFIX}
-        URL ${SNAPPY_SRC_URL}
-        CMAKE_ARGS ${SNAPPY_CMAKE_ARGS})
-    endif()
+    ExternalProject_Add(snappy_ep
+      UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
+      BUILD_IN_SOURCE 1
+      BUILD_COMMAND ${MAKE}
+      INSTALL_DIR ${SNAPPY_PREFIX}
+      URL ${SNAPPY_SRC_URL}
+      CMAKE_ARGS ${SNAPPY_CMAKE_ARGS}
+      ${SNAPPY_BUILD_BYPRODUCTS})
   else()
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(snappy_ep
-        CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
-        BUILD_IN_SOURCE 1
-        BUILD_COMMAND ${MAKE}
-        INSTALL_DIR ${SNAPPY_PREFIX}
-        URL ${SNAPPY_SRC_URL}
-        BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
-    else()
-      ExternalProject_Add(snappy_ep
-        CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
-        BUILD_IN_SOURCE 1
-        BUILD_COMMAND ${MAKE}
-        INSTALL_DIR ${SNAPPY_PREFIX}
-        URL ${SNAPPY_SRC_URL})
-    endif()
+    ExternalProject_Add(snappy_ep
+      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
+      BUILD_IN_SOURCE 1
+      BUILD_COMMAND ${MAKE}
+      INSTALL_DIR ${SNAPPY_PREFIX}
+      URL ${SNAPPY_SRC_URL}
+      ${SNAPPY_BUILD_BYPRODUCTS})
   endif()
+  set(SNAPPY_VENDORED 1)
 else()
-    set(SNAPPY_VENDORED 0)
+  set(SNAPPY_VENDORED 0)
 endif()
 
 include_directories(SYSTEM ${SNAPPY_INCLUDE_DIR})
@@ -393,7 +364,6 @@ if (NOT BROTLI_FOUND)
   set(BROTLI_LIBRARY_ENC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlienc${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BROTLI_LIBRARY_DEC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlidec${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BROTLI_LIBRARY_COMMON "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlicommon${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(BROTLI_VENDORED 1)
   set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                         "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
                         "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
@@ -402,17 +372,14 @@ if (NOT BROTLI_FOUND)
                         -DBUILD_SHARED_LIBS=OFF)
 
   if (CMAKE_VERSION VERSION_GREATER "3.2")
-    # BUILD_BYPRODUCTS is a 3.2+ feature
-    ExternalProject_Add(brotli_ep
-      URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
-      BUILD_BYPRODUCTS "${BROTLI_LIBRARY_ENC}" "${BROTLI_LIBRARY_DEC}" "${BROTLI_LIBRARY_COMMON}"
-      CMAKE_ARGS ${BROTLI_CMAKE_ARGS}
-      STEP_TARGETS headers_copy)
-  else()
-    ExternalProject_Add(brotli_ep
-      URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
-      CMAKE_ARGS ${BROTLI_CMAKE_ARGS})
+    set(BROTLI_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${BROTLI_LIBRARY_ENC}" "${BROTLI_LIBRARY_DEC}" "${BROTLI_LIBRARY_COMMON}")
   endif()
+
+  ExternalProject_Add(brotli_ep
+    URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
+    ${BROTLI_BUILD_BYPRODUCTS}
+    CMAKE_ARGS ${BROTLI_CMAKE_ARGS}
+    STEP_TARGETS headers_copy)
   if (MSVC)
     ExternalProject_Get_Property(brotli_ep SOURCE_DIR)
 
@@ -421,6 +388,7 @@ if (NOT BROTLI_FOUND)
       DEPENDEES build
       WORKING_DIRECTORY ${SOURCE_DIR})
   endif()
+  set(BROTLI_VENDORED 1)
 else()
   set(BROTLI_VENDORED 0)
 endif()
@@ -456,7 +424,6 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
       "${GTEST_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX}")
     set(GTEST_MAIN_STATIC_LIB
       "${GTEST_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}gtest_main${CMAKE_STATIC_LIBRARY_SUFFIX}")
-    set(GTEST_VENDORED 1)
 
     set(GTEST_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                          -DCMAKE_INSTALL_PREFIX=${GTEST_PREFIX}
@@ -464,16 +431,14 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
                          -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS})
 
     if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(googletest_ep
-        URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-        BUILD_BYPRODUCTS ${GTEST_STATIC_LIB} ${GTEST_MAIN_STATIC_LIB}
-        CMAKE_ARGS ${GTEST_CMAKE_ARGS})
-    else()
-      ExternalProject_Add(googletest_ep
-        URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-        CMAKE_ARGS ${GTEST_CMAKE_ARGS})
+      set(GTEST_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${GTEST_STATIC_LIB}" "${GTEST_MAIN_STATIC_LIB}")
     endif()
+
+    ExternalProject_Add(googletest_ep
+      URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
+      ${GTEST_BUILD_BYPRODUCTS}
+      CMAKE_ARGS ${GTEST_CMAKE_ARGS})
+    set(GTEST_VENDORED 1)
   else()
     find_package(GTest REQUIRED)
     set(GTEST_VENDORED 0)
@@ -504,12 +469,10 @@ endif()
 if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
   add_custom_target(runbenchmark ctest -L benchmark)
 
-
   if("$ENV{GBENCHMARK_HOME}" STREQUAL "")
     set(GBENCHMARK_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/gbenchmark_ep/src/gbenchmark_ep-install")
     set(GBENCHMARK_INCLUDE_DIR "${GBENCHMARK_PREFIX}/include")
     set(GBENCHMARK_STATIC_LIB "${GBENCHMARK_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}benchmark${CMAKE_STATIC_LIBRARY_SUFFIX}")
-    set(GBENCHMARK_VENDORED 1)
     set(GBENCHMARK_CMAKE_ARGS
           "-DCMAKE_BUILD_TYPE=Release"
           "-DCMAKE_INSTALL_PREFIX:PATH=${GBENCHMARK_PREFIX}"
@@ -518,17 +481,15 @@ if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
     if (APPLE)
       set(GBENCHMARK_CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS} "-DBENCHMARK_USE_LIBCXX=ON")
     endif()
+
     if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(gbenchmark_ep
-        URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
-        BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}"
-        CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
-    else()
-      ExternalProject_Add(gbenchmark_ep
-        URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
-        CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
+      set(GBENCHMARK_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}")
     endif()
+    ExternalProject_Add(gbenchmark_ep
+      URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
+      ${GBENCHMARK_BUILD_BYPRODUCTS}
+      CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
+    set(GBENCHMARK_VENDORED 1)
   else()
     find_package(GBenchmark REQUIRED)
     set(GBENCHMARK_VENDORED 0)
@@ -590,30 +551,23 @@ if (NOT ARROW_FOUND)
 
   set(ARROW_URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz")
 
+  if (CMAKE_VERSION VERSION_GREATER "3.2")
+    set(ARROW_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}")
+  endif()
+
   if (MSVC)
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(arrow_ep
-        URL ${ARROW_URL}
-        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
-        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-        # to specify that the CMakeLists.txt of Arrow is located in cpp/
-        #
-        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_GENERATOR "NMake Makefiles"
-        CMAKE_GENERATOR_PLATFORM "x64"
-        BUILD_COMMAND nmake COMMAND nmake install
-        STEP_TARGETS copy_dll_step)
-    else()
-      ExternalProject_Add(arrow_ep
-        URL ${ARROW_URL}
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_GENERATOR "NMake Makefiles"
-        CMAKE_GENERATOR_PLATFORM "x64"
-        BUILD_COMMAND nmake COMMAND nmake install
-        STEP_TARGETS copy_dll_step)
-    endif()
+    ExternalProject_Add(arrow_ep
+      URL ${ARROW_URL}
+      ${ARROW_BUILD_BYPRODUCTS}
+      # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
+      # to specify that the CMakeLists.txt of Arrow is located in cpp/
+      #
+      # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
+      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+      CMAKE_GENERATOR "NMake Makefiles"
+      CMAKE_GENERATOR_PLATFORM "x64"
+      BUILD_COMMAND nmake COMMAND nmake install
+      STEP_TARGETS copy_dll_step)
 
     ExternalProject_Get_Property(arrow_ep SOURCE_DIR)
     ExternalProject_Add_Step(arrow_ep copy_dll_step
@@ -622,23 +576,15 @@ if (NOT ARROW_FOUND)
       DEPENDEES build
       WORKING_DIRECTORY ${SOURCE_DIR})
   else()
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      # BUILD_BYPRODUCTS is a 3.2+ feature
-      ExternalProject_Add(arrow_ep
-        URL ${ARROW_URL}
-        BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
-        # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-        # to specify that the CMakeLists.txt of Arrow is located in cpp/
-        #
-        # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
-    else()
-      ExternalProject_Add(arrow_ep
-        URL ${ARROW_URL}
-        CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-        CMAKE_ARGS ${ARROW_CMAKE_ARGS})
-    endif()
+    ExternalProject_Add(arrow_ep
+      URL ${ARROW_URL}
+      ${ARROW_BUILD_BYPRODUCTS}
+      # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
+      # to specify that the CMakeLists.txt of Arrow is located in cpp/
+      #
+      # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
+      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
+      CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   endif()
   set(ARROW_VENDORED 1)
 else()
