@@ -71,7 +71,7 @@ static constexpr int DETECT_CODEC = 32;
 
 class GZipCodec::GZipCodecImpl {
  public:
-  GZipCodecImpl(Format format)
+  GZipCodecImpl(GZipCodec::Format format)
       : format_(format),
         compressor_initialized_(false),
         decompressor_initialized_(false) {}
@@ -94,7 +94,7 @@ class GZipCodec::GZipCodecImpl {
       window_bits += GZIP_CODEC;
     }
     if ((ret = deflateInit2(&stream_, Z_DEFAULT_COMPRESSION, Z_DEFLATED, window_bits, 9,
-                Z_DEFAULT_STRATEGY)) != Z_OK) {
+             Z_DEFAULT_STRATEGY)) != Z_OK) {
       throw ParquetException("zlib deflateInit failed: " + std::string(stream_.msg));
     }
 
@@ -124,8 +124,8 @@ class GZipCodec::GZipCodecImpl {
     decompressor_initialized_ = false;
   }
 
-  void Decompress(
-      int64_t input_length, const uint8_t* input, int64_t output_length, uint8_t* output) {
+  void Decompress(int64_t input_length, const uint8_t* input, int64_t output_length,
+      uint8_t* output) {
     if (!decompressor_initialized_) { InitDecompressor(); }
     if (output_length == 0) {
       // The zlib library does not allow *output to be NULL, even when output_length
@@ -230,7 +230,7 @@ class GZipCodec::GZipCodecImpl {
 };
 
 GZipCodec::GZipCodec(Format format) {
-  impl_.reset(new GZipCodecImpl());
+  impl_.reset(new GZipCodecImpl(format));
 }
 
 GZipCodec::~GZipCodec() {}
