@@ -346,6 +346,10 @@ enable_testing()
 # Dependencies
 ############################################################
 
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 if (PARQUET_MINIMAL_DEPENDENCY)
     set(IGNORE_OPTIONAL_PACKAGES ON)
     message(STATUS "Build using minimal dependencies")
@@ -436,13 +440,6 @@ include(GenerateExportHeader)
 
 # Sets -fvisibility=hidden for gcc
 add_compiler_export_flags()
-
-############################################################
-# Includes
-
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
 
 ############################################################
 # "make lint" target

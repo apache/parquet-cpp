@@ -38,24 +38,25 @@ elseif ( Brotli_HOME )
     list( APPEND _brotli_roots ${Brotli_HOME} )
 endif()
 
-# Try the parameterized roots, if they exist
-if ( _brotli_roots )
-    find_path( BROTLI_INCLUDE_DIR NAMES brotli/decode.h
-        PATHS ${_brotli_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "include" )
-    find_library( BROTLI_LIBRARY_ENC NAMES libbrotlienc.a brotlienc
-        PATHS ${_brotli_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
-    find_library( BROTLI_LIBRARY_DEC NAMES libbrotlidec.a brotlidec
-        PATHS ${_brotli_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
-    find_library( BROTLI_LIBRARY_COMMON NAMES libbrotlicommon.a brotlicommon
-        PATHS ${_brotli_roots} NO_DEFAULT_PATH
-        PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
-else ()
-    find_path( BROTLI_INCLUDE_DIR NAMES brotli.h )
-    find_library( BROTLI_LIBRARIES NAMES brotlienc )
-endif ()
+find_path( BROTLI_INCLUDE_DIR NAMES brotli/decode.h
+  PATHS ${_brotli_roots}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "include" )
+
+find_library( BROTLI_LIBRARY_ENC NAMES libbrotlienc.a brotlienc
+  PATHS ${_brotli_roots}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
+
+find_library( BROTLI_LIBRARY_DEC NAMES libbrotlidec.a brotlidec
+  PATHS ${_brotli_roots}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
+
+find_library( BROTLI_LIBRARY_COMMON NAMES libbrotlicommon.a brotlicommon
+  PATHS ${_brotli_roots}
+  NO_DEFAULT_PATH
+  PATH_SUFFIXES "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "lib" )
 
 set(BROTLI_LIBRARIES ${BROTLI_LIBRARY_ENC} ${BROTLI_LIBRARY_DEC}
     ${BROTLI_LIBRARY_COMMON})
@@ -63,8 +64,6 @@ set(BROTLI_LIBRARIES ${BROTLI_LIBRARY_ENC} ${BROTLI_LIBRARY_DEC}
 if (BROTLI_INCLUDE_DIR AND (PARQUET_MINIMAL_DEPENDENCY OR BROTLI_LIBRARIES))
   set(BROTLI_FOUND TRUE)
   get_filename_component( BROTLI_LIBS ${BROTLI_LIBRARY_ENC} PATH )
-  set(BROTLI_HEADER_NAME brotli.h)
-  set(BROTLI_HEADER ${BROTLI_INCLUDE_DIR}/${BROTLI_HEADER_NAME})
   set(BROTLI_LIB_NAME brotli)
   if (MSVC AND NOT BROTLI_MSVC_STATIC_LIB_SUFFIX)
     set(BROTLI_MSVC_STATIC_LIB_SUFFIX _static)
@@ -84,7 +83,7 @@ endif ()
 if (BROTLI_FOUND)
   if (NOT Brotli_FIND_QUIETLY)
     if (PARQUET_MINIMAL_DEPENDENCY)
-      message(STATUS "Found the Brotli header: ${BROTLI_HEADER}")
+      message(STATUS "Found the Brotli headers: ${BROTLI_INCLUDE_DIR}")
     else ()
       message(STATUS "Found the Brotli library: ${BROTLI_LIBRARIES}")
     endif ()

@@ -23,6 +23,8 @@ cd build
 SET PARQUET_TEST_DATA=%APPVEYOR_BUILD_FOLDER%\data
 
 if "%CONFIGURATION%" == "Toolchain" (
+  conda install -y boost-cpp=1.63 brotli=0.6.0 zlib=1.2.11 snappy=1.1.4 thrift-cpp=0.10.0 -c conda-forge
+
   set PARQUET_BUILD_TOOLCHAIN=%MINICONDA%/Library
 
   cmake -G "%GENERATOR%" ^
