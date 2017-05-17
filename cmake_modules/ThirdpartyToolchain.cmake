@@ -179,21 +179,8 @@ if (NOT THRIFT_FOUND)
   set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
   set(THRIFT_HOME "${THRIFT_PREFIX}")
   set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
-  IF (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
-    IF (MSVC)
-      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/thriftmdd.lib")
-    ELSE()
-      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthriftd.a")
-    ENDIF()
-  ELSE()
-    IF (MSVC)
-      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/thriftmd.lib")
-    ELSE()
-      set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/libthrift.a")
-    ENDIF()
-  ENDIF()
   set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
-  set(THRIFT_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+  set(THRIFT_CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
                         "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
                         "-DCMAKE_C_FLAGS=${EP_C_FLAGS}"
                         "-DCMAKE_INSTALL_PREFIX=${THRIFT_PREFIX}"
@@ -207,6 +194,17 @@ if (NOT THRIFT_FOUND)
                         "-DWITH_CPP=ON"
                         "-DWITH_STATIC_LIB=ON"
                         )
+
+  set(THRIFT_STATIC_LIB_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}thrift")
+  if (MSVC)
+    set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}md")
+    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DWITH_MT=OFF")
+  endif()
+  if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
+    set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}d")
+  endif()
+  set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/${THRIFT_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+
   if (MSVC)
     set(WINFLEXBISON_VERSION 2.4.9)
     set(WINFLEXBISON_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/winflexbison_ep/src/winflexbison_ep-install")
