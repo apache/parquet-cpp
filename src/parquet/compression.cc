@@ -74,7 +74,7 @@ static constexpr int DETECT_CODEC = 32;
 
 class GZipCodec::GZipCodecImpl {
  public:
-  GZipCodecImpl(GZipCodec::Format format)
+  explicit GZipCodecImpl(GZipCodec::Format format)
       : format_(format),
         compressor_initialized_(false),
         decompressor_initialized_(false) {}
