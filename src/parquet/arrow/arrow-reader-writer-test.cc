@@ -1159,7 +1159,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 0);
 }
 
-TEST(TestArrowReaderAdHoc, NationDictTruncatedDataPage) {
+TEST(TestArrowReaderAdHoc, Int96BadMemoryAccess) {
   // PARQUET-995
   const char* data_dir = std::getenv("PARQUET_TEST_DATA");
   std::string dir_string(data_dir);
