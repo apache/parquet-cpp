@@ -24,6 +24,12 @@ string(REPLACE "\n" "" PARQUET_VERSION "${PARQUET_VERSION}")
 include(ExternalProject)
 include(FindPkgConfig)
 
+# This ensures that things like gnu++11 get passed correctly
+set(CMAKE_CXX_STANDARD 11)
+
+# We require a C++11 compliant compiler
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if(CMAKE_MAJOR_VERSION LESS 3)
   set(CMAKE_INSTALL_INCLUDEDIR "include")
   set(CMAKE_INSTALL_LIBDIR "lib")
@@ -404,9 +410,9 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
 set(CMAKE_CXX_FLAGS "${PARQUET_CXXFLAGS} ${CMAKE_CXX_FLAGS}")
 if (MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W3")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-strict-aliasing -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing -Wall")
 endif()
 
 if (PARQUET_USE_SSE)
