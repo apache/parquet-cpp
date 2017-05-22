@@ -512,9 +512,6 @@ if (NOT ARROW_FOUND)
 
   if (MSVC)
     set(ARROW_CMAKE_ARGS -DARROW_CXXFLAGS="/WX" ${ARROW_CMAKE_ARGS})
-    if (NOT PARQUET_BOOST_USE_SHARED)
-      set(ARROW_CMAKE_ARGS -DARROW_BOOST_USE_SHARED=OFF ${ARROW_CMAKE_ARGS})
-    endif()
   endif()
 
   if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
@@ -539,16 +536,13 @@ if (NOT ARROW_FOUND)
   ExternalProject_Add(arrow_ep
     URL ${ARROW_URL}
     ${ARROW_CONFIGURE}
-    ${ARROW_BUILD_BYPRODUCTS}
-    STEP_TARGETS copy_dll_step)
+    ${ARROW_BUILD_BYPRODUCTS})
 
   if (MSVC)
-    ExternalProject_Get_Property(arrow_ep SOURCE_DIR)
     ExternalProject_Add_Step(arrow_ep copy_dll_step
       DEPENDEES install
       COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_OUTPUT_ROOT_DIRECTORY}
-      COMMAND ${CMAKE_COMMAND} -E copy ${ARROW_SHARED_LIB} ${BUILD_OUTPUT_ROOT_DIRECTORY}
-      WORKING_DIRECTORY ${SOURCE_DIR})
+      COMMAND ${CMAKE_COMMAND} -E copy ${ARROW_SHARED_LIB} ${BUILD_OUTPUT_ROOT_DIRECTORY})
   endif()
   set(ARROW_VENDORED 1)
 else()
