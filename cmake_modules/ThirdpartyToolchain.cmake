@@ -499,7 +499,8 @@ if (NOT ARROW_FOUND)
     set(ARROW_STATIC_LIB "${ARROW_LIB_DIR}/libarrow.a")
   endif()
 
-  set(ARROW_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+  set(ARROW_CMAKE_ARGS -G "${CMAKE_GENERATOR}"
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
     -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
@@ -510,7 +511,7 @@ if (NOT ARROW_FOUND)
     -DARROW_BUILD_TESTS=OFF)
 
   if (MSVC)
-    set(ARROW_CMAKE_ARGS -G "NMake Makefiles" -DARROW_CXXFLAGS="/WX" ${ARROW_CMAKE_ARGS})
+    set(ARROW_CMAKE_ARGS -DARROW_CXXFLAGS="/WX" ${ARROW_CMAKE_ARGS})
     if (NOT PARQUET_BOOST_USE_SHARED)
       set(ARROW_CMAKE_ARGS -DARROW_BOOST_USE_SHARED=OFF ${ARROW_CMAKE_ARGS})
     endif()
@@ -538,16 +539,13 @@ if (NOT ARROW_FOUND)
       #
       # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
       CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-      CMAKE_GENERATOR "NMake Makefiles"
-      CMAKE_GENERATOR_PLATFORM "x64"
-      BUILD_COMMAND nmake COMMAND nmake install
       STEP_TARGETS copy_dll_step)
 
     ExternalProject_Get_Property(arrow_ep SOURCE_DIR)
     ExternalProject_Add_Step(arrow_ep copy_dll_step
+      DEPENDEES install
       COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_OUTPUT_ROOT_DIRECTORY}
       COMMAND ${CMAKE_COMMAND} -E copy ${ARROW_SHARED_LIB} ${BUILD_OUTPUT_ROOT_DIRECTORY}
-      DEPENDEES build
       WORKING_DIRECTORY ${SOURCE_DIR})
   else()
     ExternalProject_Add(arrow_ep
