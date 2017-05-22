@@ -499,7 +499,7 @@ if (NOT ARROW_FOUND)
     set(ARROW_STATIC_LIB "${ARROW_LIB_DIR}/libarrow.a")
   endif()
 
-  set(ARROW_CMAKE_ARGS -G "${CMAKE_GENERATOR}"
+  set(ARROW_CMAKE_ARGS
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
@@ -529,34 +529,26 @@ if (NOT ARROW_FOUND)
   if (CMAKE_VERSION VERSION_GREATER "3.2")
     set(ARROW_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}")
   endif()
+  if (CMAKE_VERSION VERSION_GREATER "3.7")
+    set(ARROW_CONFIGURE SOURCE_SUBDIR "cpp" CMAKE_ARGS ${ARROW_CMAKE_ARGS})
+  else()
+    set(ARROW_CONFIGURE CONFIGURE_COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}"
+      ${ARROW_CMAKE_ARGS} "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp")
+  endif()
+
+  ExternalProject_Add(arrow_ep
+    URL ${ARROW_URL}
+    ${ARROW_CONFIGURE}
+    ${ARROW_BUILD_BYPRODUCTS}
+    STEP_TARGETS copy_dll_step)
 
   if (MSVC)
-    ExternalProject_Add(arrow_ep
-      URL ${ARROW_URL}
-      ${ARROW_BUILD_BYPRODUCTS}
-      # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-      # to specify that the CMakeLists.txt of Arrow is located in cpp/
-      #
-      # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-      STEP_TARGETS copy_dll_step)
-
     ExternalProject_Get_Property(arrow_ep SOURCE_DIR)
     ExternalProject_Add_Step(arrow_ep copy_dll_step
       DEPENDEES install
       COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_OUTPUT_ROOT_DIRECTORY}
       COMMAND ${CMAKE_COMMAND} -E copy ${ARROW_SHARED_LIB} ${BUILD_OUTPUT_ROOT_DIRECTORY}
       WORKING_DIRECTORY ${SOURCE_DIR})
-  else()
-    ExternalProject_Add(arrow_ep
-      URL ${ARROW_URL}
-      ${ARROW_BUILD_BYPRODUCTS}
-      # With CMake 3.7.0 there is a SOURCE_SUBDIR argument which we can use
-      # to specify that the CMakeLists.txt of Arrow is located in cpp/
-      #
-      # See https://gitlab.kitware.com/cmake/cmake/commit/a8345d65f359d75efb057d22976cfb92b4d477cf
-      CONFIGURE_COMMAND "${CMAKE_COMMAND}" ${ARROW_CMAKE_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-prefix/src/arrow_ep/cpp
-      CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   endif()
   set(ARROW_VENDORED 1)
 else()
