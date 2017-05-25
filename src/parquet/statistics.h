@@ -24,6 +24,7 @@
 
 #include "parquet/schema.h"
 #include "parquet/types.h"
+#include "parquet/util/comparison.h"
 #include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
 
@@ -164,6 +165,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
   T min_;
   T max_;
   ::arrow::MemoryPool* pool_;
+  std::shared_ptr<CompareDefault<DType> > comparator_;
 
   void PlainEncode(const T& src, std::string* dst);
   void PlainDecode(const std::string& src, T* dst);

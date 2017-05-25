@@ -45,7 +45,7 @@ static FLBA FLBAFromString(const std::string& s) {
 TEST(Comparison, ByteArray) {
   NodePtr node = PrimitiveNode::Make("bytearray", Repetition::REQUIRED, Type::BYTE_ARRAY);
   ColumnDescriptor descr(node, 0, 0);
-  Compare<parquet::ByteArray> less(&descr);
+  CompareDefault<parquet::ByteArrayType> less;
 
   std::string a = "arrange";
   std::string b = "arrangement";
@@ -71,7 +71,7 @@ TEST(Comparison, FLBA) {
       PrimitiveNode::Make("FLBA", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
                           LogicalType::NONE, static_cast<int>(a.size()));
   ColumnDescriptor descr(node, 0, 0);
-  Compare<parquet::FixedLenByteArray> less(&descr);
+  CompareDefault<parquet::FLBAType> less(descr.type_length());
   ASSERT_TRUE(less(arr1, arr2));
 }
 
@@ -80,7 +80,7 @@ TEST(Comparison, Int96) {
 
   NodePtr node = PrimitiveNode::Make("int96", Repetition::REQUIRED, Type::INT96);
   ColumnDescriptor descr(node, 0, 0);
-  Compare<parquet::Int96> less(&descr);
+  CompareDefault<parquet::Int96Type> less;
   ASSERT_TRUE(less(a, b));
   b.value[2] = 14;
   ASSERT_TRUE(!less(a, b) && !less(b, a));

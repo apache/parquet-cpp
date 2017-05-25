@@ -63,8 +63,8 @@ TEST(Metadata, TestBuildAccess) {
   auto col1_builder = rg1_builder->NextColumnChunk();
   auto col2_builder = rg1_builder->NextColumnChunk();
   // column metadata
-  col1_builder->SetStatistics(stats_int);
-  col2_builder->SetStatistics(stats_float);
+  col1_builder->SetStatistics(true, stats_int);
+  col2_builder->SetStatistics(true, stats_float);
   col1_builder->Finish(nrows / 2, 4, 0, 10, 512, 600, true, false);
   col2_builder->Finish(nrows / 2, 24, 0, 30, 512, 600, true, false);
   rg1_builder->Finish(1024);
@@ -73,8 +73,8 @@ TEST(Metadata, TestBuildAccess) {
   col1_builder = rg2_builder->NextColumnChunk();
   col2_builder = rg2_builder->NextColumnChunk();
   // column metadata
-  col1_builder->SetStatistics(stats_int);
-  col2_builder->SetStatistics(stats_float);
+  col1_builder->SetStatistics(true, stats_int);
+  col2_builder->SetStatistics(true, stats_float);
   col1_builder->Finish(nrows / 2, 6, 0, 10, 512, 600, true, false);
   col2_builder->Finish(nrows / 2, 16, 0, 26, 512, 600, true, false);
   rg2_builder->Finish(1024);
