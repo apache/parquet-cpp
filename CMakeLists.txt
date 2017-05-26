@@ -609,6 +609,10 @@ set(LIBPARQUET_SRCS
   src/parquet/exception.cc
   src/parquet/types.cc
 
+  src/parquet/arrow/reader.cc
+  src/parquet/arrow/schema.cc
+  src/parquet/arrow/writer.cc
+
   src/parquet/column/levels.cc
   src/parquet/column/reader.cc
   src/parquet/column/writer.cc
