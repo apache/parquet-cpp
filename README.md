@@ -110,6 +110,9 @@ To build only the library with minimal dependencies, pass
 `-DPARQUET_MINIMAL_DEPENDENCY=ON` to `cmake`.
 Note that the executables, tests, and benchmarks should be disabled as well.
 
+To build using custom zlib, pass
+`DZLIB_MSVC_STATIC_LIB_SUFFIX={suffix} -DPARQUET_ZLIB_VENDORED=off -DZLIB_HOME=PATH_TO_ZLIB` to `cmake`. Note suffix should be `lib` if static lib is named `zlib`
+
 Incremental builds can be done afterwords with just `make`.
 
 ## Using with Apache Arrow
