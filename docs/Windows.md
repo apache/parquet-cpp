@@ -54,6 +54,32 @@ variable:
 `BROTLI_HOME` variable with path to `brotli` installation  
 `ARROW_HOME` variable with path to `arrow` installation
 
+### Customize static libraries names lookup of 3rd party dependencies 
+
+If you decided to use pre-built 3rd party dependencies libs, it's possible to
+configure parquet-cpp cmake build script to search for customized names of 3rd
+party static libs.
+
+`zlib`. Pass `-DPARQUET_ZLIB_VENDORED=OFF` to enable lookup of custom zlib
+build. Set `ZLIB_HOME` environment variable. Pass
+`-DZLIB_MSVC_STATIC_LIB_SUFFIX=%ZLIB_SUFFIX%` to link with z%ZLIB_SUFFIX%.lib
+
+`arrow`. Set `ARROW_HOME` environment variable. Pass
+`-DARROW_MSVC_STATIC_LIB_SUFFIX=%ARROW_SUFFIX%` to link with
+arrow%ARROW_SUFFIX%.lib
+
+`brotli`. Set `BROTLY_HOME` environment variable. Pass
+`-DBROTLI_MSVC_STATIC_LIB_SUFFIX=%BROTLI_SUFFIX%` to link with
+brotli*%BROTLI_SUFFIX%.lib.
+
+`snappy`. Set `SNAPPY_HOME` environment variable. Pass
+`-DSNAPPY_MSVC_STATIC_LIB_SUFFIX=%SNAPPY_SUFFIX%` to link with
+snappy%SNAPPY_SUFFIX%.lib.
+
+`thrift`. Set `THRIFT_HOME` environment variable. Pass
+`-DTHRIFT_MSVC_STATIC_LIB_SUFFIX=%THRIFT_SUFFIX%` to link with
+thrift*%THRIFT_SUFFIX%.lib.
+
 ### Visual Studio
 
 Microsoft provides the free Visual Studio Community edition. Once you have
