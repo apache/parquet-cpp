@@ -367,7 +367,7 @@ include(ThirdpartyToolchain)
 # Thrift requires these definitions for some types that we use
 add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETDB_H)
 if (MSVC)
-  add_definitions(-DNOMINMAX)
+  add_definitions(-DNOMINMAX -D_CRT_SECURE_NO_WARNINGS)
 else()
   add_definitions(-DHAVE_NETINET_IN_H -fPIC)
 endif()

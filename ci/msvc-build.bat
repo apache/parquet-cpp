@@ -21,6 +21,11 @@ mkdir build
 cd build
 
 SET PARQUET_TEST_DATA=%APPVEYOR_BUILD_FOLDER%\data
+set PARQUET_CXXFLAGS=/MP
+
+if NOT "%CONFIGURATION%" == "Debug" (
+  set PARQUET_CXXFLAGS="%PARQUET_CXXFLAGS% /WX"
+)
 
 if "%CONFIGURATION%" == "Toolchain" (
   conda install -y boost-cpp=1.63 brotli=0.6.0 zlib=1.2.11 snappy=1.1.4 thrift-cpp=0.10.0 -c conda-forge
@@ -30,7 +35,7 @@ if "%CONFIGURATION%" == "Toolchain" (
   cmake -G "%GENERATOR%" ^
       -DCMAKE_BUILD_TYPE=Release ^
       -DPARQUET_BOOST_USE_SHARED=OFF ^
-      -DPARQUET_CXXFLAGS="/MP" ^
+      -DPARQUET_CXXFLAGS=%PARQUET_CXXFLAGS% ^
       -DPARQUET_ZLIB_VENDORED=OFF ^
       .. || exit /B
 
@@ -42,7 +47,7 @@ if NOT "%CONFIGURATION%" == "Toolchain" (
   cmake -G "%GENERATOR%" ^
         -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
         -DPARQUET_BOOST_USE_SHARED=OFF ^
-        -DPARQUET_CXXFLAGS="/MP" ^
+        -DPARQUET_CXXFLAGS=%PARQUET_CXXFLAGS% ^
         .. || exit /B
 
   cmake --build . --config %CONFIGURATION% || exit /B
