@@ -110,9 +110,6 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_EXECUTABLES
     "Build the libparquet executable CLI tools"
     ON)
-  option(PARQUET_ARROW
-    "Build the Arrow support"
-    ON)
   option(PARQUET_ZLIB_VENDORED
     "Build our own zlib (some libz.a aren't configured for static linking)"
     ON)
@@ -690,6 +687,7 @@ ADD_LIB(parquet
 
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
+add_subdirectory(src/parquet/arrow)
 add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/util)
@@ -699,11 +697,6 @@ if (NOT MSVC)
 endif()
 add_subdirectory(examples)
 add_subdirectory(tools)
-
-# Arrow adapter
-if (PARQUET_ARROW)
-  add_subdirectory(src/parquet/arrow)
-endif()
 
 add_custom_target(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
