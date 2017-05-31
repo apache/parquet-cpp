@@ -226,8 +226,12 @@ function(ADD_PARQUET_BENCHMARK REL_BENCHMARK_NAME)
     set(NO_COLOR "")
   endif()
 
-  add_test(${BENCHMARK_NAME}
-    ${BUILD_SUPPORT_DIR}/run-test.sh ${CMAKE_BINARY_DIR} benchmark ${BENCHMARK_PATH} ${NO_COLOR})
+  if(WIN32)
+    add_test(${BENCHMARK_NAME} ${BENCHMARK_PATH} ${NO_COLOR})
+  else()
+    add_test(${BENCHMARK_NAME}
+      ${BUILD_SUPPORT_DIR}/run-test.sh ${CMAKE_BINARY_DIR} benchmark ${BENCHMARK_PATH} ${NO_COLOR})
+  endif()
   set_tests_properties(${BENCHMARK_NAME} PROPERTIES LABELS "benchmark")
   if(ARGN)
     set_tests_properties(${BENCHMARK_NAME} PROPERTIES ${ARGN})
