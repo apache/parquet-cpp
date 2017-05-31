@@ -133,7 +133,7 @@ endif()
 if (NOT ZLIB_FOUND)
   set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
   set(ZLIB_HOME "${ZLIB_PREFIX}")
-  set(ZLIB_INCLUDE_DIRS "${ZLIB_PREFIX}/include")
+  set(ZLIB_INCLUDE_DIR "${ZLIB_PREFIX}/include")
   if (MSVC)
     if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
       set(ZLIB_STATIC_LIB_NAME zlibstaticd.lib)
@@ -161,7 +161,7 @@ else()
   set(ZLIB_VENDORED 0)
 endif()
 
-include_directories(SYSTEM ${ZLIB_INCLUDE_DIRS})
+include_directories(SYSTEM ${ZLIB_INCLUDE_DIR})
 add_library(zlibstatic STATIC IMPORTED)
 set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
 
@@ -217,7 +217,7 @@ if (NOT THRIFT_FOUND)
 
     set(THRIFT_CMAKE_ARGS "-DFLEX_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_flex.exe"
                           "-DBISON_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_bison.exe"
-                          "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}"
+                          "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}"
                           "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
                           "-DWITH_SHARED_LIB=OFF"
                           "-DWITH_PLUGIN=OFF"
