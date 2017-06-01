@@ -306,7 +306,7 @@ class StructImpl: public ColumnReader::Impl {
       int16_t struct_def_level, MemoryPool* pool, const NodePtr& node)
       : children_(children), struct_def_level_(struct_def_level), pool_(pool),
         def_levels_buffer_(pool) {
-    NodeToField(node, &field_);
+    InitField(node, children);
   }
 
   virtual ~StructImpl() {}
@@ -325,7 +325,9 @@ class StructImpl: public ColumnReader::Impl {
 
   Status CreateBitmap(size_t num_elements, std::shared_ptr<PoolBuffer>* null_bitmap_out);
   Status DefLevelsToNullArray(std::shared_ptr<PoolBuffer>* null_bitmap,
-    int64_t* null_count);
+      int64_t* null_count);
+  void InitField(const NodePtr& node,
+      const std::vector<std::shared_ptr<Impl>>& children);
 };
 
 FileReader::FileReader(MemoryPool* pool, std::unique_ptr<ParquetFileReader> reader)
@@ -382,8 +384,9 @@ Status FileReader::Impl::GetReaderForNode(int index, const NodePtr& node,
     }
     auto column_index = reader_->metadata()->schema()->ColumnIndex(*walker.get());
 
+    // If the index of the column is found then a reader for the coliumn is needed.
+    // Otherwise *out keeps the nullptr value.
     if (std::find(indices.begin(), indices.end(), column_index) != indices.end()) {
-      // The index of the column is found, therefore a reader is needed
       std::unique_ptr<ColumnReader> reader;
       RETURN_NOT_OK(GetColumn(column_index, &reader));
       *out = std::move(reader->impl_);
@@ -1404,6 +1407,17 @@ Status StructImpl::GetDefLevels(ValueLevelsPtr* data, size_t* length) {
   *data = reinterpret_cast<ValueLevelsPtr>(def_levels_buffer_.data());
   *length = child_length;
   return Status::OK();
+}
+
+void StructImpl::InitField(const NodePtr& node,
+    const std::vector<std::shared_ptr<Impl>>& children) {
+  // Make a shallow node to field conversion from the children fields
+  std::vector<std::shared_ptr<::arrow::Field>> fields(children.size());
+  for (size_t i  = 0; i < children.size(); i++) {
+    fields[i] = children[i]->field();
+  }
+  auto type = std::make_shared<::arrow::StructType>(fields);
+  field_ = std::make_shared<Field>(node->name(), type);
 }
 
 Status StructImpl::GetRepLevels(ValueLevelsPtr* data, size_t* length) {

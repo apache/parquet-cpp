@@ -55,8 +55,8 @@ std::shared_ptr<ColumnPath> ColumnPath::FromNode(const Node& node) {
   }
 
   // Build ColumnPath in correct order
-  std::vector<std::string> path_(rpath_.crbegin(), rpath_.crend());
-  return std::make_shared<ColumnPath>(std::move(path_));
+  std::vector<std::string> path(rpath_.crbegin(), rpath_.crend());
+  return std::make_shared<ColumnPath>(std::move(path));
 }
 
 std::shared_ptr<ColumnPath> ColumnPath::extend(const std::string& node_name) const {
@@ -250,7 +250,7 @@ bool GroupNode::Equals(const Node* other) const {
   return EqualsInternal(static_cast<const GroupNode*>(other));
 }
 
-int GroupNode::FieldIndex(const std::string name) const {
+int GroupNode::FieldIndex(const std::string& name) const {
   auto search = field_name_to_idx_.find(name);
   if (search == field_name_to_idx_.end()) {
     // Not found
@@ -664,7 +664,7 @@ const ColumnDescriptor* SchemaDescriptor::Column(int i) const {
   return &leaves_[i];
 }
 
-int SchemaDescriptor::ColumnIndex(const std::string node_path) const {
+int SchemaDescriptor::ColumnIndex(const std::string& node_path) const {
   auto search = leaf_to_idx_.find(node_path);
   if (search == leaf_to_idx_.end()) {
     // Not found

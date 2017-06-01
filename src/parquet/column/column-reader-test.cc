@@ -44,7 +44,7 @@ namespace test {
 
 template <typename T>
 static inline bool vector_equal_with_def_levels(const vector<T>& left,
-    const vector<int16_t> def_levels, int16_t max_def_levels, int16_t max_rep_levels,
+    const vector<int16_t>& def_levels, int16_t max_def_levels, int16_t max_rep_levels,
     const vector<T>& right) {
   size_t i_left = 0;
   size_t i_right = 0;

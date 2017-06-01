@@ -254,7 +254,7 @@ class PARQUET_EXPORT GroupNode : public Node {
   bool Equals(const Node* other) const override;
 
   const NodePtr& field(int i) const { return fields_[i]; }
-  int FieldIndex(const std::string name) const;
+  int FieldIndex(const std::string& name) const;
   int FieldIndex(const Node& node) const;
 
   int field_count() const { return static_cast<int>(fields_.size()); }
@@ -377,7 +377,7 @@ class PARQUET_EXPORT SchemaDescriptor {
   const ColumnDescriptor* Column(int i) const;
 
   // Get the index of a column by its dotstring path, or negative value if not found
-  int ColumnIndex(const std::string node_path) const;
+  int ColumnIndex(const std::string& node_path) const;
   // Get the index of a column by its node, or negative value if not found
   int ColumnIndex(const schema::Node& node) const;
 

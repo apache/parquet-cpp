@@ -1119,30 +1119,41 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     typed_writer->WriteBatch(num_rows, def_levels, rep_levels, values);
   }
 
-  void ValidateArray(std::shared_ptr<Array> array, size_t expected_nulls) {
-    ASSERT_EQ(array->length(), values_array_->length());
-    ASSERT_EQ(array->null_count(), expected_nulls);
+  void ValidateArray(const Array& array, size_t expected_nulls) {
+    ASSERT_EQ(array.length(), values_array_->length());
+    ASSERT_EQ(array.null_count(), expected_nulls);
     // Also independently count the nulls
     auto local_null_count = 0;
-    for (int i = 0; i < array->length(); i++) {
-      if (array->IsNull(i)) {
+    for (int i = 0; i < array.length(); i++) {
+      if (array.IsNull(i)) {
         local_null_count++;
       }
     }
     ASSERT_EQ(local_null_count, expected_nulls);
   }
 
-  void ValidateColumnArray(std::shared_ptr<::arrow::Int32Array> array,
+  void ValidateColumnArray(const ::arrow::Int32Array& array,
       size_t expected_nulls) {
     ValidateArray(array, expected_nulls);
 
     int j = 0;
     for (int i = 0; i < values_array_->length(); i++) {
-      if (array->IsNull(i)) {
+      if (array.IsNull(i)) {
         continue;
       }
-      ASSERT_EQ(array->Value(i), values_array_->Value(j));
+      ASSERT_EQ(array.Value(i), values_array_->Value(j));
       j++;
+    }
+  }
+
+  void ValidateTableArrayTypes(const Table& table) {
+    for (int i = 0; i < table.num_columns(); i++) {
+      const std::shared_ptr<::arrow::Field> schema_field = table.schema()->field(i);
+      const std::shared_ptr<Column> column = table.column(i);
+      // Compare with the column field
+      ASSERT_TRUE(schema_field->Equals(column->field()));
+      // Compare with the array type
+      ASSERT_TRUE(schema_field->type()->Equals(column->data()->chunk(0)->type()));
     }
   }
 
@@ -1330,6 +1341,7 @@ TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 2);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
+  ValidateTableArrayTypes(*table);
 
   auto struct_field_array = std::static_pointer_cast<::arrow::StructArray>(
     table->column(0)->data()->chunk(0));
@@ -1343,13 +1355,13 @@ TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   // validate struct and leaf arrays
 
   // validate struct array
-  ValidateArray(struct_field_array, NUM_SIMPLE_TEST_ROWS / 3);
+  ValidateArray(*struct_field_array, NUM_SIMPLE_TEST_ROWS / 3);
   // validate leaf1
-  ValidateColumnArray(leaf1_array, NUM_SIMPLE_TEST_ROWS / 3);
+  ValidateColumnArray(*leaf1_array, NUM_SIMPLE_TEST_ROWS / 3);
   // validate leaf2
-  ValidateColumnArray(leaf2_array, NUM_SIMPLE_TEST_ROWS * 2/ 3);
+  ValidateColumnArray(*leaf2_array, NUM_SIMPLE_TEST_ROWS * 2/ 3);
   // validate leaf3
-  ValidateColumnArray(leaf3_array, 0);
+  ValidateColumnArray(*leaf3_array, 0);
 }
 
 TEST_F(TestNestedSchemaRead, ReadTablePartial) {
@@ -1363,6 +1375,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->schema()->field(0)->name(), "group1");
   ASSERT_EQ(table->schema()->field(1)->name(), "leaf3");
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 1);
+  ValidateTableArrayTypes(*table);
 
   // columns: {group1.leaf1, group1.leaf2}
   ASSERT_OK_NO_THROW(reader_->ReadTable({0, 1}, &table));
@@ -1370,6 +1383,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->name(), "group1");
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
+  ValidateTableArrayTypes(*table);
 
   // columns: {leaf3}
   ASSERT_OK_NO_THROW(reader_->ReadTable({2}, &table));
@@ -1377,6 +1391,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->name(), "leaf3");
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 0);
+  ValidateTableArrayTypes(*table);
 
   // Test with different ordering
   ASSERT_OK_NO_THROW(reader_->ReadTable({2, 0}, &table));
@@ -1385,6 +1400,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->schema()->field(0)->name(), "leaf3");
   ASSERT_EQ(table->schema()->field(1)->name(), "group1");
   ASSERT_EQ(table->schema()->field(1)->type()->num_children(), 1);
+  ValidateTableArrayTypes(*table);
 }
 
 TEST_F(TestNestedSchemaRead, StructAndListTogetherUnsupported) {
