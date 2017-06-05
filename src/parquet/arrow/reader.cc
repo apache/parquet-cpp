@@ -323,8 +323,7 @@ class StructImpl: public ColumnReader::Impl {
   std::shared_ptr<Field> field_;
   PoolBuffer def_levels_buffer_;
 
-  Status CreateBitmap(size_t num_elements, std::shared_ptr<PoolBuffer>* null_bitmap_out);
-  Status DefLevelsToNullArray(std::shared_ptr<PoolBuffer>* null_bitmap,
+  Status DefLevelsToNullArray(std::shared_ptr<MutableBuffer>* null_bitmap,
       int64_t* null_count);
   void InitField(const NodePtr& node,
       const std::vector<std::shared_ptr<Impl>>& children);
@@ -1075,9 +1074,6 @@ Status PrimitiveImpl::TypedReadBatch<::arrow::BooleanType, BooleanType>(
   int16_t* rep_levels = reinterpret_cast<int16_t*>(rep_levels_buffer_.mutable_data());
 
   while ((values_to_read > 0) && column_reader_) {
-    if (descr_->max_definition_level() > 0) {
-      RETURN_NOT_OK(def_levels_buffer_.Resize(values_to_read * sizeof(int16_t), false));
-    }
     auto reader = dynamic_cast<TypedColumnReader<BooleanType>*>(column_reader_.get());
     int64_t values_read;
     int64_t levels_read;
@@ -1340,31 +1336,24 @@ Status ColumnReader::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
 
 // StructImpl methods
 
-Status StructImpl::CreateBitmap(size_t num_elements,
-    std::shared_ptr<PoolBuffer>* null_bitmap_out) {
-  *null_bitmap_out = std::make_shared<::arrow::PoolBuffer>(pool_);
-  auto bitmap_size = ::arrow::BitUtil::CeilByte(num_elements) / 8;
-  RETURN_NOT_OK((*null_bitmap_out)->Resize(bitmap_size));
-  uint8_t* null_bitmap_ptr = (*null_bitmap_out)->mutable_data();
-  memset(null_bitmap_ptr, 0xFF, bitmap_size);
-  return Status::OK();
-}
-
 Status StructImpl::DefLevelsToNullArray(
-    std::shared_ptr<PoolBuffer>* null_bitmap_out,
+    std::shared_ptr<MutableBuffer>* null_bitmap_out,
     int64_t* null_count_out) {
-  std::shared_ptr<PoolBuffer> null_bitmap;
+  std::shared_ptr<MutableBuffer> null_bitmap;
   auto null_count = 0;
   ValueLevelsPtr def_levels_data;
   size_t def_levels_length;
   RETURN_NOT_OK(GetDefLevels(&def_levels_data, &def_levels_length));
-  RETURN_NOT_OK(CreateBitmap(def_levels_length, &null_bitmap));
+  RETURN_NOT_OK(GetEmptyBitmap(pool_,
+    def_levels_length, &null_bitmap));
   uint8_t* null_bitmap_ptr = null_bitmap->mutable_data();
   for (size_t i = 0; i < def_levels_length; i++) {
     if (def_levels_data[i] < struct_def_level_) {
       // Mark null
       null_count += 1;
-      ::arrow::BitUtil::ClearBit(null_bitmap_ptr, i);
+    } else {
+      DCHECK_EQ(def_levels_data[i], struct_def_level_);
+      ::arrow::BitUtil::SetBit(null_bitmap_ptr, i);
     }
   }
 
@@ -1390,18 +1379,26 @@ Status StructImpl::GetDefLevels(ValueLevelsPtr* data, size_t* length) {
   auto size = child_length * sizeof(int16_t);
   def_levels_buffer_.Resize(size);
   // Initialize with the minimal def level
-  std::memset(def_levels_buffer_.mutable_data(), 0, size);
+  std::memset(def_levels_buffer_.mutable_data(), -1, size);
   auto result_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
 
-  // A struct is defined if at least one of its children is defined,
-  // so the definition level of a struct value is the max definition level
-  // of its children
+  // When a struct is defined, all of its children def levels are at least at
+  // nesting level, and def level equals nesting level.
+  // When a struct is not defined, all of its children def levels are less than
+  // the nesting level, and the def level equals max(children def levels)
+  // All other possibilities are malformed definition data.
   for (auto& child : children_) {
     size_t current_child_length;
     RETURN_NOT_OK(child->GetDefLevels(&child_def_levels, &current_child_length));
     DCHECK_EQ(child_length, current_child_length);
     for (size_t i = 0; i < child_length; i++) {
-      result_levels[i] = std::max(result_levels[i], child_def_levels[i]);
+      // Check that value is either uninitialized, or current
+      // and previous children def levels agree on the struct level
+      DCHECK((result_levels[i] == -1) ||
+             ((result_levels[i] >= struct_def_level_) ==
+              (child_def_levels[i] >= struct_def_level_)));
+      result_levels[i] = std::max(result_levels[i],
+        std::min(child_def_levels[i], struct_def_level_));
     }
   }
   *data = reinterpret_cast<ValueLevelsPtr>(def_levels_buffer_.data());
@@ -1426,7 +1423,7 @@ Status StructImpl::GetRepLevels(ValueLevelsPtr* data, size_t* length) {
 
 Status StructImpl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
   std::vector<std::shared_ptr<Array>> children_arrays;
-  std::shared_ptr<PoolBuffer> null_bitmap;
+  std::shared_ptr<MutableBuffer> null_bitmap;
   int64_t null_count;
 
   // Gather children arrays and def levels
