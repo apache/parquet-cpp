@@ -12,7 +12,6 @@ Makefile
 
 thirdparty
 
-parquet_version.h
 *.pc
 .idea/
 *-build/
