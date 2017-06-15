@@ -22,7 +22,7 @@ cpp_include "parquet/util/windows_compatibility.h"
 /**
  * File format description for the parquet file format
  */
-namespace cpp parquet
+namespace cpp parquet.format
 namespace java org.apache.parquet.format
 
 /**
@@ -192,8 +192,9 @@ enum ConvertedType {
    * Annotates a column that is always null
    * Sometimes when discovering the schema of existing data
    * values are always null
+   * This is NULL in parquet-format
    */
-  NULL = 25;
+  NA = 25;
 }
 
 /**
