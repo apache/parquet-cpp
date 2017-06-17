@@ -192,7 +192,6 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   /// @param values The values in the lowest nested level including
   ///   spacing for nulls on the lowest levels; input has the length
   ///   of the number of rows on the lowest nesting level.
-  /// @param values The
   void WriteBatchSpaced(int64_t num_values, const int16_t* def_levels,
       const int16_t* rep_levels, const uint8_t* valid_bits, int64_t valid_bits_offset,
       const T* values);
