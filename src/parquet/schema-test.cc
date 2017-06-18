@@ -337,7 +337,7 @@ TEST_F(TestGroupNode, FieldIndex) {
   NodeVector fields = Fields1();
   GroupNode group("group", Repetition::REQUIRED, fields);
   for (size_t i = 0; i < fields.size(); i++) {
-      auto field = group.field(i);
+      auto field = group.field(static_cast<int>(i));
       ASSERT_EQ(i, group.FieldIndex(*field.get()));
   }
 

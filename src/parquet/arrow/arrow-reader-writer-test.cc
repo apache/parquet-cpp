@@ -1250,7 +1250,7 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     }
     auto schema_node = GroupNode::Make("schema", Repetition::REQUIRED, parquet_fields);
 
-    int num_columns = num_trees * std::pow(num_children, tree_depth);
+    int num_columns = num_trees * static_cast<int>((std::pow(num_children, tree_depth)));
 
     std::vector<int16_t> def_levels(num_rows);
     std::vector<int16_t> rep_levels(num_rows);

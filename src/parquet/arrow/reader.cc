@@ -399,7 +399,7 @@ Status FileReader::Impl::ReadSchemaField(int i, std::shared_ptr<Array>* out) {
   std::vector<int> indices(reader_->metadata()->num_columns());
 
   for (size_t j = 0; j < indices.size(); ++j) {
-    indices[j] = j;
+    indices[j] = static_cast<int>(j);
   }
 
   return ReadSchemaField(i, indices, out);
@@ -425,7 +425,7 @@ Status FileReader::Impl::ReadSchemaField(int i, const std::vector<int>& indices,
     batch_size += reader_->metadata()->RowGroup(j)->ColumnChunk(i)->num_values();
   }
 
-  return reader->NextBatch(batch_size, out);
+  return reader->NextBatch(static_cast<int>(batch_size), out);
 }
 
 Status FileReader::Impl::ReadColumn(int i, std::shared_ptr<Array>* out) {
