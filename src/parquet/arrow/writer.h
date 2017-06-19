@@ -94,6 +94,12 @@ class PARQUET_EXPORT FileWriter {
     int64_t chunk_size,
     const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 
+/**
+ * Helper function for converting nanosecond timestamps to Impala (Int96) format
+ */
+inline void nanosecondsToImpalaTimestamp(const int64_t nanoseconds,
+    Int96 *impala_timestamp);
+
 }  // namespace arrow
 }  // namespace parquet
 
