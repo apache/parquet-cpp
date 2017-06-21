@@ -1456,7 +1456,7 @@ TEST(TestImpalaConversion, NanosecondToImpala) {
   int64_t nanoseconds = INT64_C(1497976376123456789);
   Int96 expected = { {UINT32_C(632093973), UINT32_C(13871), UINT32_C(2457925)} };
   Int96 calculated;
-  nanosecondsToImpalaTimestamp(nanoseconds, &calculated);
+  internal::NanosecondsToImpalaTimestamp(nanoseconds, &calculated);
   ASSERT_EQ(expected, calculated);
 }
 

@@ -50,19 +50,6 @@ using parquet::schema::GroupNode;
 namespace parquet {
 namespace arrow {
 
-constexpr int64_t kJulianEpochOffsetDays = INT64_C(2440588);
-constexpr int64_t kNanosecondsPerDay = INT64_C(86400000000000);
-
-inline void nanosecondsToImpalaTimestamp(const int64_t nanoseconds,
-    Int96 *impala_timestamp) {
-  int64_t julian_days = (nanoseconds / kNanosecondsPerDay) + kJulianEpochOffsetDays;
-  (*impala_timestamp).value[2] = (uint32_t)julian_days;
-
-  int64_t last_day_nanos = nanoseconds % kNanosecondsPerDay;
-  int64_t* impala_last_day_nanos = reinterpret_cast<int64_t*>(impala_timestamp);
-  *impala_last_day_nanos = last_day_nanos;
-}
-
 namespace BitUtil = ::arrow::BitUtil;
 
 class LevelBuilder {
@@ -383,7 +370,7 @@ Status FileWriter::Impl::WriteNonNullableBatch<Int96Type, ::arrow::TimestampType
   auto buffer_ptr = reinterpret_cast<Int96*>(data_buffer_.mutable_data());
   if (type.unit() == TimeUnit::NANO) {
     for (int i = 0; i < num_values; i++) {
-      nanosecondsToImpalaTimestamp(data_ptr[i], buffer_ptr + i);
+      internal::NanosecondsToImpalaTimestamp(data_ptr[i], buffer_ptr + i);
     }
   } else {
     return Status::NotImplemented("Only NANO timestamps are supported for Int96 writing");
@@ -500,7 +487,7 @@ Status FileWriter::Impl::WriteNullableBatch<Int96Type, ::arrow::TimestampType>(
   if (type.unit() == TimeUnit::NANO) {
     for (int i = 0; i < num_values; i++) {
       if (bitset_valid_bits & (1 << bit_offset_valid_bits)) {
-        nanosecondsToImpalaTimestamp(data_ptr[i], buffer_ptr + i);
+        internal::NanosecondsToImpalaTimestamp(data_ptr[i], buffer_ptr + i);
       }
       READ_NEXT_BITSET(valid_bits);
     }

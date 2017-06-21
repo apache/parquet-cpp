@@ -94,11 +94,28 @@ class PARQUET_EXPORT FileWriter {
     int64_t chunk_size,
     const std::shared_ptr<WriterProperties>& properties = default_writer_properties());
 
+namespace internal {
+
 /**
- * Helper function for converting nanosecond timestamps to Impala (Int96) format
+ * Timestamp conversion constants
  */
-inline void nanosecondsToImpalaTimestamp(const int64_t nanoseconds,
-    Int96 *impala_timestamp);
+constexpr int64_t kJulianEpochOffsetDays = INT64_C(2440588);
+constexpr int64_t kNanosecondsPerDay = INT64_C(86400000000000);
+
+/**
+ * Converts nanosecond timestamps to Impala (Int96) format
+ */
+inline void NanosecondsToImpalaTimestamp(const int64_t nanoseconds,
+                                         Int96 *impala_timestamp) {
+  int64_t julian_days = (nanoseconds / kNanosecondsPerDay) + kJulianEpochOffsetDays;
+  (*impala_timestamp).value[2] = (uint32_t)julian_days;
+
+  int64_t last_day_nanos = nanoseconds % kNanosecondsPerDay;
+  int64_t* impala_last_day_nanos = reinterpret_cast<int64_t*>(impala_timestamp);
+  *impala_last_day_nanos = last_day_nanos;
+}
+
+}  // namespace internal
 
 }  // namespace arrow
 }  // namespace parquet
