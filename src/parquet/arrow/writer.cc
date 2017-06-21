@@ -368,6 +368,25 @@ Status FileWriter::Impl::WriteNonNullableBatch<Int32Type, ::arrow::Time32Type>(
   return Status::OK();
 }
 
+template <>
+Status FileWriter::Impl::WriteNonNullableBatch<Int96Type, ::arrow::TimestampType>(
+    TypedColumnWriter<Int96Type>* writer, const ::arrow::TimestampType& type,
+    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels, const int64_t* data_ptr) {
+  RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(Int96)));
+  auto buffer_ptr = reinterpret_cast<Int96*>(data_buffer_.mutable_data());
+  if (type.unit() == TimeUnit::NANO) {
+    for (int i = 0; i < num_values; i++) {
+      internal::NanosecondsToImpalaTimestamp(data_ptr[i], buffer_ptr + i);
+    }
+  } else {
+    return Status::NotImplemented("Only NANO timestamps are supported for Int96 writing");
+  }
+  PARQUET_CATCH_NOT_OK(
+      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer_ptr));
+  return Status::OK();
+}
+
 #define NONNULLABLE_BATCH_FAST_PATH(ParquetType, ArrowType, CType)         \
   template <>                                                              \
   Status FileWriter::Impl::WriteNonNullableBatch<ParquetType, ArrowType>(  \
@@ -455,6 +474,32 @@ Status FileWriter::Impl::WriteNullableBatch<Int32Type, ::arrow::Time32Type>(
       }
       READ_NEXT_BITSET(valid_bits);
     }
+  }
+  PARQUET_CATCH_NOT_OK(writer->WriteBatchSpaced(
+      num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer_ptr));
+
+  return Status::OK();
+}
+
+template <>
+Status FileWriter::Impl::WriteNullableBatch<Int96Type, ::arrow::TimestampType>(
+    TypedColumnWriter<Int96Type>* writer, const ::arrow::TimestampType& type,
+    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels, const uint8_t* valid_bits, int64_t valid_bits_offset,
+    const int64_t* data_ptr) {
+  RETURN_NOT_OK(data_buffer_.Resize(num_values * sizeof(Int96)));
+  auto buffer_ptr = reinterpret_cast<Int96*>(data_buffer_.mutable_data());
+  INIT_BITSET(valid_bits, static_cast<int>(valid_bits_offset));
+
+  if (type.unit() == TimeUnit::NANO) {
+    for (int i = 0; i < num_values; i++) {
+      if (bitset_valid_bits & (1 << bit_offset_valid_bits)) {
+        internal::NanosecondsToImpalaTimestamp(data_ptr[i], buffer_ptr + i);
+      }
+      READ_NEXT_BITSET(valid_bits);
+    }
+  } else {
+    return Status::NotImplemented("Only NANO timestamps are supported for Int96 writing");
   }
   PARQUET_CATCH_NOT_OK(writer->WriteBatchSpaced(
       num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer_ptr));
@@ -639,6 +684,17 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
             column_writer, values_array, num_levels, def_levels, rep_levels);
       }
     }
+    case ::arrow::Type::TIMESTAMP: {
+      auto timestamp_type =
+          static_cast<::arrow::TimestampType*>(values_array->type().get());
+      if (timestamp_type->unit() == ::arrow::TimeUnit::NANO) {
+        return TypedWriteBatch<Int96Type, ::arrow::TimestampType>(
+            column_writer, values_array, num_levels, def_levels, rep_levels);
+      } else {
+        return TypedWriteBatch<Int64Type, ::arrow::TimestampType>(
+            column_writer, values_array, num_levels, def_levels, rep_levels);
+      }
+    }
       WRITE_BATCH_CASE(BOOL, BooleanType, BooleanType)
       WRITE_BATCH_CASE(INT8, Int8Type, Int32Type)
       WRITE_BATCH_CASE(UINT8, UInt8Type, Int32Type)
@@ -654,7 +710,6 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
       WRITE_BATCH_CASE(FIXED_SIZE_BINARY, FixedSizeBinaryType, FLBAType)
       WRITE_BATCH_CASE(DATE32, Date32Type, Int32Type)
       WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
-      WRITE_BATCH_CASE(TIMESTAMP, TimestampType, Int64Type)
       WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)
       WRITE_BATCH_CASE(TIME64, Time64Type, Int64Type)
     default:

@@ -901,26 +901,28 @@ void MakeDateTimeTypesTable(std::shared_ptr<Table>* out) {
   auto f0 = field("f0", ::arrow::date32());
   auto f1 = field("f1", ::arrow::timestamp(TimeUnit::MILLI));
   auto f2 = field("f2", ::arrow::timestamp(TimeUnit::MICRO));
-  auto f3 = field("f3", ::arrow::time32(TimeUnit::MILLI));
-  auto f4 = field("f4", ::arrow::time64(TimeUnit::MICRO));
-  std::shared_ptr<::arrow::Schema> schema(new ::arrow::Schema({f0, f1, f2, f3, f4}));
+  auto f3 = field("f3", ::arrow::timestamp(TimeUnit::NANO));
+  auto f4 = field("f4", ::arrow::time32(TimeUnit::MILLI));
+  auto f5 = field("f5", ::arrow::time64(TimeUnit::MICRO));
+  std::shared_ptr<::arrow::Schema> schema(new ::arrow::Schema({f0, f1, f2, f3, f4, f5}));
 
   std::vector<int32_t> t32_values = {
       1489269000, 1489270000, 1489271000, 1489272000, 1489272000, 1489273000};
   std::vector<int64_t> t64_values = {1489269000000, 1489270000000, 1489271000000,
       1489272000000, 1489272000000, 1489273000000};
 
-  std::shared_ptr<Array> a0, a1, a2, a3, a4;
+  std::shared_ptr<Array> a0, a1, a2, a3, a4, a5;
   ArrayFromVector<::arrow::Date32Type, int32_t>(f0->type(), is_valid, t32_values, &a0);
   ArrayFromVector<::arrow::TimestampType, int64_t>(f1->type(), is_valid, t64_values, &a1);
   ArrayFromVector<::arrow::TimestampType, int64_t>(f2->type(), is_valid, t64_values, &a2);
-  ArrayFromVector<::arrow::Time32Type, int32_t>(f3->type(), is_valid, t32_values, &a3);
-  ArrayFromVector<::arrow::Time64Type, int64_t>(f4->type(), is_valid, t64_values, &a4);
+  ArrayFromVector<::arrow::TimestampType, int64_t>(f3->type(), is_valid, t64_values, &a3);
+  ArrayFromVector<::arrow::Time32Type, int32_t>(f4->type(), is_valid, t32_values, &a4);
+  ArrayFromVector<::arrow::Time64Type, int64_t>(f5->type(), is_valid, t64_values, &a5);
 
   std::vector<std::shared_ptr<::arrow::Column>> columns = {
       std::make_shared<Column>("f0", a0), std::make_shared<Column>("f1", a1),
       std::make_shared<Column>("f2", a2), std::make_shared<Column>("f3", a3),
-      std::make_shared<Column>("f4", a4)};
+      std::make_shared<Column>("f4", a4), std::make_shared<Column>("f5", a5)};
   *out = std::make_shared<::arrow::Table>(schema, columns);
 }
 
@@ -1163,6 +1165,15 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->num_rows(), 0);
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 0);
+}
+
+TEST(TestImpalaConversion, NanosecondToImpala) {
+  // June 20, 2017 16:32:56 and 123456789 nanoseconds
+  int64_t nanoseconds = INT64_C(1497976376123456789);
+  Int96 expected = { {UINT32_C(632093973), UINT32_C(13871), UINT32_C(2457925)} };
+  Int96 calculated;
+  internal::NanosecondsToImpalaTimestamp(nanoseconds, &calculated);
+  ASSERT_EQ(expected, calculated);
 }
 
 TEST(TestArrowReaderAdHoc, Int96BadMemoryAccess) {
