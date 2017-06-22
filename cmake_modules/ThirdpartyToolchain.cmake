@@ -191,6 +191,7 @@ if (NOT THRIFT_FOUND)
                         "-DWITH_C_GLIB=OFF"
                         "-DWITH_JAVA=OFF"
                         "-DWITH_PYTHON=OFF"
+                        "-DWITH_HASKELL=OFF"
                         "-DWITH_CPP=ON"
                         "-DWITH_STATIC_LIB=ON"
                         )
