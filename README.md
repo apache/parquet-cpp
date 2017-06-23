@@ -33,6 +33,10 @@
 
 ## System Dependencies
 
+We use the CMake build system and require a minimum version of 3.2. If you are
+using an older Linux distribution, you may need to use a PPA (for apt users) or
+build CMake from source.
+
 ### Linux
 
 parquet-cpp requires gcc 4.8 or higher on Linux.
@@ -65,6 +69,7 @@ Check [Windows developer guide][1] for instructions to build parquet-cpp on Wind
 - Apache Arrow (memory management, built-in IO, optional Array adapters)
 - snappy
 - zlib
+- brotli
 - Thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 - googletest 1.7.0 (cannot be installed with package managers)
 - Google Benchmark (only required if building benchmarks)
