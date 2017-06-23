@@ -520,7 +520,7 @@ if (NOT ARROW_FOUND)
   endif()
 
   if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
-    set(ARROW_VERSION "a8f8ba0cbcf5f596f042e90b7a208e7a0c3925b7")
+    set(ARROW_VERSION "e209e5865ea58e57925cae24d4bf3f63d58ee21d")
   else()
     set(ARROW_VERSION "$ENV{PARQUET_ARROW_VERSION}")
   endif()
