@@ -511,13 +511,14 @@ Status FileReader::Impl::ReadTable(
     return Status::OK();
   };
 
-  int nthreads = std::min<int>(num_threads_, field_indices.size());
+  int num_fields = static_cast<int>(field_indices.size());
+  int nthreads = std::min<int>(num_threads_, num_fields);
   if (nthreads == 1) {
-    for (int i = 0; i < static_cast<int>(field_indices.size()); i++) {
+    for (int i = 0; i < num_fields; i++) {
       RETURN_NOT_OK(ReadColumnFunc(i));
     }
   } else {
-    RETURN_NOT_OK(ParallelFor(nthreads, field_indices.size(), ReadColumnFunc));
+    RETURN_NOT_OK(ParallelFor(nthreads, num_fields, ReadColumnFunc));
   }
 
   *table = std::make_shared<Table>(schema, columns);
