@@ -148,12 +148,9 @@ if (NOT ZLIB_FOUND)
                       -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
                       -DCMAKE_C_FLAGS=${EP_C_FLAGS}
                       -DBUILD_SHARED_LIBS=OFF)
-
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    set(ZLIB_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}")
-  endif()
   ExternalProject_Add(zlib_ep
     URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
+    BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
     ${ZLIB_BUILD_BYPRODUCTS}
     CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
   set(ZLIB_VENDORED 1)
@@ -228,12 +225,9 @@ if (NOT THRIFT_FOUND)
     endif()
   endif()
 
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    set(THRIFT_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}")
-  endif()
   ExternalProject_Add(thrift_ep
     URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
-    ${THRIFT_BUILD_BYPRODUCTS}
+    BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
     CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
     DEPENDS ${THRIFT_DEPENDENCIES})
 
@@ -278,10 +272,6 @@ if (NOT SNAPPY_FOUND)
     endif()
   endif()
 
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    set(SNAPPY_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
-  endif()
-
   if (MSVC)
     set(SNAPPY_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                           "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
@@ -300,7 +290,7 @@ if (NOT SNAPPY_FOUND)
       INSTALL_DIR ${SNAPPY_PREFIX}
       URL ${SNAPPY_SRC_URL}
       CMAKE_ARGS ${SNAPPY_CMAKE_ARGS}
-      ${SNAPPY_BUILD_BYPRODUCTS})
+      BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
   else()
     ExternalProject_Add(snappy_ep
       CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
@@ -308,7 +298,7 @@ if (NOT SNAPPY_FOUND)
       BUILD_COMMAND ${MAKE}
       INSTALL_DIR ${SNAPPY_PREFIX}
       URL ${SNAPPY_SRC_URL}
-      ${SNAPPY_BUILD_BYPRODUCTS})
+      BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
   endif()
   set(SNAPPY_VENDORED 1)
 else()
@@ -346,13 +336,9 @@ if (NOT BROTLI_FOUND)
                         -DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}
                         -DBUILD_SHARED_LIBS=OFF)
 
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    set(BROTLI_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${BROTLI_STATIC_LIBRARY_ENC}" "${BROTLI_STATIC_LIBRARY_DEC}" "${BROTLI_STATIC_LIBRARY_COMMON}")
-  endif()
-
   ExternalProject_Add(brotli_ep
     URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
-    ${BROTLI_BUILD_BYPRODUCTS}
+    BUILD_BYPRODUCTS "${BROTLI_STATIC_LIBRARY_ENC}" "${BROTLI_STATIC_LIBRARY_DEC}" "${BROTLI_STATIC_LIBRARY_COMMON}"
     CMAKE_ARGS ${BROTLI_CMAKE_ARGS}
     STEP_TARGETS headers_copy)
   if (MSVC)
@@ -405,13 +391,9 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
                          -Dgtest_force_shared_crt=ON
                          -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS})
 
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      set(GTEST_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${GTEST_STATIC_LIB}" "${GTEST_MAIN_STATIC_LIB}")
-    endif()
-
     ExternalProject_Add(googletest_ep
       URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
-      ${GTEST_BUILD_BYPRODUCTS}
+      BUILD_BYPRODUCTS "${GTEST_STATIC_LIB}" "${GTEST_MAIN_STATIC_LIB}"
       CMAKE_ARGS ${GTEST_CMAKE_ARGS})
     set(GTEST_VENDORED 1)
   else()
@@ -461,12 +443,9 @@ if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
       set(GBENCHMARK_CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS} "-DBENCHMARK_USE_LIBCXX=ON")
     endif()
 
-    if (CMAKE_VERSION VERSION_GREATER "3.2")
-      set(GBENCHMARK_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}")
-    endif()
     ExternalProject_Add(gbenchmark_ep
       URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
-      ${GBENCHMARK_BUILD_BYPRODUCTS}
+      BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}"
       CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
     set(GBENCHMARK_VENDORED 1)
   else()
@@ -528,9 +507,6 @@ if (NOT ARROW_FOUND)
 
   set(ARROW_URL "https://github.com/apache/arrow/archive/${ARROW_VERSION}.tar.gz")
 
-  if (CMAKE_VERSION VERSION_GREATER "3.2")
-    set(ARROW_BUILD_BYPRODUCTS BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}")
-  endif()
   if (CMAKE_VERSION VERSION_GREATER "3.7")
     set(ARROW_CONFIGURE SOURCE_SUBDIR "cpp" CMAKE_ARGS ${ARROW_CMAKE_ARGS})
   else()
@@ -541,7 +517,7 @@ if (NOT ARROW_FOUND)
   ExternalProject_Add(arrow_ep
     URL ${ARROW_URL}
     ${ARROW_CONFIGURE}
-    ${ARROW_BUILD_BYPRODUCTS})
+    BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}")
 
   if (MSVC)
     ExternalProject_Add_Step(arrow_ep copy_dll_step

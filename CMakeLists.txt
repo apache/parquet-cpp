@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cmake_minimum_required(VERSION 2.6)
+# Require cmake that supports BYPRODUCTS in add_custom_command, ExternalProject_Add [1].
+cmake_minimum_required(VERSION 3.2.0)
+
 project(parquet-cpp)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/.parquetcppversion" PARQUET_VERSION)
@@ -30,12 +32,7 @@ set(CMAKE_CXX_STANDARD 11)
 # We require a C++11 compliant compiler
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(CMAKE_MAJOR_VERSION LESS 3)
-  set(CMAKE_INSTALL_INCLUDEDIR "include")
-  set(CMAKE_INSTALL_LIBDIR "lib")
-else()
-  include(GNUInstallDirs)
-endif()
+include(GNUInstallDirs)
 
 set(PARQUET_SO_VERSION "1")
 set(PARQUET_ABI_VERSION "${PARQUET_SO_VERSION}.0.0")
