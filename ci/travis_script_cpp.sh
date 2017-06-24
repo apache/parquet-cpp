@@ -38,6 +38,9 @@ if [ $TRAVIS_OS_NAME == "linux" ]; then
   $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
 else
   make -j4 || exit 1
+  BUILD_TYPE=debug
+  EXECUTABLE_DIR=$CPP_BUILD_DIR/$BUILD_TYPE
+  export LD_LIBRARY_PATH=$EXECUTABLE_DIR:$LD_LIBRARY_PATH
   ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
 fi
 
