@@ -24,5 +24,5 @@ if (PARQUET_BUILD_BENCHMARKS)
   # This uses private APIs
   target_link_libraries(decode_benchmark ${LINK_LIBS}
     arrow
-	parquet_static)
+    parquet_static)
 endif()
