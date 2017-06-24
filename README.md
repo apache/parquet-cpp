@@ -66,10 +66,7 @@ Check [Windows developer guide][1] for instructions to build parquet-cpp on Wind
 
 ## Third Party Dependencies
 
-- Apache Arrow (memory management, built-in IO, optional Array adapters)
-- snappy
-- zlib
-- brotli
+- Apache Arrow (memory management, compression, IO, optional columnar data adapters)
 - Thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 - googletest 1.7.0 (cannot be installed with package managers)
 - Google Benchmark (only required if building benchmarks)
@@ -92,9 +89,6 @@ thirdparty toolchain that parquet-cpp builds automatically.
     - ARROW_HOME customizes the Apache Arrow installed location.
     - THRIFT_HOME customizes the Apache Thrift (C++ libraries and compiler
       installed location.
-    - SNAPPY_HOME customizes the Snappy installed location.
-    - ZLIB_HOME customizes the zlib installed location.
-    - BROTLI_HOME customizes the Brotli installed location.
     - GTEST_HOME customizes the googletest installed location (if you are
       building the unit tests).
     - GBENCHMARK_HOME customizes the Google Benchmark installed location (if
