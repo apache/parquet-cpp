@@ -192,7 +192,7 @@ TEST_F(TestPageSerde, Compression) {
     test::random_bytes(page_size, 0, &faux_data[i]);
   }
   for (auto codec_type : codec_types) {
-    std::unique_ptr<::arrow::Codec> codec = GetArrowCodec(codec_type);
+    std::unique_ptr<::arrow::Codec> codec = GetCodecFromArrow(codec_type);
 
     std::vector<uint8_t> buffer;
     for (int i = 0; i < num_pages; ++i) {
