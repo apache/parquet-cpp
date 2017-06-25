@@ -602,12 +602,9 @@ set(LIBPARQUET_SRCS
   src/parquet/arrow/schema.cc
   src/parquet/arrow/writer.cc
 
-  src/parquet/column/levels.cc
-  src/parquet/column/reader.cc
-  src/parquet/column/writer.cc
-  src/parquet/column/scanner.cc
-  src/parquet/column/scan-all.cc
-  src/parquet/column/statistics.cc
+  src/parquet/column_reader.cc
+  src/parquet/column_scanner.cc
+  src/parquet/column_writer.cc
 
   src/parquet/file/metadata.cc
   src/parquet/file/printer.cc
@@ -617,6 +614,7 @@ set(LIBPARQUET_SRCS
   src/parquet/file/writer-internal.cc
 
   src/parquet/schema.cc
+  src/parquet/statistics.cc
 
   src/parquet/parquet_constants.cpp
   src/parquet/parquet_types.cpp
@@ -669,7 +667,6 @@ ADD_LIB(parquet
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/arrow)
-add_subdirectory(src/parquet/column)
 add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/util)
 
