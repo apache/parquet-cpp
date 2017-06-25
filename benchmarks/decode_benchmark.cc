@@ -288,8 +288,10 @@ void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& d
   int max_compressed_size = codec->MaxCompressedLen(uncompressed_len, raw_data);
   uint8_t* compressed_data = new uint8_t[max_compressed_size];
   int64_t compressed_len;
-  DCHECK(codec->Compress(uncompressed_len, raw_data, max_compressed_size,
-          compressed_data, &compressed_len).ok());
+  DCHECK(codec
+             ->Compress(uncompressed_len, raw_data, max_compressed_size, compressed_data,
+                 &compressed_len)
+             .ok());
 
   printf("\n%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n", codec->name(),
       uncompressed_len, static_cast<int>(compressed_len));

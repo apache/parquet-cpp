@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "parquet/column/writer.h"
+#include "parquet/column_writer.h"
 
-#include "parquet/column/properties.h"
-#include "parquet/column/statistics.h"
 #include "parquet/encoding-internal.h"
+#include "parquet/properties.h"
+#include "parquet/statistics.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/memory.h"
 #include "parquet/util/rle-encoding.h"

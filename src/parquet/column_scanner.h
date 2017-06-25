@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-#include "parquet/column/reader.h"
+#include "parquet/column_reader.h"
 #include "parquet/exception.h"
 #include "parquet/schema.h"
 #include "parquet/types.h"

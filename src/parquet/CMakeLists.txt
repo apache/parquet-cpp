@@ -18,11 +18,11 @@
 # Headers: top level
 install(FILES
   column_reader.h
+  column_page.h
   column_scanner.h
   column_writer.h
   encoding.h
   exception.h
-  page.h
   properties.h
   schema.h
   statistics.h
@@ -59,4 +59,3 @@ ADD_PARQUET_TEST(schema-test)
 
 ADD_PARQUET_BENCHMARK(column-io-benchmark)
 ADD_PARQUET_BENCHMARK(encoding-benchmark)
-ADD_PARQUET_BENCHMARK(level-benchmark)
