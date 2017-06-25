@@ -30,11 +30,9 @@ if [ $TRAVIS_OS_NAME == "linux" ]; then
     cmake -DPARQUET_CXXFLAGS=-Werror \
           -DPARQUET_TEST_MEMCHECK=ON \
           -DPARQUET_BUILD_BENCHMARKS=ON \
-          -DPARQUET_ARROW_LINKAGE=static \
           -DPARQUET_GENERATE_COVERAGE=1 \
           $TRAVIS_BUILD_DIR
 else
     cmake -DPARQUET_CXXFLAGS=-Werror \
-          -DPARQUET_ARROW_LINKAGE=static \
           $TRAVIS_BUILD_DIR
 fi

@@ -40,7 +40,7 @@ conda config --set remote_connect_timeout_secs 12
 conda info -a
 
 conda create -y -q -p $CPP_TOOLCHAIN \
-      boost-cpp zlib thrift-cpp snappy brotli cmake git \
+      boost-cpp thrift-cpp cmake git \
       -c conda-forge
 
 # ----------------------------------------------------------------------
@@ -53,7 +53,6 @@ export BOOST_ROOT=$CPP_TOOLCHAIN
 
 cmake -DPARQUET_CXXFLAGS=-Werror \
       -DPARQUET_TEST_MEMCHECK=ON \
-      -DPARQUET_ZLIB_VENDORED=off \
       -DPARQUET_GENERATE_COVERAGE=1 \
       $TRAVIS_BUILD_DIR
 

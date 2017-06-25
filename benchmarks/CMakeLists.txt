@@ -16,7 +16,6 @@
 # under the License.
 
 SET(LINK_LIBS
-  snappystatic
   thriftstatic)
 
 if (PARQUET_BUILD_BENCHMARKS)
@@ -24,6 +23,6 @@ if (PARQUET_BUILD_BENCHMARKS)
 
   # This uses private APIs
   target_link_libraries(decode_benchmark ${LINK_LIBS}
-	parquet_static)
-
+    arrow
+    parquet_static)
 endif()

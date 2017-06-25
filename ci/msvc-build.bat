@@ -30,13 +30,13 @@ if NOT "%CONFIGURATION%" == "Debug" (
 if "%CONFIGURATION%" == "Toolchain" (
   conda install -y boost-cpp=1.63 brotli=0.6.0 zlib=1.2.11 snappy=1.1.4 thrift-cpp=0.10.0 -c conda-forge
 
+  set ARROW_BUILD_TOOLCHAIN=%MINICONDA%/Library
   set PARQUET_BUILD_TOOLCHAIN=%MINICONDA%/Library
 
   cmake -G "%GENERATOR%" ^
       -DCMAKE_BUILD_TYPE=Release ^
       -DPARQUET_BOOST_USE_SHARED=OFF ^
       -DPARQUET_CXXFLAGS=%PARQUET_CXXFLAGS% ^
-      -DPARQUET_ZLIB_VENDORED=OFF ^
       .. || exit /B
 
   cmake --build . --config Release || exit /B
