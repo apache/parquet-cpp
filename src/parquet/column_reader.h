@@ -28,7 +28,6 @@
 
 #include <arrow/util/bit-util.h>
 
-#include "parquet/column/levels.h"
 #include "parquet/column/page.h"
 #include "parquet/encoding.h"
 #include "parquet/exception.h"
@@ -38,6 +37,30 @@
 #include "parquet/util/visibility.h"
 
 namespace parquet {
+
+class BitReader;
+class RleDecoder;
+
+class PARQUET_EXPORT LevelDecoder {
+ public:
+  LevelDecoder();
+  ~LevelDecoder();
+
+  // Initialize the LevelDecoder state with new data
+  // and return the number of bytes consumed
+  int SetData(Encoding::type encoding, int16_t max_level, int num_buffered_values,
+      const uint8_t* data);
+
+  // Decodes a batch of levels into an array and returns the number of levels decoded
+  int Decode(int batch_size, int16_t* levels);
+
+ private:
+  int bit_width_;
+  int num_values_remaining_;
+  Encoding::type encoding_;
+  std::unique_ptr<RleDecoder> rle_decoder_;
+  std::unique_ptr<BitReader> bit_packed_decoder_;
+};
 
 class PARQUET_EXPORT ColumnReader {
  public:
