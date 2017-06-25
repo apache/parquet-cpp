@@ -19,8 +19,10 @@
 #include <random>
 #include <stdio.h>
 
-#include "parquet/compression.h"
+#include "arrow/util/compression.h"
+
 #include "parquet/encoding-internal.h"
+#include "parquet/util/logging.h"
 #include "parquet/util/stopwatch.h"
 
 /**
@@ -277,7 +279,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
   printf("%s rate (batch size = %2d): %0.3fM per second.\n", NAME, BATCH_SIZE, \
       mult / elapsed);
 
-void TestPlainIntCompressed(parquet::Codec* codec, const std::vector<int64_t>& data,
+void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& data,
     int num_iters, int batch_size) {
   const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(&data[0]);
   int uncompressed_len = data.size() * sizeof(int64_t);
@@ -285,11 +287,12 @@ void TestPlainIntCompressed(parquet::Codec* codec, const std::vector<int64_t>& d
 
   int max_compressed_size = codec->MaxCompressedLen(uncompressed_len, raw_data);
   uint8_t* compressed_data = new uint8_t[max_compressed_size];
-  int compressed_len =
-      codec->Compress(uncompressed_len, raw_data, max_compressed_size, compressed_data);
+  int64_t compressed_len;
+  DCHECK(codec->Compress(uncompressed_len, raw_data, max_compressed_size,
+          compressed_data, &compressed_len).ok());
 
   printf("\n%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n", codec->name(),
-      uncompressed_len, compressed_len);
+      uncompressed_len, static_cast<int>(compressed_len));
 
   double mult = num_iters * data.size() * 1000.;
   parquet::StopWatch sw;
@@ -446,7 +449,7 @@ int main(int argc, char** argv) {
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 32);
   TestBinaryPackedEncoding("Rand 0-10K", values, 100, 64);
 
-  parquet::SnappyCodec snappy_codec;
+  ::arrow::SnappyCodec snappy_codec;
 
   TestPlainIntCompressed(&snappy_codec, values, 100, 1);
   TestPlainIntCompressed(&snappy_codec, values, 100, 16);

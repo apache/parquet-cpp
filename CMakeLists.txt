@@ -107,9 +107,6 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_EXECUTABLES
     "Build the libparquet executable CLI tools"
     ON)
-  option(PARQUET_ZLIB_VENDORED
-    "Build our own zlib (some libz.a aren't configured for static linking)"
-    ON)
   option(PARQUET_RPATH_ORIGIN
     "Build Parquet libraries with RPATH set to \$ORIGIN"
     OFF)
@@ -119,14 +116,8 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   if (MSVC)
     set(ARROW_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
       "Arrow static lib suffix used on Windows with MSVC (default _static)")
-    set(BROTLI_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
-      "Brotli static lib suffix used on Windows with MSVC (default _static)")
-    set(SNAPPY_MSVC_STATIC_LIB_SUFFIX "" CACHE STRING
-      "Snappy static lib suffix used on Windows with MSVC (default is empty string)")
     set(THRIFT_MSVC_STATIC_LIB_SUFFIX "md" CACHE STRING
       "Thrift static lib suffix used on Windows with MSVC (default md)")
-    set(ZLIB_MSVC_STATIC_LIB_SUFFIX "libstatic" CACHE STRING
-      "Zlib static lib suffix used on Windows with MSVC (default libstatic)")
   endif()
 endif()
 
@@ -618,8 +609,6 @@ set(LIBPARQUET_SRCS
   src/parquet/column/scan-all.cc
   src/parquet/column/statistics.cc
 
-  src/parquet/compression.cc
-
   src/parquet/file/metadata.cc
   src/parquet/file/printer.cc
   src/parquet/file/reader.cc
@@ -636,15 +625,6 @@ set(LIBPARQUET_SRCS
   src/parquet/util/memory.cc
 )
 
-set(BUNDLED_STATIC_LIBS
-  brotlistatic_dec
-  brotlistatic_enc
-  brotlistatic_common
-  snappystatic
-  thriftstatic
-  zlibstatic
-)
-
 # # Ensure that thrift compilation is done before using its generated headers
 # # in parquet code.
 add_custom_target(thrift-deps ALL
@@ -659,7 +639,7 @@ if (NOT PARQUET_MINIMAL_DEPENDENCY)
   set(LIBPARQUET_INTERFACE_LINK_LIBS
     ${ARROW_LINK_LIBS}
     ${BOOST_LINK_LIBS}
-    ${BUNDLED_STATIC_LIBS}
+    thriftstatic
   )
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
