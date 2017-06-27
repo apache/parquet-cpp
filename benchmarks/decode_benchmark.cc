@@ -40,10 +40,10 @@ class DeltaBitPackEncoder {
 
   uint8_t* Encode(int* encoded_len) {
     uint8_t* result = new uint8_t[10 * 1024 * 1024];
-    int num_mini_blocks = parquet::BitUtil::Ceil(num_values() - 1, mini_block_size_);
+    int num_mini_blocks = arrow::BitUtil::Ceil(num_values() - 1, mini_block_size_);
     uint8_t* mini_block_widths = NULL;
 
-    parquet::BitWriter writer(result, 10 * 1024 * 1024);
+    arrow::BitWriter writer(result, 10 * 1024 * 1024);
 
     // Writer the size of each block. We only use 1 block currently.
     writer.PutVlqInt(num_mini_blocks * mini_block_size_);
@@ -83,7 +83,7 @@ class DeltaBitPackEncoder {
 
       // The bit width for this block is the number of bits needed to store
       // (max_delta - min_delta).
-      int bit_width = parquet::BitUtil::NumRequiredBits(max_delta - min_delta);
+      int bit_width = arrow::BitUtil::NumRequiredBits(max_delta - min_delta);
       mini_block_widths[i] = bit_width;
 
       // Encode this mini blocking using min_delta and bit_width
