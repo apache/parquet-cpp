@@ -618,8 +618,6 @@ set(LIBPARQUET_SRCS
 
   src/parquet/parquet_constants.cpp
   src/parquet/parquet_types.cpp
-
-  src/parquet/util/cpu-info.cc
   src/parquet/util/memory.cc
 )
 
