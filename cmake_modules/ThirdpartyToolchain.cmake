@@ -109,34 +109,6 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 # ----------------------------------------------------------------------
 # ZLIB
 
-set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
-set(ZLIB_HOME "${ZLIB_PREFIX}")
-set(ZLIB_INCLUDE_DIR "${ZLIB_PREFIX}/include")
-if (MSVC)
-  if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
-    set(ZLIB_STATIC_LIB_NAME zlibstaticd.lib)
-  else()
-    set(ZLIB_STATIC_LIB_NAME zlibstatic.lib)
-  endif()
-else()
-  set(ZLIB_STATIC_LIB_NAME libz.a)
-endif()
-set(ZLIB_STATIC_LIB "${ZLIB_PREFIX}/lib/${ZLIB_STATIC_LIB_NAME}")
-set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-  -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
-  -DCMAKE_C_FLAGS=${EP_C_FLAGS}
-  -DBUILD_SHARED_LIBS=OFF)
-ExternalProject_Add(zlib_ep
-  URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
-  BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
-  ${ZLIB_BUILD_BYPRODUCTS}
-  CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-
-include_directories(SYSTEM ${ZLIB_INCLUDE_DIR})
-add_library(zlibstatic STATIC IMPORTED)
-set_target_properties(zlibstatic PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
-add_dependencies(zlibstatic zlib_ep)
-
 # ----------------------------------------------------------------------
 # Thrift
 
@@ -144,6 +116,29 @@ add_dependencies(zlibstatic zlib_ep)
 find_package(Thrift)
 
 if (NOT THRIFT_FOUND)
+  set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
+  set(ZLIB_HOME "${ZLIB_PREFIX}")
+  set(ZLIB_INCLUDE_DIR "${ZLIB_PREFIX}/include")
+  if (MSVC)
+    if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
+      set(ZLIB_STATIC_LIB_NAME zlibstaticd.lib)
+    else()
+      set(ZLIB_STATIC_LIB_NAME zlibstatic.lib)
+    endif()
+  else()
+    set(ZLIB_STATIC_LIB_NAME libz.a)
+  endif()
+  set(ZLIB_STATIC_LIB "${ZLIB_PREFIX}/lib/${ZLIB_STATIC_LIB_NAME}")
+  set(ZLIB_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_INSTALL_PREFIX=${ZLIB_PREFIX}
+    -DCMAKE_C_FLAGS=${EP_C_FLAGS}
+    -DBUILD_SHARED_LIBS=OFF)
+  ExternalProject_Add(zlib_ep
+    URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
+    BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
+    ${ZLIB_BUILD_BYPRODUCTS}
+    CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
+
   set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
   set(THRIFT_HOME "${THRIFT_PREFIX}")
   set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
