@@ -204,7 +204,7 @@ message(STATUS "Thrift include dir: ${THRIFT_INCLUDE_DIR}")
 message(STATUS "Thrift static library: ${THRIFT_STATIC_LIB}")
 message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
 ADD_THIRDPARTY_LIB(thriftstatic
-  SHARED_LIB "${THRIFT_STATIC_LIB}")
+  STATIC_LIB "${THRIFT_STATIC_LIB}")
 
 if (THRIFT_VENDORED)
   add_dependencies(thriftstatic thrift_ep)
