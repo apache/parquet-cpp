@@ -42,6 +42,11 @@ matrix:
     os: linux
   - compiler: gcc
     os: linux
+    before_script:
+    - export TRAVIS_ARROW_LINKAGE=static
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
+  - compiler: gcc
+    os: linux
     env: PARQUET_BUILD_GROUP=toolchain
     before_script:
     script:
@@ -78,6 +83,7 @@ before_install:
 - pushd $TRAVIS_BUILD_DIR/parquet-build
 
 before_script:
+- export TRAVIS_ARROW_LINKAGE=shared
 - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
 
 script:
