@@ -46,6 +46,24 @@ if (NOT "$ENV{PARQUET_BUILD_TOOLCHAIN}" STREQUAL "")
   endif()
 endif()
 
+if (NOT "$ENV{ARROW_BUILD_TOOLCHAIN}" STREQUAL "")
+  set(SNAPPY_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(ZLIB_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(BROTLI_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+endif()
+
+if (DEFINED ENV{SNAPPY_HOME})
+  set(SNAPPY_HOME "$ENV{SNAPPY_HOME}")
+endif()
+
+if (DEFINED ENV{ZLIB_HOME})
+  set(ZLIB_HOME "$ENV{ZLIB_HOME}")
+endif()
+
+if (DEFINED ENV{BROTLI_HOME})
+  set(BROTLI_HOME "$ENV{BROTLI_HOME}")
+endif()
+
 if (DEFINED ENV{THRIFT_HOME})
   set(THRIFT_HOME "$ENV{THRIFT_HOME}")
 endif()
@@ -333,7 +351,7 @@ if (NOT ARROW_FOUND)
     -DARROW_BUILD_TESTS=OFF)
 
   if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
-    set(ARROW_VERSION "a58893882ac8acd1ac4a5036685cbf09a9a09673")
+    set(ARROW_VERSION "7d86c28e09f6c402ea1dbb9e67dcee2507b62986")
   else()
     set(ARROW_VERSION "$ENV{PARQUET_ARROW_VERSION}")
   endif()
@@ -382,114 +400,133 @@ if (${PARQUET_ARROW_LINKAGE} STREQUAL "static")
   #########################################
   # Snappy
 
-  set(SNAPPY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/snappy_ep/src/snappy_ep-install")
-  set(SNAPPY_HOME "${SNAPPY_PREFIX}")
-  set(SNAPPY_INCLUDE_DIR "${SNAPPY_PREFIX}/include")
-  if (MSVC)
-    set(SNAPPY_STATIC_LIB_NAME snappystatic)
-  else()
-    set(SNAPPY_STATIC_LIB_NAME snappy)
-  endif()
-  set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${SNAPPY_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(SNAPPY_SRC_URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz")
-
-  if (${UPPERCASE_BUILD_TYPE} EQUAL "RELEASE")
-    if (APPLE)
-      set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O1'")
+  find_package(Snappy)
+  if (NOT SNAPPY_FOUND)
+    set(SNAPPY_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/snappy_ep/src/snappy_ep-install")
+    set(SNAPPY_HOME "${SNAPPY_PREFIX}")
+    set(SNAPPY_INCLUDE_DIR "${SNAPPY_PREFIX}/include")
+    if (MSVC)
+      set(SNAPPY_STATIC_LIB_NAME snappystatic)
     else()
-      set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O2'")
+      set(SNAPPY_STATIC_LIB_NAME snappy)
     endif()
-  endif()
+    set(SNAPPY_STATIC_LIB "${SNAPPY_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${SNAPPY_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(SNAPPY_SRC_URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz")
 
-  if (MSVC)
-    set(SNAPPY_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                          "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
-                          "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
-                          "-DCMAKE_INSTALL_PREFIX=${SNAPPY_PREFIX}")
-    set(SNAPPY_UPDATE_COMMAND ${CMAKE_COMMAND} -E copy
-                      ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyCMakeLists.txt
-                      ./CMakeLists.txt &&
-                      ${CMAKE_COMMAND} -E copy
-                      ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyConfig.h
-                      ./config.h)
-    ExternalProject_Add(snappy_ep
-      UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      INSTALL_DIR ${SNAPPY_PREFIX}
-      URL ${SNAPPY_SRC_URL}
-      CMAKE_ARGS ${SNAPPY_CMAKE_ARGS}
-      BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
+    if (${UPPERCASE_BUILD_TYPE} EQUAL "RELEASE")
+      if (APPLE)
+        set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O1'")
+      else()
+        set(SNAPPY_CXXFLAGS "CXXFLAGS='-DNDEBUG -O2'")
+      endif()
+    endif()
+
+    if (MSVC)
+      set(SNAPPY_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
+        "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
+        "-DCMAKE_INSTALL_PREFIX=${SNAPPY_PREFIX}")
+      set(SNAPPY_UPDATE_COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyCMakeLists.txt
+        ./CMakeLists.txt &&
+        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/cmake_modules/SnappyConfig.h
+        ./config.h)
+      ExternalProject_Add(snappy_ep
+        UPDATE_COMMAND ${SNAPPY_UPDATE_COMMAND}
+        BUILD_IN_SOURCE 1
+        BUILD_COMMAND ${MAKE}
+        INSTALL_DIR ${SNAPPY_PREFIX}
+        URL ${SNAPPY_SRC_URL}
+        CMAKE_ARGS ${SNAPPY_CMAKE_ARGS}
+        BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
+    else()
+      ExternalProject_Add(snappy_ep
+        CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
+        BUILD_IN_SOURCE 1
+        BUILD_COMMAND ${MAKE}
+        INSTALL_DIR ${SNAPPY_PREFIX}
+        URL ${SNAPPY_SRC_URL}
+        BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
+    endif()
+    set(SNAPPY_VENDORED 1)
   else()
-    ExternalProject_Add(snappy_ep
-      CONFIGURE_COMMAND ./configure --with-pic "--prefix=${SNAPPY_PREFIX}" ${SNAPPY_CXXFLAGS}
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      INSTALL_DIR ${SNAPPY_PREFIX}
-      URL ${SNAPPY_SRC_URL}
-      BUILD_BYPRODUCTS "${SNAPPY_STATIC_LIB}")
+    set(SNAPPY_VENDORED 0)
   endif()
 
-  set(BROTLI_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/brotli_ep/src/brotli_ep-install")
-  set(BROTLI_HOME "${BROTLI_PREFIX}")
-  set(BROTLI_INCLUDE_DIR "${BROTLI_PREFIX}/include")
-  if (MSVC)
-    set(BROTLI_LIB_DIR bin)
+  find_package(Brotli)
+  if (NOT BROTLI_FOUND)
+    set(BROTLI_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/brotli_ep/src/brotli_ep-install")
+    set(BROTLI_HOME "${BROTLI_PREFIX}")
+    set(BROTLI_INCLUDE_DIR "${BROTLI_PREFIX}/include")
+    if (MSVC)
+      set(BROTLI_LIB_DIR bin)
+    else()
+      set(BROTLI_LIB_DIR lib)
+    endif()
+    set(BROTLI_STATIC_LIBRARY_ENC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlienc${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(BROTLI_STATIC_LIBRARY_DEC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlidec${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(BROTLI_STATIC_LIBRARY_COMMON "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlicommon${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
+      "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
+      -DCMAKE_INSTALL_PREFIX=${BROTLI_PREFIX}
+      -DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}
+      -DBUILD_SHARED_LIBS=OFF)
+
+    ExternalProject_Add(brotli_ep
+      URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
+      BUILD_BYPRODUCTS "${BROTLI_STATIC_LIBRARY_ENC}" "${BROTLI_STATIC_LIBRARY_DEC}" "${BROTLI_STATIC_LIBRARY_COMMON}"
+      ${BROTLI_BUILD_BYPRODUCTS}
+      CMAKE_ARGS ${BROTLI_CMAKE_ARGS}
+      STEP_TARGETS headers_copy)
+    if (MSVC)
+      ExternalProject_Get_Property(brotli_ep SOURCE_DIR)
+
+      ExternalProject_Add_Step(brotli_ep headers_copy
+        COMMAND xcopy /E /I include ..\\..\\..\\brotli_ep\\src\\brotli_ep-install\\include /Y
+        DEPENDEES build
+        WORKING_DIRECTORY ${SOURCE_DIR})
+    endif()
+    set(BROTLI_VENDORED 1)
   else()
-    set(BROTLI_LIB_DIR lib)
+    set(BROTLI_VENDORED 0)
   endif()
-  set(BROTLI_STATIC_LIBRARY_ENC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlienc${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(BROTLI_STATIC_LIBRARY_DEC "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlidec${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(BROTLI_STATIC_LIBRARY_COMMON "${BROTLI_PREFIX}/${BROTLI_LIB_DIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${CMAKE_STATIC_LIBRARY_PREFIX}brotlicommon${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(BROTLI_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                        "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
-                        "-DCMAKE_C_FLAGS=${EX_C_FLAGS}"
-                        -DCMAKE_INSTALL_PREFIX=${BROTLI_PREFIX}
-                        -DCMAKE_INSTALL_LIBDIR=lib/${CMAKE_LIBRARY_ARCHITECTURE}
-                        -DBUILD_SHARED_LIBS=OFF)
-
-  ExternalProject_Add(brotli_ep
-    URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz"
-    BUILD_BYPRODUCTS "${BROTLI_STATIC_LIBRARY_ENC}" "${BROTLI_STATIC_LIBRARY_DEC}" "${BROTLI_STATIC_LIBRARY_COMMON}"
-    ${BROTLI_BUILD_BYPRODUCTS}
-    CMAKE_ARGS ${BROTLI_CMAKE_ARGS}
-    STEP_TARGETS headers_copy)
-  if (MSVC)
-    ExternalProject_Get_Property(brotli_ep SOURCE_DIR)
-
-    ExternalProject_Add_Step(brotli_ep headers_copy
-      COMMAND xcopy /E /I include ..\\..\\..\\brotli_ep\\src\\brotli_ep-install\\include /Y
-      DEPENDEES build
-      WORKING_DIRECTORY ${SOURCE_DIR})
-  endif()
-
 
   ADD_THIRDPARTY_LIB(snappy
     STATIC_LIB ${SNAPPY_STATIC_LIB})
-  add_dependencies(snappy snappy_ep)
 
   ADD_THIRDPARTY_LIB(brotli_enc
     STATIC_LIB ${BROTLI_STATIC_LIBRARY_ENC})
-  add_dependencies(brotli_enc brotli_ep)
 
   ADD_THIRDPARTY_LIB(brotli_dec
     STATIC_LIB ${BROTLI_STATIC_LIBRARY_DEC})
-  add_dependencies(brotli_dec brotli_ep)
 
   ADD_THIRDPARTY_LIB(brotli_common
     STATIC_LIB ${BROTLI_STATIC_LIBRARY_COMMON})
-  add_dependencies(brotli_common brotli_ep)
 
-  if (NOT DEFINED ENV{SNAPPY_HOME})
-    set(ENV{SNAPPY_HOME} "${SNAPPY_HOME}")
+  if (SNAPPY_VENDORED)
+    add_dependencies(snappy snappy_ep)
+    if (NOT DEFINED ENV{SNAPPY_HOME})
+      set(ENV{SNAPPY_HOME} "${SNAPPY_HOME}")
+    endif()
+
+    if (ARROW_VENDORED)
+      add_dependencies(arrow_ep snappy_ep)
+    endif()
   endif()
 
-  if (NOT DEFINED ENV{BROTLI_HOME})
-    set(ENV{BROTLI_HOME} "${BROTLI_HOME}")
+  if (BROTLI_VENDORED)
+    add_dependencies(brotli_enc brotli_ep)
+    add_dependencies(brotli_dec brotli_ep)
+    add_dependencies(brotli_common brotli_ep)
+    if (NOT DEFINED ENV{BROTLI_HOME})
+      set(ENV{BROTLI_HOME} "${BROTLI_HOME}")
+    endif()
+
+    if (ARROW_VENDORED)
+      add_dependencies(arrow_ep brotli_ep)
+    endif()
   endif()
 
-  if (ARROW_VENDORED)
-    add_dependencies(arrow_ep snappy_ep)
-    add_dependencies(arrow_ep brotli_ep)
-  endif()
 endif()
