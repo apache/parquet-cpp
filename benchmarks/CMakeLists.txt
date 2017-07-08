@@ -16,13 +16,14 @@
 # under the License.
 
 SET(LINK_LIBS
+  ${ARROW_LINK_LIBS}
   thriftstatic)
 
 if (PARQUET_BUILD_BENCHMARKS)
   add_executable(decode_benchmark decode_benchmark.cc)
 
   # This uses private APIs
-  target_link_libraries(decode_benchmark ${LINK_LIBS}
-    arrow
+  target_link_libraries(decode_benchmark
+    ${LINK_LIBS} 
     parquet_static)
 endif()
