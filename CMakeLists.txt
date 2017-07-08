@@ -428,15 +428,6 @@ if ("${COMPILER_FAMILY}" STREQUAL "clang")
 endif()
 
 ############################################################
-# Visibility
-############################################################
-# For generate_export_header() and add_compiler_export_flags().
-include(GenerateExportHeader)
-
-# Sets -fvisibility=hidden for gcc
-add_compiler_export_flags()
-
-############################################################
 # "make lint" target
 ############################################################
 if (UNIX)
@@ -661,6 +652,36 @@ ADD_LIB(parquet
         SO_VERSION ${PARQUET_SO_VERSION}
         LIB_RPATH_ORIGIN ${PARQUET_RPATH_ORIGIN}
 )
+
+############################################################
+# Visibility
+############################################################
+# For generate_export_header() and add_compiler_export_flags().
+include(GenerateExportHeader)
+
+# Adapted from Apache Kudu: https://github.com/apache/kudu/commit/bd549e13743a51013585
+# Honor visibility properties for all target types. See
+# "cmake --help-policy CMP0063" for details.
+#
+# This policy was only added to cmake in version 3.3, so until the cmake in
+# thirdparty is updated, we must check if the policy exists before setting it.
+if(POLICY CMP0063)
+  cmake_policy(SET CMP0063 NEW)
+endif()
+
+if (PARQUET_BUILD_SHARED)
+  if (POLICY CMP0063)
+    set_target_properties(parquet_shared
+      PROPERTIES C_VISIBILITY_PRESET hidden)
+    set_target_properties(parquet_shared
+      PROPERTIES CXX_VISIBILITY_PRESET hidden)
+    set_target_properties(parquet_shared
+      PROPERTIES VISIBILITY_INLINES_HIDDEN 1)
+  else()
+    # Sets -fvisibility=hidden for gcc
+    add_compiler_export_flags()
+  endif()
+endif()
 
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
