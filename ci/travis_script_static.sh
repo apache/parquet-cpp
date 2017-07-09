@@ -33,10 +33,10 @@ export ZLIB_STATIC_LIB=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow
 
 if [ $TRAVIS_OS_NAME == "linux" ]; then
     cmake -DPARQUET_CXXFLAGS=-Werror \
-          -DPARQUET_TEST_MEMCHECK=ON \
           -DPARQUET_ARROW_LINKAGE="static" \
           -DPARQUET_BUILD_SHARED=OFF \
           -DPARQUET_BUILD_BENCHMARKS=ON \
+          -DPARQUET_BUILD_EXAMPLES=ON \
           -DPARQUET_GENERATE_COVERAGE=1 \
           $TRAVIS_BUILD_DIR
 else
