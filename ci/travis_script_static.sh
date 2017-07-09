@@ -36,6 +36,7 @@ if [ $TRAVIS_OS_NAME == "linux" ]; then
           -DPARQUET_TEST_MEMCHECK=ON \
           -DPARQUET_ARROW_LINKAGE="static" \
           -DPARQUET_BUILD_SHARED=OFF \
+          -DPARQUET_BOOST_USE_SHARED=OFF \
           -DPARQUET_BUILD_BENCHMARKS=ON \
           -DPARQUET_BUILD_EXAMPLES=ON \
           -DPARQUET_GENERATE_COVERAGE=1 \
@@ -44,5 +45,6 @@ else
     cmake -DPARQUET_CXXFLAGS=-Werror \
           -DPARQUET_ARROW_LINKAGE="static" \
           -DPARQUET_BUILD_SHARED=OFF \
+          -DPARQUET_BOOST_USE_SHARED=OFF \
           $TRAVIS_BUILD_DIR
 fi
