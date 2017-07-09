@@ -82,37 +82,49 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_SHARED
     "Build the shared version of libparquet"
     ON)
+
   option(PARQUET_BUILD_STATIC
     "Build the static version of libparquet. Always ON if building unit tests"
     ON)
+
   set(PARQUET_ARROW_LINKAGE "shared" CACHE STRING
     "Libraries to link for Apache Arrow. static|shared (default shared)")
+
   set(PARQUET_CXXFLAGS "" CACHE STRING
     "Compiler flags to use when compiling Parquet")
+
   option(PARQUET_USE_SSE
     "Build with SSE4 optimizations"
     OFF)
+
   option(PARQUET_BUILD_BENCHMARKS
     "Build the libparquet benchmark suite"
     OFF)
+
   option(PARQUET_BOOST_USE_SHARED
     "Rely on boost shared libraries where relevant"
     ON)
+
   option(PARQUET_BUILD_TESTS
     "Build the libparquet test suite"
     ON)
+
   option(PARQUET_TEST_MEMCHECK
     "Run the test suite using valgrind --tool=memcheck"
     OFF)
+
   option(PARQUET_BUILD_EXECUTABLES
     "Build the libparquet executable CLI tools"
     ON)
+
   option(PARQUET_RPATH_ORIGIN
     "Build Parquet libraries with RPATH set to \$ORIGIN"
     OFF)
+
   option(PARQUET_MINIMAL_DEPENDENCY
     "Depend only on Thirdparty headers to build libparquet. Always OFF if building binaries"
     OFF)
+
   if (MSVC)
     set(ARROW_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
       "Arrow static lib suffix used on Windows with MSVC (default _static)")
@@ -492,25 +504,25 @@ if ("${PARQUET_GENERATE_COVERAGE}")
 endif()
 
 #############################################################
-# Boost linkage
+# Boost libs
 
-if (PARQUET_BOOST_USE_SHARED)
-  set(BOOST_LINK_LIBS
-    boost_shared_regex)
-else()
-  set(BOOST_LINK_LIBS
-    boost_static_regex)
-endif()
+set(BOOST_LINK_LIBS
+  boost_regex)
 
 #############################################################
 # Apache Arrow linkage
 
 if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
   set(ARROW_LINK_LIBS
-    arrow)
+    arrow_shared)
 else()
   set(ARROW_LINK_LIBS
-    arrow_static)
+    arrow_static
+    brotli_dec
+    brotli_enc
+    brotli_common
+    zlib
+    snappy)
 endif()
 
 #############################################################
