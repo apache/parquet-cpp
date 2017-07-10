@@ -509,8 +509,45 @@ if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
   set(ARROW_LINK_LIBS
     arrow)
 else()
+  #############################################################
+  # Transitive Library Linkage
+
+  if (NOT DEFINED ENV{BROTLI_STATIC_LIB_ENC} OR
+      NOT DEFINED ENV{BROTLI_STATIC_LIB_DEC} OR
+      NOT DEFINED ENV{BROTLI_STATIC_LIB_COMMON} OR
+      NOT DEFINED ENV{SNAPPY_STATIC_LIB} OR
+      NOT DEFINED ENV{ZLIB_STATIC_LIB})
+    message(FATAL_ERROR "Missing transitive dependencies for Arrow static linking")
+  endif()
+
+  set(BROTLI_STATIC_LIB_ENC "$ENV{BROTLI_STATIC_LIB_ENC}")
+  set(BROTLI_STATIC_LIB_DEC "$ENV{BROTLI_STATIC_LIB_DEC}")
+  set(BROTLI_STATIC_LIB_COMMON "$ENV{BROTLI_STATIC_LIB_COMMON}")
+  set(SNAPPY_STATIC_LIB "$ENV{SNAPPY_STATIC_LIB}")
+  set(ZLIB_STATIC_LIB "$ENV{ZLIB_STATIC_LIB}")
+
+  add_library(brotli_enc STATIC IMPORTED)
+  set_target_properties(brotli_enc PROPERTIES IMPORTED_LOCATION ${BROTLI_STATIC_LIB_ENC})
+  add_library(brotli_dec STATIC IMPORTED)
+  set_target_properties(brotli_dec PROPERTIES IMPORTED_LOCATION ${BROTLI_STATIC_LIB_DEC})
+  add_library(brotli_common STATIC IMPORTED)
+  set_target_properties(brotli_common PROPERTIES IMPORTED_LOCATION ${BROTLI_STATIC_LIB_COMMON})
+  add_library(snappy STATIC IMPORTED)
+  set_target_properties(snappy PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
+  add_library(zlib STATIC IMPORTED)
+  set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
+
+  set(TRANSITIVE_LINK_LIBS
+    snappy
+    zlib
+    brotli_enc
+    brotli_dec
+    brotli_common
+  )
+
   set(ARROW_LINK_LIBS
-    arrow_static)
+    arrow_static
+    ${TRANSITIVE_LINK_LIBS})
 endif()
 
 #############################################################

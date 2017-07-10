@@ -45,6 +45,12 @@ matrix:
     env: PARQUET_BUILD_GROUP=toolchain
     before_script:
     script:
+    - $TRAVIS_BUILD_DIR/ci/travis_script_static.sh
+  - compiler: gcc
+    os: linux
+    env: PARQUET_BUILD_GROUP=toolchain
+    before_script:
+    script:
     - $TRAVIS_BUILD_DIR/ci/travis_script_toolchain.sh
   - compiler: clang
     os: linux
