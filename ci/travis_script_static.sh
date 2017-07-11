@@ -54,7 +54,7 @@ export LD_LIBRARY_PATH=$CPP_TOOLCHAIN/lib:$LD_LIBRARY_PATH
 export BOOST_ROOT=$CPP_TOOLCHAIN
 export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
 
-ARROW_EP=$CPP_TOOLCHAIN/lib/TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build
+ARROW_EP=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build
 BROTLI_EP=$ARROW_EP/brotli_ep/src/brotli_ep-install/lib/x86_64-linux-gnu
 
 export SNAPPY_STATIC_LIB=$ARROW_EP/snappy_ep/src/snappy_ep-install/lib/libsnappy.a
