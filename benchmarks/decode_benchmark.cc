@@ -20,6 +20,7 @@
 #include <stdio.h>
 
 #include "arrow/util/compression.h"
+#include "arrow/util/compression_snappy.h"
 
 #include "parquet/encoding-internal.h"
 #include "parquet/util/logging.h"

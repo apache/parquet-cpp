@@ -43,6 +43,8 @@ conda create -y -q -p $CPP_TOOLCHAIN \
       boost-cpp thrift-cpp cmake git \
       -c conda-forge
 
+source activate $CPP_TOOLCHAIN
+
 # ----------------------------------------------------------------------
 
 : ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/parquet-build}
@@ -51,12 +53,15 @@ export PARQUET_BUILD_TOOLCHAIN=$CPP_TOOLCHAIN
 export LD_LIBRARY_PATH=$CPP_TOOLCHAIN/lib:$LD_LIBRARY_PATH
 export BOOST_ROOT=$CPP_TOOLCHAIN
 export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
-export SNAPPY_STATIC_LIB=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build/snappy_ep/src/snappy_ep-install/lib/libsnappy.a
-export BROTLI_STATIC_LIB_ENC=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build/brotli_ep/src/brotli_ep-install/lib/x86_64-linux-gnu/libbrotlienc.a
-export BROTLI_STATIC_LIB_DEC=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build/brotli_ep/src/brotli_ep-install/lib/x86_64-linux-gnu/libbrotlidec.a
-export BROTLI_STATIC_LIB_COMMON=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build/brotli_ep/src/brotli_ep-install/lib/x86_64-linux-gnu/libbrotlicommon.a
-export ZLIB_STATIC_LIB=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build/zlib_ep/src/zlib_ep-install/lib/libz.a
 
+ARROW_EP=$TRAVIS_BUILD_DIR/parquet-build/arrow_ep-prefix/src/arrow_ep-build
+BROTLI_EP=$ARROW_EP/brotli_ep/src/brotli_ep-install/lib/x86_64-linux-gnu
+
+export SNAPPY_STATIC_LIB=$ARROW_EP/snappy_ep/src/snappy_ep-install/lib/libsnappy.a
+export BROTLI_STATIC_LIB_ENC=$BROTLI_EP/libbrotlienc.a
+export BROTLI_STATIC_LIB_DEC=$BROTLI_EP/libbrotlidec.a
+export BROTLI_STATIC_LIB_COMMON=$BROTLI_EP/libbrotlicommon.a
+export ZLIB_STATIC_LIB=$ARROW_EP/zlib_ep/src/zlib_ep-install/lib/libz.a
 
 cmake -DPARQUET_CXXFLAGS=-Werror \
       -DPARQUET_TEST_MEMCHECK=ON \
@@ -70,7 +75,7 @@ cmake -DPARQUET_CXXFLAGS=-Werror \
 
 pushd $CPP_BUILD_DIR
 
-make -j4 || exit 1
+make -j4 VERBOSE=1 || exit 1
 ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
 
 popd
