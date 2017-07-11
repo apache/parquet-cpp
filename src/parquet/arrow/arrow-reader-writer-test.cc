@@ -740,7 +740,7 @@ TEST_F(TestUInt32ParquetIO, Parquet_2_0_Compability) {
 TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
   // This also tests max_definition_level = 1
   std::shared_ptr<Array> arr;
-  ASSERT_OK(NullableArray<::arrow::UInt32Type>(32, 10, kDefaultSeed, &arr));
+  ASSERT_OK(NullableArray<::arrow::UInt32Type>(LARGE_SIZE, 100, kDefaultSeed, &arr));
 
   std::shared_ptr<::arrow::UInt32Array> values =
       std::dynamic_pointer_cast<::arrow::UInt32Array>(arr);
