@@ -238,7 +238,7 @@ if [[ $publish == 1 ]]; then
 
   echo "Pushing updated .parquetcppversion to master"
   git checkout master
-  git push origin master
+  git push origin "master:master-after-${rc_version_tag}"
 fi
 
 echo "Done creating the release candidate. The following draft email has been created"
