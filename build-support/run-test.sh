@@ -107,6 +107,9 @@ function run_test() {
   # even when retries are successful.
   rm -f $XMLFILE
 
+  # This is needed for test execution on macOS with shared arrow linkage build
+  # via external project.
+  export LD_LIBRARY_PATH=${TEST_DIRNAME}:$LD_LIBRARY_PATH
   $TEST_EXECUTABLE "$@" 2>&1 \
     | c++filt \
     | $ROOT/build-support/stacktrace_addr2line.pl $TEST_EXECUTABLE \
