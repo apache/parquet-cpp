@@ -1,3 +1,56 @@
+Parquet C++ 1.2.0
+--------------------------------------------------------------------------------
+## Bug
+    * [PARQUET-1018] - [C++] parquet.dll has runtime dependencies on one or more libraries in the build toolchain
+    * [PARQUET-1033] - Mismatched Read and Write
+    * [PARQUET-1039] - PARQUET-911 Breaks Arrow
+    * [PARQUET-997] - Fix override compiler warnings
+    * [PARQUET-1052] - [C++] add_compiler_export_flags() throws warning with CMake >= 3.3
+    * [PARQUET-1040] - Missing writer method implementations
+    * [PARQUET-1004] - CPP Building fails on windows
+    * [PARQUET-1048] - [C++] Static linking of libarrow is no longer supported
+    * [PARQUET-1007] - [C++ ] Update parquet.thrift from https://github.com/apache/parquet-format
+    * [PARQUET-1042] - C++: Compilation breaks on GCC 4.8
+    * [PARQUET-1054] - [C++] Account for Arrow API changes in ARROW-1199
+    * [PARQUET-1038] - Key value metadata should be nullptr if not set
+    * [PARQUET-1003] - [C++] Modify DEFAULT_CREATED_BY value for every new release version
+    * [PARQUET-1023] - [C++] Brotli libraries are not being statically linked on Windows
+    * [PARQUET-1013] - Fix ZLIB_INCLUDE_DIR
+    * [PARQUET-998] - C++: Release script is not usable
+    * [PARQUET-1029] - [C++] TypedColumnReader/TypeColumnWriter symbols are no longer being exported
+    * [PARQUET-1000] - [C++] Do not build thirdparty Arrow with /WX on MSVC
+
+## Improvement
+    * [PARQUET-911] - C++: Support nested structs in parquet_arrow
+    * [PARQUET-996] - Improve MSVC build - ThirdpartyToolchain - Arrow
+    * [PARQUET-863] - [C++] Move SIMD, CPU info, hashing, and other generic utilities into Apache Arrow
+    * [PARQUET-1043] - [C++] Raise minimum supported CMake version to 3.2
+    * [PARQUET-858] - [C++] Flatten parquet/column directory, consolidate related code
+    * [PARQUET-864] - [C++] Consolidate non-Parquet-specific bit utility code into Apache Arrow
+    * [PARQUET-999] - Improve MSVC build - Enable PARQUET_BUILD_BENCHMARKS
+    * [PARQUET-1016] - Upgrade thirdparty Arrow to 0.4.0
+    * [PARQUET-978] - [C++] Minimizing footer reads for small(ish) metadata
+    * [PARQUET-967] - [C++] Combine libparquet/libparquet_arrow libraries
+    * [PARQUET-991] - [C++] Fix compiler warnings on MSVC and build with /WX in Appveyor
+    * [PARQUET-1045] - [C++] Refactor to account for computational utility code migration in ARROW-1154
+    * [PARQUET-1053] - Fix unused result warnings due to unchecked Statuses
+    * [PARQUET-1008] - Update TypedColumnReader::ReadBatch method to accept batch_size as int64_t
+    * [PARQUET-1044] - [C++] Use compression libraries from Apache Arrow
+    * [PARQUET-986] - Improve MSVC build - ThirdpartyToolchain - Thrift
+    * [PARQUET-1041] - C++: Support Arrow's NullArray
+    * [PARQUET-1067] - C++: Update arrow hash to 0.5.0
+
+## New Feature
+    * [PARQUET-1035] - Write Int96 from Arrow Timestamp(ns)
+
+## Task
+    * [PARQUET-994] - C++: release-candidate script should not push to master
+    * [PARQUET-902] - [C++] Move compressor interfaces into Apache Arrow
+
+## Test
+    * [PARQUET-706] - [C++] Create test case that uses libparquet as a 3rd party library
+
+
 Parquet C++ 1.1.0
 --------------------------------------------------------------------------------
 ## Bug
