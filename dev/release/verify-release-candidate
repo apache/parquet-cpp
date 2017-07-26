@@ -50,7 +50,7 @@ run_tests() {
   # Build
   mkdir -p build
   cd build
-  cmake -DPARQUET_ARROW_LINKAGE=static ..
+  cmake ..
   make -j5
 
   # Test
