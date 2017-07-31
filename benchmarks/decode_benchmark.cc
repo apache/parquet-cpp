@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include <stdio.h>
 #include <iostream>
 #include <random>
-#include <stdio.h>
 
 #include "arrow/util/compression.h"
 #include "arrow/util/compression_snappy.h"
@@ -165,8 +165,8 @@ class DeltaByteArrayEncoder {
       }
     }
     prefix_len_encoder_.Add(prefix_len);
-    suffix_encoder_.Add(
-        reinterpret_cast<const uint8_t*>(s.data()) + prefix_len, s.size() - prefix_len);
+    suffix_encoder_.Add(reinterpret_cast<const uint8_t*>(s.data()) + prefix_len,
+                        s.size() - prefix_len);
     last_value_ = s;
   }
 
@@ -210,7 +210,8 @@ uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_siz
 }
 
 uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& values,
-    int benchmark_iters = -1, int benchmark_batch_size = 1) {
+                                  int benchmark_iters = -1,
+                                  int benchmark_batch_size = 1) {
   int mini_block_size;
   if (values.size() < 8) {
     mini_block_size = 8;
@@ -266,7 +267,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
     uint64_t elapsed = sw.Stop();
     double num_ints = values.size() * benchmark_iters * 1000.;
     printf("%s rate (batch size = %2d): %0.3fM per second.\n", name, benchmark_batch_size,
-        num_ints / elapsed);
+           num_ints / elapsed);
     return result;
   }
 }
@@ -278,10 +279,10 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
   }                                                                            \
   elapsed = sw.Stop();                                                         \
   printf("%s rate (batch size = %2d): %0.3fM per second.\n", NAME, BATCH_SIZE, \
-      mult / elapsed);
+         mult / elapsed);
 
 void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& data,
-    int num_iters, int batch_size) {
+                            int num_iters, int batch_size) {
   const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(&data[0]);
   int uncompressed_len = data.size() * sizeof(int64_t);
   uint8_t* decompressed_data = new uint8_t[uncompressed_len];
@@ -291,24 +292,24 @@ void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& d
   int64_t compressed_len;
   DCHECK(codec
              ->Compress(uncompressed_len, raw_data, max_compressed_size, compressed_data,
-                 &compressed_len)
+                        &compressed_len)
              .ok());
 
   printf("\n%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n", codec->name(),
-      uncompressed_len, static_cast<int>(compressed_len));
+         uncompressed_len, static_cast<int>(compressed_len));
 
   double mult = num_iters * data.size() * 1000.;
   parquet::StopWatch sw;
   sw.Start();
   uint64_t r = 0;
   for (int i = 0; i < num_iters; ++i) {
-    codec->Decompress(
-        compressed_len, compressed_data, uncompressed_len, decompressed_data);
+    codec->Decompress(compressed_len, compressed_data, uncompressed_len,
+                      decompressed_data);
     r += TestPlainIntEncoding(decompressed_data, data.size(), batch_size);
   }
   int64_t elapsed = sw.Stop();
   printf("Compressed(%s) plain int rate (batch size = %2d): %0.3fM per second.\n",
-      codec->name(), batch_size, mult / elapsed);
+         codec->name(), batch_size, mult / elapsed);
 
   delete[] compressed_data;
   delete[] decompressed_data;
@@ -317,13 +318,11 @@ void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& d
 void TestBinaryPacking() {
   std::vector<int64_t> values;
   values.clear();
-  for (int i = 0; i < 100; ++i)
-    values.push_back(0);
+  for (int i = 0; i < 100; ++i) values.push_back(0);
   TestBinaryPackedEncoding("Zeros", values);
 
   values.clear();
-  for (int i = 1; i <= 5; ++i)
-    values.push_back(i);
+  for (int i = 1; i <= 5; ++i) values.push_back(i);
   TestBinaryPackedEncoding("Example 1", values);
 
   values.clear();
@@ -373,13 +372,15 @@ void TestDeltaLengthByteArray() {
   int len = 0;
   uint8_t* buffer = encoder.Encode(&len);
   printf("DeltaLengthByteArray\n  Raw len: %d\n  Encoded len: %d\n",
-      encoder.plain_encoded_len(), len);
+         encoder.plain_encoded_len(), len);
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     parquet::ByteArray v = {0, NULL};
     decoder.Decode(&v, 1);
     std::string r = std::string(reinterpret_cast<const char*>(v.ptr), v.len);
-    if (r != values[i]) { std::cout << "Bad " << r << " != " << values[i] << std::endl; }
+    if (r != values[i]) {
+      std::cout << "Bad " << r << " != " << values[i] << std::endl;
+    }
   }
 }
 
@@ -409,13 +410,15 @@ void TestDeltaByteArray() {
   int len = 0;
   uint8_t* buffer = encoder.Encode(&len);
   printf("DeltaLengthByteArray\n  Raw len: %d\n  Encoded len: %d\n",
-      encoder.plain_encoded_len(), len);
+         encoder.plain_encoded_len(), len);
   decoder.SetData(encoder.num_values(), buffer, len);
   for (int i = 0; i < encoder.num_values(); ++i) {
     parquet::ByteArray v;
     decoder.Decode(&v, 1);
     std::string r = std::string(reinterpret_cast<const char*>(v.ptr), v.len);
-    if (r != values[i]) { std::cout << "Bad " << r << " != " << values[i] << std::endl; }
+    if (r != values[i]) {
+      std::cout << "Bad " << r << " != " << values[i] << std::endl;
+    }
   }
 }
 
