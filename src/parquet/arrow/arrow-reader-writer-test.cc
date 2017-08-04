@@ -280,9 +280,9 @@ struct test_traits<::arrow::FixedSizeBinaryType> {
   static std::string const value;
 };
 
-const std::string test_traits<::arrow::StringType>::value("Test");
-const std::string test_traits<::arrow::BinaryType>::value("\x00\x01\x02\x03");
-const std::string test_traits<::arrow::FixedSizeBinaryType>::value("Fixed");
+const std::string test_traits<::arrow::StringType>::value("Test");  // NOLINT
+const std::string test_traits<::arrow::BinaryType>::value("\x00\x01\x02\x03");  // NOLINT
+const std::string test_traits<::arrow::FixedSizeBinaryType>::value("Fixed");  // NOLINT
 template <typename T>
 using ParquetDataType = DataType<test_traits<T>::parquet_enum>;
 

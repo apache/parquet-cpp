@@ -830,8 +830,8 @@ Status FileWriter::Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool
                         const std::shared_ptr<ArrowWriterProperties>& arrow_properties,
                         std::unique_ptr<FileWriter>* writer) {
   std::shared_ptr<SchemaDescriptor> parquet_schema;
-  RETURN_NOT_OK(ToParquetSchema(&schema, *properties, &parquet_schema,
-                                arrow_properties->support_deprecated_int96_timestamps()));
+  RETURN_NOT_OK(
+      ToParquetSchema(&schema, *properties, *arrow_properties, &parquet_schema));
 
   auto schema_node = std::static_pointer_cast<GroupNode>(parquet_schema->schema_root());
 
