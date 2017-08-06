@@ -19,6 +19,7 @@
 #include <iostream>
 #include <random>
 
+#include "arrow/test-util.h"
 #include "arrow/util/compression.h"
 #include "arrow/util/compression_snappy.h"
 
@@ -272,7 +273,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
   }
 }
 
-#define TEST(NAME, FN, DATA, BATCH_SIZE)                                       \
+#define DECODE_TEST(NAME, FN, DATA, BATCH_SIZE)                                \
   sw.Start();                                                                  \
   for (int i = 0; i < NUM_ITERS; ++i) {                                        \
     FN(reinterpret_cast<uint8_t*>(&DATA[0]), NUM_VALUES, BATCH_SIZE);          \
@@ -303,8 +304,8 @@ void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& d
   sw.Start();
   uint64_t r = 0;
   for (int i = 0; i < num_iters; ++i) {
-    codec->Decompress(compressed_len, compressed_data, uncompressed_len,
-                      decompressed_data);
+    ABORT_NOT_OK(codec->Decompress(compressed_len, compressed_data, uncompressed_len,
+                                   decompressed_data));
     r += TestPlainIntEncoding(decompressed_data, data.size(), batch_size);
   }
   int64_t elapsed = sw.Stop();
@@ -437,10 +438,10 @@ int main(int argc, char** argv) {
   std::vector<int64_t> plain_int_data;
   plain_int_data.resize(NUM_VALUES);
 
-  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 1);
-  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 16);
-  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 32);
-  TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 64);
+  DECODE_TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 1);
+  DECODE_TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 16);
+  DECODE_TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 32);
+  DECODE_TEST("Plain decoder", TestPlainIntEncoding, plain_int_data, 64);
 
   // Test rand ints between 0 and 10K
   std::vector<int64_t> values;
