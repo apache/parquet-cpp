@@ -68,6 +68,7 @@ matrix:
     env: PARQUET_BUILD_GROUP=toolchain
     before_script:
     script:
+    - export PARQUET_CXXFLAGS="-Werror -DARROW_NO_DEPRECATED_API"
     - $TRAVIS_BUILD_DIR/ci/travis_script_static.sh
   - compiler: gcc
     os: linux
