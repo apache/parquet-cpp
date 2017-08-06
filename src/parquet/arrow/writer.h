@@ -45,7 +45,7 @@ class PARQUET_EXPORT ArrowWriterProperties {
  public:
   class Builder {
    public:
-    Builder() : write_nanos_as_int96_(false), coerce_timestamp_enabled_(false) {}
+    Builder() : write_nanos_as_int96_(false), coerce_timestamps_enabled_(false) {}
     virtual ~Builder() {}
 
     Builder* disable_deprecated_int96_timestamps() {
@@ -58,39 +58,39 @@ class PARQUET_EXPORT ArrowWriterProperties {
       return this;
     }
 
-    Builder* coerce_timestamp(::arrow::TimeUnit::type unit) {
-      coerce_timestamp_enabled_ = true;
-      coerce_timestamp_unit_ = unit;
+    Builder* coerce_timestamps(::arrow::TimeUnit::type unit) {
+      coerce_timestamps_enabled_ = true;
+      coerce_timestamps_unit_ = unit;
       return this;
     }
 
     std::shared_ptr<ArrowWriterProperties> build() {
       return std::shared_ptr<ArrowWriterProperties>(new ArrowWriterProperties(
-          write_nanos_as_int96_, coerce_timestamp_enabled_, coerce_timestamp_unit_));
+          write_nanos_as_int96_, coerce_timestamps_enabled_, coerce_timestamps_unit_));
     }
 
    private:
     bool write_nanos_as_int96_;
 
-    bool coerce_timestamp_enabled_;
-    ::arrow::TimeUnit::type coerce_timestamp_unit_;
+    bool coerce_timestamps_enabled_;
+    ::arrow::TimeUnit::type coerce_timestamps_unit_;
   };
 
   bool support_deprecated_int96_timestamps() const { return write_nanos_as_int96_; }
 
-  bool coerce_timestamp_enabled() const { return coerce_timestamp_enabled_; }
-  ::arrow::TimeUnit::type coerce_timestamp_unit() const { return coerce_timestamp_unit_; }
+  bool coerce_timestamps_enabled() const { return coerce_timestamps_enabled_; }
+  ::arrow::TimeUnit::type coerce_timestamps_unit() const { return coerce_timestamps_unit_; }
 
  private:
-  explicit ArrowWriterProperties(bool write_nanos_as_int96, bool coerce_timestamp_enabled,
-                                 ::arrow::TimeUnit::type coerce_timestamp_unit)
+  explicit ArrowWriterProperties(bool write_nanos_as_int96, bool coerce_timestamps_enabled,
+                                 ::arrow::TimeUnit::type coerce_timestamps_unit)
       : write_nanos_as_int96_(write_nanos_as_int96),
-        coerce_timestamp_enabled_(coerce_timestamp_enabled),
-        coerce_timestamp_unit_(coerce_timestamp_unit) {}
+        coerce_timestamps_enabled_(coerce_timestamps_enabled),
+        coerce_timestamps_unit_(coerce_timestamps_unit) {}
 
   const bool write_nanos_as_int96_;
-  const bool coerce_timestamp_enabled_;
-  const ::arrow::TimeUnit::type coerce_timestamp_unit_;
+  const bool coerce_timestamps_enabled_;
+  const ::arrow::TimeUnit::type coerce_timestamps_unit_;
 };
 
 std::shared_ptr<ArrowWriterProperties> PARQUET_EXPORT default_arrow_writer_properties();
