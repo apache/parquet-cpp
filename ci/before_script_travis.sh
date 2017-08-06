@@ -27,12 +27,12 @@ fi
 export PARQUET_TEST_DATA=$TRAVIS_BUILD_DIR/data
 
 if [ $TRAVIS_OS_NAME == "linux" ]; then
-    cmake -DPARQUET_CXXFLAGS=-Werror \
+    cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
           -DPARQUET_TEST_MEMCHECK=ON \
           -DPARQUET_BUILD_BENCHMARKS=ON \
           -DPARQUET_GENERATE_COVERAGE=1 \
           $TRAVIS_BUILD_DIR
 else
-    cmake -DPARQUET_CXXFLAGS=-Werror \
+    cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
           $TRAVIS_BUILD_DIR
 fi

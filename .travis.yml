@@ -40,11 +40,35 @@ matrix:
   include:
   - compiler: gcc
     os: linux
+    before_script:
+    - export PARQUET_CXXFLAGS="-Werror -DARROW_NO_DEPRECATED_API"
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
+  - compiler: gcc
+    os: linux
+    before_script:
+    - export PARQUET_CXXFLAGS="-Werror"
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
+  - compiler: clang
+    os: linux
+    before_script:
+    - export PARQUET_CXXFLAGS="-Werror -DARROW_NO_DEPRECATED_API"
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
+  - compiler: clang
+    os: osx
+    osx_image: xcode6.4
+    addons:
+    before_script:
+    - export PARQUET_CXXFLAGS="-Werror -DARROW_NO_DEPRECATED_API"
+    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
+    before_install:
+    - mkdir $TRAVIS_BUILD_DIR/parquet-build
+    - pushd $TRAVIS_BUILD_DIR/parquet-build
   - compiler: gcc
     os: linux
     env: PARQUET_BUILD_GROUP=toolchain
     before_script:
     script:
+    - export PARQUET_CXXFLAGS="-Werror -DARROW_NO_DEPRECATED_API"
     - $TRAVIS_BUILD_DIR/ci/travis_script_static.sh
   - compiler: gcc
     os: linux
@@ -52,15 +76,6 @@ matrix:
     before_script:
     script:
     - $TRAVIS_BUILD_DIR/ci/travis_script_toolchain.sh
-  - compiler: clang
-    os: linux
-  - compiler: clang
-    os: osx
-    osx_image: xcode6.4
-    addons:
-    before_install:
-    - mkdir $TRAVIS_BUILD_DIR/parquet-build
-    - pushd $TRAVIS_BUILD_DIR/parquet-build
 
 language: cpp
 
@@ -82,9 +97,6 @@ language: cpp
 before_install:
 - mkdir $TRAVIS_BUILD_DIR/parquet-build
 - pushd $TRAVIS_BUILD_DIR/parquet-build
-
-before_script:
-- source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
 
 script:
 - $TRAVIS_BUILD_DIR/ci/travis_script_cpp.sh

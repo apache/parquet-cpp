@@ -33,9 +33,9 @@ make lint
 if [ $TRAVIS_OS_NAME == "linux" ]; then
   make -j4 || exit 1
   ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
-  sudo pip install cpp_coveralls
-  export PARQUET_ROOT=$TRAVIS_BUILD_DIR
-  $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
+  # sudo pip install cpp_coveralls
+  # export PARQUET_ROOT=$TRAVIS_BUILD_DIR
+  # $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
 else
   make -j4 || exit 1
   BUILD_TYPE=debug
