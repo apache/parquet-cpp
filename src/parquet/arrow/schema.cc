@@ -442,8 +442,9 @@ static Status GetTimestampMetadata(const ::arrow::TimestampType& type,
     } else if (coerce_unit == ::arrow::TimeUnit::MICRO) {
       *logical_type = LogicalType::TIMESTAMP_MICROS;
     } else {
-      return Status::NotImplemented("Can only coerce Arrow timestamps to milliseconds"
-                                    " or microseconds");
+      return Status::NotImplemented(
+          "Can only coerce Arrow timestamps to milliseconds"
+          " or microseconds");
     }
     return Status::OK();
   }
@@ -453,7 +454,7 @@ static Status GetTimestampMetadata(const ::arrow::TimestampType& type,
   } else if (unit == ::arrow::TimeUnit::MICRO) {
     *logical_type = LogicalType::TIMESTAMP_MICROS;
   } else if (unit == ::arrow::TimeUnit::NANO) {
-    if (arrow_properties.support_deprecated_int96_timestamps()) {
+    if (properties.support_deprecated_int96_timestamps()) {
       *physical_type = ParquetType::INT96;
       // No corresponding logical type
     } else {
@@ -464,6 +465,7 @@ static Status GetTimestampMetadata(const ::arrow::TimestampType& type,
         "Only MILLI, MICRO, and NANOS units supported for Arrow timestamps with "
         "Parquet.");
   }
+  return Status::OK();
 }
 
 Status FieldToNode(const std::shared_ptr<Field>& field,
@@ -545,8 +547,9 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
       logical_type = LogicalType::DATE;
       break;
     case ArrowType::TIMESTAMP:
-      RETURN_NOT_OK(GetTimestampMetadata(static_cast<::arrow::TimestampType&>(*field->type()),
-                                         arrow_properties, &type, logical_type));
+      RETURN_NOT_OK(
+          GetTimestampMetadata(static_cast<::arrow::TimestampType&>(*field->type()),
+                               arrow_properties, &type, &logical_type));
       break;
     case ArrowType::TIME32:
       type = ParquetType::INT32;

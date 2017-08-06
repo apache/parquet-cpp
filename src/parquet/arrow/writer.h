@@ -79,10 +79,13 @@ class PARQUET_EXPORT ArrowWriterProperties {
   bool support_deprecated_int96_timestamps() const { return write_nanos_as_int96_; }
 
   bool coerce_timestamps_enabled() const { return coerce_timestamps_enabled_; }
-  ::arrow::TimeUnit::type coerce_timestamps_unit() const { return coerce_timestamps_unit_; }
+  ::arrow::TimeUnit::type coerce_timestamps_unit() const {
+    return coerce_timestamps_unit_;
+  }
 
  private:
-  explicit ArrowWriterProperties(bool write_nanos_as_int96, bool coerce_timestamps_enabled,
+  explicit ArrowWriterProperties(bool write_nanos_as_int96,
+                                 bool coerce_timestamps_enabled,
                                  ::arrow::TimeUnit::type coerce_timestamps_unit)
       : write_nanos_as_int96_(write_nanos_as_int96),
         coerce_timestamps_enabled_(coerce_timestamps_enabled),
