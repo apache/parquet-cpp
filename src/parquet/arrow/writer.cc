@@ -613,7 +613,7 @@ Status FileWriter::Impl::WriteTimestampsCoerce(ColumnWriter* column_writer,
 
   auto divide_by = [&](const int64_t factor) {
     for (int64_t i = 0; i < array->length(); i++) {
-      if (data_ptr[i] % factor != 0) {
+      if (!data.IsNull(i) && (data_ptr[i] % factor != 0)) {
         std::stringstream ss;
         ss << "Casting from " << type.ToString() << " to " << target_type->ToString()
            << " would lose data: " << data_ptr[i];
