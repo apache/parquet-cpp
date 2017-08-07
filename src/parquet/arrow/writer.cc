@@ -332,7 +332,7 @@ Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
   using ArrowCType = typename ArrowType::c_type;
 
   auto data = static_cast<const PrimitiveArray*>(array.get());
-  auto data_ptr = reinterpret_cast<const ArrowCType*>(data->values()->data());
+  auto data_ptr = reinterpret_cast<const ArrowCType*>(data->raw_values());
   auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
 
   if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
@@ -601,7 +601,8 @@ Status FileWriter::Impl::WriteTimestampsCoerce(ColumnWriter* column_writer,
   int64_t* data_buffer_ptr = reinterpret_cast<int64_t*>(data_buffer_.mutable_data());
 
   const auto& data = static_cast<const ::arrow::TimestampArray&>(*array);
-  auto data_ptr = reinterpret_cast<const int64_t*>(data.values()->data());
+  auto data_ptr = reinterpret_cast<const int64_t*>(data.values()->data())
+    + data.offset();
   auto writer = reinterpret_cast<TypedColumnWriter<Int64Type>*>(column_writer);
 
   const auto& type = static_cast<const ::arrow::TimestampType&>(*array->type());
@@ -720,6 +721,8 @@ Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
     DCHECK(data_ptr != nullptr);
   }
   auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
+
+  // Slice offset is accounted for in raw_value_offsets
   const int32_t* value_offset = data->raw_value_offsets();
 
   if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
