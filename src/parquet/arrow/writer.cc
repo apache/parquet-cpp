@@ -601,8 +601,9 @@ Status FileWriter::Impl::WriteTimestampsCoerce(ColumnWriter* column_writer,
   int64_t* data_buffer_ptr = reinterpret_cast<int64_t*>(data_buffer_.mutable_data());
 
   const auto& data = static_cast<const ::arrow::TimestampArray&>(*array);
-  auto data_ptr = reinterpret_cast<const int64_t*>(data.values()->data())
-    + data.offset();
+
+  // TimestampArray::raw_values accounts for offset
+  auto data_ptr = data.raw_values();
   auto writer = reinterpret_cast<TypedColumnWriter<Int64Type>*>(column_writer);
 
   const auto& type = static_cast<const ::arrow::TimestampType&>(*array->type());
@@ -612,7 +613,7 @@ Status FileWriter::Impl::WriteTimestampsCoerce(ColumnWriter* column_writer,
                                    : TimeUnit::MICRO;
   auto target_type = ::arrow::timestamp(target_unit);
 
-  auto divide_by = [&](const int64_t factor) {
+  auto DivideBy = [&](const int64_t factor) {
     for (int64_t i = 0; i < array->length(); i++) {
       if (!data.IsNull(i) && (data_ptr[i] % factor != 0)) {
         std::stringstream ss;
@@ -625,7 +626,7 @@ Status FileWriter::Impl::WriteTimestampsCoerce(ColumnWriter* column_writer,
     return Status::OK();
   };
 
-  auto multiply_by = [&](const int64_t factor) {
+  auto MultiplyBy = [&](const int64_t factor) {
     for (int64_t i = 0; i < array->length(); i++) {
       data_buffer_ptr[i] = data_ptr[i] * factor;
     }
@@ -634,19 +635,19 @@ Status FileWriter::Impl::WriteTimestampsCoerce(ColumnWriter* column_writer,
 
   if (type.unit() == TimeUnit::NANO) {
     if (target_unit == TimeUnit::MICRO) {
-      RETURN_NOT_OK(divide_by(1000));
+      RETURN_NOT_OK(DivideBy(1000));
     } else {
       DCHECK_EQ(TimeUnit::MILLI, target_unit);
-      RETURN_NOT_OK(divide_by(1000000));
+      RETURN_NOT_OK(DivideBy(1000000));
     }
   } else if (type.unit() == TimeUnit::SECOND) {
-    RETURN_NOT_OK(multiply_by(target_unit == TimeUnit::MICRO ? 1000000 : 1000));
+    RETURN_NOT_OK(MultiplyBy(target_unit == TimeUnit::MICRO ? 1000000 : 1000));
   } else if (type.unit() == TimeUnit::MILLI) {
     DCHECK_EQ(TimeUnit::MICRO, target_unit);
-    RETURN_NOT_OK(multiply_by(1000));
+    RETURN_NOT_OK(MultiplyBy(1000));
   } else {
     DCHECK_EQ(TimeUnit::MILLI, target_unit);
-    RETURN_NOT_OK(divide_by(1000));
+    RETURN_NOT_OK(DivideBy(1000));
   }
 
   if (writer->descr()->schema_node()->is_required() || (data.null_count() == 0)) {
