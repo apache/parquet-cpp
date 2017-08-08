@@ -33,9 +33,10 @@ make lint
 if [ $TRAVIS_OS_NAME == "linux" ]; then
   make -j4 || exit 1
   ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
-  # sudo pip install cpp_coveralls
-  # export PARQUET_ROOT=$TRAVIS_BUILD_DIR
-  # $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
+# Current cpp-coveralls version 0.4 throws an error (PARQUET-1075) on Travis CI. Pin to last working version
+  sudo pip install cpp_coveralls==0.3.12
+  export PARQUET_ROOT=$TRAVIS_BUILD_DIR
+  $TRAVIS_BUILD_DIR/ci/upload_coverage.sh
 else
   make -j4 || exit 1
   BUILD_TYPE=debug
