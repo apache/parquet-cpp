@@ -35,10 +35,19 @@ const ApplicationVersion ApplicationVersion::PARQUET_251_FIXED_VERSION =
     ApplicationVersion("parquet-mr version 1.8.0");
 const ApplicationVersion ApplicationVersion::PARQUET_816_FIXED_VERSION =
     ApplicationVersion("parquet-mr version 1.2.9");
+const ApplicationVersion ApplicationVersion::PARQUET_CPP_FIXED_STATS_VERSION =
+    ApplicationVersion("parquet-cpp version 1.2.1");
 
 template <typename DType>
 static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     const format::ColumnMetaData& metadata, const ColumnDescriptor* descr) {
+  if (metadata.statistics.__isset.max_value || metadata.statistics.__isset.min_value) {
+    return std::make_shared<TypedRowGroupStatistics<DType>>(
+        descr, metadata.statistics.min_value, metadata.statistics.max_value,
+        metadata.num_values - metadata.statistics.null_count,
+        metadata.statistics.null_count, metadata.statistics.distinct_count,
+        true);
+  }
   return std::make_shared<TypedRowGroupStatistics<DType>>(
       descr, metadata.statistics.min, metadata.statistics.max,
       metadata.num_values - metadata.statistics.null_count,
@@ -107,9 +116,8 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   inline bool is_stats_set() const {
     DCHECK(writer_version_ != nullptr);
     return column_->meta_data.__isset.statistics &&
-           writer_version_->HasCorrectStatistics(type()) &&
-           SortOrder::SIGNED ==
-               GetSortOrder(descr_->logical_type(), descr_->physical_type());
+           writer_version_->HasCorrectStatistics(type(),
+                   GetSortOrder(descr_->logical_type(), descr_->physical_type()));
   }
 
   inline std::shared_ptr<RowGroupStatistics> statistics() const {
@@ -482,15 +490,20 @@ bool ApplicationVersion::VersionEq(const ApplicationVersion& other_version) cons
 // Reference:
 // parquet-mr/parquet-column/src/main/java/org/apache/parquet/CorruptStatistics.java
 // PARQUET-686 has more disussion on statistics
-bool ApplicationVersion::HasCorrectStatistics(Type::type col_type) const {
-  // None of the current tools write INT96 Statistics correctly
-  if (col_type == Type::INT96) return false;
+bool ApplicationVersion::HasCorrectStatistics(Type::type col_type, SortOrder::type sort_order) const {
+  // Parquet cpp version 1.2.1 onwards stats are computed correctly for all types
+  if ((application_ != "parquet-cpp") || (VersionLt(PARQUET_CPP_FIXED_STATS_VERSION))) {
+    // Only SIGNED are valid
+    if (SortOrder::SIGNED != sort_order) return false;
 
-  // Statistics of other types are OK
-  if (col_type != Type::FIXED_LEN_BYTE_ARRAY && col_type != Type::BYTE_ARRAY) {
-    return true;
+    // None of the current tools write INT96 Statistics correctly
+    if (col_type == Type::INT96) return false;
+
+    // Statistics of other types are OK
+    if (col_type != Type::FIXED_LEN_BYTE_ARRAY && col_type != Type::BYTE_ARRAY) {
+      return true;
+    }
   }
-
   // created_by is not populated, which could have been caused by
   // parquet-mr during the same time as PARQUET-251, see PARQUET-297
   if (application_ == "unknown") {
