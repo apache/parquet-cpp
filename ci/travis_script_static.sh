@@ -63,7 +63,7 @@ export BROTLI_STATIC_LIB_DEC=$BROTLI_EP/libbrotlidec.a
 export BROTLI_STATIC_LIB_COMMON=$BROTLI_EP/libbrotlicommon.a
 export ZLIB_STATIC_LIB=$ARROW_EP/zlib_ep/src/zlib_ep-install/lib/libz.a
 
-cmake -DPARQUET_CXXFLAGS=-Werror \
+cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
       -DPARQUET_TEST_MEMCHECK=ON \
       -DPARQUET_ARROW_LINKAGE="static" \
       -DPARQUET_BUILD_SHARED=OFF \
