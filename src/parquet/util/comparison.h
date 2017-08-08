@@ -110,10 +110,10 @@ PARQUET_EXTERN_TEMPLATE CompareDefault<FLBAType>;
 #pragma GCC diagnostic pop
 #endif
 
-// Define UnSigned Comparators
-class PARQUET_EXPORT CompareUnSignedInt32 : public CompareDefaultInt32 {
+// Define Unsigned Comparators
+class PARQUET_EXPORT CompareUnsignedInt32 : public CompareDefaultInt32 {
   public:
-  virtual ~CompareUnSignedInt32() {}
+  virtual ~CompareUnsignedInt32() {}
   bool operator()(const int32_t& a, const int32_t& b) override {
     const uint32_t ua = a;
     const uint32_t ub = b;
@@ -121,9 +121,9 @@ class PARQUET_EXPORT CompareUnSignedInt32 : public CompareDefaultInt32 {
   }
 };
 
-class PARQUET_EXPORT CompareUnSignedInt64 : public CompareDefaultInt64 {
+class PARQUET_EXPORT CompareUnsignedInt64 : public CompareDefaultInt64 {
   public:
-  virtual ~CompareUnSignedInt64() {}
+  virtual ~CompareUnsignedInt64() {}
   bool operator()(const int64_t& a, const int64_t& b) override {
     const uint64_t ua = a;
     const uint64_t ub = b;
@@ -132,9 +132,9 @@ class PARQUET_EXPORT CompareUnSignedInt64 : public CompareDefaultInt64 {
 };
 
 
-class PARQUET_EXPORT CompareUnSignedInt96 : public CompareDefaultInt96 {
+class PARQUET_EXPORT CompareUnsignedInt96 : public CompareDefaultInt96 {
  public:
-  virtual ~CompareUnSignedInt96() {}
+  virtual ~CompareUnsignedInt96() {}
   bool operator()(const Int96& a, const Int96& b) override {
     const uint32_t* aptr = reinterpret_cast<const uint32_t*>(&a.value[0]);
     const uint32_t* bptr = reinterpret_cast<const uint32_t*>(&b.value[0]);
@@ -142,9 +142,9 @@ class PARQUET_EXPORT CompareUnSignedInt96 : public CompareDefaultInt96 {
   }
 };
 
-class PARQUET_EXPORT CompareUnSignedByteArray : public CompareDefaultByteArray {
+class PARQUET_EXPORT CompareUnsignedByteArray : public CompareDefaultByteArray {
  public:
-  virtual ~CompareUnSignedByteArray() {}
+  virtual ~CompareUnsignedByteArray() {}
   bool operator()(const ByteArray& a, const ByteArray& b) override {
     const uint8_t* aptr = reinterpret_cast<const uint8_t*>(a.ptr);
     const uint8_t* bptr = reinterpret_cast<const uint8_t*>(b.ptr);
@@ -153,10 +153,10 @@ class PARQUET_EXPORT CompareUnSignedByteArray : public CompareDefaultByteArray {
   }
 };
 
-class PARQUET_EXPORT CompareUnSignedFLBA : public CompareDefaultFLBA {
+class PARQUET_EXPORT CompareUnsignedFLBA : public CompareDefaultFLBA {
  public:
-  explicit CompareUnSignedFLBA(int length) : CompareDefaultFLBA(length) {}
-  virtual ~CompareUnSignedFLBA() {}
+  explicit CompareUnsignedFLBA(int length) : CompareDefaultFLBA(length) {}
+  virtual ~CompareUnsignedFLBA() {}
   bool operator()(const FLBA& a, const FLBA& b) override {
     const uint8_t* aptr = reinterpret_cast<const uint8_t*>(a.ptr);
     const uint8_t* bptr = reinterpret_cast<const uint8_t*>(b.ptr);

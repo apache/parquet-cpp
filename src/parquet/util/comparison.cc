@@ -49,17 +49,17 @@ namespace parquet {
      } else if (SortOrder::UNSIGNED == GetSortOrder(descr->logical_type(), descr->physical_type())) {
          switch (descr->physical_type()) {
              case Type::INT32:
-                 return std::make_shared<CompareUnSignedInt32>();
+                 return std::make_shared<CompareUnsignedInt32>();
              case Type::INT64:
-                 return std::make_shared<CompareUnSignedInt64>();
+                 return std::make_shared<CompareUnsignedInt64>();
              case Type::INT96:
-                 return std::make_shared<CompareUnSignedInt96>();
+                 return std::make_shared<CompareUnsignedInt96>();
              case Type::BYTE_ARRAY:
-                 return std::make_shared<CompareUnSignedByteArray>();
+                 return std::make_shared<CompareUnsignedByteArray>();
              case Type::FIXED_LEN_BYTE_ARRAY:
-                 return std::make_shared<CompareUnSignedFLBA>(descr->type_length());
+                 return std::make_shared<CompareUnsignedFLBA>(descr->type_length());
              default:
-                 ParquetException::NYI("UnSigned Compare not implemented");
+                 ParquetException::NYI("Unsigned Compare not implemented");
          }
      } else {
         throw ParquetException("UNKNOWN Sort Order");
