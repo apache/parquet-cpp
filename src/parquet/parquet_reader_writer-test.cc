@@ -126,12 +126,12 @@ void TestStatistics<Int32Type>::SetValues() {
     values_[i] = i - 5;  // {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4};
   }
 
-  // Write UINT32 values and min,max
+  // Write UINT32 min/max values
   stats_[0]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[5]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[4]), sizeof(T)));
 
-  // Write INT32 values and min,max
+  // Write INT32 min/max values
   stats_[1]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[0]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[9]), sizeof(T)));
@@ -154,12 +154,12 @@ void TestStatistics<Int64Type>::SetValues() {
     values_[i] = i - 5;  // {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4};
   }
 
-  // Write UINT64 values and min,max
+  // Write UINT64 min/max values
   stats_[0]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[5]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[4]), sizeof(T)));
 
-  // Write INT64 values and min,max
+  // Write INT64 min/max values
   stats_[1]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[0]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[9]), sizeof(T)));
@@ -181,7 +181,7 @@ void TestStatistics<Int96Type>::SetValues() {
     values_[i].value[2] = i - 5;  // {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4};
   }
 
-  // Write Int96 values and min,max
+  // Write Int96 min/max values
   stats_[0]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[5]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[4]), sizeof(T)));
@@ -202,7 +202,7 @@ void TestStatistics<FloatType>::SetValues() {
         (i * 1.0f) - 5;  // {-5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0};
   }
 
-  // Write Float values and min,max
+  // Write Float min/max values
   stats_[0]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[0]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[9]), sizeof(T)));
@@ -223,7 +223,7 @@ void TestStatistics<DoubleType>::SetValues() {
         (i * 1.0f) - 5;  // {-5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0};
   }
 
-  // Write Double values and min,max
+  // Write Double min/max values
   stats_[0]
       .set_min(std::string(reinterpret_cast<const char*>(&values_[0]), sizeof(T)))
       .set_max(std::string(reinterpret_cast<const char*>(&values_[9]), sizeof(T)));
@@ -252,7 +252,7 @@ void TestStatistics<ByteArrayType>::SetValues() {
     values_[i].len = max_byte_array_len;
   }
 
-  // Write String values and min,max
+  // Write String min/max values
   stats_[0]
       .set_min(
           std::string(reinterpret_cast<const char*>(vals[2].c_str()), max_byte_array_len))
@@ -282,7 +282,7 @@ void TestStatistics<FLBAType>::SetValues() {
     values_[i].ptr = base;
   }
 
-  // Write String values and min,max
+  // Write FLBA min,max values
   stats_[0]
       .set_min(std::string(reinterpret_cast<const char*>(vals[1].c_str()), vals[1].length()))
       .set_max(std::string(reinterpret_cast<const char*>(vals[9].c_str()), vals[9].length()));
@@ -316,7 +316,8 @@ TEST_F(TestStatisticsFLBA, UnknownSortOrder) {
   std::shared_ptr<parquet::FileMetaData> file_metadata = parquet_reader->metadata();
   std::shared_ptr<parquet::RowGroupMetaData> rg_metadata = file_metadata->RowGroup(0);
   std::shared_ptr<parquet::ColumnChunkMetaData> cc_metadata = rg_metadata->ColumnChunk(0);
-  // stats should not be set
+
+  // stats should not be set for UNKNOWN sort order
   ASSERT_FALSE(cc_metadata->is_stats_set());
 }
 

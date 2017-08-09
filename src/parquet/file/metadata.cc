@@ -41,12 +41,14 @@ const ApplicationVersion ApplicationVersion::PARQUET_CPP_FIXED_STATS_VERSION =
 template <typename DType>
 static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     const format::ColumnMetaData& metadata, const ColumnDescriptor* descr) {
+  // If new fields max_value/min_value are set, then return them.
   if (metadata.statistics.__isset.max_value || metadata.statistics.__isset.min_value) {
     return std::make_shared<TypedRowGroupStatistics<DType>>(
         descr, metadata.statistics.min_value, metadata.statistics.max_value,
         metadata.num_values - metadata.statistics.null_count,
         metadata.statistics.null_count, metadata.statistics.distinct_count, true);
   }
+  // Default behavior
   return std::make_shared<TypedRowGroupStatistics<DType>>(
       descr, metadata.statistics.min, metadata.statistics.max,
       metadata.num_values - metadata.statistics.null_count,
@@ -548,6 +550,8 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     stats.__isset.max_value = val.has_max;
     stats.__isset.null_count = val.has_null_count;
     stats.__isset.distinct_count = val.has_distinct_count;
+    // If the order is SIGNED, then the old min/max values must be set too.
+    // This for backward compatibility
     if (is_signed) {
       stats.max = val.max();
       stats.min = val.min();

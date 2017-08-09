@@ -310,6 +310,7 @@ TYPED_TEST(TestNumericRowGroupStatistics, Merge) {
   this->TestMerge();
 }
 
+// Statistics are restricted for few types in older parquet version
 TEST(CorruptStatistics, Basics) {
   ApplicationVersion version("parquet-mr version 1.8.0");
   SchemaDescriptor schema;
@@ -355,6 +356,7 @@ TEST(CorruptStatistics, Basics) {
   ASSERT_FALSE(column_chunk6->is_stats_set());
 }
 
+// Statistics for all types have no restrictions in newer parquet version
 TEST(CorrectStatistics, Basics) {
   ApplicationVersion version("parquet-cpp version 1.2.1");
   SchemaDescriptor schema;
