@@ -301,9 +301,9 @@ TYPED_TEST(TestStatistics, MinMax) {
 using TestStatisticsFLBA = TestStatistics<FLBAType>;
 
 TEST_F(TestStatisticsFLBA, UnknownSortOrder) {
-  this->fields_.push_back(schema::PrimitiveNode::Make("Column 0", Repetition::REQUIRED,
-                                                Type::FIXED_LEN_BYTE_ARRAY,
-                                                LogicalType::INTERVAL, FLBA_LENGTH));
+  this->fields_.push_back(schema::PrimitiveNode::Make(
+      "Column 0", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY, LogicalType::INTERVAL,
+      FLBA_LENGTH));
   this->SetUpSchema();
   this->WriteParquet();
 
@@ -311,12 +311,11 @@ TEST_F(TestStatisticsFLBA, UnknownSortOrder) {
   // Create a ParquetReader instance
   std::unique_ptr<parquet::ParquetFileReader> parquet_reader =
       parquet::ParquetFileReader::Open(
-            std::make_shared<arrow::io::BufferReader>(pbuffer));
+          std::make_shared<arrow::io::BufferReader>(pbuffer));
   // Get the File MetaData
   std::shared_ptr<parquet::FileMetaData> file_metadata = parquet_reader->metadata();
   std::shared_ptr<parquet::RowGroupMetaData> rg_metadata = file_metadata->RowGroup(0);
-  std::shared_ptr<parquet::ColumnChunkMetaData> cc_metadata =
-        rg_metadata->ColumnChunk(0);
+  std::shared_ptr<parquet::ColumnChunkMetaData> cc_metadata = rg_metadata->ColumnChunk(0);
   // stats should not be set
   ASSERT_FALSE(cc_metadata->is_stats_set());
 }
