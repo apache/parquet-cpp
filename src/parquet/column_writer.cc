@@ -267,9 +267,10 @@ int64_t ColumnWriter::Close() {
     FlushBufferedDataPages();
 
     EncodedStatistics chunk_statistics = GetChunkStatistics();
-    if (chunk_statistics.is_set()) metadata_->SetStatistics(
-         SortOrder::SIGNED == GetSortOrder(descr_->logical_type(),
-                                           descr_->physical_type()), chunk_statistics);
+    if (chunk_statistics.is_set())
+      metadata_->SetStatistics(SortOrder::SIGNED == GetSortOrder(descr_->logical_type(),
+                                                                 descr_->physical_type()),
+                               chunk_statistics);
     pager_->Close(has_dictionary_, fallback_);
   }
 
@@ -320,8 +321,8 @@ TypedColumnWriter<Type>::TypedColumnWriter(ColumnChunkMetaDataBuilder* metadata,
   }
 
   if (properties->statistics_enabled(descr_->path()) &&
-      (SortOrder::UNKNOWN != GetSortOrder(descr_->logical_type(),
-                                          descr_->physical_type())) ) {
+      (SortOrder::UNKNOWN !=
+       GetSortOrder(descr_->logical_type(), descr_->physical_type()))) {
     page_statistics_ = std::unique_ptr<TypedStats>(new TypedStats(descr_, allocator_));
     chunk_statistics_ = std::unique_ptr<TypedStats>(new TypedStats(descr_, allocator_));
   }

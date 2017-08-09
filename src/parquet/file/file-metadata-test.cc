@@ -219,7 +219,8 @@ TEST(ApplicationVersion, Basics) {
   ASSERT_TRUE(version.HasCorrectStatistics(Type::INT32, SortOrder::SIGNED));
   ASSERT_FALSE(version.HasCorrectStatistics(Type::BYTE_ARRAY, SortOrder::SIGNED));
   ASSERT_TRUE(version1.HasCorrectStatistics(Type::BYTE_ARRAY, SortOrder::SIGNED));
-  ASSERT_TRUE(version3.HasCorrectStatistics(Type::FIXED_LEN_BYTE_ARRAY, SortOrder::SIGNED));
+  ASSERT_TRUE(
+      version3.HasCorrectStatistics(Type::FIXED_LEN_BYTE_ARRAY, SortOrder::SIGNED));
 }
 
 }  // namespace metadata

@@ -45,8 +45,7 @@ static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     return std::make_shared<TypedRowGroupStatistics<DType>>(
         descr, metadata.statistics.min_value, metadata.statistics.max_value,
         metadata.num_values - metadata.statistics.null_count,
-        metadata.statistics.null_count, metadata.statistics.distinct_count,
-        true);
+        metadata.statistics.null_count, metadata.statistics.distinct_count, true);
   }
   return std::make_shared<TypedRowGroupStatistics<DType>>(
       descr, metadata.statistics.min, metadata.statistics.max,
@@ -116,8 +115,8 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   inline bool is_stats_set() const {
     DCHECK(writer_version_ != nullptr);
     return column_->meta_data.__isset.statistics &&
-           writer_version_->HasCorrectStatistics(type(),
-                   GetSortOrder(descr_->logical_type(), descr_->physical_type()));
+           writer_version_->HasCorrectStatistics(
+               type(), GetSortOrder(descr_->logical_type(), descr_->physical_type()));
   }
 
   inline std::shared_ptr<RowGroupStatistics> statistics() const {
@@ -490,7 +489,8 @@ bool ApplicationVersion::VersionEq(const ApplicationVersion& other_version) cons
 // Reference:
 // parquet-mr/parquet-column/src/main/java/org/apache/parquet/CorruptStatistics.java
 // PARQUET-686 has more disussion on statistics
-bool ApplicationVersion::HasCorrectStatistics(Type::type col_type, SortOrder::type sort_order) const {
+bool ApplicationVersion::HasCorrectStatistics(Type::type col_type,
+                                              SortOrder::type sort_order) const {
   // Parquet cpp version 1.2.1 onwards stats are computed correctly for all types
   if ((application_ != "parquet-cpp") || (VersionLt(PARQUET_CPP_FIXED_STATS_VERSION))) {
     // Only SIGNED are valid
@@ -549,10 +549,10 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     stats.__isset.null_count = val.has_null_count;
     stats.__isset.distinct_count = val.has_distinct_count;
     if (is_signed) {
-        stats.max = val.max();
-        stats.min = val.min();
-        stats.__isset.min = val.has_min;
-        stats.__isset.max = val.has_max;
+      stats.max = val.max();
+      stats.min = val.min();
+      stats.__isset.min = val.has_min;
+      stats.__isset.max = val.has_max;
     }
 
     column_chunk_->meta_data.__set_statistics(stats);
@@ -641,7 +641,8 @@ const ColumnDescriptor* ColumnChunkMetaDataBuilder::descr() const {
   return impl_->descr();
 }
 
-void ColumnChunkMetaDataBuilder::SetStatistics(bool is_signed, const EncodedStatistics& result) {
+void ColumnChunkMetaDataBuilder::SetStatistics(bool is_signed,
+                                               const EncodedStatistics& result) {
   impl_->SetStatistics(is_signed, result);
 }
 

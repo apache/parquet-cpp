@@ -103,14 +103,17 @@ void TypedRowGroupStatistics<DType>::Update(const T* values, int64_t num_not_nul
   // TODO: support distinct count?
   if (num_not_null == 0) return;
 
-  auto batch_minmax = std::minmax_element(values, values + num_not_null, std::ref(*(this->comparator_)));
+  auto batch_minmax =
+      std::minmax_element(values, values + num_not_null, std::ref(*(this->comparator_)));
   if (!has_min_max_) {
     has_min_max_ = true;
     Copy(*batch_minmax.first, &min_, min_buffer_.get());
     Copy(*batch_minmax.second, &max_, max_buffer_.get());
   } else {
-    Copy(std::min(min_, *batch_minmax.first, std::ref(*(this->comparator_))), &min_, min_buffer_.get());
-    Copy(std::max(max_, *batch_minmax.second, std::ref(*(this->comparator_))), &max_, max_buffer_.get());
+    Copy(std::min(min_, *batch_minmax.first, std::ref(*(this->comparator_))), &min_,
+         min_buffer_.get());
+    Copy(std::max(max_, *batch_minmax.second, std::ref(*(this->comparator_))), &max_,
+         max_buffer_.get());
   }
 }
 
@@ -184,8 +187,10 @@ void TypedRowGroupStatistics<DType>::Merge(const TypedRowGroupStatistics<DType>&
     return;
   }
 
-  Copy(std::min(this->min_, other.min_, std::ref(*(this->comparator_))), &this->min_, min_buffer_.get());
-  Copy(std::max(this->max_, other.max_, std::ref(*(this->comparator_))), &this->max_, max_buffer_.get());
+  Copy(std::min(this->min_, other.min_, std::ref(*(this->comparator_))), &this->min_,
+       min_buffer_.get());
+  Copy(std::max(this->max_, other.max_, std::ref(*(this->comparator_))), &this->max_,
+       max_buffer_.get());
 }
 
 template <typename DType>

@@ -267,7 +267,7 @@ SortOrder::type GetSortOrder(LogicalType::type converted, Type::type primitive) 
     case LogicalType::MAP_KEY_VALUE:
     case LogicalType::INTERVAL:
     case LogicalType::NONE:  // required instead of default
-    case LogicalType::NA:  // required instead of default
+    case LogicalType::NA:    // required instead of default
       return SortOrder::UNKNOWN;
   }
   return SortOrder::UNKNOWN;

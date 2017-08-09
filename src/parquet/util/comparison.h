@@ -39,12 +39,10 @@ class PARQUET_EXPORT CompareDefault : public Compare {
   typedef typename DType::c_type T;
   CompareDefault() {}
   virtual ~CompareDefault() {}
-  virtual bool operator()(const T& a, const T& b) {
-    return a < b;
-  }
+  virtual bool operator()(const T& a, const T& b) { return a < b; }
 };
 
-template<>
+template <>
 class PARQUET_EXPORT CompareDefault<Int96Type> : public Compare {
  public:
   CompareDefault() {}
@@ -56,7 +54,7 @@ class PARQUET_EXPORT CompareDefault<Int96Type> : public Compare {
   }
 };
 
-template<>
+template <>
 class PARQUET_EXPORT CompareDefault<ByteArrayType> : public Compare {
  public:
   CompareDefault() {}
@@ -64,12 +62,11 @@ class PARQUET_EXPORT CompareDefault<ByteArrayType> : public Compare {
   virtual bool operator()(const ByteArray& a, const ByteArray& b) {
     const int8_t* aptr = reinterpret_cast<const int8_t*>(a.ptr);
     const int8_t* bptr = reinterpret_cast<const int8_t*>(b.ptr);
-    return std::lexicographical_compare(
-      aptr, aptr + a.len, bptr, bptr + b.len);
+    return std::lexicographical_compare(aptr, aptr + a.len, bptr, bptr + b.len);
   }
 };
 
-template<>
+template <>
 class PARQUET_EXPORT CompareDefault<FLBAType> : public Compare {
  public:
   explicit CompareDefault(int length) : type_length_(length) {}
@@ -77,8 +74,8 @@ class PARQUET_EXPORT CompareDefault<FLBAType> : public Compare {
   virtual bool operator()(const FLBA& a, const FLBA& b) {
     const int8_t* aptr = reinterpret_cast<const int8_t*>(a.ptr);
     const int8_t* bptr = reinterpret_cast<const int8_t*>(b.ptr);
-    return std::lexicographical_compare(
-      aptr, aptr + type_length_, bptr, bptr + type_length_);
+    return std::lexicographical_compare(aptr, aptr + type_length_, bptr,
+                                        bptr + type_length_);
   }
   int32_t type_length_;
 };
@@ -112,7 +109,7 @@ PARQUET_EXTERN_TEMPLATE CompareDefault<FLBAType>;
 
 // Define Unsigned Comparators
 class PARQUET_EXPORT CompareUnsignedInt32 : public CompareDefaultInt32 {
-  public:
+ public:
   virtual ~CompareUnsignedInt32() {}
   bool operator()(const int32_t& a, const int32_t& b) override {
     const uint32_t ua = a;
@@ -122,7 +119,7 @@ class PARQUET_EXPORT CompareUnsignedInt32 : public CompareDefaultInt32 {
 };
 
 class PARQUET_EXPORT CompareUnsignedInt64 : public CompareDefaultInt64 {
-  public:
+ public:
   virtual ~CompareUnsignedInt64() {}
   bool operator()(const int64_t& a, const int64_t& b) override {
     const uint64_t ua = a;
@@ -130,7 +127,6 @@ class PARQUET_EXPORT CompareUnsignedInt64 : public CompareDefaultInt64 {
     return (ua < ub);
   }
 };
-
 
 class PARQUET_EXPORT CompareUnsignedInt96 : public CompareDefaultInt96 {
  public:
@@ -148,8 +144,7 @@ class PARQUET_EXPORT CompareUnsignedByteArray : public CompareDefaultByteArray {
   bool operator()(const ByteArray& a, const ByteArray& b) override {
     const uint8_t* aptr = reinterpret_cast<const uint8_t*>(a.ptr);
     const uint8_t* bptr = reinterpret_cast<const uint8_t*>(b.ptr);
-    return std::lexicographical_compare(
-      aptr, aptr + a.len, bptr, bptr + b.len);
+    return std::lexicographical_compare(aptr, aptr + a.len, bptr, bptr + b.len);
   }
 };
 
@@ -160,8 +155,8 @@ class PARQUET_EXPORT CompareUnsignedFLBA : public CompareDefaultFLBA {
   bool operator()(const FLBA& a, const FLBA& b) override {
     const uint8_t* aptr = reinterpret_cast<const uint8_t*>(a.ptr);
     const uint8_t* bptr = reinterpret_cast<const uint8_t*>(b.ptr);
-    return std::lexicographical_compare(
-      aptr, aptr + type_length_, bptr, bptr + type_length_);
+    return std::lexicographical_compare(aptr, aptr + type_length_, bptr,
+                                        bptr + type_length_);
   }
 };
 

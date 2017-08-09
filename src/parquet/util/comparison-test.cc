@@ -43,7 +43,8 @@ static FLBA FLBAFromString(const std::string& s) {
 }
 
 TEST(Comparison, signedByteArray) {
-  NodePtr node = PrimitiveNode::Make("SignedByteArray", Repetition::REQUIRED, Type::BYTE_ARRAY);
+  NodePtr node =
+      PrimitiveNode::Make("SignedByteArray", Repetition::REQUIRED, Type::BYTE_ARRAY);
   ColumnDescriptor descr(node, 0, 0);
 
   CompareDefaultByteArray less;
@@ -64,7 +65,8 @@ TEST(Comparison, signedByteArray) {
 }
 
 TEST(Comparison, UnsignedByteArray) {
-  NodePtr node = PrimitiveNode::Make("UnsignedByteArray", Repetition::REQUIRED, Type::BYTE_ARRAY, LogicalType::UTF8);
+  NodePtr node = PrimitiveNode::Make("UnsignedByteArray", Repetition::REQUIRED,
+                                     Type::BYTE_ARRAY, LogicalType::UTF8);
   ColumnDescriptor descr(node, 0, 0);
 
   // Check if UTF-8 is compared using unsigned correctly
@@ -85,9 +87,8 @@ TEST(Comparison, UnsignedByteArray) {
 
 TEST(Comparison, SignedFLBA) {
   int size = 10;
-  NodePtr node =
-      PrimitiveNode::Make("SignedFLBA", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
-                          LogicalType::NONE, size);
+  NodePtr node = PrimitiveNode::Make("SignedFLBA", Repetition::REQUIRED,
+                                     Type::FIXED_LEN_BYTE_ARRAY, LogicalType::NONE, size);
   ColumnDescriptor descr(node, 0, 0);
 
   CompareDefaultFLBA less(descr.type_length());
@@ -107,9 +108,8 @@ TEST(Comparison, SignedFLBA) {
 
 TEST(Comparison, UnsignedFLBA) {
   int size = 10;
-  NodePtr node =
-      PrimitiveNode::Make("UnsignedFLBA", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
-                          LogicalType::NONE, size);
+  NodePtr node = PrimitiveNode::Make("UnsignedFLBA", Repetition::REQUIRED,
+                                     Type::FIXED_LEN_BYTE_ARRAY, LogicalType::NONE, size);
   ColumnDescriptor descr(node, 0, 0);
 
   CompareUnsignedFLBA uless(descr.type_length());
