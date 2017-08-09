@@ -273,8 +273,9 @@ template <>
 void TestStatistics<FLBAType>::SetValues() {
   size_t nbytes = NUM_VALUES * FLBA_LENGTH;
   values_buf_.resize(nbytes);
-  std::string vals[NUM_VALUES] = {u8"b12345", u8"aü123456789", u8"c123", u8"d123",  u8"e123",
-                                  u8"f123",   u8"g123", u8"h123", u8"üa123", u8"üa123456789"};
+  std::string vals[NUM_VALUES] = {u8"b12345", u8"aü123456789", u8"c123", u8"d123",
+                                  u8"e123",   u8"f123",        u8"g123", u8"h123",
+                                  u8"üa123",  u8"üa123456789"};
 
   for (int i = 0; i < NUM_VALUES; i++) {
     uint8_t* base = &values_buf_.data()[0] + (i * FLBA_LENGTH);
@@ -284,8 +285,10 @@ void TestStatistics<FLBAType>::SetValues() {
 
   // Write FLBA min,max values
   stats_[0]
-      .set_min(std::string(reinterpret_cast<const char*>(vals[1].c_str()), vals[1].length()))
-      .set_max(std::string(reinterpret_cast<const char*>(vals[9].c_str()), vals[9].length()));
+      .set_min(
+          std::string(reinterpret_cast<const char*>(vals[1].c_str()), vals[1].length()))
+      .set_max(
+          std::string(reinterpret_cast<const char*>(vals[9].c_str()), vals[9].length()));
 }
 
 TYPED_TEST_CASE(TestStatistics, TestTypes);

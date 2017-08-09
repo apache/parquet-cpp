@@ -200,6 +200,15 @@ TEST(Comparison, UnsignedInt32) {
   ASSERT_TRUE(less(aaa, bbb));
 }
 
+TEST(Comparison, UnknownSortOrder) {
+  NodePtr node =
+      PrimitiveNode::Make("Unknown", Repetition::REQUIRED, Type::FIXED_LEN_BYTE_ARRAY,
+                          LogicalType::INTERVAL, 12);
+  ColumnDescriptor descr(node, 0, 0);
+
+  ASSERT_THROW(Compare::Make(&descr), ParquetException);
+}
+
 }  // namespace test
 
 }  // namespace parquet
