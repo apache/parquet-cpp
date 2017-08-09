@@ -24,7 +24,7 @@
 
 namespace parquet {
 
-  std::shared_ptr<Compare> Compare::getComparator(const ColumnDescriptor* descr){
+  std::shared_ptr<Compare> Compare::Make(const ColumnDescriptor* descr){
     if (SortOrder::SIGNED == GetSortOrder(descr->logical_type(), descr->physical_type())) {
          switch (descr->physical_type()) {
              case Type::BOOLEAN:

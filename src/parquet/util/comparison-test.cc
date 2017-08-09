@@ -199,6 +199,7 @@ TEST(Comparison, UnsignedInt32) {
   ASSERT_TRUE(!less(aa, bb) && !less(bb, aa));
   ASSERT_TRUE(less(aaa, bbb));
 }
+
 }  // namespace test
 
 }  // namespace parquet

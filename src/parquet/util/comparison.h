@@ -29,7 +29,7 @@ namespace parquet {
 class PARQUET_EXPORT Compare {
  public:
   virtual ~Compare() {}
-  static std::shared_ptr<Compare> getComparator(const ColumnDescriptor* descr);
+  static std::shared_ptr<Compare> Make(const ColumnDescriptor* descr);
 };
 
 // The default comparison is SIGNED
