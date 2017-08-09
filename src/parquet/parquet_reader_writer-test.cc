@@ -71,7 +71,7 @@ class TestStatistics : public ::testing::Test {
     this->SetValues();
 
     // Insert Values
-    for (size_t i = 0; i < fields_.size(); i++) {
+    for (int i = 0; i < static_cast<int>(fields_.size()); i++) {
       auto column_writer =
           static_cast<parquet::TypedColumnWriter<TestType>*>(rg_writer->NextColumn());
       column_writer->WriteBatch(NUM_VALUES, nullptr, nullptr, values_.data());
@@ -89,7 +89,7 @@ class TestStatistics : public ::testing::Test {
     // Get the File MetaData
     std::shared_ptr<parquet::FileMetaData> file_metadata = parquet_reader->metadata();
     std::shared_ptr<parquet::RowGroupMetaData> rg_metadata = file_metadata->RowGroup(0);
-    for (size_t i = 0; i < fields_.size(); i++) {
+    for (int i = 0; i < static_cast<int>(fields_.size()); i++) {
       std::shared_ptr<parquet::ColumnChunkMetaData> cc_metadata =
           rg_metadata->ColumnChunk(i);
       ASSERT_EQ(stats_[i].min(), cc_metadata->statistics()->EncodeMin());
@@ -242,7 +242,7 @@ void TestStatistics<ByteArrayType>::SetValues() {
   int max_byte_array_len = 4;
   size_t nbytes = NUM_VALUES * max_byte_array_len;
   values_buf_.resize(nbytes);
-  std::string vals[NUM_VALUES] = {u8"c123", u8"b123", u8"a123", u8"d123", u8"e123",
+  std::vector<std::string> vals = {u8"c123", u8"b123", u8"a123", u8"d123", u8"e123",
                                   u8"f123", u8"g123", u8"h123", u8"i123", u8"ü123"};
 
   for (int i = 0; i < NUM_VALUES; i++) {
@@ -273,7 +273,7 @@ template <>
 void TestStatistics<FLBAType>::SetValues() {
   size_t nbytes = NUM_VALUES * FLBA_LENGTH;
   values_buf_.resize(nbytes);
-  std::string vals[NUM_VALUES] = {u8"b12345", u8"aü123456789", u8"c123", u8"d123",
+  std::vector<std::string> vals = {u8"b12345", u8"aü123456789", u8"c123", u8"d123",
                                   u8"e123",   u8"f123",        u8"g123", u8"h123",
                                   u8"üa123",  u8"üa123456789"};
 

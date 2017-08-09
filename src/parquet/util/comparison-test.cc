@@ -83,6 +83,19 @@ TEST(Comparison, UnsignedByteArray) {
   s1ba = ByteArrayFromString(s1);
   s2ba = ByteArrayFromString(s2);
   ASSERT_TRUE(uless(s1ba, s2ba));
+
+  // Multi-byte UTF-8 characters
+  s1 = u8"ünk123456"; // ü = 252
+  s2 = u8"ănk123456"; // ă = 259
+  s1ba = ByteArrayFromString(s1);
+  s2ba = ByteArrayFromString(s2);
+  ASSERT_TRUE(uless(s1ba, s2ba));
+
+  s1 = u8"Ănk123456"; // Ă = 258
+  s2 = u8"ănk123456"; // ă = 259
+  s1ba = ByteArrayFromString(s1);
+  s2ba = ByteArrayFromString(s2);
+  ASSERT_TRUE(uless(s1ba, s2ba));
 }
 
 TEST(Comparison, SignedFLBA) {
