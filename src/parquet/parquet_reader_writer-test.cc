@@ -243,7 +243,7 @@ void TestStatistics<ByteArrayType>::SetValues() {
   size_t nbytes = NUM_VALUES * max_byte_array_len;
   values_buf_.resize(nbytes);
   std::string vals[NUM_VALUES] = {u8"c123", u8"b123", u8"a123", u8"d123", u8"e123",
-                                  u8"f123", u8"g123", u8"h123", u8"i123", u8"üa123"};
+                                  u8"f123", u8"g123", u8"h123", u8"i123", u8"ü123"};
 
   for (int i = 0; i < NUM_VALUES; i++) {
     uint8_t* base = &values_buf_.data()[0] + (i * max_byte_array_len);
@@ -273,19 +273,19 @@ template <>
 void TestStatistics<FLBAType>::SetValues() {
   size_t nbytes = NUM_VALUES * FLBA_LENGTH;
   values_buf_.resize(nbytes);
-  std::string vals[NUM_VALUES] = {u8"a12345", u8"a123", u8"c123", u8"d123",  u8"e123",
-                                  u8"f123",   u8"g123", u8"h123", u8"üa123", u8"üa12345"};
+  std::string vals[NUM_VALUES] = {u8"b12345", u8"aü123456789", u8"c123", u8"d123",  u8"e123",
+                                  u8"f123",   u8"g123", u8"h123", u8"üa123", u8"üa123456789"};
 
   for (int i = 0; i < NUM_VALUES; i++) {
     uint8_t* base = &values_buf_.data()[0] + (i * FLBA_LENGTH);
-    memcpy(base, vals[i].c_str(), FLBA_LENGTH);
+    memcpy(base, vals[i].c_str(), vals[i].length());
     values_[i].ptr = base;
   }
 
   // Write String values and min,max
   stats_[0]
-      .set_min(std::string(reinterpret_cast<const char*>(vals[1].c_str()), FLBA_LENGTH))
-      .set_max(std::string(reinterpret_cast<const char*>(vals[9].c_str()), FLBA_LENGTH));
+      .set_min(std::string(reinterpret_cast<const char*>(vals[1].c_str()), vals[1].length()))
+      .set_max(std::string(reinterpret_cast<const char*>(vals[9].c_str()), vals[9].length()));
 }
 
 TYPED_TEST_CASE(TestStatistics, TestTypes);
