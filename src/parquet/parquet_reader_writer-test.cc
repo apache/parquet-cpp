@@ -32,8 +32,8 @@ using parquet::LogicalType;
 using parquet::schema::PrimitiveNode;
 using parquet::schema::GroupNode;
 
-static int FLBA_LENGTH = 12;
-static int NUM_VALUES = 10;
+static const int FLBA_LENGTH = 12;
+static const int NUM_VALUES = 10;
 
 namespace test {
 
@@ -239,25 +239,26 @@ void TestStatistics<ByteArrayType>::AddNodes(std::string name) {
 
 template <>
 void TestStatistics<ByteArrayType>::SetValues() {
-  int max_byte_array_len = 4;
+  int max_byte_array_len = 10;
   size_t nbytes = NUM_VALUES * max_byte_array_len;
   values_buf_.resize(nbytes);
   std::vector<std::string> vals = {u8"c123", u8"b123", u8"a123", u8"d123", u8"e123",
                                   u8"f123", u8"g123", u8"h123", u8"i123", u8"ü123"};
 
+  uint8_t* base = &values_buf_.data()[0];
   for (int i = 0; i < NUM_VALUES; i++) {
-    uint8_t* base = &values_buf_.data()[0] + (i * max_byte_array_len);
-    memcpy(base, vals[i].c_str(), max_byte_array_len);
+    memcpy(base, vals[i].c_str(), vals[i].length());
     values_[i].ptr = base;
-    values_[i].len = max_byte_array_len;
+    values_[i].len = static_cast<uint32_t>(vals[i].length());
+    base += vals[i].length();
   }
 
   // Write String min/max values
   stats_[0]
       .set_min(
-          std::string(reinterpret_cast<const char*>(vals[2].c_str()), max_byte_array_len))
+          std::string(reinterpret_cast<const char*>(vals[2].c_str()), vals[2].length()))
       .set_max(std::string(reinterpret_cast<const char*>(vals[9].c_str()),
-                           max_byte_array_len));
+                           vals[9].length()));
 }
 
 // TYPE::FLBAArray
@@ -273,22 +274,23 @@ template <>
 void TestStatistics<FLBAType>::SetValues() {
   size_t nbytes = NUM_VALUES * FLBA_LENGTH;
   values_buf_.resize(nbytes);
-  std::vector<std::string> vals = {u8"b12345", u8"aü123456789", u8"c123", u8"d123",
-                                  u8"e123",   u8"f123",        u8"g123", u8"h123",
-                                  u8"üa123",  u8"üa123456789"};
+  char vals[NUM_VALUES][FLBA_LENGTH] = {"b12345", "a12345", "c12345", "d12345",
+                "e12345", "f12345", "g12345", "h12345",
+                "z12345", "a12345"};
 
+  uint8_t* base = &values_buf_.data()[0];
   for (int i = 0; i < NUM_VALUES; i++) {
-    uint8_t* base = &values_buf_.data()[0] + (i * FLBA_LENGTH);
-    memcpy(base, vals[i].c_str(), vals[i].length());
+    memcpy(base, &vals[i][0], FLBA_LENGTH);
     values_[i].ptr = base;
+    base += FLBA_LENGTH;
   }
 
   // Write FLBA min,max values
   stats_[0]
       .set_min(
-          std::string(reinterpret_cast<const char*>(vals[1].c_str()), vals[1].length()))
+          std::string(reinterpret_cast<const char*>(&vals[1][0]), FLBA_LENGTH))
       .set_max(
-          std::string(reinterpret_cast<const char*>(vals[9].c_str()), vals[9].length()));
+          std::string(reinterpret_cast<const char*>(&vals[8][0]), FLBA_LENGTH));
 }
 
 TYPED_TEST_CASE(TestStatistics, TestTypes);

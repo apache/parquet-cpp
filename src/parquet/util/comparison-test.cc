@@ -25,6 +25,10 @@
 #include "parquet/types.h"
 #include "parquet/util/comparison.h"
 
+#if defined(_MSC_VER)
+#pragma execution_character_set("utf-8")
+#endif
+
 namespace parquet {
 
 namespace test {
@@ -78,13 +82,13 @@ TEST(Comparison, UnsignedByteArray) {
   ByteArray s2ba = ByteArrayFromString(s2);
   ASSERT_TRUE(uless(s1ba, s2ba));
 
+  // Multi-byte UTF-8 characters
   s1 = u8"braten";
   s2 = u8"bügeln";
   s1ba = ByteArrayFromString(s1);
   s2ba = ByteArrayFromString(s2);
   ASSERT_TRUE(uless(s1ba, s2ba));
 
-  // Multi-byte UTF-8 characters
   s1 = u8"ünk123456"; // ü = 252
   s2 = u8"ănk123456"; // ă = 259
   s1ba = ByteArrayFromString(s1);
