@@ -25,7 +25,7 @@
 namespace parquet {
 
 std::shared_ptr<Compare> Compare::Make(const ColumnDescriptor* descr) {
-  if (SortOrder::SIGNED == GetSortOrder(descr->logical_type(), descr->physical_type())) {
+  if (SortOrder::SIGNED == descr->sort_order()) {
     switch (descr->physical_type()) {
       case Type::BOOLEAN:
         return std::make_shared<CompareDefaultBoolean>();
@@ -46,8 +46,7 @@ std::shared_ptr<Compare> Compare::Make(const ColumnDescriptor* descr) {
       default:
         ParquetException::NYI("Signed Compare not implemented");
     }
-  } else if (SortOrder::UNSIGNED ==
-             GetSortOrder(descr->logical_type(), descr->physical_type())) {
+  } else if (SortOrder::UNSIGNED == descr->sort_order()) {
     switch (descr->physical_type()) {
       case Type::INT32:
         return std::make_shared<CompareUnsignedInt32>();

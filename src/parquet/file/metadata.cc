@@ -117,8 +117,7 @@ class ColumnChunkMetaData::ColumnChunkMetaDataImpl {
   inline bool is_stats_set() const {
     DCHECK(writer_version_ != nullptr);
     return column_->meta_data.__isset.statistics &&
-           writer_version_->HasCorrectStatistics(
-               type(), GetSortOrder(descr_->logical_type(), descr_->physical_type()));
+           writer_version_->HasCorrectStatistics(type(), descr_->sort_order());
   }
 
   inline std::shared_ptr<RowGroupStatistics> statistics() const {

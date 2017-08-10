@@ -34,7 +34,6 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(const ColumnDescriptor* 
     : pool_(pool),
       min_buffer_(AllocateBuffer(pool_, 0)),
       max_buffer_(AllocateBuffer(pool_, 0)) {
-  comparator_ = std::static_pointer_cast<CompareDefault<DType> >(Compare::Make(schema));
   SetDescr(schema);
   Reset();
 }
@@ -69,7 +68,6 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(
   IncrementNullCount(null_count);
   IncrementDistinctCount(distinct_count);
 
-  comparator_ = std::static_pointer_cast<CompareDefault<DType> >(Compare::Make(schema));
   SetDescr(schema);
 
   if (!encoded_min.empty()) {
@@ -84,6 +82,11 @@ TypedRowGroupStatistics<DType>::TypedRowGroupStatistics(
 template <typename DType>
 bool TypedRowGroupStatistics<DType>::HasMinMax() const {
   return has_min_max_;
+}
+
+template <typename DType>
+void TypedRowGroupStatistics<DType>::SetComparator() {
+  comparator_ = std::static_pointer_cast<CompareDefault<DType> >(Compare::Make(descr_));
 }
 
 template <typename DType>

@@ -98,13 +98,19 @@ class PARQUET_EXPORT RowGroupStatistics
 
   virtual EncodedStatistics Encode() = 0;
 
+  // Set the Corresponding Comparator
+  virtual void SetComparator() = 0;
+
   virtual ~RowGroupStatistics() {}
 
   Type::type physical_type() const { return descr_->physical_type(); }
 
  protected:
   const ColumnDescriptor* descr() const { return descr_; }
-  void SetDescr(const ColumnDescriptor* schema) { descr_ = schema; }
+  void SetDescr(const ColumnDescriptor* schema) {
+    descr_ = schema;
+    SetComparator();
+  }
 
   void IncrementNullCount(int64_t n) { statistics_.null_count += n; }
 
@@ -147,6 +153,7 @@ class TypedRowGroupStatistics : public RowGroupStatistics {
 
   bool HasMinMax() const override;
   void Reset() override;
+  void SetComparator() override;
   void Merge(const TypedRowGroupStatistics<DType>& other);
 
   void Update(const T* values, int64_t num_not_null, int64_t num_null);
