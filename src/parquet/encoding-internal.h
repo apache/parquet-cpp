@@ -27,8 +27,8 @@
 #include "arrow/util/bit-stream-utils.h"
 #include "arrow/util/bit-util.h"
 #include "arrow/util/cpu-info.h"
-#include "arrow/util/macros.h"
 #include "arrow/util/hash-util.h"
+#include "arrow/util/macros.h"
 #include "arrow/util/rle-encoding.h"
 
 #include "parquet/encoding.h"
@@ -640,7 +640,8 @@ inline void DictEncoder<DType>::Put(const typename DType::c_type& v) {
     hash_slots_[j] = index;
     AddDictKey(v);
 
-    if (ARROW_PREDICT_FALSE(static_cast<int>(uniques_.size()) > hash_table_size_ * MAX_HASH_LOAD)) {
+    if (ARROW_PREDICT_FALSE(static_cast<int>(uniques_.size()) >
+                            hash_table_size_ * MAX_HASH_LOAD)) {
       DoubleTableSize();
     }
   }
