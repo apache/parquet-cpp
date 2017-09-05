@@ -85,8 +85,8 @@ TEST(Comparison, UnsignedByteArray) {
   s2ba = ByteArrayFromString(s2);
   ASSERT_TRUE(uless(s1ba, s2ba));
 
-  s1 = u8"ünk123456"; // ü = 252
-  s2 = u8"ănk123456"; // ă = 259
+  s1 = u8"ünk123456";  // ü = 252
+  s2 = u8"ănk123456";  // ă = 259
   s1ba = ByteArrayFromString(s1);
   s2ba = ByteArrayFromString(s2);
   ASSERT_TRUE(uless(s1ba, s2ba));

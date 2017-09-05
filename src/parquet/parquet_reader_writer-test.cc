@@ -43,8 +43,8 @@ class TestStatistics : public ::testing::Test {
   typedef typename TestType::c_type T;
 
   void AddNodes(std::string name) {
-    fields_.push_back(schema::PrimitiveNode::Make(name, Repetition::REQUIRED, TestType::type_num,
-                                                LogicalType::NONE));
+    fields_.push_back(schema::PrimitiveNode::Make(name, Repetition::REQUIRED,
+                                                  TestType::type_num, LogicalType::NONE));
   }
 
   void SetUpSchema() {
@@ -232,7 +232,7 @@ void TestStatistics<ByteArrayType>::SetValues() {
   size_t nbytes = NUM_VALUES * max_byte_array_len;
   values_buf_.resize(nbytes);
   std::vector<std::string> vals = {u8"c123", u8"b123", u8"a123", u8"d123", u8"e123",
-                                  u8"f123", u8"g123", u8"h123", u8"i123", u8"ü123"};
+                                   u8"f123", u8"g123", u8"h123", u8"i123", u8"ü123"};
 
   uint8_t* base = &values_buf_.data()[0];
   for (int i = 0; i < NUM_VALUES; i++) {
@@ -246,8 +246,8 @@ void TestStatistics<ByteArrayType>::SetValues() {
   stats_[0]
       .set_min(
           std::string(reinterpret_cast<const char*>(vals[2].c_str()), vals[2].length()))
-      .set_max(std::string(reinterpret_cast<const char*>(vals[9].c_str()),
-                           vals[9].length()));
+      .set_max(
+          std::string(reinterpret_cast<const char*>(vals[9].c_str()), vals[9].length()));
 }
 
 // TYPE::FLBAArray
@@ -263,9 +263,8 @@ template <>
 void TestStatistics<FLBAType>::SetValues() {
   size_t nbytes = NUM_VALUES * FLBA_LENGTH;
   values_buf_.resize(nbytes);
-  char vals[NUM_VALUES][FLBA_LENGTH] = {"b12345", "a12345", "c12345", "d12345",
-                "e12345", "f12345", "g12345", "h12345",
-                "z12345", "a12345"};
+  char vals[NUM_VALUES][FLBA_LENGTH] = {"b12345", "a12345", "c12345", "d12345", "e12345",
+                                        "f12345", "g12345", "h12345", "z12345", "a12345"};
 
   uint8_t* base = &values_buf_.data()[0];
   for (int i = 0; i < NUM_VALUES; i++) {
@@ -276,10 +275,8 @@ void TestStatistics<FLBAType>::SetValues() {
 
   // Write FLBA min,max values
   stats_[0]
-      .set_min(
-          std::string(reinterpret_cast<const char*>(&vals[1][0]), FLBA_LENGTH))
-      .set_max(
-          std::string(reinterpret_cast<const char*>(&vals[8][0]), FLBA_LENGTH));
+      .set_min(std::string(reinterpret_cast<const char*>(&vals[1][0]), FLBA_LENGTH))
+      .set_max(std::string(reinterpret_cast<const char*>(&vals[8][0]), FLBA_LENGTH));
 }
 
 TYPED_TEST_CASE(TestStatistics, TestTypes);
