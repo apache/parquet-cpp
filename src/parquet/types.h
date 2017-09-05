@@ -296,9 +296,9 @@ PARQUET_EXPORT std::string FormatStatValue(Type::type parquet_type, const char* 
 
 PARQUET_EXPORT int GetTypeByteSize(Type::type t);
 
-SortOrder::type PARQUET_EXPORT DefaultSortOrder(Type::type primitive);
+PARQUET_EXPORT SortOrder::type DefaultSortOrder(Type::type primitive);
 
-SortOrder::type PARQUET_EXPORT GetSortOrder(LogicalType::type converted,
+PARQUET_EXPORT SortOrder::type GetSortOrder(LogicalType::type converted,
                                             Type::type primitive);
 
 }  // namespace parquet

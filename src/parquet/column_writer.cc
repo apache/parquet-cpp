@@ -267,9 +267,10 @@ int64_t ColumnWriter::Close() {
     FlushBufferedDataPages();
 
     EncodedStatistics chunk_statistics = GetChunkStatistics();
-    if (chunk_statistics.is_set())
+    if (chunk_statistics.is_set()) {
       metadata_->SetStatistics(SortOrder::SIGNED == descr_->sort_order(),
                                chunk_statistics);
+    }
     pager_->Close(has_dictionary_, fallback_);
   }
 

@@ -82,7 +82,7 @@ class ApplicationVersion {
   bool VersionEq(const ApplicationVersion& other_version) const;
 
   // Checks if the Version has the correct statistics for a given column
-  bool HasCorrectStatistics(Type::type primitive, SortOrder::type sort_order) const;
+  bool HasCorrectStatistics(Type::type primitive, SortOrder::type sort_order = SortOrder::SIGNED) const;
 };
 
 class PARQUET_EXPORT ColumnChunkMetaData {
