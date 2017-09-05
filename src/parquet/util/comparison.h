@@ -26,15 +26,15 @@
 
 namespace parquet {
 
-class PARQUET_EXPORT Compare {
+class PARQUET_EXPORT Comparator {
  public:
-  virtual ~Compare() {}
-  static std::shared_ptr<Compare> Make(const ColumnDescriptor* descr);
+  virtual ~Comparator() {}
+  static std::shared_ptr<Comparator> Make(const ColumnDescriptor* descr);
 };
 
 // The default comparison is SIGNED
 template <typename DType>
-class PARQUET_EXPORT CompareDefault : public Compare {
+class PARQUET_EXPORT CompareDefault : public Comparator {
  public:
   typedef typename DType::c_type T;
   CompareDefault() {}
@@ -43,7 +43,7 @@ class PARQUET_EXPORT CompareDefault : public Compare {
 };
 
 template <>
-class PARQUET_EXPORT CompareDefault<Int96Type> : public Compare {
+class PARQUET_EXPORT CompareDefault<Int96Type> : public Comparator {
  public:
   CompareDefault() {}
   virtual ~CompareDefault() {}
@@ -55,7 +55,7 @@ class PARQUET_EXPORT CompareDefault<Int96Type> : public Compare {
 };
 
 template <>
-class PARQUET_EXPORT CompareDefault<ByteArrayType> : public Compare {
+class PARQUET_EXPORT CompareDefault<ByteArrayType> : public Comparator {
  public:
   CompareDefault() {}
   virtual ~CompareDefault() {}
@@ -67,7 +67,7 @@ class PARQUET_EXPORT CompareDefault<ByteArrayType> : public Compare {
 };
 
 template <>
-class PARQUET_EXPORT CompareDefault<FLBAType> : public Compare {
+class PARQUET_EXPORT CompareDefault<FLBAType> : public Comparator {
  public:
   explicit CompareDefault(int length) : type_length_(length) {}
   virtual ~CompareDefault() {}

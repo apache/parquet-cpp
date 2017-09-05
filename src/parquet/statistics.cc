@@ -86,7 +86,7 @@ bool TypedRowGroupStatistics<DType>::HasMinMax() const {
 
 template <typename DType>
 void TypedRowGroupStatistics<DType>::SetComparator() {
-  comparator_ = std::static_pointer_cast<CompareDefault<DType> >(Compare::Make(descr_));
+  comparator_ = std::static_pointer_cast<CompareDefault<DType> >(Comparator::Make(descr_));
 }
 
 template <typename DType>

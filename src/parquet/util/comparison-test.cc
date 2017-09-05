@@ -213,7 +213,7 @@ TEST(Comparison, UnknownSortOrder) {
                           LogicalType::INTERVAL, 12);
   ColumnDescriptor descr(node, 0, 0);
 
-  ASSERT_THROW(Compare::Make(&descr), ParquetException);
+  ASSERT_THROW(Comparator::Make(&descr), ParquetException);
 }
 
 }  // namespace test

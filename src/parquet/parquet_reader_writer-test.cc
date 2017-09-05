@@ -42,7 +42,10 @@ class TestStatistics : public ::testing::Test {
  public:
   typedef typename TestType::c_type T;
 
-  void AddNodes(std::string name);
+  void AddNodes(std::string name) {
+    fields_.push_back(schema::PrimitiveNode::Make(name, Repetition::REQUIRED, TestType::type_num,
+                                                LogicalType::NONE));
+  }
 
   void SetUpSchema() {
     stats_.resize(fields_.size());
@@ -189,13 +192,6 @@ void TestStatistics<Int96Type>::SetValues() {
 
 // TYPE::FLOAT
 template <>
-void TestStatistics<FloatType>::AddNodes(std::string name) {
-  // Float physical type has only Signed Statistics
-  fields_.push_back(schema::PrimitiveNode::Make(name, Repetition::REQUIRED, Type::FLOAT,
-                                                LogicalType::NONE));
-}
-
-template <>
 void TestStatistics<FloatType>::SetValues() {
   for (int i = 0; i < NUM_VALUES; i++) {
     values_[i] =
@@ -209,13 +205,6 @@ void TestStatistics<FloatType>::SetValues() {
 }
 
 // TYPE::DOUBLE
-template <>
-void TestStatistics<DoubleType>::AddNodes(std::string name) {
-  // Double physical type has only Signed Statistics
-  fields_.push_back(schema::PrimitiveNode::Make(name, Repetition::REQUIRED, Type::DOUBLE,
-                                                LogicalType::NONE));
-}
-
 template <>
 void TestStatistics<DoubleType>::SetValues() {
   for (int i = 0; i < NUM_VALUES; i++) {
