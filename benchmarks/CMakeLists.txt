@@ -22,8 +22,10 @@ SET(LINK_LIBS
 if (PARQUET_BUILD_BENCHMARKS)
   add_executable(decode_benchmark decode_benchmark.cc)
 
+  add_dependencies(decode_benchmark gtest)
+
   # This uses private APIs
   target_link_libraries(decode_benchmark
-    ${LINK_LIBS} 
+    ${LINK_LIBS}
     parquet_static)
 endif()
