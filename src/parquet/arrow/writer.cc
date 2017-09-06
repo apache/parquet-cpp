@@ -18,7 +18,6 @@
 #include "parquet/arrow/writer.h"
 
 #include <algorithm>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -951,8 +950,6 @@ Status FileWriter::WriteTable(const Table& table, int64_t chunk_size) {
   for (int chunk = 0; chunk * chunk_size < table.num_rows(); chunk++) {
     int64_t offset = chunk * chunk_size;
     int64_t size = std::min(chunk_size, table.num_rows() - offset);
-
-    std::cout << "Writing from " << offset << std::endl;
 
     RETURN_NOT_OK_ELSE(NewRowGroup(size), PARQUET_IGNORE_NOT_OK(Close()));
     for (int i = 0; i < table.num_columns(); i++) {
