@@ -231,6 +231,8 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
 
     set(GTEST_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                          -DCMAKE_INSTALL_PREFIX=${GTEST_PREFIX}
+                         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
                          -Dgtest_force_shared_crt=ON
                          -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS})
 

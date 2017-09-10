@@ -99,7 +99,6 @@ class LevelBuilder {
 
   NOT_IMPLEMENTED_VISIT(Struct)
   NOT_IMPLEMENTED_VISIT(Union)
-  NOT_IMPLEMENTED_VISIT(Decimal)
   NOT_IMPLEMENTED_VISIT(Dictionary)
   NOT_IMPLEMENTED_VISIT(Interval)
 
@@ -679,7 +678,7 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
     const int16_t* def_levels, const int16_t* rep_levels) {
   RETURN_NOT_OK(data_buffer_.Resize(array->length()));
   auto data = static_cast<const BooleanArray*>(array.get());
-  auto data_ptr = reinterpret_cast<const uint8_t*>(data->values()->data());
+  auto data_ptr = data->values()->data();
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
 
@@ -719,7 +718,7 @@ Status FileWriter::Impl::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
   // segfault.
   const uint8_t* data_ptr = nullptr;
   if (data->value_data()) {
-    data_ptr = reinterpret_cast<const uint8_t*>(data->value_data()->data());
+    data_ptr = data->value_data()->data();
     DCHECK(data_ptr != nullptr);
   }
   auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
@@ -755,12 +754,12 @@ Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::FixedSizeBinaryType>
     ColumnWriter* column_writer, const std::shared_ptr<Array>& array, int64_t num_levels,
     const int16_t* def_levels, const int16_t* rep_levels) {
   RETURN_NOT_OK(data_buffer_.Resize(array->length() * sizeof(FLBA), false));
+
   auto data = static_cast<const FixedSizeBinaryArray*>(array.get());
   auto buffer_ptr = reinterpret_cast<FLBA*>(data_buffer_.mutable_data());
+  auto writer = static_cast<TypedColumnWriter<FLBAType>*>(column_writer);
 
-  auto writer = reinterpret_cast<TypedColumnWriter<FLBAType>*>(column_writer);
-
-  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
+  if (writer->descr()->schema_node()->is_required() || data->null_count() == 0) {
     // no nulls, just dump the data
     // todo(advancedxy): use a writeBatch to avoid this step
     for (int64_t i = 0; i < data->length(); i++) {
@@ -862,6 +861,7 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
       WRITE_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
       WRITE_BATCH_CASE(STRING, BinaryType, ByteArrayType)
       WRITE_BATCH_CASE(FIXED_SIZE_BINARY, FixedSizeBinaryType, FLBAType)
+      WRITE_BATCH_CASE(DECIMAL, FixedSizeBinaryType, FLBAType)
       WRITE_BATCH_CASE(DATE32, Date32Type, Int32Type)
       WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
       WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)

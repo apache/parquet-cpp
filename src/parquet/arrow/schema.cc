@@ -476,6 +476,8 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
   Repetition::type repetition =
       field->nullable() ? Repetition::OPTIONAL : Repetition::REQUIRED;
   int length = -1;
+  int32_t precision = -1;
+  int32_t scale = -1;
 
   switch (field->type()->id()) {
     case ArrowType::NA:
@@ -538,6 +540,14 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
           static_cast<::arrow::FixedSizeBinaryType*>(field->type().get());
       length = fixed_size_binary_type->byte_width();
     } break;
+    case ArrowType::DECIMAL: {
+      type = ParquetType::FIXED_LEN_BYTE_ARRAY;
+      logical_type = LogicalType::DECIMAL;
+      const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(*field->type());
+      length = decimal_type.byte_width();
+      precision = decimal_type.precision();
+      scale = decimal_type.scale();
+    } break;
     case ArrowType::DATE32:
       type = ParquetType::INT32;
       logical_type = LogicalType::DATE;
@@ -574,10 +584,10 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
                         arrow_properties, out);
     } break;
     default:
-      // TODO: LIST, DENSE_UNION, SPARE_UNION, JSON_SCALAR, DECIMAL, DECIMAL_TEXT, VARCHAR
+      // TODO: LIST, DENSE_UNION, SPARE_UNION, JSON_SCALAR, DECIMAL_TEXT, VARCHAR
       return Status::NotImplemented("unhandled type");
   }
-  *out = PrimitiveNode::Make(field->name(), repetition, type, logical_type, length);
+  *out = PrimitiveNode::Make(field->name(), repetition, type, logical_type, length, precision, scale);
   return Status::OK();
 }
 

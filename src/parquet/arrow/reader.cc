@@ -259,7 +259,9 @@ class PARQUET_NO_EXPORT PrimitiveImpl : public ColumnReader::Impl {
   Status ReadByteArrayBatch(int batch_size, std::shared_ptr<Array>* out);
 
   template <typename ArrowType>
-  Status ReadFLBABatch(int batch_size, int byte_width, std::shared_ptr<Array>* out);
+  Status ReadFLBABatch(int batch_size,
+                       const std::shared_ptr<::arrow::DataType>& type,
+                       std::shared_ptr<Array>* out);
 
   template <typename ArrowType>
   Status InitDataBuffer(int batch_size);
@@ -1074,7 +1076,7 @@ Status PrimitiveImpl::TypedReadBatch(int batch_size, std::shared_ptr<Array>* out
   if (descr_->max_definition_level() > 0) {
     if (valid_bits_idx_ < batch_size * 0.8) {
       RETURN_NOT_OK(valid_bits_buffer_->Resize(
-          ::arrow::BitUtil::CeilByte(valid_bits_idx_) / 8, false));
+          ::arrow::BitUtil::CeilByte(valid_bits_idx_) / CHAR_BIT, false));
     }
     *out = std::make_shared<ArrayType<ArrowType>>(
         field_->type(), valid_bits_idx_, data_buffer_, valid_bits_buffer_, null_count_);
@@ -1222,49 +1224,62 @@ Status PrimitiveImpl::ReadByteArrayBatch(int batch_size, std::shared_ptr<Array>*
 }
 
 template <typename ArrowType>
-Status PrimitiveImpl::ReadFLBABatch(int batch_size, int byte_width,
+Status PrimitiveImpl::ReadFLBABatch(int batch_size,
+                                    const std::shared_ptr<::arrow::DataType>& type,
                                     std::shared_ptr<Array>* out) {
-  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
   int total_levels_read = 0;
-  if (descr_->max_definition_level() > 0) {
-    RETURN_NOT_OK(def_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+
+  const int16_t max_definition_level = descr_->max_definition_level();
+  const auto number_of_elements = static_cast<int16_t>(batch_size * sizeof(int16_t));
+
+  if (max_definition_level > 0) {
+    RETURN_NOT_OK(def_levels_buffer_.Resize(number_of_elements, false));
   }
+
   if (descr_->max_repetition_level() > 0) {
-    RETURN_NOT_OK(rep_levels_buffer_.Resize(batch_size * sizeof(int16_t), false));
+    RETURN_NOT_OK(rep_levels_buffer_.Resize(number_of_elements, false));
   }
-  int16_t* def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
-  int16_t* rep_levels = reinterpret_cast<int16_t*>(rep_levels_buffer_.mutable_data());
+
+  auto def_levels = reinterpret_cast<int16_t*>(def_levels_buffer_.mutable_data());
+  auto rep_levels = reinterpret_cast<int16_t*>(rep_levels_buffer_.mutable_data());
 
   int values_to_read = batch_size;
-  BuilderType builder(::arrow::fixed_size_binary(byte_width), pool_);
-  while ((values_to_read > 0) && column_reader_) {
+
+  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
+  BuilderType builder(std::static_pointer_cast<ArrowType>(type), pool_);
+
+  const bool nullable_elements = descr_->schema_node()->is_optional();
+
+  while (values_to_read > 0 && column_reader_ != nullptr) {
     RETURN_NOT_OK(values_buffer_.Resize(values_to_read * sizeof(FLBA), false));
-    auto reader = dynamic_cast<TypedColumnReader<FLBAType>*>(column_reader_.get());
     int64_t values_read;
     int64_t levels_read;
     auto values = reinterpret_cast<FLBA*>(values_buffer_.mutable_data());
+    auto reader = static_cast<TypedColumnReader<FLBAType>*>(column_reader_.get());
+    DCHECK_NE(reader, nullptr);
     PARQUET_CATCH_NOT_OK(levels_read = reader->ReadBatch(
                              values_to_read, def_levels + total_levels_read,
                              rep_levels + total_levels_read, values, &values_read));
     values_to_read -= static_cast<int>(levels_read);
-    if (descr_->max_definition_level() == 0) {
-      for (int64_t i = 0; i < levels_read; i++) {
+    if (max_definition_level == 0) {
+      for (int64_t i = 0; i < levels_read; ++i) {
         RETURN_NOT_OK(builder.Append(values[i].ptr));
       }
     } else {
       int values_idx = 0;
-      int nullable_elements = descr_->schema_node()->is_optional();
-      for (int64_t i = 0; i < levels_read; i++) {
-        if (nullable_elements &&
-            (def_levels[i + total_levels_read] == (descr_->max_definition_level() - 1))) {
+      for (int64_t i = 0; i < levels_read; ++i) {
+        const int def_levels_read = def_levels[i + total_levels_read];
+        if (nullable_elements && def_levels_read == max_definition_level - 1) {
           RETURN_NOT_OK(builder.AppendNull());
-        } else if (def_levels[i + total_levels_read] == descr_->max_definition_level()) {
+        } else if (def_levels_read == max_definition_level) {
           RETURN_NOT_OK(builder.Append(values[values_idx].ptr));
-          values_idx++;
+          ++values_idx;
         }
       }
+
       total_levels_read += static_cast<int>(levels_read);
     }
+
     if (!column_reader_->HasNext()) {
       NextRowGroup();
     }
@@ -1299,7 +1314,9 @@ Status PrimitiveImpl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
     return Status::OK();
   }
 
-  switch (field_->type()->id()) {
+  const auto& type = field_->type();
+
+  switch (type->id()) {
     case ::arrow::Type::NA:
       *out = std::make_shared<::arrow::NullArray>(batch_size);
       return Status::OK();
@@ -1319,29 +1336,21 @@ Status PrimitiveImpl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
       TYPED_BATCH_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
       TYPED_BATCH_CASE(DATE32, ::arrow::Date32Type, Int32Type)
       TYPED_BATCH_CASE(DATE64, ::arrow::Date64Type, Int32Type)
-    case ::arrow::Type::FIXED_SIZE_BINARY: {
-      int32_t byte_width =
-          static_cast<::arrow::FixedSizeBinaryType*>(field_->type().get())->byte_width();
-      return ReadFLBABatch<::arrow::FixedSizeBinaryType>(batch_size, byte_width, out);
-      break;
-    }
+    case ::arrow::Type::FIXED_SIZE_BINARY:
+      return ReadFLBABatch<::arrow::FixedSizeBinaryType>(batch_size, type, out);
+    case ::arrow::Type::DECIMAL:
+      return ReadFLBABatch<::arrow::DecimalType>(batch_size, type, out);
     case ::arrow::Type::TIMESTAMP: {
-      ::arrow::TimestampType* timestamp_type =
-          static_cast<::arrow::TimestampType*>(field_->type().get());
+      const auto& timestamp_type = std::static_pointer_cast<::arrow::TimestampType>(type);
       switch (timestamp_type->unit()) {
         case ::arrow::TimeUnit::MILLI:
-          return TypedReadBatch<::arrow::TimestampType, Int64Type>(batch_size, out);
-          break;
         case ::arrow::TimeUnit::MICRO:
           return TypedReadBatch<::arrow::TimestampType, Int64Type>(batch_size, out);
-          break;
         case ::arrow::TimeUnit::NANO:
           return TypedReadBatch<::arrow::TimestampType, Int96Type>(batch_size, out);
-          break;
         default:
           return Status::NotImplemented("TimeUnit not supported");
       }
-      break;
     }
       TYPED_BATCH_CASE(TIME32, ::arrow::Time32Type, Int32Type)
       TYPED_BATCH_CASE(TIME64, ::arrow::Time64Type, Int64Type)

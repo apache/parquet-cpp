@@ -109,6 +109,8 @@ LogicalType::type get_logical_type(const ::arrow::DataType& type) {
       return LogicalType::TIME_MILLIS;
     case ArrowId::TIME64:
       return LogicalType::TIME_MICROS;
+    case ArrowId::DECIMAL:
+      return LogicalType::DECIMAL;
     default:
       break;
   }
@@ -138,6 +140,7 @@ ParquetType::type get_physical_type(const ::arrow::DataType& type) {
     case ArrowId::STRING:
       return ParquetType::BYTE_ARRAY;
     case ArrowId::FIXED_SIZE_BINARY:
+    case ArrowId::DECIMAL:
       return ParquetType::FIXED_LEN_BYTE_ARRAY;
     case ArrowId::DATE32:
       return ParquetType::INT32;
@@ -328,17 +331,25 @@ void DoSimpleRoundtrip(const std::shared_ptr<Table>& table, int num_threads,
 
 static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::arrow::DataType& type,
                                                    Repetition::type repetition) {
-  int byte_width;
-  // Decimal is not implemented yet.
+  int32_t byte_width = -1;
+  int32_t precision = -1;
+  int32_t scale = -1;
+
   switch (type.id()) {
     case ::arrow::Type::FIXED_SIZE_BINARY:
       byte_width = static_cast<const ::arrow::FixedSizeBinaryType&>(type).byte_width();
       break;
+    case ::arrow::Type::DECIMAL: {
+      const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(type);
+      byte_width = decimal_type.byte_width();
+      precision = decimal_type.precision();
+      scale = decimal_type.scale();
+    } break;
     default:
-      byte_width = -1;
+      break;
   }
   auto pnode = PrimitiveNode::Make("column1", repetition, get_physical_type(type),
-                                   get_logical_type(type), byte_width);
+                                   get_logical_type(type), byte_width, precision, scale);
   NodePtr node_ =
       GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
   return std::static_pointer_cast<GroupNode>(node_);
@@ -460,7 +471,8 @@ typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8
                          ::arrow::UInt16Type, ::arrow::Int16Type, ::arrow::Int32Type,
                          ::arrow::UInt64Type, ::arrow::Int64Type, ::arrow::Date32Type,
                          ::arrow::FloatType, ::arrow::DoubleType, ::arrow::StringType,
-                         ::arrow::BinaryType, ::arrow::FixedSizeBinaryType>
+                         ::arrow::BinaryType, ::arrow::FixedSizeBinaryType,
+                         ::arrow::DecimalType>
     TestTypes;
 
 TYPED_TEST_CASE(TestParquetIO, TestTypes);
