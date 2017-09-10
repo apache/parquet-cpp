@@ -358,7 +358,7 @@ TEST(CorruptStatistics, Basics) {
 
 // Statistics for all types have no restrictions in newer parquet version
 TEST(CorrectStatistics, Basics) {
-  ApplicationVersion version("parquet-cpp version 1.2.1");
+  ApplicationVersion version("parquet-cpp version 1.3.0");
   SchemaDescriptor schema;
   schema::NodePtr node;
   std::vector<schema::NodePtr> fields;
