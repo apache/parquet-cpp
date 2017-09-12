@@ -1341,8 +1341,8 @@ Status PrimitiveImpl::NextBatch(int batch_size, std::shared_ptr<Array>* out) {
     case ::arrow::Type::DECIMAL:
       return ReadFLBABatch<::arrow::DecimalType>(batch_size, type, out);
     case ::arrow::Type::TIMESTAMP: {
-      const auto& timestamp_type = std::static_pointer_cast<::arrow::TimestampType>(type);
-      switch (timestamp_type->unit()) {
+      const auto& timestamp_type = static_cast<const ::arrow::TimestampType&>(*type);
+      switch (timestamp_type.unit()) {
         case ::arrow::TimeUnit::MILLI:
         case ::arrow::TimeUnit::MICRO:
           return TypedReadBatch<::arrow::TimestampType, Int64Type>(batch_size, out);

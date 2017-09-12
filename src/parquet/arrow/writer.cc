@@ -678,7 +678,7 @@ Status FileWriter::Impl::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
     const int16_t* def_levels, const int16_t* rep_levels) {
   RETURN_NOT_OK(data_buffer_.Resize(array->length()));
   auto data = static_cast<const BooleanArray*>(array.get());
-  auto data_ptr = data->values()->data();
+  const uint8_t* data_ptr = data->values()->data();
   auto buffer_ptr = reinterpret_cast<bool*>(data_buffer_.mutable_data());
   auto writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(column_writer);
 
