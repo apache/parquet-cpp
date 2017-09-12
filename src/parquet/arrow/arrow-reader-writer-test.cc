@@ -110,11 +110,11 @@ LogicalType::type get_logical_type(const ::arrow::DataType& type) {
       return LogicalType::TIME_MILLIS;
     case ArrowId::TIME64:
       return LogicalType::TIME_MICROS;
-    case ArrowId::DICTIONARY:
-      {
-        const ::arrow::DictionaryType& dict_type = static_cast<const ::arrow::DictionaryType&>(type);
-        return get_logical_type(*dict_type.dictionary()->type());
-      }
+    case ArrowId::DICTIONARY: {
+      const ::arrow::DictionaryType& dict_type =
+          static_cast<const ::arrow::DictionaryType&>(type);
+      return get_logical_type(*dict_type.dictionary()->type());
+    }
     default:
       break;
   }
@@ -156,11 +156,11 @@ ParquetType::type get_physical_type(const ::arrow::DataType& type) {
       return ParquetType::INT64;
     case ArrowId::TIMESTAMP:
       return ParquetType::INT64;
-    case ArrowId::DICTIONARY:
-      {
-        const ::arrow::DictionaryType& dict_type = static_cast<const ::arrow::DictionaryType&>(type);
-        return get_physical_type(*dict_type.dictionary()->type());
-      }
+    case ArrowId::DICTIONARY: {
+      const ::arrow::DictionaryType& dict_type =
+          static_cast<const ::arrow::DictionaryType&>(type);
+      return get_physical_type(*dict_type.dictionary()->type());
+    }
     default:
       break;
   }
@@ -343,14 +343,16 @@ static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::arrow::DataType& type
   // Decimal is not implemented yet.
   switch (type.id()) {
     case ::arrow::Type::DICTIONARY: {
-        const ::arrow::DictionaryType& dict_type = static_cast<const ::arrow::DictionaryType&>(type);
-        const ::arrow::DataType& values_type = *dict_type.dictionary()->type();
-        if (values_type.id() == ::arrow::Type::FIXED_SIZE_BINARY) {
-          byte_width = static_cast<const ::arrow::FixedSizeBinaryType&>(values_type).byte_width();
-        } else {
-          byte_width = -1;
-        }
-      } break;
+      const ::arrow::DictionaryType& dict_type =
+          static_cast<const ::arrow::DictionaryType&>(type);
+      const ::arrow::DataType& values_type = *dict_type.dictionary()->type();
+      if (values_type.id() == ::arrow::Type::FIXED_SIZE_BINARY) {
+        byte_width =
+            static_cast<const ::arrow::FixedSizeBinaryType&>(values_type).byte_width();
+      } else {
+        byte_width = -1;
+      }
+    } break;
     case ::arrow::Type::FIXED_SIZE_BINARY:
       byte_width = static_cast<const ::arrow::FixedSizeBinaryType&>(type).byte_width();
       break;

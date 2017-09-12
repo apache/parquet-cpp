@@ -690,56 +690,57 @@ TEST_F(TestConvertArrowSchema, ParquetFlatPrimitivesAsDictionaries) {
   parquet_fields.push_back(
       PrimitiveNode::Make("int32", Repetition::REQUIRED, ParquetType::INT32));
   ArrayFromVector<::arrow::Int32Type, int32_t>(std::vector<int32_t>(), &dict);
-  arrow_fields.push_back(::arrow::field("int32", ::arrow::dictionary(::arrow::int8(), dict), false));
+  arrow_fields.push_back(
+      ::arrow::field("int32", ::arrow::dictionary(::arrow::int8(), dict), false));
 
   parquet_fields.push_back(
       PrimitiveNode::Make("int64", Repetition::REQUIRED, ParquetType::INT64));
   ArrayFromVector<::arrow::Int64Type, int64_t>(std::vector<int64_t>(), &dict);
-  arrow_fields.push_back(std::make_shared<Field>("int64", ::arrow::dictionary(::arrow::int8(), dict), false));
+  arrow_fields.push_back(std::make_shared<Field>(
+      "int64", ::arrow::dictionary(::arrow::int8(), dict), false));
 
   parquet_fields.push_back(PrimitiveNode::Make("date", Repetition::REQUIRED,
                                                ParquetType::INT32, LogicalType::DATE));
   ArrayFromVector<::arrow::Date32Type, int32_t>(std::vector<int32_t>(), &dict);
-  arrow_fields.push_back(std::make_shared<Field>("date", ::arrow::dictionary(::arrow::int8(), dict), false));
+  arrow_fields.push_back(
+      std::make_shared<Field>("date", ::arrow::dictionary(::arrow::int8(), dict), false));
 
   parquet_fields.push_back(PrimitiveNode::Make("date64", Repetition::REQUIRED,
                                                ParquetType::INT32, LogicalType::DATE));
   ArrayFromVector<::arrow::Date64Type, int64_t>(std::vector<int64_t>(), &dict);
-  arrow_fields.push_back(std::make_shared<Field>("date64", ::arrow::dictionary(::arrow::int8(), dict), false));
-
-  /*parquet_fields.push_back(PrimitiveNode::Make("timestamp", Repetition::REQUIRED,
-                                               ParquetType::INT64,
-                                               LogicalType::TIMESTAMP_MILLIS));
-  arrow_fields.push_back(std::make_shared<Field>("timestamp", TIMESTAMP_MS, false));*/
-
-  /*parquet_fields.push_back(PrimitiveNode::Make("timestamp[us]", Repetition::REQUIRED,
-                                               ParquetType::INT64,
-                                               LogicalType::TIMESTAMP_MICROS));
-  arrow_fields.push_back(std::make_shared<Field>("timestamp[us]", TIMESTAMP_US, false));*/
+  arrow_fields.push_back(std::make_shared<Field>(
+      "date64", ::arrow::dictionary(::arrow::int8(), dict), false));
 
   parquet_fields.push_back(
       PrimitiveNode::Make("float", Repetition::OPTIONAL, ParquetType::FLOAT));
   ArrayFromVector<::arrow::FloatType, float>(std::vector<float>(), &dict);
-  arrow_fields.push_back(std::make_shared<Field>("float", ::arrow::dictionary(::arrow::int8(), dict)));
+  arrow_fields.push_back(
+      std::make_shared<Field>("float", ::arrow::dictionary(::arrow::int8(), dict)));
 
   parquet_fields.push_back(
       PrimitiveNode::Make("double", Repetition::OPTIONAL, ParquetType::DOUBLE));
   ArrayFromVector<::arrow::DoubleType, double>(std::vector<double>(), &dict);
-  arrow_fields.push_back(std::make_shared<Field>("double", ::arrow::dictionary(::arrow::int8(), dict)));
+  arrow_fields.push_back(
+      std::make_shared<Field>("double", ::arrow::dictionary(::arrow::int8(), dict)));
 
-  /*parquet_fields.push_back(PrimitiveNode::Make(
+  parquet_fields.push_back(PrimitiveNode::Make(
       "string", Repetition::OPTIONAL, ParquetType::BYTE_ARRAY, LogicalType::UTF8));
-  arrow_fields.push_back(std::make_shared<Field>("string", UTF8));*/
+  ::arrow::StringBuilder string_builder(::arrow::default_memory_pool());
+  ASSERT_OK(string_builder.Finish(&dict));
+  arrow_fields.push_back(
+      std::make_shared<Field>("string", ::arrow::dictionary(::arrow::int8(), dict)));
 
-  /*parquet_fields.push_back(PrimitiveNode::Make(
+  parquet_fields.push_back(PrimitiveNode::Make(
       "binary", Repetition::OPTIONAL, ParquetType::BYTE_ARRAY, LogicalType::NONE));
-  arrow_fields.push_back(std::make_shared<Field>("binary", BINARY));*/
+  ::arrow::BinaryBuilder binary_builder(::arrow::default_memory_pool());
+  ASSERT_OK(binary_builder.Finish(&dict));
+  arrow_fields.push_back(
+      std::make_shared<Field>("binary", ::arrow::dictionary(::arrow::int8(), dict)));
 
   ASSERT_OK(ConvertSchema(arrow_fields));
 
   CheckFlatSchema(parquet_fields);
 }
-
 
 TEST_F(TestConvertArrowSchema, ParquetLists) {
   std::vector<NodePtr> parquet_fields;

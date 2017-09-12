@@ -807,11 +807,13 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
   // writing them as a workaround, we convert them back to their non-dictionary
   // representation.
   if (data.type()->id() == ::arrow::Type::DICTIONARY) {
-    const ::arrow::DictionaryType& dict_type = static_cast<const ::arrow::DictionaryType&>(*data.type());
+    const ::arrow::DictionaryType& dict_type =
+        static_cast<const ::arrow::DictionaryType&>(*data.type());
 
     FunctionContext ctx(pool_);
     std::shared_ptr<Array> plain_array;
-    RETURN_NOT_OK(Cast(&ctx, data, dict_type.dictionary()->type(), CastOptions(), &plain_array));
+    RETURN_NOT_OK(
+        Cast(&ctx, data, dict_type.dictionary()->type(), CastOptions(), &plain_array));
     return WriteColumnChunk(*plain_array);
   }
 
