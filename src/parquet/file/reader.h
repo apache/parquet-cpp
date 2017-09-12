@@ -36,6 +36,7 @@
 namespace parquet {
 
 class ColumnReader;
+class RecordReader;
 
 class PARQUET_EXPORT RowGroupReader {
  public:
@@ -57,6 +58,8 @@ class PARQUET_EXPORT RowGroupReader {
   // Construct a ColumnReader for the indicated row group-relative
   // column. Ownership is shared with the RowGroupReader.
   std::shared_ptr<ColumnReader> Column(int i);
+
+  std::unique_ptr<PageReader> GetColumnPageReader(int i);
 
  private:
   // Holds a pointer to an instance of Contents implementation

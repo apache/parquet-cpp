@@ -201,16 +201,16 @@ Status FromPrimitive(const PrimitiveNode* primitive, TypePtr* out) {
 }
 
 // Forward declaration
-Status NodeToFieldInternal(const NodePtr& node,
-                           const std::unordered_set<NodePtr>* included_leaf_nodes,
+Status NodeToFieldInternal(const Node* node,
+                           const std::unordered_set<const Node*>* included_leaf_nodes,
                            std::shared_ptr<Field>* out);
 
 /*
  * Auxilary function to test if a parquet schema node is a leaf node
  * that should be included in a resulting arrow schema
  */
-inline bool IsIncludedLeaf(const NodePtr& node,
-                           const std::unordered_set<NodePtr>* included_leaf_nodes) {
+inline bool IsIncludedLeaf(const Node* node,
+                           const std::unordered_set<const Node*>* included_leaf_nodes) {
   if (included_leaf_nodes == nullptr) {
     return true;
   }
@@ -219,7 +219,7 @@ inline bool IsIncludedLeaf(const NodePtr& node,
 }
 
 Status StructFromGroup(const GroupNode* group,
-                       const std::unordered_set<NodePtr>* included_leaf_nodes,
+                       const std::unordered_set<const Node*>* included_leaf_nodes,
                        TypePtr* out) {
   std::vector<std::shared_ptr<Field>> fields;
   std::shared_ptr<Field> field;
@@ -227,7 +227,8 @@ Status StructFromGroup(const GroupNode* group,
   *out = nullptr;
 
   for (int i = 0; i < group->field_count(); i++) {
-    RETURN_NOT_OK(NodeToFieldInternal(group->field(i), included_leaf_nodes, &field));
+    RETURN_NOT_OK(
+        NodeToFieldInternal(group->field(i).get(), included_leaf_nodes, &field));
     if (field != nullptr) {
       fields.push_back(field);
     }
@@ -239,21 +240,22 @@ Status StructFromGroup(const GroupNode* group,
 }
 
 Status NodeToList(const GroupNode* group,
-                  const std::unordered_set<NodePtr>* included_leaf_nodes, TypePtr* out) {
+                  const std::unordered_set<const Node*>* included_leaf_nodes,
+                  TypePtr* out) {
   *out = nullptr;
   if (group->field_count() == 1) {
     // This attempts to resolve the preferred 3-level list encoding.
-    NodePtr list_node = group->field(0);
+    const Node* list_node = group->field(0).get();
     if (list_node->is_group() && list_node->is_repeated()) {
-      const GroupNode* list_group = static_cast<const GroupNode*>(list_node.get());
+      const GroupNode* list_group = static_cast<const GroupNode*>(list_node);
       // Special case mentioned in the format spec:
       //   If the name is array or ends in _tuple, this should be a list of struct
       //   even for single child elements.
       if (list_group->field_count() == 1 && !HasStructListName(*list_group)) {
         // List of primitive type
         std::shared_ptr<Field> item_field;
-        RETURN_NOT_OK(
-            NodeToFieldInternal(list_group->field(0), included_leaf_nodes, &item_field));
+        RETURN_NOT_OK(NodeToFieldInternal(list_group->field(0).get(), included_leaf_nodes,
+                                          &item_field));
 
         if (item_field != nullptr) {
           *out = ::arrow::list(item_field);
@@ -270,9 +272,8 @@ Status NodeToList(const GroupNode* group,
     } else if (list_node->is_repeated()) {
       // repeated primitive node
       std::shared_ptr<::arrow::DataType> inner_type;
-      if (IsIncludedLeaf(static_cast<NodePtr>(list_node), included_leaf_nodes)) {
-        const PrimitiveNode* primitive =
-            static_cast<const PrimitiveNode*>(list_node.get());
+      if (IsIncludedLeaf(static_cast<const Node*>(list_node), included_leaf_nodes)) {
+        auto primitive = static_cast<const PrimitiveNode*>(list_node);
         RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
         auto item_field = std::make_shared<Field>(list_node->name(), inner_type, false);
         *out = ::arrow::list(item_field);
@@ -288,12 +289,12 @@ Status NodeToList(const GroupNode* group,
   return Status::OK();
 }
 
-Status NodeToField(const NodePtr& node, std::shared_ptr<Field>* out) {
+Status NodeToField(const Node* node, std::shared_ptr<Field>* out) {
   return NodeToFieldInternal(node, nullptr, out);
 }
 
-Status NodeToFieldInternal(const NodePtr& node,
-                           const std::unordered_set<NodePtr>* included_leaf_nodes,
+Status NodeToFieldInternal(const Node* node,
+                           const std::unordered_set<const Node*>* included_leaf_nodes,
                            std::shared_ptr<Field>* out) {
   std::shared_ptr<::arrow::DataType> type = nullptr;
   bool nullable = !node->is_required();
@@ -304,10 +305,10 @@ Status NodeToFieldInternal(const NodePtr& node,
     // 1-level LIST encoding fields are required
     std::shared_ptr<::arrow::DataType> inner_type;
     if (node->is_group()) {
-      const GroupNode* group = static_cast<const GroupNode*>(node.get());
+      auto group = static_cast<const GroupNode*>(node);
       RETURN_NOT_OK(StructFromGroup(group, included_leaf_nodes, &inner_type));
-    } else if (IsIncludedLeaf(static_cast<NodePtr>(node), included_leaf_nodes)) {
-      const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
+    } else if (IsIncludedLeaf(static_cast<const Node*>(node), included_leaf_nodes)) {
+      auto primitive = static_cast<const PrimitiveNode*>(node);
       RETURN_NOT_OK(FromPrimitive(primitive, &inner_type));
     }
     if (inner_type != nullptr) {
@@ -316,7 +317,7 @@ Status NodeToFieldInternal(const NodePtr& node,
       nullable = false;
     }
   } else if (node->is_group()) {
-    const GroupNode* group = static_cast<const GroupNode*>(node.get());
+    auto group = static_cast<const GroupNode*>(node);
     if (node->logical_type() == LogicalType::LIST) {
       RETURN_NOT_OK(NodeToList(group, included_leaf_nodes, &type));
     } else {
@@ -324,8 +325,8 @@ Status NodeToFieldInternal(const NodePtr& node,
     }
   } else {
     // Primitive (leaf) node
-    if (IsIncludedLeaf(static_cast<NodePtr>(node), included_leaf_nodes)) {
-      const PrimitiveNode* primitive = static_cast<const PrimitiveNode*>(node.get());
+    if (IsIncludedLeaf(static_cast<const Node*>(node), included_leaf_nodes)) {
+      auto primitive = static_cast<const PrimitiveNode*>(node);
       RETURN_NOT_OK(FromPrimitive(primitive, &type));
     }
   }
@@ -344,7 +345,7 @@ Status FromParquetSchema(
   int num_fields = static_cast<int>(schema_node->field_count());
   std::vector<std::shared_ptr<Field>> fields(num_fields);
   for (int i = 0; i < num_fields; i++) {
-    RETURN_NOT_OK(NodeToField(schema_node->field(i), &fields[i]));
+    RETURN_NOT_OK(NodeToField(schema_node->field(i).get(), &fields[i]));
   }
 
   *out = std::make_shared<::arrow::Schema>(fields, key_value_metadata);
@@ -362,13 +363,13 @@ Status FromParquetSchema(
   // Index in column_indices should be unique, duplicate indices are merged into one and
   // ordering by its first appearing.
   int num_columns = static_cast<int>(column_indices.size());
-  std::unordered_set<NodePtr> top_nodes;  // to deduplicate the top nodes
-  std::vector<NodePtr> base_nodes;        // to keep the ordering
-  std::unordered_set<NodePtr> included_leaf_nodes(num_columns);
+  std::unordered_set<const Node*> top_nodes;  // to deduplicate the top nodes
+  std::vector<const Node*> base_nodes;        // to keep the ordering
+  std::unordered_set<const Node*> included_leaf_nodes(num_columns);
   for (int i = 0; i < num_columns; i++) {
-    auto column_desc = parquet_schema->Column(column_indices[i]);
-    included_leaf_nodes.insert(column_desc->schema_node());
-    auto column_root = parquet_schema->GetColumnRoot(column_indices[i]);
+    const ColumnDescriptor* column_desc = parquet_schema->Column(column_indices[i]);
+    included_leaf_nodes.insert(column_desc->schema_node().get());
+    const Node* column_root = parquet_schema->GetColumnRoot(column_indices[i]);
     auto insertion = top_nodes.insert(column_root);
     if (insertion.second) {
       base_nodes.push_back(column_root);

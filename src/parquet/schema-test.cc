@@ -687,10 +687,10 @@ TEST_F(TestSchemaDescriptor, BuildTree) {
   ASSERT_TRUE(descr_.ColumnIndex(*non_column_alien.get()) < 0);
   ASSERT_TRUE(descr_.ColumnIndex(*non_column_familiar.get()) < 0);
 
-  ASSERT_EQ(inta.get(), descr_.GetColumnRoot(0).get());
-  ASSERT_EQ(bag.get(), descr_.GetColumnRoot(3).get());
-  ASSERT_EQ(bag.get(), descr_.GetColumnRoot(4).get());
-  ASSERT_EQ(bag.get(), descr_.GetColumnRoot(5).get());
+  ASSERT_EQ(inta.get(), descr_.GetColumnRoot(0));
+  ASSERT_EQ(bag.get(), descr_.GetColumnRoot(3));
+  ASSERT_EQ(bag.get(), descr_.GetColumnRoot(4));
+  ASSERT_EQ(bag.get(), descr_.GetColumnRoot(5));
 
   ASSERT_EQ(schema.get(), descr_.group_node());
 

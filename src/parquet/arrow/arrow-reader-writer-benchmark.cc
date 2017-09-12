@@ -17,6 +17,8 @@
 
 #include "benchmark/benchmark.h"
 
+#include <iostream>
+
 #include "parquet/arrow/reader.h"
 #include "parquet/arrow/writer.h"
 #include "parquet/column_reader.h"
@@ -30,12 +32,13 @@
 using arrow::BooleanBuilder;
 using arrow::NumericBuilder;
 
-#define ABORT_NOT_OK(s)                  \
-  do {                                   \
-    ::arrow::Status _s = (s);            \
-    if (ARROW_PREDICT_FALSE(!_s.ok())) { \
-      exit(-1);                          \
-    }                                    \
+#define ABORT_NOT_OK(s)                                       \
+  do {                                                        \
+    ::arrow::Status _s = (s);                                 \
+    if (ARROW_PREDICT_FALSE(!_s.ok())) {                      \
+      std::cout << "Exiting: " << _s.ToString() << std::endl; \
+      exit(-1);                                               \
+    }                                                         \
   } while (0);
 
 namespace parquet {

@@ -642,6 +642,8 @@ set(LIBPARQUET_SRCS
   src/parquet/file/writer.cc
   src/parquet/file/writer-internal.cc
 
+  src/parquet/record_reader.cc
+
   src/parquet/schema.cc
   src/parquet/statistics.cc
 

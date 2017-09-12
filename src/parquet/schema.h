@@ -255,7 +255,7 @@ class PARQUET_EXPORT GroupNode : public Node {
 
   bool Equals(const Node* other) const override;
 
-  const NodePtr& field(int i) const { return fields_[i]; }
+  NodePtr field(int i) const { return fields_[i]; }
   int FieldIndex(const std::string& name) const;
   int FieldIndex(const Node& node) const;
 
@@ -398,9 +398,11 @@ class PARQUET_EXPORT SchemaDescriptor {
   const schema::GroupNode* group_node() const { return group_node_; }
 
   // Returns the root (child of the schema root) node of the leaf(column) node
-  const schema::NodePtr& GetColumnRoot(int i) const;
+  const schema::Node* GetColumnRoot(int i) const;
 
   const std::string& name() const { return group_node_->name(); }
+
+  std::string ToString() const;
 
  private:
   friend class ColumnDescriptor;

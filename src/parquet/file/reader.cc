@@ -30,6 +30,7 @@
 #include "parquet/column_scanner.h"
 #include "parquet/exception.h"
 #include "parquet/file/reader-internal.h"
+#include "parquet/record_reader.h"
 #include "parquet/types.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/memory.h"
@@ -54,6 +55,13 @@ std::shared_ptr<ColumnReader> RowGroupReader::Column(int i) {
   return ColumnReader::Make(
       descr, std::move(page_reader),
       const_cast<ReaderProperties*>(contents_->properties())->memory_pool());
+}
+
+std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
+  DCHECK(i < metadata()->num_columns()) << "The RowGroup only has "
+                                        << metadata()->num_columns()
+                                        << "columns, requested column: " << i;
+  return contents_->GetColumnPageReader(i);
 }
 
 // Returns the rowgroup metadata
