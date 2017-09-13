@@ -66,7 +66,8 @@ Check [Windows developer guide][1] for instructions to build parquet-cpp on Wind
 
 ## Third Party Dependencies
 
-- Apache Arrow (memory management, compression, IO, optional columnar data adapters)
+- Apache Arrow >= 0.7.0 (memory management, compression, IO, optional columnar
+  data adapters)
 - Thrift 0.7+ [install instructions](https://thrift.apache.org/docs/install/)
 - googletest 1.7.0 (cannot be installed with package managers)
 - Google Benchmark (only required if building benchmarks)
