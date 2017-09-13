@@ -499,7 +499,8 @@ if (PARQUET_BOOST_USE_SHARED)
     boost_shared_regex)
 else()
   set(BOOST_LINK_LIBS
-    boost_static_regex)
+    boost_static_regex
+    boost_static_system)
 endif()
 
 #############################################################
