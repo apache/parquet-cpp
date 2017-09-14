@@ -198,7 +198,7 @@ class FileReader::Impl {
 class ColumnReader::ColumnReaderImpl {
  public:
   virtual ~ColumnReaderImpl() {}
-  virtual Status NextBatch(int records_to_read, std::shared_ptr<Array>* out) = 0;
+  virtual Status NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) = 0;
   virtual Status GetDefLevels(const int16_t** data, size_t* length) = 0;
   virtual Status GetRepLevels(const int16_t** data, size_t* length) = 0;
   virtual const std::shared_ptr<Field> field() = 0;
@@ -216,7 +216,7 @@ class PARQUET_NO_EXPORT PrimitiveImpl : public ColumnReader::ColumnReaderImpl {
 
   virtual ~PrimitiveImpl() {}
 
-  Status NextBatch(int records_to_read, std::shared_ptr<Array>* out) override;
+  Status NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) override;
 
   template <typename ParquetType>
   Status WrapIntoListArray(std::shared_ptr<Array>* array);
@@ -252,7 +252,7 @@ class PARQUET_NO_EXPORT StructImpl : public ColumnReader::ColumnReaderImpl {
 
   virtual ~StructImpl() {}
 
-  Status NextBatch(int records_to_read, std::shared_ptr<Array>* out) override;
+  Status NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) override;
   Status GetDefLevels(const int16_t** data, size_t* length) override;
   Status GetRepLevels(const int16_t** data, size_t* length) override;
   const std::shared_ptr<Field> field() override { return field_; }
@@ -365,7 +365,7 @@ Status FileReader::Impl::ReadSchemaField(int i, const std::vector<int>& indices,
     records_to_read += reader_->metadata()->RowGroup(j)->ColumnChunk(i)->num_values();
   }
 
-  return reader->NextBatch(static_cast<int>(records_to_read), out);
+  return reader->NextBatch(records_to_read, out);
 }
 
 Status FileReader::Impl::ReadColumn(int i, std::shared_ptr<Array>* out) {
@@ -377,7 +377,7 @@ Status FileReader::Impl::ReadColumn(int i, std::shared_ptr<Array>* out) {
     records_to_read += reader_->metadata()->RowGroup(j)->ColumnChunk(i)->num_values();
   }
 
-  return flat_column_reader->NextBatch(static_cast<int>(records_to_read), out);
+  return flat_column_reader->NextBatch(records_to_read, out);
 }
 
 Status FileReader::Impl::GetSchema(const std::vector<int>& indices,
@@ -414,8 +414,7 @@ Status FileReader::Impl::ReadRowGroup(int row_group_index,
     ColumnReader flat_column_reader(std::move(impl));
 
     std::shared_ptr<Array> array;
-    RETURN_NOT_OK(
-        flat_column_reader.NextBatch(static_cast<int>(records_to_read), &array));
+    RETURN_NOT_OK(flat_column_reader.NextBatch(records_to_read, &array));
     columns[i] = std::make_shared<Column>(schema->field(i), array);
     return Status::OK();
   };
@@ -882,7 +881,7 @@ struct TransferFunctor<
     TRANSFER_DATA(ArrowType, ParquetType);             \
   } break;
 
-Status PrimitiveImpl::NextBatch(int records_to_read, std::shared_ptr<Array>* out) {
+Status PrimitiveImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) {
   if (!record_reader_->HasMoreData()) {
     // Exhausted all row groups.
     *out = nullptr;
@@ -979,7 +978,7 @@ ColumnReader::ColumnReader(std::unique_ptr<ColumnReaderImpl> impl)
 
 ColumnReader::~ColumnReader() {}
 
-Status ColumnReader::NextBatch(int records_to_read, std::shared_ptr<Array>* out) {
+Status ColumnReader::NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) {
   return impl_->NextBatch(records_to_read, out);
 }
 
@@ -1067,7 +1066,7 @@ Status StructImpl::GetRepLevels(const int16_t** data, size_t* length) {
   return Status::NotImplemented("GetRepLevels is not implemented for struct");
 }
 
-Status StructImpl::NextBatch(int records_to_read, std::shared_ptr<Array>* out) {
+Status StructImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) {
   std::vector<std::shared_ptr<Array>> children_arrays;
   std::shared_ptr<Buffer> null_bitmap;
   int64_t null_count;

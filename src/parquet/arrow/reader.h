@@ -185,7 +185,7 @@ class PARQUET_EXPORT ColumnReader {
   //
   // Returns Status::OK on a successful read, including if you have exhausted
   // the data available in the file.
-  ::arrow::Status NextBatch(int batch_size, std::shared_ptr<::arrow::Array>* out);
+  ::arrow::Status NextBatch(int64_t batch_size, std::shared_ptr<::arrow::Array>* out);
 
  private:
   std::unique_ptr<ColumnReaderImpl> impl_;
