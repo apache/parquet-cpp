@@ -134,18 +134,6 @@ class RecordReader::RecordReaderImpl {
 
   ::arrow::ArrayBuilder* builder() { return builder_.get(); }
 
-  // Returns true if there are still values in this column.
-  bool HasNext() {
-    // Either there is no data page available yet, or the data page has been
-    // exhausted
-    if (num_buffered_values_ == 0 || num_decoded_values_ == num_buffered_values_) {
-      if (!ReadNewPage() || num_buffered_values_ == 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   // Process written repetition/definition levels to reach the end of
   // records. Process no more levels than necessary to delimit the indicated
   // number of logical records. Updates internal state of RecordReader
@@ -309,8 +297,6 @@ class RecordReader::RecordReaderImpl {
   }
 
  protected:
-  virtual bool ReadNewPage() = 0;
-
   const ColumnDescriptor* descr_;
   ::arrow::MemoryPool* pool_;
 
@@ -378,10 +364,24 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
 
   void ResetDecoders() override { decoders_.clear(); }
 
-  void ReadValuesSpaced(int64_t values_to_read, int64_t null_count);
-  void ReadValuesDense(int64_t values_to_read);
+  inline void ReadValuesSpaced(int64_t values_to_read, int64_t null_count) {
+    uint8_t* valid_bits = valid_bits_->mutable_data();
+    const int64_t valid_bits_offset = values_written_;
 
-  void ReadValues(const int64_t values_to_read, const int64_t start_levels_position) {
+    int64_t num_decoded = current_decoder_->DecodeSpaced(
+        ValuesHead<T>(), static_cast<int>(values_to_read), static_cast<int>(null_count),
+        valid_bits, valid_bits_offset);
+    DCHECK_EQ(num_decoded, values_to_read);
+  }
+
+  inline void ReadValuesDense(int64_t values_to_read) {
+    int64_t num_decoded =
+        current_decoder_->Decode(ValuesHead<T>(), static_cast<int>(values_to_read));
+    DCHECK_EQ(num_decoded, values_to_read);
+  }
+
+  inline void ReadValues(const int64_t values_to_read,
+                         const int64_t start_levels_position) {
     // Conservative upper bound
     const int64_t possible_num_values =
         std::max(values_to_read, levels_position_ - start_levels_position);
@@ -404,16 +404,16 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
     null_count_ += null_count;
   }
 
-  // Read up to batch_size values from the current data page into the
-  // pre-allocated memory T*, leaving spaces for null entries according
-  // to the def_levels.
-  //
-  // @returns: the number of values read into the out buffer
-  int64_t ReadValuesSpaced(int64_t batch_size, T* out, int64_t null_count,
-                           uint8_t* valid_bits, int64_t valid_bits_offset) {
-    return current_decoder_->DecodeSpaced(out, static_cast<int>(batch_size),
-                                          static_cast<int>(null_count), valid_bits,
-                                          valid_bits_offset);
+  // Returns true if there are still values in this column.
+  bool HasNext() {
+    // Either there is no data page available yet, or the data page has been
+    // exhausted
+    if (num_buffered_values_ == 0 || num_decoded_values_ == num_buffered_values_) {
+      if (!ReadNewPage() || num_buffered_values_ == 0) {
+        return false;
+      }
+    }
+    return true;
   }
 
   int64_t ReadRecords(int64_t num_records) override {
@@ -514,17 +514,10 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
   DecoderType* current_decoder_;
 
   // Advance to the next data page
-  bool ReadNewPage() override;
+  bool ReadNewPage();
 
   void ConfigureDictionary(const DictionaryPage* page);
 };
-
-template <typename DType>
-inline void TypedRecordReader<DType>::ReadValuesDense(int64_t values_to_read) {
-  int64_t num_decoded =
-      current_decoder_->Decode(ValuesHead<T>(), static_cast<int>(values_to_read));
-  DCHECK_EQ(num_decoded, values_to_read);
-}
 
 template <>
 inline void TypedRecordReader<ByteArrayType>::ReadValuesDense(int64_t values_to_read) {
@@ -553,18 +546,6 @@ inline void TypedRecordReader<FLBAType>::ReadValuesDense(int64_t values_to_read)
     PARQUET_THROW_NOT_OK(builder->Append(values[i].ptr));
   }
   ResetValues();
-}
-
-template <typename DType>
-inline void TypedRecordReader<DType>::ReadValuesSpaced(int64_t values_to_read,
-                                                       int64_t null_count) {
-  uint8_t* valid_bits = valid_bits_->mutable_data();
-  const int64_t valid_bits_offset = values_written_;
-
-  int64_t num_decoded = current_decoder_->DecodeSpaced(
-      ValuesHead<T>(), static_cast<int>(values_to_read), static_cast<int>(null_count),
-      valid_bits, valid_bits_offset);
-  DCHECK_EQ(num_decoded, values_to_read);
 }
 
 template <>
