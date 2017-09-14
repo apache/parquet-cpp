@@ -113,6 +113,8 @@ class Decoder {
       throw ParquetException("Number of values / definition_levels read did not match");
     }
 
+    memset(buffer + values_read, 0, (num_values - values_read) * sizeof(T));
+
     // Add spacing for null entries. As we have filled the buffer from the front,
     // we need to add the spacing from the back.
     int values_to_move = values_read;

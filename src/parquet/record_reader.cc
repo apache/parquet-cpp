@@ -370,8 +370,8 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
   // Return number of logical records read
   int64_t ReadRecordData(const int64_t num_records) {
     // Conservative upper bound
-    const int64_t possible_num_values = std::max(num_records,
-                                                 levels_written_ - levels_position_);
+    const int64_t possible_num_values =
+        std::max(num_records, levels_written_ - levels_position_);
     ReserveValues(possible_num_values);
 
     const int64_t start_levels_position = levels_position_;
@@ -394,12 +394,10 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
     int64_t null_count = 0;
     if (nullable_values_) {
       int64_t values_with_nulls = 0;
-      internal::DefinitionLevelsToBitmap(def_levels() + start_levels_position,
-                                         levels_position_ - start_levels_position,
-                                         max_def_level_, max_rep_level_,
-                                         &values_with_nulls, &null_count,
-                                         valid_bits_->mutable_data(),
-                                         values_written_);
+      internal::DefinitionLevelsToBitmap(
+          def_levels() + start_levels_position, levels_position_ - start_levels_position,
+          max_def_level_, max_rep_level_, &values_with_nulls, &null_count,
+          valid_bits_->mutable_data(), values_written_);
       values_to_read = values_with_nulls - null_count;
       ReadValuesSpaced(values_with_nulls, null_count);
       ConsumeBufferedValues(levels_position_ - start_levels_position);
