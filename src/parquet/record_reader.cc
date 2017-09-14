@@ -223,6 +223,11 @@ class RecordReader::RecordReaderImpl {
 
   const ColumnDescriptor* descr() const { return descr_; }
 
+  void Reserve(int64_t capacity) {
+    ReserveLevels(capacity);
+    ReserveValues(capacity);
+  }
+
   void ReserveLevels(int64_t capacity) {
     if (descr_->max_definition_level() > 0 &&
         (levels_written_ + capacity > levels_capacity_)) {
@@ -789,6 +794,8 @@ int64_t RecordReader::ReadRecords(int64_t num_records) {
 }
 
 void RecordReader::Reset() { return impl_->Reset(); }
+
+void RecordReader::Reserve(int64_t num_values) { impl_->Reserve(num_values); }
 
 const int16_t* RecordReader::def_levels() const { return impl_->def_levels(); }
 

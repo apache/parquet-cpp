@@ -57,6 +57,11 @@ class PARQUET_EXPORT RecordReader {
   const uint8_t* values() const;
 
   int64_t ReadRecords(int64_t num_records);
+
+  // For better flat read performance, this allows us to preallocate space to
+  // avoid realloc/memcpy
+  void Reserve(int64_t num_values);
+
   void Reset();
 
   std::shared_ptr<PoolBuffer> ReleaseValues();
@@ -77,7 +82,7 @@ class PARQUET_EXPORT RecordReader {
 
  private:
   std::unique_ptr<RecordReaderImpl> impl_;
-  RecordReader(RecordReaderImpl*);
+  explicit RecordReader(RecordReaderImpl*);
 };
 
 }  // namespace parquet

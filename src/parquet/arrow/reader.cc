@@ -892,6 +892,9 @@ Status PrimitiveImpl::NextBatch(int records_to_read, std::shared_ptr<Array>* out
   }
 
   try {
+    // Pre-allocation gives much better performance for flat columns
+    record_reader_->Reserve(records_to_read);
+
     record_reader_->Reset();
     while (records_to_read > 0) {
       if (!record_reader_->HasMoreData()) {
