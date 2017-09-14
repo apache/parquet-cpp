@@ -876,7 +876,7 @@ struct TransferFunctor<
   RETURN_NOT_OK(func(record_reader_.get(), pool_, field_->type(), out)); \
   RETURN_NOT_OK(WrapIntoListArray<ParquetType>(out))
 
-#define TYPED_BATCH_CASE(ENUM, ArrowType, ParquetType) \
+#define TRANSFER_CASE(ENUM, ArrowType, ParquetType) \
   case ::arrow::Type::ENUM: {                          \
     TRANSFER_DATA(ArrowType, ParquetType);             \
   } break;
@@ -913,22 +913,22 @@ Status PrimitiveImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>*
   }
 
   switch (field_->type()->id()) {
-    TYPED_BATCH_CASE(BOOL, ::arrow::BooleanType, BooleanType)
-    TYPED_BATCH_CASE(UINT8, ::arrow::UInt8Type, Int32Type)
-    TYPED_BATCH_CASE(INT8, ::arrow::Int8Type, Int32Type)
-    TYPED_BATCH_CASE(UINT16, ::arrow::UInt16Type, Int32Type)
-    TYPED_BATCH_CASE(INT16, ::arrow::Int16Type, Int32Type)
-    TYPED_BATCH_CASE(UINT32, ::arrow::UInt32Type, Int32Type)
-    TYPED_BATCH_CASE(INT32, ::arrow::Int32Type, Int32Type)
-    TYPED_BATCH_CASE(UINT64, ::arrow::UInt64Type, Int64Type)
-    TYPED_BATCH_CASE(INT64, ::arrow::Int64Type, Int64Type)
-    TYPED_BATCH_CASE(FLOAT, ::arrow::FloatType, FloatType)
-    TYPED_BATCH_CASE(DOUBLE, ::arrow::DoubleType, DoubleType)
-    TYPED_BATCH_CASE(STRING, ::arrow::StringType, ByteArrayType)
-    TYPED_BATCH_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
-    TYPED_BATCH_CASE(DATE32, ::arrow::Date32Type, Int32Type)
-    TYPED_BATCH_CASE(DATE64, ::arrow::Date64Type, Int32Type)
-    TYPED_BATCH_CASE(FIXED_SIZE_BINARY, ::arrow::FixedSizeBinaryType, FLBAType)
+    TRANSFER_CASE(BOOL, ::arrow::BooleanType, BooleanType)
+    TRANSFER_CASE(UINT8, ::arrow::UInt8Type, Int32Type)
+    TRANSFER_CASE(INT8, ::arrow::Int8Type, Int32Type)
+    TRANSFER_CASE(UINT16, ::arrow::UInt16Type, Int32Type)
+    TRANSFER_CASE(INT16, ::arrow::Int16Type, Int32Type)
+    TRANSFER_CASE(UINT32, ::arrow::UInt32Type, Int32Type)
+    TRANSFER_CASE(INT32, ::arrow::Int32Type, Int32Type)
+    TRANSFER_CASE(UINT64, ::arrow::UInt64Type, Int64Type)
+    TRANSFER_CASE(INT64, ::arrow::Int64Type, Int64Type)
+    TRANSFER_CASE(FLOAT, ::arrow::FloatType, FloatType)
+    TRANSFER_CASE(DOUBLE, ::arrow::DoubleType, DoubleType)
+    TRANSFER_CASE(STRING, ::arrow::StringType, ByteArrayType)
+    TRANSFER_CASE(BINARY, ::arrow::BinaryType, ByteArrayType)
+    TRANSFER_CASE(DATE32, ::arrow::Date32Type, Int32Type)
+    TRANSFER_CASE(DATE64, ::arrow::Date64Type, Int32Type)
+    TRANSFER_CASE(FIXED_SIZE_BINARY, ::arrow::FixedSizeBinaryType, FLBAType)
     case ::arrow::Type::TIMESTAMP: {
       ::arrow::TimestampType* timestamp_type =
           static_cast<::arrow::TimestampType*>(field_->type().get());
@@ -945,8 +945,8 @@ Status PrimitiveImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>*
       }
       break;
     }
-      TYPED_BATCH_CASE(TIME32, ::arrow::Time32Type, Int32Type)
-      TYPED_BATCH_CASE(TIME64, ::arrow::Time64Type, Int64Type)
+      TRANSFER_CASE(TIME32, ::arrow::Time32Type, Int32Type)
+      TRANSFER_CASE(TIME64, ::arrow::Time64Type, Int64Type)
     default:
       std::stringstream ss;
       ss << "No support for reading columns of type " << field_->type()->ToString();
