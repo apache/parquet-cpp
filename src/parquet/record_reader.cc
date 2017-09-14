@@ -364,14 +364,14 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
 
   void ResetDecoders() override { decoders_.clear(); }
 
-  inline void ReadValuesSpaced(int64_t values_to_read, int64_t null_count) {
+  inline void ReadValuesSpaced(int64_t values_with_nulls, int64_t null_count) {
     uint8_t* valid_bits = valid_bits_->mutable_data();
     const int64_t valid_bits_offset = values_written_;
 
     int64_t num_decoded = current_decoder_->DecodeSpaced(
-        ValuesHead<T>(), static_cast<int>(values_to_read), static_cast<int>(null_count),
-        valid_bits, valid_bits_offset);
-    DCHECK_EQ(num_decoded, values_to_read);
+        ValuesHead<T>(), static_cast<int>(values_with_nulls),
+        static_cast<int>(null_count), valid_bits, valid_bits_offset);
+    DCHECK_EQ(num_decoded, values_with_nulls);
   }
 
   inline void ReadValuesDense(int64_t values_to_read) {
@@ -380,28 +380,51 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
     DCHECK_EQ(num_decoded, values_to_read);
   }
 
-  inline void ReadValues(const int64_t values_to_read,
-                         const int64_t start_levels_position) {
+  // Return number of logical records read
+  int64_t ReadRecordData(const int64_t num_records) {
     // Conservative upper bound
-    const int64_t possible_num_values =
-        std::max(values_to_read, levels_position_ - start_levels_position);
+    const int64_t possible_num_values = std::max(num_records,
+                                                 levels_written_ - levels_position_);
     ReserveValues(possible_num_values);
+
+    const int64_t start_levels_position = levels_position_;
+
+    int64_t values_to_read = 0;
+    int64_t records_read = 0;
+    if (max_rep_level_ > 0) {
+      records_read = DelimitRecords(num_records, &values_to_read);
+    } else if (max_def_level_ > 0) {
+      // No repetition levels, skip delimiting logic. Each level represents a
+      // null or not null entry
+      records_read = std::min(levels_written_ - levels_position_, num_records);
+
+      // This is advanced by DelimitRecords, which we skipped
+      levels_position_ += records_read;
+    } else {
+      records_read = values_to_read = num_records;
+    }
 
     int64_t null_count = 0;
     if (nullable_values_) {
-      int64_t implied_values_read = 0;
-      internal::DefinitionLevelsToBitmap(
-          def_levels() + start_levels_position, levels_position_ - start_levels_position,
-          max_def_level_, max_rep_level_, &implied_values_read, &null_count,
-          valid_bits_->mutable_data(), values_written_);
-
-      ReadValuesSpaced(values_to_read + null_count, null_count);
+      int64_t values_with_nulls = 0;
+      internal::DefinitionLevelsToBitmap(def_levels() + start_levels_position,
+                                         levels_position_ - start_levels_position,
+                                         max_def_level_, max_rep_level_,
+                                         &values_with_nulls, &null_count,
+                                         valid_bits_->mutable_data(),
+                                         values_written_);
+      values_to_read = values_with_nulls - null_count;
+      ReadValuesSpaced(values_with_nulls, null_count);
+      ConsumeBufferedValues(levels_position_ - start_levels_position);
     } else {
       ReadValuesDense(values_to_read);
+      ConsumeBufferedValues(values_to_read);
     }
     // Total values, including null spaces, if any
     values_written_ += values_to_read + null_count;
     null_count_ += null_count;
+
+    return records_read;
   }
 
   // Returns true if there are still values in this column.
@@ -418,18 +441,10 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
 
   int64_t ReadRecords(int64_t num_records) override {
     // Delimit records, then read values at the end
-    int64_t values_to_read = 0;
     int64_t records_read = 0;
 
-    const int64_t start_levels_position = levels_position_;
-
     if (levels_position_ < levels_written_) {
-      records_read += DelimitRecords(num_records, &values_to_read);
-    }
-
-    if (values_to_read > 0) {
-      // Read any values before moving on to next data page
-      ReadValues(values_to_read, start_levels_position);
+      records_read += ReadRecordData(num_records);
     }
 
     // HasNext invokes ReadNewPage
@@ -452,8 +467,6 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
       /// We perform multiple batch reads until we either exhaust the row group
       /// or observe the desired number of records
       int64_t batch_size = std::min(level_batch_size, available_values_current_page());
-
-      const int64_t start_levels_position = levels_position_;
 
       // No more data in column
       if (batch_size == 0) {
@@ -483,20 +496,11 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
         }
 
         levels_written_ += levels_read;
-
-        records_read += DelimitRecords(num_records - records_read, &values_to_read);
-        ConsumeBufferedValues(levels_read);
+        records_read += ReadRecordData(num_records - records_read);
       } else {
         // No repetition or definition levels
         batch_size = std::min(num_records - records_read, batch_size);
-        values_to_read = batch_size;
-        records_read += batch_size;
-        ConsumeBufferedValues(values_to_read);
-      }
-
-      // Read any values before moving on to next data page
-      if (values_to_read > 0) {
-        ReadValues(values_to_read, start_levels_position);
+        records_read += ReadRecordData(batch_size);
       }
     }
 
