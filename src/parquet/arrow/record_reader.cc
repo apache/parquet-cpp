@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "parquet/record_reader.h"
+#include "parquet/arrow/record_reader.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -37,6 +37,7 @@
 using arrow::MemoryPool;
 
 namespace parquet {
+namespace internal {
 
 namespace BitUtil = ::arrow::BitUtil;
 
@@ -799,4 +800,5 @@ void RecordReader::SetPageReader(std::unique_ptr<PageReader> reader) {
   impl_->SetPageReader(std::move(reader));
 }
 
+}  // namespace internal
 }  // namespace parquet

@@ -36,7 +36,6 @@
 namespace parquet {
 
 class ColumnReader;
-class RecordReader;
 
 class PARQUET_EXPORT RowGroupReader {
  public:

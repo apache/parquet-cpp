@@ -35,13 +35,14 @@
 #include "parquet/util/visibility.h"
 
 namespace parquet {
+namespace internal {
 
 /// \brief Stateful column reader that delimits semantic records for both flat
 /// and nested columns
 ///
 /// \note API EXPERIMENTAL
 /// \since 1.3.0
-class PARQUET_EXPORT RecordReader {
+class RecordReader {
  public:
   // So that we can create subclasses
   class RecordReaderImpl;
@@ -52,16 +53,24 @@ class PARQUET_EXPORT RecordReader {
 
   virtual ~RecordReader();
 
+  /// \brief Decoded definition levels
   const int16_t* def_levels() const;
+
+  /// \brief Decoded repetition levels
   const int16_t* rep_levels() const;
+
+  /// \brief Decoded values, including nulls, if any
   const uint8_t* values() const;
 
+  /// \brief Attempt to read indicated number of records from column chunk
+  /// \return number of records read
   int64_t ReadRecords(int64_t num_records);
 
-  // For better flat read performance, this allows us to preallocate space to
-  // avoid realloc/memcpy
+  /// \brief Pre-allocate space for data. Results in better flat read performance
   void Reserve(int64_t num_values);
 
+  /// \brief Clear consumed values and repetition/definition levels as the
+  /// result of calling ReadRecords
   void Reset();
 
   std::shared_ptr<PoolBuffer> ReleaseValues();
@@ -71,20 +80,34 @@ class PARQUET_EXPORT RecordReader {
   /// \brief Number of values written including nulls (if any)
   int64_t values_written() const;
 
+  /// \brief Number of definition / repetition levels (from those that have
+  /// been decoded) that have been consumed inside the reader.
   int64_t levels_position() const;
+
+  /// \brief Number of definition / repetition levels that have been written
+  /// internally in the reader
   int64_t levels_written() const;
+
+  /// \brief Number of nulls in the leaf
   int64_t null_count() const;
+
+  /// \brief True if the leaf values are nullable
   bool nullable_values() const;
 
+  /// \brief Return true if the record reader has more internal data yet to
+  /// process
   bool HasMoreData() const;
 
+  /// \brief Advance record reader to the next row group
+  /// \param[in] reader obtained from RowGroupReader::GetColumnPageReader
   void SetPageReader(std::unique_ptr<PageReader> reader);
 
  private:
   std::unique_ptr<RecordReaderImpl> impl_;
-  explicit RecordReader(RecordReaderImpl*);
+  explicit RecordReader(RecordReaderImpl* impl);
 };
 
+}  // namespace internal
 }  // namespace parquet
 
 #endif  // PARQUET_RECORD_READER_H

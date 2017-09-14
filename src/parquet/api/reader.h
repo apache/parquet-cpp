@@ -24,7 +24,6 @@
 #include "parquet/exception.h"
 #include "parquet/file/printer.h"
 #include "parquet/file/reader.h"
-#include "parquet/record_reader.h"
 
 // Metadata reader API
 #include "parquet/file/metadata.h"

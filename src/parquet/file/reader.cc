@@ -30,7 +30,6 @@
 #include "parquet/column_scanner.h"
 #include "parquet/exception.h"
 #include "parquet/file/reader-internal.h"
-#include "parquet/record_reader.h"
 #include "parquet/types.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/memory.h"

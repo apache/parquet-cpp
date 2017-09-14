@@ -32,6 +32,7 @@
 #include "arrow/util/logging.h"
 #include "arrow/util/parallel.h"
 
+#include "parquet/arrow/record_reader.h"
 #include "parquet/arrow/schema.h"
 #include "parquet/column_reader.h"
 #include "parquet/schema.h"
@@ -55,6 +56,8 @@ using parquet::schema::Node;
 // Help reduce verbosity
 using ParquetReader = parquet::ParquetFileReader;
 using arrow::ParallelFor;
+
+using parquet::internal::RecordReader;
 
 namespace parquet {
 namespace arrow {
@@ -230,7 +233,7 @@ class PARQUET_NO_EXPORT PrimitiveImpl : public ColumnReader::ColumnReaderImpl {
   std::unique_ptr<FileColumnIterator> input_;
   const ColumnDescriptor* descr_;
 
-  std::shared_ptr<::parquet::RecordReader> record_reader_;
+  std::shared_ptr<RecordReader> record_reader_;
 
   std::shared_ptr<Field> field_;
 };
