@@ -155,13 +155,13 @@ class RecordReader::RecordReaderImpl {
     int64_t values_to_read = 0;
     int64_t records_read = 0;
 
-    const int16_t* def_levels = this->def_levels();
-    const int16_t* rep_levels = this->rep_levels();
+    const int16_t* def_levels = this->def_levels() + levels_position_;
+    const int16_t* rep_levels = this->rep_levels() + levels_position_;
 
     if (max_rep_level_ > 0) {
       // Count logical records and number of values to read
       while (levels_position_ < levels_written_) {
-        if (rep_levels[levels_position_] == 0) {
+        if (*rep_levels++ == 0) {
           at_record_start_ = true;
           if (records_read == num_records) {
             // We've found the number of records we were looking for
@@ -173,7 +173,7 @@ class RecordReader::RecordReaderImpl {
         } else {
           at_record_start_ = false;
         }
-        if (def_levels[levels_position_] == max_def_level_) {
+        if (*def_levels++ == max_def_level_) {
           ++values_to_read;
         }
         ++levels_position_;
@@ -181,7 +181,7 @@ class RecordReader::RecordReaderImpl {
     } else {
       if (max_def_level_ > 0) {
         while (levels_position_ < levels_written_ && records_read < num_records) {
-          if (def_levels[levels_position_] == max_def_level_) {
+          if (*def_levels++ == max_def_level_) {
             ++values_to_read;
           }
           ++records_read;
