@@ -146,39 +146,26 @@ class RecordReader::RecordReaderImpl {
     const int16_t* def_levels = this->def_levels() + levels_position_;
     const int16_t* rep_levels = this->rep_levels() + levels_position_;
 
-    if (max_rep_level_ > 0) {
-      // Count logical records and number of values to read
-      while (levels_position_ < levels_written_) {
-        if (*rep_levels++ == 0) {
-          at_record_start_ = true;
-          if (records_read == num_records) {
-            // We've found the number of records we were looking for
-            break;
-          } else {
-            // Continue
-            ++records_read;
-          }
+    DCHECK_GT(max_rep_level_, 0);
+
+    // Count logical records and number of values to read
+    while (levels_position_ < levels_written_) {
+      if (*rep_levels++ == 0) {
+        at_record_start_ = true;
+        if (records_read == num_records) {
+          // We've found the number of records we were looking for
+          break;
         } else {
-          at_record_start_ = false;
-        }
-        if (*def_levels++ == max_def_level_) {
-          ++values_to_read;
-        }
-        ++levels_position_;
-      }
-    } else {
-      if (max_def_level_ > 0) {
-        while (levels_position_ < levels_written_ && records_read < num_records) {
-          if (*def_levels++ == max_def_level_) {
-            ++values_to_read;
-          }
+          // Continue
           ++records_read;
-          ++levels_position_;
         }
       } else {
-        values_to_read = num_records;
-        records_read = num_records;
+        at_record_start_ = false;
       }
+      if (*def_levels++ == max_def_level_) {
+        ++values_to_read;
+      }
+      ++levels_position_;
     }
     *values_seen = values_to_read;
     return records_read;
