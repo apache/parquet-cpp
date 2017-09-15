@@ -1389,7 +1389,7 @@ void MakeListTable(int num_rows, std::shared_ptr<Table>* out) {
   std::vector<int32_t> offset_values;
 
   // Make sure some of them are length 0
-  int64_t total_elements = 0;
+  int32_t total_elements = 0;
   for (size_t i = 0; i < length_draws.size(); ++i) {
     if (length_draws[i] < 10) {
       length_draws[i] = 0;
@@ -1652,12 +1652,12 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
     std::vector<int16_t> def_levels;
     std::vector<int16_t> rep_levels;
 
-    int64_t num_levels = 0;
+    int num_levels = 0;
     while (num_levels < num_rows) {
       if (node_repetition == Repetition::REQUIRED) {
         def_levels.push_back(0);  // all are required
       } else {
-        int16_t level = num_levels % (tree_depth + 2);
+        int16_t level = static_cast<int16_t>(num_levels % (tree_depth + 2));
         def_levels.push_back(level);  // all are optional
       }
       rep_levels.push_back(0);  // none is repeated
