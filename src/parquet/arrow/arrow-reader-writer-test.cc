@@ -592,7 +592,7 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalDictionaryWrite) {
       MakeSimpleSchema(*dict_values->type(), Repetition::OPTIONAL);
   this->WriteColumn(schema, dict_values);
 
-  this->ReadAndCheckSingleColumnFile(values.get());
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnRequiredSliceWrite) {

@@ -178,6 +178,9 @@ class PARQUET_EXPORT Node {
 
   bool EqualsInternal(const Node* other) const;
   void SetParent(const Node* p_parent);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
 // Save our breath all over the place with these typedefs

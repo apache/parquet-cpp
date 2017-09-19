@@ -38,7 +38,7 @@ namespace parquet {
 namespace arrow {
 
 PARQUET_EXPORT
-::arrow::Status NodeToField(const schema::Node* node,
+::arrow::Status NodeToField(const schema::Node& node,
                             std::shared_ptr<::arrow::Field>* out);
 
 /// Convert parquet schema to arrow schema with selected indices
