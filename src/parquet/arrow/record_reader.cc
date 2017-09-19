@@ -340,6 +340,10 @@ class RecordReader::RecordReaderImpl {
   std::shared_ptr<::arrow::PoolBuffer> rep_levels_;
 };
 
+// The minimum number of repetition/definition levels to decode at a time, for
+// better vectorized performance when doing many smaller record reads
+constexpr int64_t kMinLevelBatchSize = 1024;
+
 template <typename DType>
 class TypedRecordReader : public RecordReader::RecordReaderImpl {
  public:
@@ -348,7 +352,7 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
   ~TypedRecordReader() {}
 
   TypedRecordReader(const ColumnDescriptor* schema, ::arrow::MemoryPool* pool)
-      : RecordReader::RecordReaderImpl(schema, pool), current_decoder_(NULL) {}
+      : RecordReader::RecordReaderImpl(schema, pool), current_decoder_(nullptr) {}
 
   void ResetDecoders() override { decoders_.clear(); }
 
@@ -438,8 +442,7 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
       return 0;
     }
 
-    constexpr int64_t kLevelBatchSize = 1024;
-    int64_t level_batch_size = std::max(kLevelBatchSize, num_records);
+    int64_t level_batch_size = std::max(kMinLevelBatchSize, num_records);
 
     // If we are in the middle of a record, we continue until reaching the
     // desired number of records or the end of the current record if we've found

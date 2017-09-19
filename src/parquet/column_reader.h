@@ -19,6 +19,7 @@
 #define PARQUET_COLUMN_READER_H
 
 #include <algorithm>
+#include <climits>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -143,13 +144,10 @@ class PARQUET_EXPORT ColumnReader {
 
 namespace internal {
 
-static inline void DefinitionLevelsToBitmap(const int16_t* def_levels,
-                                            const int64_t num_def_levels,
-                                            const int16_t max_definition_level,
-                                            const int16_t max_repetition_level,
-                                            int64_t* values_read, int64_t* null_count,
-                                            uint8_t* valid_bits,
-                                            const int64_t valid_bits_offset) {
+static inline void DefinitionLevelsToBitmap(
+    const int16_t* def_levels, int64_t num_def_levels, int16_t max_definition_level,
+    int16_t max_repetition_level, int64_t* values_read, int64_t* null_count,
+    uint8_t* valid_bits, int64_t valid_bits_offset) {
   int64_t byte_offset = valid_bits_offset / 8;
   int64_t bit_offset = valid_bits_offset % 8;
   uint8_t bitset = valid_bits[byte_offset];
@@ -179,7 +177,7 @@ static inline void DefinitionLevelsToBitmap(const int16_t* def_levels,
     }
 
     bit_offset++;
-    if (bit_offset == 8) {
+    if (bit_offset == CHAR_BIT) {
       bit_offset = 0;
       valid_bits[byte_offset] = bitset;
       byte_offset++;
@@ -190,7 +188,7 @@ static inline void DefinitionLevelsToBitmap(const int16_t* def_levels,
   if (bit_offset != 0) {
     valid_bits[byte_offset] = bitset;
   }
-  *values_read = (bit_offset + byte_offset * 8 - valid_bits_offset);
+  *values_read = bit_offset + byte_offset * 8 - valid_bits_offset;
 }
 
 }  // namespace internal
@@ -203,7 +201,7 @@ class PARQUET_EXPORT TypedColumnReader : public ColumnReader {
 
   TypedColumnReader(const ColumnDescriptor* schema, std::unique_ptr<PageReader> pager,
                     ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
-      : ColumnReader(schema, std::move(pager), pool), current_decoder_(NULL) {}
+      : ColumnReader(schema, std::move(pager), pool), current_decoder_(nullptr) {}
   virtual ~TypedColumnReader() {}
 
   // Read a batch of repetition levels, definition levels, and values from the
@@ -372,8 +370,6 @@ namespace internal {
 
 // TODO(itaiin): another code path split to merge when the general case is done
 static inline bool HasSpacedValues(const ColumnDescriptor* descr) {
-  // True if the node is nullable, or if it's contained in a nullable group
-  // prior to the previous repeated node
   if (descr->max_repetition_level() > 0) {
     // repeated+flat case
     return !descr->schema_node()->is_required();
@@ -382,12 +378,10 @@ static inline bool HasSpacedValues(const ColumnDescriptor* descr) {
     // Find if a node forces nulls in the lowest level along the hierarchy
     const schema::Node* node = descr->schema_node().get();
     while (node) {
-      auto parent = node->parent();
       if (node->is_optional()) {
         return true;
-        break;
       }
-      node = parent;
+      node = node->parent();
     }
     return false;
   }
@@ -425,7 +419,7 @@ inline int64_t TypedColumnReader<DType>::ReadBatchSpaced(
       }
     }
 
-    bool has_spaced_values = internal::HasSpacedValues(descr_);
+    const bool has_spaced_values = internal::HasSpacedValues(descr_);
 
     int64_t null_count = 0;
     if (!has_spaced_values) {

@@ -65,7 +65,8 @@ namespace arrow {
 using ::arrow::BitUtil::BytesForBits;
 
 constexpr int64_t kJulianToUnixEpochDays = 2440588LL;
-constexpr int64_t kNanosecondsInADay = 86400LL * 1000LL * 1000LL * 1000LL;
+constexpr int64_t kMillisecondsInADay = 86400000LL;
+constexpr int64_t kNanosecondsInADay = kMillisecondsInADay * 1000LL * 1000LL;
 
 static inline int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timestamp) {
   int64_t days_since_epoch = impala_timestamp.value[2] - kJulianToUnixEpochDays;
@@ -361,8 +362,10 @@ Status FileReader::Impl::ReadSchemaField(int i, const std::vector<int>& indices,
   // TODO(wesm): This calculation doesn't make much sense when we have repeated
   // schema nodes
   int64_t records_to_read = 0;
-  for (int j = 0; j < reader_->metadata()->num_row_groups(); j++) {
-    records_to_read += reader_->metadata()->RowGroup(j)->ColumnChunk(i)->num_values();
+
+  const FileMetaData& metadata = *reader_->metadata();
+  for (int j = 0; j < metadata.num_row_groups(); j++) {
+    records_to_read += metadata.RowGroup(j)->ColumnChunk(i)->num_values();
   }
 
   return reader->NextBatch(records_to_read, out);
@@ -837,7 +840,7 @@ struct TransferFunctor<::arrow::Date64Type, Int32Type> {
     auto out_ptr = reinterpret_cast<int64_t*>(data->mutable_data());
 
     for (int64_t i = 0; i < length; i++) {
-      *out_ptr++ = static_cast<int64_t>(values[i]) * 86400000;
+      *out_ptr++ = static_cast<int64_t>(values[i]) * kMillisecondsInADay;
     }
 
     if (reader->nullable_values()) {
@@ -877,8 +880,8 @@ struct TransferFunctor<
   RETURN_NOT_OK(WrapIntoListArray<ParquetType>(out))
 
 #define TRANSFER_CASE(ENUM, ArrowType, ParquetType) \
-  case ::arrow::Type::ENUM: {                          \
-    TRANSFER_DATA(ArrowType, ParquetType);             \
+  case ::arrow::Type::ENUM: {                       \
+    TRANSFER_DATA(ArrowType, ParquetType);          \
   } break;
 
 Status PrimitiveImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>* out) {
@@ -1084,6 +1087,8 @@ Status StructImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>* ou
   int64_t struct_length = children_arrays[0]->length();
   for (size_t i = 1; i < children_arrays.size(); ++i) {
     if (children_arrays[i]->length() != struct_length) {
+      // TODO(wesm): This should really only occur if the Parquet file is
+      // malformed. Should this be a DCHECK?
       return Status::Invalid("Struct children had different lengths");
     }
   }
