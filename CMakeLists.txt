@@ -628,6 +628,7 @@ set(LIBPARQUET_SRCS
   src/parquet/types.cc
 
   src/parquet/arrow/reader.cc
+  src/parquet/arrow/record_reader.cc
   src/parquet/arrow/schema.cc
   src/parquet/arrow/writer.cc
 
