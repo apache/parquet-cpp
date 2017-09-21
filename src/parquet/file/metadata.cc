@@ -702,7 +702,13 @@ class RowGroupMetaDataBuilder::RowGroupMetaDataBuilderImpl {
     row_group_->__set_total_byte_size(total_byte_size);
   }
 
+  void __set_num_rows(int64_t num_rows) {
+    row_group_->num_rows = num_rows;
+  }
+
   int num_columns() { return static_cast<int>(row_group_->columns.size()); }
+
+  int64_t num_rows() { return row_group_->num_rows; }
 
  private:
   void InitializeColumns(int ncols) { row_group_->columns.resize(ncols); }
@@ -736,6 +742,14 @@ ColumnChunkMetaDataBuilder* RowGroupMetaDataBuilder::NextColumnChunk() {
 int RowGroupMetaDataBuilder::current_column() const { return impl_->current_column(); }
 
 int RowGroupMetaDataBuilder::num_columns() { return impl_->num_columns(); }
+
+int64_t RowGroupMetaDataBuilder::num_rows() {
+  return impl_->num_rows();
+}
+
+void RowGroupMetaDataBuilder::__set_num_rows(int64_t num_rows) {
+  impl_->__set_num_rows(num_rows);
+}
 
 void RowGroupMetaDataBuilder::Finish(int64_t total_bytes_written) {
   impl_->Finish(total_bytes_written);

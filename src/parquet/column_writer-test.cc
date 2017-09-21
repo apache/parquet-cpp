@@ -86,7 +86,7 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
     }
     writer_properties_ = wp_builder.build();
     std::shared_ptr<ColumnWriter> writer = ColumnWriter::Make(
-        metadata_.get(), std::move(pager), output_size, writer_properties_.get());
+        metadata_.get(), std::move(pager), true, output_size, writer_properties_.get());
     return std::static_pointer_cast<TypedColumnWriter<TestType>>(writer);
   }
 

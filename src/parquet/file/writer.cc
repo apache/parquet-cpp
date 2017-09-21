@@ -33,7 +33,6 @@ RowGroupWriter::RowGroupWriter(std::unique_ptr<Contents> contents)
 void RowGroupWriter::Close() {
   if (contents_) {
     contents_->Close();
-    contents_.reset();
   }
 }
 
@@ -107,6 +106,10 @@ void ParquetFileWriter::Close() {
 
 RowGroupWriter* ParquetFileWriter::AppendRowGroup(int64_t num_rows) {
   return contents_->AppendRowGroup(num_rows);
+}
+
+RowGroupWriter* ParquetFileWriter::AppendRowGroup() {
+  return contents_->AppendRowGroup();
 }
 
 const std::shared_ptr<WriterProperties>& ParquetFileWriter::properties() const {

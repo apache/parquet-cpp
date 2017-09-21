@@ -97,6 +97,7 @@ class PARQUET_EXPORT ParquetFileWriter {
     virtual void Close() = 0;
 
     virtual RowGroupWriter* AppendRowGroup(int64_t num_rows) = 0;
+    virtual RowGroupWriter* AppendRowGroup() = 0;
 
     virtual int64_t num_rows() const = 0;
     virtual int num_columns() const = 0;
@@ -144,6 +145,14 @@ class PARQUET_EXPORT ParquetFileWriter {
    * @param num_rows The number of rows that are stored in the new RowGroup
    */
   RowGroupWriter* AppendRowGroup(int64_t num_rows);
+
+  /**
+  * Construct a RowGroupWriter with an arbitrary number of rows.
+  *
+  * Ownership is solely within the ParquetFileWriter. The RowGroupWriter is only valid
+  * until the next call to AppendRowGroup or Close.
+  */
+  RowGroupWriter* AppendRowGroup();
 
   /**
    * Number of columns.

@@ -174,9 +174,25 @@ int64_t SerializedPageWriter::WriteDictionaryPage(const DictionaryPage& page) {
 
 int RowGroupSerializer::num_columns() const { return metadata_->num_columns(); }
 
-int64_t RowGroupSerializer::num_rows() const { return num_rows_; }
+int64_t RowGroupSerializer::num_rows() const {
+  if (row_count_determined_) {
+    return num_rows_;
+  } else if (current_column_writer_) {
+    return current_column_writer_->RowsWritten();
+  } else {
+    return 0;
+  }
+}
 
 ColumnWriter* RowGroupSerializer::NextColumn() {
+  if (current_column_writer_) {
+    if (!row_count_determined_) {
+      num_rows_ = current_column_writer_->RowsWritten();
+      metadata_->__set_num_rows(num_rows_);
+      row_count_determined_ = true;
+    }
+  }
+
   // Throws an error if more columns are being written
   auto col_meta = metadata_->NextColumnChunk();
 
@@ -189,7 +205,8 @@ ColumnWriter* RowGroupSerializer::NextColumn() {
       new SerializedPageWriter(sink_, properties_->compression(column_descr->path()),
                                col_meta, properties_->memory_pool()));
   current_column_writer_ =
-      ColumnWriter::Make(col_meta, std::move(pager), num_rows_, properties_);
+      ColumnWriter::Make(col_meta, std::move(pager), row_count_determined_,
+                         metadata_->num_rows(), properties_);
   return current_column_writer_.get();
 }
 
@@ -200,6 +217,16 @@ void RowGroupSerializer::Close() {
     closed_ = true;
 
     if (current_column_writer_) {
+      if (!row_count_determined_) {
+        num_rows_ = current_column_writer_->RowsWritten();
+        metadata_->__set_num_rows(num_rows_);
+        row_count_determined_ = true;
+      } else {
+        if (current_column_writer_->RowsWritten() != num_rows()) {
+          throw ParquetException("Actual row count does not match expected.");
+        }
+      }
+
       total_bytes_written_ += current_column_writer_->Close();
       current_column_writer_.reset();
     }
@@ -224,6 +251,7 @@ std::unique_ptr<ParquetFileWriter::Contents> FileSerializer::Open(
 void FileSerializer::Close() {
   if (is_open_) {
     if (row_group_writer_) {
+      num_rows_ += row_group_writer_->num_rows();
       row_group_writer_->Close();
     }
     row_group_writer_.reset();
@@ -246,7 +274,8 @@ const std::shared_ptr<WriterProperties>& FileSerializer::properties() const {
   return properties_;
 }
 
-RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
+RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows,
+                                                bool row_count_determined) {
   if (row_group_writer_) {
     row_group_writer_->Close();
   }
@@ -254,7 +283,8 @@ RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
   num_row_groups_++;
   auto rg_metadata = metadata_->AppendRowGroup(num_rows);
   std::unique_ptr<RowGroupWriter::Contents> contents(
-      new RowGroupSerializer(num_rows, sink_.get(), rg_metadata, properties_.get()));
+      new RowGroupSerializer( sink_.get(), rg_metadata, properties_.get(),
+                              row_count_determined));
   row_group_writer_.reset(new RowGroupWriter(std::move(contents)));
   return row_group_writer_.get();
 }
@@ -264,6 +294,14 @@ FileSerializer::~FileSerializer() {
     Close();
   } catch (...) {
   }
+}
+
+RowGroupWriter* FileSerializer::AppendRowGroup(int64_t num_rows) {
+  return AppendRowGroup(num_rows, true);
+}
+
+RowGroupWriter* FileSerializer::AppendRowGroup() {
+  return AppendRowGroup(1, false);
 }
 
 void FileSerializer::WriteMetaData() {

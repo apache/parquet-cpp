@@ -231,7 +231,10 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
 
   ColumnChunkMetaDataBuilder* NextColumnChunk();
   int num_columns();
+  int64_t num_rows();
   int current_column() const;
+
+  void __set_num_rows(int64_t num_rows);
 
   // commit the metadata
   void Finish(int64_t total_bytes_written);
