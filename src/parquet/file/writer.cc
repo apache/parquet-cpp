@@ -104,12 +104,12 @@ void ParquetFileWriter::Close() {
   }
 }
 
-RowGroupWriter* ParquetFileWriter::AppendRowGroup(int64_t num_rows) {
-  return contents_->AppendRowGroup(num_rows);
-}
-
 RowGroupWriter* ParquetFileWriter::AppendRowGroup() {
   return contents_->AppendRowGroup();
+}
+
+RowGroupWriter* ParquetFileWriter::AppendRowGroup(int64_t num_rows) {
+  return AppendRowGroup();
 }
 
 const std::shared_ptr<WriterProperties>& ParquetFileWriter::properties() const {

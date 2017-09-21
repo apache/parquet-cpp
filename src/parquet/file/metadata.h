@@ -224,8 +224,8 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
  public:
   // API convenience to get a MetaData reader
   static std::unique_ptr<RowGroupMetaDataBuilder> Make(
-      int64_t num_rows, const std::shared_ptr<WriterProperties>& props,
-      const SchemaDescriptor* schema_, uint8_t* contents);
+      const std::shared_ptr<WriterProperties>& props, const SchemaDescriptor* schema_,
+      uint8_t* contents);
 
   ~RowGroupMetaDataBuilder();
 
@@ -234,14 +234,13 @@ class PARQUET_EXPORT RowGroupMetaDataBuilder {
   int64_t num_rows();
   int current_column() const;
 
-  void __set_num_rows(int64_t num_rows);
+  void set_num_rows(int64_t num_rows);
 
   // commit the metadata
   void Finish(int64_t total_bytes_written);
 
  private:
-  explicit RowGroupMetaDataBuilder(int64_t num_rows,
-                                   const std::shared_ptr<WriterProperties>& props,
+  explicit RowGroupMetaDataBuilder(const std::shared_ptr<WriterProperties>& props,
                                    const SchemaDescriptor* schema_, uint8_t* contents);
   // PIMPL Idiom
   class RowGroupMetaDataBuilderImpl;
@@ -257,7 +256,7 @@ class PARQUET_EXPORT FileMetaDataBuilder {
 
   ~FileMetaDataBuilder();
 
-  RowGroupMetaDataBuilder* AppendRowGroup(int64_t num_rows);
+  RowGroupMetaDataBuilder* AppendRowGroup();
 
   // commit the metadata
   std::unique_ptr<FileMetaData> Finish();
