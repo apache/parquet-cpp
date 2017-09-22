@@ -420,11 +420,9 @@ inline void DictionaryDecoder<FLBAType>::SetDict(Decoder<FLBAType>* dictionary) 
 
   PARQUET_THROW_NOT_OK(byte_array_data_->Resize(total_size, false));
   uint8_t* bytes_data = byte_array_data_->mutable_data();
-  int offset = 0;
-  for (int i = 0; i < num_dictionary_values; ++i) {
+  for (int32_t i = 0, offset = 0; i < num_dictionary_values; ++i, offset += fixed_len) {
     memcpy(bytes_data + offset, dictionary_[i].ptr, fixed_len);
     dictionary_[i].ptr = bytes_data + offset;
-    offset += fixed_len;
   }
 }
 

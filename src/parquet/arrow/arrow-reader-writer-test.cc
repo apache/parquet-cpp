@@ -37,6 +37,7 @@
 
 #include "arrow/api.h"
 #include "arrow/test-util.h"
+#include "arrow/util/decimal.h"
 
 using arrow::Array;
 using arrow::ArrayVisitor;
@@ -68,10 +69,10 @@ using ColumnVector = std::vector<std::shared_ptr<arrow::Column>>;
 namespace parquet {
 namespace arrow {
 
-const int SMALL_SIZE = 100;
-const int LARGE_SIZE = 10000;
+static constexpr int SMALL_SIZE = 100;
+static constexpr int LARGE_SIZE = 10000;
 
-constexpr uint32_t kDefaultSeed = 0;
+static constexpr uint32_t kDefaultSeed = 0;
 
 LogicalType::type get_logical_type(const ::arrow::DataType& type) {
   switch (type.id()) {
@@ -118,6 +119,8 @@ LogicalType::type get_logical_type(const ::arrow::DataType& type) {
           static_cast<const ::arrow::DictionaryType&>(type);
       return get_logical_type(*dict_type.dictionary()->type());
     }
+    case ArrowId::DECIMAL:
+      return LogicalType::DECIMAL;
     default:
       break;
   }
@@ -147,6 +150,7 @@ ParquetType::type get_physical_type(const ::arrow::DataType& type) {
     case ArrowId::STRING:
       return ParquetType::BYTE_ARRAY;
     case ArrowId::FIXED_SIZE_BINARY:
+    case ArrowId::DECIMAL:
       return ParquetType::FIXED_LEN_BYTE_ARRAY;
     case ArrowId::DATE32:
       return ParquetType::INT32;
@@ -296,9 +300,18 @@ struct test_traits<::arrow::FixedSizeBinaryType> {
   static std::string const value;
 };
 
+template <>
+struct test_traits<::arrow::DecimalType> {
+  static constexpr ParquetType::type parquet_enum = ParquetType::FIXED_LEN_BYTE_ARRAY;
+  static ::arrow::Decimal128 const value;
+};
+
 const std::string test_traits<::arrow::StringType>::value("Test");              // NOLINT
 const std::string test_traits<::arrow::BinaryType>::value("\x00\x01\x02\x03");  // NOLINT
 const std::string test_traits<::arrow::FixedSizeBinaryType>::value("Fixed");    // NOLINT
+const ::arrow::Decimal128 test_traits<::arrow::DecimalType>::value(
+    "-83095209205923957.2323995");  // NOLINT
+
 template <typename T>
 using ParquetDataType = DataType<test_traits<T>::parquet_enum>;
 
@@ -342,28 +355,44 @@ void DoSimpleRoundtrip(const std::shared_ptr<Table>& table, int num_threads,
 
 static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::arrow::DataType& type,
                                                    Repetition::type repetition) {
-  int byte_width;
-  // Decimal is not implemented yet.
+  int32_t byte_width = -1;
+  int32_t precision = -1;
+  int32_t scale = -1;
+
   switch (type.id()) {
     case ::arrow::Type::DICTIONARY: {
-      const ::arrow::DictionaryType& dict_type =
-          static_cast<const ::arrow::DictionaryType&>(type);
+      const auto& dict_type = static_cast<const ::arrow::DictionaryType&>(type);
       const ::arrow::DataType& values_type = *dict_type.dictionary()->type();
-      if (values_type.id() == ::arrow::Type::FIXED_SIZE_BINARY) {
-        byte_width =
-            static_cast<const ::arrow::FixedSizeBinaryType&>(values_type).byte_width();
-      } else {
-        byte_width = -1;
+      switch (values_type.id()) {
+        case ::arrow::Type::FIXED_SIZE_BINARY:
+          byte_width =
+              static_cast<const ::arrow::FixedSizeBinaryType&>(values_type).byte_width();
+          break;
+        case ::arrow::Type::DECIMAL: {
+          const auto& decimal_type =
+              static_cast<const ::arrow::DecimalType&>(values_type);
+          precision = decimal_type.precision();
+          scale = decimal_type.scale();
+          byte_width = DecimalSize(precision);
+        } break;
+        default:
+          break;
       }
     } break;
     case ::arrow::Type::FIXED_SIZE_BINARY:
       byte_width = static_cast<const ::arrow::FixedSizeBinaryType&>(type).byte_width();
       break;
+    case ::arrow::Type::DECIMAL: {
+      const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(type);
+      precision = decimal_type.precision();
+      scale = decimal_type.scale();
+      byte_width = DecimalSize(precision);
+    } break;
     default:
-      byte_width = -1;
+      break;
   }
   auto pnode = PrimitiveNode::Make("column1", repetition, get_physical_type(type),
-                                   get_logical_type(type), byte_width);
+                                   get_logical_type(type), byte_width, precision, scale);
   NodePtr node_ =
       GroupNode::Make("schema", Repetition::REQUIRED, std::vector<NodePtr>({pnode}));
   return std::static_pointer_cast<GroupNode>(node_);
@@ -371,7 +400,7 @@ static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::arrow::DataType& type
 
 namespace internal {
 
-void AssertArraysEqual(const Array &expected, const Array &actual) {
+void AssertArraysEqual(const Array& expected, const Array& actual) {
   if (!actual.Equals(expected)) {
     std::stringstream pp_result;
     std::stringstream pp_expected;
@@ -526,11 +555,11 @@ class TestParquetIO : public ::testing::Test {
 // There we write an UInt32 Array but receive an Int64 Array as result for
 // Parquet version 1.0.
 
-typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type,
-                         ::arrow::UInt16Type, ::arrow::Int16Type, ::arrow::Int32Type,
-                         ::arrow::UInt64Type, ::arrow::Int64Type, ::arrow::Date32Type,
-                         ::arrow::FloatType, ::arrow::DoubleType, ::arrow::StringType,
-                         ::arrow::BinaryType, ::arrow::FixedSizeBinaryType>
+typedef ::testing::Types<
+    ::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type, ::arrow::UInt16Type,
+    ::arrow::Int16Type, ::arrow::Int32Type, ::arrow::UInt64Type, ::arrow::Int64Type,
+    ::arrow::Date32Type, ::arrow::FloatType, ::arrow::DoubleType, ::arrow::StringType,
+    ::arrow::BinaryType, ::arrow::FixedSizeBinaryType, ::arrow::DecimalType>
     TestTypes;
 
 TYPED_TEST_CASE(TestParquetIO, TestTypes);
@@ -1888,6 +1917,61 @@ TEST(TestArrowReaderAdHoc, Int96BadMemoryAccess) {
   std::shared_ptr<::arrow::Table> table;
   ASSERT_OK_NO_THROW(arrow_reader->ReadTable(&table));
 }
+
+class TestArrowReaderAdHocSpark
+    : public ::testing::TestWithParam<
+          std::tuple<std::string, std::shared_ptr<::arrow::DataType>>> {};
+
+TEST_P(TestArrowReaderAdHocSpark, ReadDecimals) {
+  std::string path(std::getenv("PARQUET_TEST_DATA"));
+
+  std::string filename;
+  std::shared_ptr<::arrow::DataType> decimal_type;
+  std::tie(filename, decimal_type) = GetParam();
+
+  path += "/" + filename;
+  ASSERT_GT(path.size(), 0);
+
+  auto pool = ::arrow::default_memory_pool();
+
+  std::unique_ptr<FileReader> arrow_reader;
+  ASSERT_NO_THROW(
+      arrow_reader.reset(new FileReader(pool, ParquetFileReader::OpenFile(path, false))));
+  std::shared_ptr<::arrow::Table> table;
+  ASSERT_OK_NO_THROW(arrow_reader->ReadTable(&table));
+
+  ASSERT_EQ(1, table->num_columns());
+
+  constexpr int32_t expected_length = 24;
+
+  auto value_column = table->column(0);
+  ASSERT_EQ(expected_length, value_column->length());
+
+  auto raw_array = value_column->data();
+  ASSERT_EQ(1, raw_array->num_chunks());
+
+  auto chunk = raw_array->chunk(0);
+
+  std::shared_ptr<Array> expected_array;
+
+  ::arrow::DecimalBuilder builder(decimal_type, pool);
+
+  for (int32_t i = 0; i < expected_length; ++i) {
+    ::arrow::Decimal128 value((i + 1) * 100);
+    ASSERT_OK(builder.Append(value));
+  }
+  ASSERT_OK(builder.Finish(&expected_array));
+
+  internal::AssertArraysEqual(*expected_array, *chunk);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    ReadDecimals, TestArrowReaderAdHocSpark,
+    ::testing::Values(
+        std::make_tuple("int32_decimal.parquet", ::arrow::decimal(4, 2)),
+        std::make_tuple("int64_decimal.parquet", ::arrow::decimal(10, 2)),
+        std::make_tuple("fixed_length_decimal.parquet", ::arrow::decimal(25, 2)),
+        std::make_tuple("fixed_length_decimal_legacy.parquet", ::arrow::decimal(13, 2))));
 
 }  // namespace arrow
 

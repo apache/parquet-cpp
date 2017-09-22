@@ -21,6 +21,7 @@
 #include "arrow/api.h"
 #include "arrow/test-util.h"
 #include "arrow/type_traits.h"
+#include "arrow/util/decimal.h"
 
 namespace parquet {
 namespace arrow {
@@ -45,6 +46,9 @@ using is_arrow_binary = std::is_same<ArrowType, ::arrow::BinaryType>;
 
 template <typename ArrowType>
 using is_arrow_fixed_size_binary = std::is_same<ArrowType, ::arrow::FixedSizeBinaryType>;
+
+template <typename ArrowType>
+using is_arrow_decimal = std::is_same<ArrowType, ::arrow::DecimalType>;
 
 template <typename ArrowType>
 using is_arrow_bool = std::is_same<ArrowType, ::arrow::BooleanType>;
@@ -110,6 +114,21 @@ NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   BuilderType builder(::arrow::fixed_size_binary(5));
   for (size_t i = 0; i < size; i++) {
     RETURN_NOT_OK(builder.Append("fixed"));
+  }
+  return builder.Finish(out);
+}
+
+template <typename ArrowType>
+typename std::enable_if<is_arrow_decimal<ArrowType>::value, Status>::type NonNullArray(
+    size_t size, std::shared_ptr<Array>* out) {
+  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
+
+  // todo: find a way to generate test data with more diversity.
+  BuilderType builder(::arrow::decimal(24, 7));
+  for (size_t i = 0; i < size; i++) {
+    // XXX: Decimal128 value(-45047LL, 18388229154599321957ULL)
+    ::arrow::Decimal128 value("-83095209205923957.2323995");
+    RETURN_NOT_OK(builder.Append(value));
   }
   return builder.Finish(out);
 }
@@ -241,6 +260,29 @@ NullableArray(size_t size, size_t num_nulls, uint32_t seed,
     } else {
       ::arrow::test::random_bytes(kBufferSize, seed + static_cast<uint32_t>(i), buffer);
       RETURN_NOT_OK(builder.Append(buffer));
+    }
+  }
+  return builder.Finish(out);
+}
+
+template <typename ArrowType>
+typename std::enable_if<is_arrow_decimal<ArrowType>::value, Status>::type NullableArray(
+    size_t size, size_t num_nulls, uint32_t seed, std::shared_ptr<::arrow::Array>* out) {
+  std::vector<uint8_t> valid_bytes(size, 1);
+
+  for (size_t i = 0; i < num_nulls; i++) {
+    valid_bytes[i * 2] = 0;
+  }
+
+  using BuilderType = typename ::arrow::TypeTraits<ArrowType>::BuilderType;
+  BuilderType builder(::arrow::decimal(24, 7));
+
+  for (size_t i = 0; i < size; i++) {
+    if (!valid_bytes[i]) {
+      RETURN_NOT_OK(builder.AppendNull());
+    } else {
+      ::arrow::Decimal128 value("-83095209205923957.2323995");
+      RETURN_NOT_OK(builder.Append(value));
     }
   }
   return builder.Finish(out);
