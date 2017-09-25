@@ -40,10 +40,10 @@ fetch_archive() {
   download_rc_file ${dist_name}.tar.gz
   download_rc_file ${dist_name}.tar.gz.asc
   download_rc_file ${dist_name}.tar.gz.md5
-  download_rc_file ${dist_name}.tar.gz.sha
+  download_rc_file ${dist_name}.tar.gz.sha512
   gpg --verify ${dist_name}.tar.gz.asc ${dist_name}.tar.gz
   gpg --print-md MD5 ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.md5
-  shasum ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.sha
+  sha512sum ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.sha512
 }
 
 run_tests() {
