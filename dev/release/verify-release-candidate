@@ -71,7 +71,8 @@ case $# in
      verify_rc_num="$2"
      ;;
 
-  *) echo "Usage: $0 RC_VERSION"
+  *) echo "Usage: $0 VERSION RC_NUM"
+     echo "Example to test 1.3.0-rc2: $0 1.3.0 2"
      exit 1
      ;;
 esac
