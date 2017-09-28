@@ -497,10 +497,17 @@ endif()
 if (PARQUET_BOOST_USE_SHARED)
   set(BOOST_LINK_LIBS
     boost_shared_regex)
+  if(MSVC)
+    set(BOOST_LINK_LIBS ${BOOST_LINK_LIBS}
+      boost_shared_system)
+  endif()
 else()
   set(BOOST_LINK_LIBS
-    boost_static_regex
-    boost_static_system)
+    boost_static_regex)
+  if(MSVC)
+    set(BOOST_LINK_LIBS ${BOOST_LINK_LIBS}
+      boost_static_system)
+  endif()
 endif()
 
 #############################################################
