@@ -18,10 +18,25 @@
 # Require cmake that supports BYPRODUCTS in add_custom_command, ExternalProject_Add [1].
 cmake_minimum_required(VERSION 3.2.0)
 
-project(parquet-cpp)
-
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/.parquetcppversion" PARQUET_VERSION)
 string(REPLACE "\n" "" PARQUET_VERSION "${PARQUET_VERSION}")
+string(REGEX MATCH "^([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?)" VERSION ${PARQUET_VERSION})
+if(NOT VERSION)
+  message(FATAL_ERROR "invalid .parquetcppversion")
+endif()
+
+project(parquet-cpp VERSION ${VERSION})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "C++ library to read and write the Apache Parquet columnar data format")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_VENDOR        "Apache Software Foundation")
+set(CPACK_PACKAGE_CONTACT       "Apache Parquet Development <dev@parquet.apache.org>")
+set(CPACK_STRIP_FILES           TRUE)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
+set(CPACK_DEBIAN_FILE_NAME      "DEB-DEFAULT")
+set(CPACK_RPM_FILE_NAME         "RPM-DEFAULT")
+set(CPACK_RPM_PACKAGE_LICENSE   "Apache v2.0")
 
 include(ExternalProject)
 include(FindPkgConfig)
@@ -34,8 +49,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(GNUInstallDirs)
 
-set(PARQUET_SO_VERSION "1")
-set(PARQUET_ABI_VERSION "${PARQUET_SO_VERSION}.0.0")
+set(PARQUET_SO_VERSION ${PROJECT_VERSION_MAJOR})
+set(PARQUET_ABI_VERSION ${PROJECT_VERSION})
+if(WIN32)
+  set(INSTALL_CMAKE_DIR cmake)
+else()
+  set(INSTALL_CMAKE_DIR "${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake")
+endif()
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/usr/${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+include(CPack)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(cmake_modules/${PROJECT_NAME}Config.cmake.in
+                              ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+                              INSTALL_DESTINATION ${INSTALL_CMAKE_DIR}
+                              PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+                                 COMPATIBILITY SameMajorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+DESTINATION ${INSTALL_CMAKE_DIR})
 
 if (NOT "$ENV{PARQUET_GCC_ROOT}" STREQUAL "")
   set(GCC_ROOT $ENV{PARQUET_GCC_ROOT})
