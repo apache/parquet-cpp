@@ -18,6 +18,8 @@
 # under the License.
 #
 
+set -ex
+
 # download apache rat
 curl -s https://repo1.maven.org/maven2/org/apache/rat/apache-rat/0.12/apache-rat-0.12.jar > apache-rat-0.12.jar
 
