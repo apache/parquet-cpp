@@ -17,8 +17,10 @@ set -xe
 : ${CPP_BUILD_DIR=$TRAVIS_BUILD_DIR/parquet-build}
 
 # Check licenses according to Apache policy
-git archive HEAD -o parquet-cpp-src.tar.gz "--remote=file://$TRAVIS_BUILD_DIR"
+pushd $TRAVIS_BUILD_DIR
+git archive HEAD -o parquet-cpp-src.tar.gz
 $TRAVIS_BUILD_DIR/dev/release/run-rat.sh parquet-cpp-src.tar.gz
+popd
 
 pushd $CPP_BUILD_DIR
 
