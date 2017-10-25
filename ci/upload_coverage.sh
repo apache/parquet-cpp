@@ -26,9 +26,11 @@ ls -l
 
 echo $PARQUET_ROOT
 
-coveralls --gcov-options '\-lp' -r $PARQUET_ROOT \
-    --include $PARQUET_ROOT/src \
-    --exclude /parquet-build \
-    --exclude $PARQUET_ROOT/parquet-build \
-    --exclude /usr \
-    --exclude $PARQUET_ROOT/src/parquet/thrift
+coveralls --gcov 'gcov-4.9' --gcov-options '\-lp' \
+          -r $PARQUET_ROOT \
+          -i '/src' \
+          -i '$PARQUET_ROOT/src' \
+          -e '/parquet-build' \
+          -e '$PARQUET_ROOT/parquet-build' \
+          -e '/usr' \
+          -e '$PARQUET_ROOT/src/parquet/thrift'
