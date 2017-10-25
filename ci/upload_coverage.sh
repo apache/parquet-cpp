@@ -26,9 +26,7 @@ ls -l
 
 echo $PARQUET_ROOT
 
-coveralls --gcov $(which gcov-4.9) \
-    --gcov-options '\-l' --root '' \
-    --include $PARQUET_ROOT \
+coveralls --gcov-options '\-l' -r $PARQUET_ROOT \
     --exclude $PARQUET_ROOT/parquet-build/thirdparty \
     --exclude $PARQUET_ROOT/parquet-build/arrow_ep \
     --exclude $PARQUET_ROOT/parquet-build/brotli_ep \
@@ -40,5 +38,5 @@ coveralls --gcov $(which gcov-4.9) \
     --exclude $PARQUET_ROOT/parquet-build/zlib_ep \
     --exclude $PARQUET_ROOT/parquet-build/zlib_ep-prefix \
     --exclude $PARQUET_ROOT/build \
-    --exclude $PARQUET_ROOT/src/parquet/thrift \
-    --exclude /usr
+    --exclude /usr \
+    --exclude $PARQUET_ROOT/src/parquet/thrift
