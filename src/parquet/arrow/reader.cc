@@ -1051,13 +1051,16 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
   RETURN_NOT_OK(::arrow::AllocateBuffer(pool, length * type_length, &data));
   uint8_t* out_ptr = data->mutable_data();
 
+  using ::arrow::BitUtil::ToLittleEndian;
+
   for (int64_t i = 0; i < length; ++i, out_ptr += type_length) {
     const ElementType value = values[i];
-    const uint64_t raw[] = {
-        ::arrow::BitUtil::ToLittleEndian(static_cast<uint64_t>(value)),
-        ::arrow::BitUtil::ToLittleEndian(static_cast<uint64_t>(value < 0 ? -1 : 0))};
-    const auto bytes = reinterpret_cast<const uint8_t*>(raw);
-    std::copy(bytes, bytes + type_length, out_ptr);
+
+    auto out_ptr_view = reinterpret_cast<uint64_t*>(out_ptr);
+    out_ptr_view[0] = ToLittleEndian(static_cast<uint64_t>(value));
+
+    // no need to byteswap here because we're either all ones or all zeros
+    out_ptr_view[1] = static_cast<uint64_t>(value < 0 ? -1 : 0);
   }
 
   if (reader->nullable_values()) {
