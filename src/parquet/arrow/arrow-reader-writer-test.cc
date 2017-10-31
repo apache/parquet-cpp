@@ -885,25 +885,43 @@ TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
   ASSERT_OK_NO_THROW(
       WriteTable(*table, ::arrow::default_memory_pool(), this->sink_, 512, properties));
 
-  std::shared_ptr<Array> expected_values;
   std::shared_ptr<PoolBuffer> int64_data =
       std::make_shared<PoolBuffer>(::arrow::default_memory_pool());
   {
     ASSERT_OK(int64_data->Resize(sizeof(int64_t) * values->length()));
-    int64_t* int64_data_ptr = reinterpret_cast<int64_t*>(int64_data->mutable_data());
-    const uint32_t* uint32_data_ptr =
-        reinterpret_cast<const uint32_t*>(values->values()->data());
-    // std::copy might be faster but this is explicit on the casts)
-    for (int64_t i = 0; i < values->length(); i++) {
-      int64_data_ptr[i] = static_cast<int64_t>(uint32_data_ptr[i]);
-    }
+    auto int64_data_ptr = reinterpret_cast<int64_t*>(int64_data->mutable_data());
+    auto uint32_data_ptr = reinterpret_cast<const uint32_t*>(values->values()->data());
+    const auto cast_uint32_to_int64 = [](uint32_t value) {
+      return static_cast<int64_t>(value);
+    };
+    std::transform(uint32_data_ptr, uint32_data_ptr + values->length(), int64_data_ptr,
+                   cast_uint32_to_int64);
   }
 
   std::vector<std::shared_ptr<Buffer>> buffers{values->null_bitmap(), int64_data};
   auto arr_data = std::make_shared<::arrow::ArrayData>(::arrow::int64(), values->length(),
                                                        buffers, values->null_count());
-  ASSERT_OK(MakeArray(arr_data, &expected_values));
-  this->ReadAndCheckSingleColumnTable(expected_values);
+  std::shared_ptr<Array> expected_values = MakeArray(arr_data);
+  ASSERT_NE(expected_values, NULLPTR);
+
+  const auto& expected = static_cast<const ::arrow::Int64Array&>(*expected_values);
+  ASSERT_GT(values->length(), 0);
+  ASSERT_EQ(values->length(), expected.length());
+
+  // TODO(phillipc): Is there a better way to compare these two arrays?
+  // AssertArraysEqual requires the same type, but we only care about values in this case
+  for (int i = 0; i < expected.length(); ++i) {
+    const bool value_is_valid = values->IsValid(i);
+    const bool expected_value_is_valid = expected.IsValid(i);
+
+    ASSERT_EQ(value_is_valid, expected_value_is_valid);
+
+    if (value_is_valid) {
+      uint32_t value = values->Value(i);
+      int64_t expected_value = expected.Value(i);
+      ASSERT_EQ(value, expected_value);
+    }
+  }
 }
 
 using TestStringParquetIO = TestParquetIO<::arrow::StringType>;
