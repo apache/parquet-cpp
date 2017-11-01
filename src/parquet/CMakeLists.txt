@@ -27,6 +27,8 @@ install(FILES
   schema.h
   statistics.h
   types.h
+  bloom.h
+  murmur3.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/parquet")
 
 configure_file(parquet_version.h.in
@@ -56,6 +58,7 @@ ADD_PARQUET_TEST(public-api-test)
 ADD_PARQUET_TEST(types-test)
 ADD_PARQUET_TEST(reader-test)
 ADD_PARQUET_TEST(schema-test)
+ADD_PARQUET_TEST(bloom-test)
 
 ADD_PARQUET_BENCHMARK(column-io-benchmark)
 ADD_PARQUET_BENCHMARK(encoding-benchmark)
