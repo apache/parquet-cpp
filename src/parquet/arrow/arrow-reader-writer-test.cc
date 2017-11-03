@@ -300,17 +300,9 @@ struct test_traits<::arrow::FixedSizeBinaryType> {
   static std::string const value;
 };
 
-template <>
-struct test_traits<::arrow::DecimalType> {
-  static constexpr ParquetType::type parquet_enum = ParquetType::FIXED_LEN_BYTE_ARRAY;
-  static ::arrow::Decimal128 const value;
-};
-
 const std::string test_traits<::arrow::StringType>::value("Test");              // NOLINT
 const std::string test_traits<::arrow::BinaryType>::value("\x00\x01\x02\x03");  // NOLINT
 const std::string test_traits<::arrow::FixedSizeBinaryType>::value("Fixed");    // NOLINT
-const ::arrow::Decimal128 test_traits<::arrow::DecimalType>::value(
-    "-83095209205923957.2323995");  // NOLINT
 
 template <typename T>
 using ParquetDataType = DataType<test_traits<T>::parquet_enum>;
