@@ -118,54 +118,11 @@ NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   return builder.Finish(out);
 }
 
-static void DecimalRange(int32_t precision, ::arrow::Decimal128* min_decimal,
-                         ::arrow::Decimal128* max_decimal) {
-  DCHECK_GE(precision, 1) << "decimal precision must be greater than or equal to 1, got "
-                          << precision;
-  DCHECK_LE(precision, 38) << "decimal precision must be less than or equal to 38, got "
-                           << precision;
-  DCHECK_NE(min_decimal, NULLPTR);
-  DCHECK_NE(max_decimal, NULLPTR);
-
-  *max_decimal = 1;
-  for (int32_t i = 0; i < precision; ++i) {
-    *max_decimal *= 10;
-  }
-  *max_decimal -= 1;
-  *min_decimal = -(*max_decimal);
-}
-
-class UniformDecimalDistribution {
- public:
-  explicit UniformDecimalDistribution(int32_t precision) {
-    ::arrow::Decimal128 min_decimal;
-    ::arrow::Decimal128 max_decimal;
-
-    DecimalRange(precision, &min_decimal, &max_decimal);
-
-    const auto min_lower = static_cast<int64_t>(min_decimal.low_bits());
-    const auto max_lower = static_cast<int64_t>(max_decimal.low_bits());
-
-    lower_bits_ = std::uniform_int_distribution<int64_t>(min_lower, max_lower);
-    upper_bits_ = std::uniform_int_distribution<int64_t>(min_decimal.high_bits(),
-                                                         max_decimal.high_bits());
-  }
-
-  template <typename Generator>
-  ::arrow::Decimal128 operator()(Generator& gen) {
-    return ::arrow::Decimal128(upper_bits_(gen), static_cast<uint64_t>(lower_bits_(gen)));
-  }
-
- private:
-  std::uniform_int_distribution<int64_t> lower_bits_;
-  std::uniform_int_distribution<int64_t> upper_bits_;
-};
-
 template <typename ArrowType>
 typename std::enable_if<is_arrow_decimal<ArrowType>::value, Status>::type NonNullArray(
     size_t size, std::shared_ptr<Array>* out) {
-  constexpr int32_t kDecimalPrecision = 4;
-  constexpr int32_t kDecimalScale = 2;
+  constexpr int32_t kDecimalPrecision = 24;
+  constexpr int32_t kDecimalScale = 7;
 
   // todo: find a way to generate test data with more diversity.
   const auto type = ::arrow::decimal(kDecimalPrecision, kDecimalScale);
@@ -175,7 +132,7 @@ typename std::enable_if<is_arrow_decimal<ArrowType>::value, Status>::type NonNul
 
   constexpr int32_t seed = 0;
   std::mt19937 gen(seed);
-  UniformDecimalDistribution decimal_dist(kDecimalPrecision);
+  ::arrow::test::UniformDecimalDistribution decimal_dist(kDecimalPrecision);
 
   for (size_t i = 0; i < size; i++) {
     const ::arrow::Decimal128 value(decimal_dist(gen));
@@ -333,7 +290,7 @@ typename std::enable_if<is_arrow_decimal<ArrowType>::value, Status>::type Nullab
   BuilderType builder(type);
 
   std::mt19937 gen(seed);
-  UniformDecimalDistribution decimal_dist(kDecimalPrecision);
+  ::arrow::test::UniformDecimalDistribution decimal_dist(kDecimalPrecision);
 
   for (size_t i = 0; i < size; i++) {
     if (!valid_bytes[i]) {
