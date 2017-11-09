@@ -595,7 +595,7 @@ inline int DictEncoder<DType>::Hash(const typename DType::c_type& value) const {
 template <>
 inline int DictEncoder<ByteArrayType>::Hash(const ByteArray& value) const {
   if (value.len > 0) {
-    DCHECK(nullptr != value.ptr) << "Value ptr cannot be NULL";
+    DCHECK_NE(nullptr, value.ptr) << "Value ptr cannot be NULL";
   }
   return HashUtil::Hash(value.ptr, value.len, 0);
 }
@@ -603,7 +603,7 @@ inline int DictEncoder<ByteArrayType>::Hash(const ByteArray& value) const {
 template <>
 inline int DictEncoder<FLBAType>::Hash(const FixedLenByteArray& value) const {
   if (type_length_ > 0) {
-    DCHECK(nullptr != value.ptr) << "Value ptr cannot be NULL";
+    DCHECK_NE(nullptr, value.ptr) << "Value ptr cannot be NULL";
   }
   return HashUtil::Hash(value.ptr, type_length_, 0);
 }
