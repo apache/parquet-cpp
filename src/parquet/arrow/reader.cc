@@ -870,7 +870,7 @@ struct TransferFunctor<
       // Convert from BINARY type to STRING
       auto new_data = (*out)->data()->ShallowCopy();
       new_data->type = type;
-      RETURN_NOT_OK(::arrow::MakeArray(new_data, out));
+      *out = ::arrow::MakeArray(new_data);
     }
     return Status::OK();
   }
