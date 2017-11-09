@@ -795,8 +795,9 @@ Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::DecimalType>(
     ColumnWriter* column_writer, const std::shared_ptr<Array>& array, int64_t num_levels,
     const int16_t* def_levels, const int16_t* rep_levels) {
   const auto& data = static_cast<const DecimalArray&>(*array);
-
   const int64_t length = data.length();
+
+  std::vector<uint64_t> big_endian_values(static_cast<size_t>(length) * 2);
 
   RETURN_NOT_OK(data_buffer_.Resize(length * sizeof(FLBA), false));
   auto buffer_ptr = reinterpret_cast<FLBA*>(data_buffer_.mutable_data());
@@ -804,40 +805,32 @@ Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::DecimalType>(
   auto writer = reinterpret_cast<TypedColumnWriter<FLBAType>*>(column_writer);
 
   const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(*data.type());
-  const int32_t precision = decimal_type.precision();
-  const int32_t minimum_necessary_bytes = DecimalSize(precision);
-  const int32_t offset = decimal_type.byte_width() - minimum_necessary_bytes;
+  const int32_t offset =
+      decimal_type.byte_width() - DecimalSize(decimal_type.precision());
 
   if (writer->descr()->schema_node()->is_required() || data.null_count() == 0) {
     // no nulls, just dump the data
     // todo(advancedxy): use a writeBatch to avoid this step
-    for (int64_t i = 0; i < length; ++i) {
-      // bytes may be in little endian order, so swap
-      const uint8_t* raw_value = data.GetValue(i);
-      auto unsigned_64_bit = reinterpret_cast<const uint64_t*>(raw_value);
-      const uint64_t value[] = {::arrow::BitUtil::ToBigEndian(unsigned_64_bit[1]),
-                                ::arrow::BitUtil::ToBigEndian(unsigned_64_bit[0])};
-
-      // We only write the minimum number of bytes necessary to represent the value
-      // So start writing data from 16 - number of bytes necessary to represent the value
-      auto value_bytes = reinterpret_cast<const uint8_t*>(value);
-      buffer_ptr[i] = FixedLenByteArray(value_bytes + offset);
+    for (int64_t i = 0, j = 0; i < length; ++i, j += 2) {
+      auto unsigned_64_bit = reinterpret_cast<const uint64_t*>(data.GetValue(i));
+      big_endian_values[j] = ::arrow::BitUtil::ToBigEndian(unsigned_64_bit[1]);
+      big_endian_values[j + 1] = ::arrow::BitUtil::ToBigEndian(unsigned_64_bit[0]);
+      buffer_ptr[i] = FixedLenByteArray(
+          reinterpret_cast<const uint8_t*>(&big_endian_values[j]) + offset);
     }
   } else {
     int32_t buffer_idx = 0;
+    int32_t j = 0;
 
     for (int64_t i = 0; i < length; ++i) {
       if (!data.IsNull(i)) {
-        const uint8_t* raw_value = data.GetValue(i);
-        auto unsigned_64_bit = reinterpret_cast<const uint64_t*>(raw_value);
-        const uint64_t value[] = {::arrow::BitUtil::ToBigEndian(unsigned_64_bit[1]),
-                                  ::arrow::BitUtil::ToBigEndian(unsigned_64_bit[0])};
-
-        // We only write the minimum number of bytes necessary to represent the value
-        // So start writing data from 16 - number of bytes necessary to represent the
-        // value
-        auto value_bytes = reinterpret_cast<const uint8_t*>(value);
-        buffer_ptr[buffer_idx++] = FixedLenByteArray(value_bytes + offset);
+        auto unsigned_64_bit = reinterpret_cast<const uint64_t*>(data.GetValue(i));
+        big_endian_values[j] = ::arrow::BitUtil::ToBigEndian(unsigned_64_bit[1]);
+        big_endian_values[j + 1] = ::arrow::BitUtil::ToBigEndian(unsigned_64_bit[0]);
+        buffer_ptr[buffer_idx] = FixedLenByteArray(
+            reinterpret_cast<const uint8_t*>(&big_endian_values[j]) + offset);
+        ++buffer_idx;
+        j += 2;
       }
     }
   }
