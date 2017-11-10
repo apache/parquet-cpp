@@ -1471,7 +1471,7 @@ void MakeListTable(int num_rows, std::shared_ptr<Table>* out) {
   offset_values.push_back(total_elements);
 
   std::vector<int8_t> value_draws;
-  randint<int8_t>(total_elements, 0, 100, &value_draws);
+  randint(total_elements, 0, 100, &value_draws);
 
   std::vector<bool> is_valid;
   random_is_valid(total_elements, 0.1, &is_valid);
