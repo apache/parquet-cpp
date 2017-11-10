@@ -56,8 +56,10 @@ using is_arrow_bool = std::is_same<ArrowType, ::arrow::BooleanType>;
 template <class ArrowType>
 typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type NonNullArray(
     size_t size, std::shared_ptr<Array>* out) {
-  std::vector<typename ArrowType::c_type> values;
-  ::arrow::test::random_real<typename ArrowType::c_type>(size, 0, 0, 1, &values);
+  using c_type = typename ArrowType::c_type;
+  std::vector<c_type> values;
+  ::arrow::test::random_real(size, 0, static_cast<c_type>(0), static_cast<c_type>(1),
+                             &values);
   ::arrow::NumericBuilder<ArrowType> builder;
   RETURN_NOT_OK(builder.Append(values.data(), values.size()));
   return builder.Finish(out);
@@ -68,7 +70,7 @@ typename std::enable_if<
     is_arrow_int<ArrowType>::value && !is_arrow_date<ArrowType>::value, Status>::type
 NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   std::vector<typename ArrowType::c_type> values;
-  ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
+  ::arrow::test::randint(size, 0, 64, &values);
 
   // Passing data type so this will work with TimestampType too
   ::arrow::NumericBuilder<ArrowType> builder(std::make_shared<ArrowType>(),
@@ -81,7 +83,7 @@ template <class ArrowType>
 typename std::enable_if<is_arrow_date<ArrowType>::value, Status>::type NonNullArray(
     size_t size, std::shared_ptr<Array>* out) {
   std::vector<typename ArrowType::c_type> values;
-  ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
+  ::arrow::test::randint(size, 0, 64, &values);
   for (size_t i = 0; i < size; i++) {
     values[i] *= 86400000;
   }
@@ -145,7 +147,7 @@ template <class ArrowType>
 typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NonNullArray(
     size_t size, std::shared_ptr<Array>* out) {
   std::vector<uint8_t> values;
-  ::arrow::test::randint<uint8_t>(size, 0, 1, &values);
+  ::arrow::test::randint(size, 0, 1, &values);
   ::arrow::BooleanBuilder builder;
   RETURN_NOT_OK(builder.Append(values.data(), values.size()));
   return builder.Finish(out);
@@ -155,9 +157,10 @@ typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NonNullAr
 template <typename ArrowType>
 typename std::enable_if<is_arrow_float<ArrowType>::value, Status>::type NullableArray(
     size_t size, size_t num_nulls, uint32_t seed, std::shared_ptr<Array>* out) {
-  std::vector<typename ArrowType::c_type> values;
-  ::arrow::test::random_real<typename ArrowType::c_type>(size, seed, -1e10, 1e10,
-                                                         &values);
+  using c_type = typename ArrowType::c_type;
+  std::vector<c_type> values;
+  ::arrow::test::random_real(size, seed, static_cast<c_type>(-1e10),
+                             static_cast<c_type>(1e10), &values);
   std::vector<uint8_t> valid_bytes(size, 1);
 
   for (size_t i = 0; i < num_nulls; i++) {
@@ -178,7 +181,7 @@ NullableArray(size_t size, size_t num_nulls, uint32_t seed, std::shared_ptr<Arra
 
   // Seed is random in Arrow right now
   (void)seed;
-  ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
+  ::arrow::test::randint(size, 0, 64, &values);
   std::vector<uint8_t> valid_bytes(size, 1);
 
   for (size_t i = 0; i < num_nulls; i++) {
@@ -199,7 +202,7 @@ typename std::enable_if<is_arrow_date<ArrowType>::value, Status>::type NullableA
 
   // Seed is random in Arrow right now
   (void)seed;
-  ::arrow::test::randint<typename ArrowType::c_type>(size, 0, 64, &values);
+  ::arrow::test::randint(size, 0, 64, &values);
   for (size_t i = 0; i < size; i++) {
     values[i] *= 86400000;
   }
@@ -311,7 +314,7 @@ typename std::enable_if<is_arrow_bool<ArrowType>::value, Status>::type NullableA
   // Seed is random in Arrow right now
   (void)seed;
 
-  ::arrow::test::randint<uint8_t>(size, 0, 1, &values);
+  ::arrow::test::randint(size, 0, 1, &values);
   std::vector<uint8_t> valid_bytes(size, 1);
 
   for (size_t i = 0; i < num_nulls; i++) {
