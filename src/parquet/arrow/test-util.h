@@ -127,6 +127,26 @@ NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   return builder.Finish(out);
 }
 
+static inline void random_decimals(int64_t n, uint32_t seed, int32_t precision,
+                                   uint8_t* out) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<uint32_t> d(0, std::numeric_limits<uint8_t>::max());
+  const int32_t required_bytes = DecimalSize(precision);
+  constexpr int32_t byte_width = 16;
+  std::fill(out, out + byte_width * n, '\0');
+
+  for (int64_t i = 0; i < n; ++i, out += byte_width) {
+    std::generate(out, out + required_bytes,
+                  [&d, &gen] { return static_cast<uint8_t>(d(gen)); });
+
+    // sign extend if the sign bit is set for the last byte generated
+    // 0b10000000 == 0x80 == 128
+    if ((out[required_bytes - 1] & '\x80') != 0) {
+      std::fill(out + required_bytes, out + byte_width, '\xFF');
+    }
+  }
+}
+
 template <typename ArrowType, int32_t precision = ArrowType::precision>
 typename std::enable_if<
     std::is_same<ArrowType, DecimalWithPrecisionAndScale<precision>>::value, Status>::type
@@ -143,7 +163,7 @@ NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   std::shared_ptr<Buffer> out_buf;
   RETURN_NOT_OK(::arrow::AllocateBuffer(::arrow::default_memory_pool(), size * byte_width,
                                         &out_buf));
-  ::arrow::test::random_decimals(size, seed, kDecimalPrecision, out_buf->mutable_data());
+  random_decimals(size, seed, kDecimalPrecision, out_buf->mutable_data());
 
   RETURN_NOT_OK(builder.Append(out_buf->data(), size));
   return builder.Finish(out);
@@ -302,7 +322,7 @@ NullableArray(size_t size, size_t num_nulls, uint32_t seed,
   RETURN_NOT_OK(::arrow::AllocateBuffer(::arrow::default_memory_pool(), size * byte_width,
                                         &out_buf));
 
-  ::arrow::test::random_decimals(size, seed, precision, out_buf->mutable_data());
+  random_decimals(size, seed, precision, out_buf->mutable_data());
 
   ::arrow::DecimalBuilder builder(type);
   RETURN_NOT_OK(builder.Append(out_buf->data(), size, valid_bytes.data()));
