@@ -551,7 +551,26 @@ typedef ::testing::Types<
     ::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8Type, ::arrow::UInt16Type,
     ::arrow::Int16Type, ::arrow::Int32Type, ::arrow::UInt64Type, ::arrow::Int64Type,
     ::arrow::Date32Type, ::arrow::FloatType, ::arrow::DoubleType, ::arrow::StringType,
-    ::arrow::BinaryType, ::arrow::FixedSizeBinaryType, ::arrow::DecimalType>
+    ::arrow::BinaryType, ::arrow::FixedSizeBinaryType, DecimalWithPrecisionAndScale<1>,
+    DecimalWithPrecisionAndScale<2>, DecimalWithPrecisionAndScale<3>,
+    DecimalWithPrecisionAndScale<4>, DecimalWithPrecisionAndScale<5>,
+    DecimalWithPrecisionAndScale<6>, DecimalWithPrecisionAndScale<7>,
+    DecimalWithPrecisionAndScale<8>, DecimalWithPrecisionAndScale<9>,
+    DecimalWithPrecisionAndScale<10>, DecimalWithPrecisionAndScale<11>,
+    DecimalWithPrecisionAndScale<12>, DecimalWithPrecisionAndScale<13>,
+    DecimalWithPrecisionAndScale<14>, DecimalWithPrecisionAndScale<15>,
+    DecimalWithPrecisionAndScale<16>, DecimalWithPrecisionAndScale<17>,
+    DecimalWithPrecisionAndScale<19>, DecimalWithPrecisionAndScale<20>,
+    DecimalWithPrecisionAndScale<21>, DecimalWithPrecisionAndScale<22>,
+    DecimalWithPrecisionAndScale<23>, DecimalWithPrecisionAndScale<24>,
+    DecimalWithPrecisionAndScale<25>, DecimalWithPrecisionAndScale<26>,
+    DecimalWithPrecisionAndScale<27>, DecimalWithPrecisionAndScale<28>,
+    DecimalWithPrecisionAndScale<29>, DecimalWithPrecisionAndScale<30>,
+    DecimalWithPrecisionAndScale<31>, DecimalWithPrecisionAndScale<32>,
+    DecimalWithPrecisionAndScale<33>, DecimalWithPrecisionAndScale<34>,
+    // no 36 and 37 because gtest only allows us to have 50 template arguments to
+    // ::testing::Types
+    DecimalWithPrecisionAndScale<35>, DecimalWithPrecisionAndScale<38>>
     TestTypes;
 
 TYPED_TEST_CASE(TestParquetIO, TestTypes);
