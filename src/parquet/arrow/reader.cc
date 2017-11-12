@@ -963,10 +963,10 @@ static inline void RawBytesToDecimalBytes(const uint8_t* value, int32_t byte_wid
   BytesToIntegerPair(value, byte_width, high, low);
 }
 
-/// \brief Convert an array of FixedLenByteArrays to an arrow::DecimalArray
+/// \brief Convert an array of FixedLenByteArrays to an arrow::Decimal128Array
 /// We do this by:
 /// 1. Creating a arrow::FixedSizeBinaryArray from the RecordReader's builder
-/// 2. Allocating a buffer for the arrow::DecimalArray
+/// 2. Allocating a buffer for the arrow::Decimal128Array
 /// 3. Converting the big-endian bytes in the FixedSizeBinaryArray to two integers
 ///    representing the high and low bits of each decimal value.
 template <>
@@ -1018,13 +1018,13 @@ struct TransferFunctor<::arrow::DecimalType, FLBAType> {
       }
     }
 
-    *out = std::make_shared<::arrow::DecimalArray>(
+    *out = std::make_shared<::arrow::Decimal128Array>(
         type, length, data, fixed_size_binary_array.null_bitmap(), null_count);
     return Status::OK();
   }
 };
 
-/// \brief Convert an Int32 or Int64 array into a DecimalArray
+/// \brief Convert an Int32 or Int64 array into a Decimal128Array
 /// The parquet spec allows systems to write decimals in int32, int64 if the values are
 /// small enough to fit in less 4 bytes or less than 8 bytes, respectively.
 /// This function implements the conversion from int32 and int64 arrays to decimal arrays.
@@ -1065,10 +1065,10 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
 
   if (reader->nullable_values()) {
     std::shared_ptr<PoolBuffer> is_valid = reader->ReleaseIsValid();
-    *out = std::make_shared<::arrow::DecimalArray>(type, length, data, is_valid,
-                                                   reader->null_count());
+    *out = std::make_shared<::arrow::Decimal128Array>(type, length, data, is_valid,
+                                                      reader->null_count());
   } else {
-    *out = std::make_shared<::arrow::DecimalArray>(type, length, data);
+    *out = std::make_shared<::arrow::Decimal128Array>(type, length, data);
   }
   return Status::OK();
 }

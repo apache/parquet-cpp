@@ -32,7 +32,7 @@
 using arrow::Array;
 using arrow::BinaryArray;
 using arrow::FixedSizeBinaryArray;
-using arrow::DecimalArray;
+using arrow::Decimal128Array;
 using arrow::BooleanArray;
 using arrow::Int16Array;
 using arrow::Int16Builder;
@@ -794,7 +794,7 @@ template <>
 Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::DecimalType>(
     ColumnWriter* column_writer, const std::shared_ptr<Array>& array, int64_t num_levels,
     const int16_t* def_levels, const int16_t* rep_levels) {
-  const auto& data = static_cast<const DecimalArray&>(*array);
+  const auto& data = static_cast<const Decimal128Array&>(*array);
   const int64_t length = data.length();
 
   std::vector<uint64_t> big_endian_values(static_cast<size_t>(length) * 2);
