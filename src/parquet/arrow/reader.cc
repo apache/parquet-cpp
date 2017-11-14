@@ -970,7 +970,7 @@ static inline void RawBytesToDecimalBytes(const uint8_t* value, int32_t byte_wid
 /// 3. Converting the big-endian bytes in the FixedSizeBinaryArray to two integers
 ///    representing the high and low bits of each decimal value.
 template <>
-struct TransferFunctor<::arrow::DecimalType, FLBAType> {
+struct TransferFunctor<::arrow::Decimal128Type, FLBAType> {
   Status operator()(RecordReader* reader, MemoryPool* pool,
                     const std::shared_ptr<::arrow::DataType>& type,
                     std::shared_ptr<Array>* out) {
@@ -991,7 +991,7 @@ struct TransferFunctor<::arrow::DecimalType, FLBAType> {
 
     // The byte width of each decimal value
     const int32_t type_length =
-        static_cast<const ::arrow::DecimalType&>(*type).byte_width();
+        static_cast<const ::arrow::Decimal128Type&>(*type).byte_width();
 
     // number of elements in the entire array
     const int64_t length = fixed_size_binary_array.length();
@@ -1046,7 +1046,7 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
 
   const auto values = reinterpret_cast<const ElementType*>(reader->values());
 
-  const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(*type);
+  const auto& decimal_type = static_cast<const ::arrow::Decimal128Type&>(*type);
   const int64_t type_length = decimal_type.byte_width();
 
   std::shared_ptr<Buffer> data;
@@ -1079,7 +1079,7 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
 }
 
 template <>
-struct TransferFunctor<::arrow::DecimalType, Int32Type> {
+struct TransferFunctor<::arrow::Decimal128Type, Int32Type> {
   Status operator()(RecordReader* reader, MemoryPool* pool,
                     const std::shared_ptr<::arrow::DataType>& type,
                     std::shared_ptr<Array>* out) {
@@ -1088,7 +1088,7 @@ struct TransferFunctor<::arrow::DecimalType, Int32Type> {
 };
 
 template <>
-struct TransferFunctor<::arrow::DecimalType, Int64Type> {
+struct TransferFunctor<::arrow::Decimal128Type, Int64Type> {
   Status operator()(RecordReader* reader, MemoryPool* pool,
                     const std::shared_ptr<::arrow::DataType>& type,
                     std::shared_ptr<Array>* out) {
@@ -1157,13 +1157,13 @@ Status PrimitiveImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>*
     case ::arrow::Type::DECIMAL: {
       switch (descr_->physical_type()) {
         case ::parquet::Type::INT32: {
-          TRANSFER_DATA(::arrow::DecimalType, Int32Type);
+          TRANSFER_DATA(::arrow::Decimal128Type, Int32Type);
         } break;
         case ::parquet::Type::INT64: {
-          TRANSFER_DATA(::arrow::DecimalType, Int64Type);
+          TRANSFER_DATA(::arrow::Decimal128Type, Int64Type);
         } break;
         case ::parquet::Type::FIXED_LEN_BYTE_ARRAY: {
-          TRANSFER_DATA(::arrow::DecimalType, FLBAType);
+          TRANSFER_DATA(::arrow::Decimal128Type, FLBAType);
         } break;
         default:
           return Status::Invalid(

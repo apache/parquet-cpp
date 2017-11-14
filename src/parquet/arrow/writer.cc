@@ -791,7 +791,7 @@ Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::FixedSizeBinaryType>
 }
 
 template <>
-Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::DecimalType>(
+Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::Decimal128Type>(
     ColumnWriter* column_writer, const std::shared_ptr<Array>& array, int64_t num_levels,
     const int16_t* def_levels, const int16_t* rep_levels) {
   const auto& data = static_cast<const Decimal128Array&>(*array);
@@ -805,7 +805,7 @@ Status FileWriter::Impl::TypedWriteBatch<FLBAType, ::arrow::DecimalType>(
 
   auto writer = reinterpret_cast<TypedColumnWriter<FLBAType>*>(column_writer);
 
-  const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(*data.type());
+  const auto& decimal_type = static_cast<const ::arrow::Decimal128Type&>(*data.type());
   const int32_t offset =
       decimal_type.byte_width() - DecimalSize(decimal_type.precision());
 
@@ -947,7 +947,7 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
       WRITE_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
       WRITE_BATCH_CASE(STRING, BinaryType, ByteArrayType)
       WRITE_BATCH_CASE(FIXED_SIZE_BINARY, FixedSizeBinaryType, FLBAType)
-      WRITE_BATCH_CASE(DECIMAL, DecimalType, FLBAType)
+      WRITE_BATCH_CASE(DECIMAL, Decimal128Type, FLBAType)
       WRITE_BATCH_CASE(DATE32, Date32Type, Int32Type)
       WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
       WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)

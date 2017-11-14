@@ -50,7 +50,7 @@ const auto TIMESTAMP_MS = ::arrow::timestamp(::arrow::TimeUnit::MILLI);
 const auto TIMESTAMP_US = ::arrow::timestamp(::arrow::TimeUnit::MICRO);
 const auto TIMESTAMP_NS = ::arrow::timestamp(::arrow::TimeUnit::NANO);
 
-TypePtr MakeDecimalType(const PrimitiveNode& node) {
+TypePtr MakeDecimal128Type(const PrimitiveNode& node) {
   const auto& metadata = node.decimal_metadata();
   return ::arrow::decimal(metadata.precision, metadata.scale);
 }
@@ -61,7 +61,7 @@ static Status FromByteArray(const PrimitiveNode& node, TypePtr* out) {
       *out = ::arrow::utf8();
       break;
     case LogicalType::DECIMAL:
-      *out = MakeDecimalType(node);
+      *out = MakeDecimal128Type(node);
       break;
     default:
       // BINARY
@@ -77,7 +77,7 @@ static Status FromFLBA(const PrimitiveNode& node, TypePtr* out) {
       *out = ::arrow::fixed_size_binary(node.type_length());
       break;
     case LogicalType::DECIMAL:
-      *out = MakeDecimalType(node);
+      *out = MakeDecimal128Type(node);
       break;
     default:
       std::stringstream ss;
@@ -120,7 +120,7 @@ static Status FromInt32(const PrimitiveNode& node, TypePtr* out) {
       *out = ::arrow::time32(::arrow::TimeUnit::MILLI);
       break;
     case LogicalType::DECIMAL:
-      *out = MakeDecimalType(node);
+      *out = MakeDecimal128Type(node);
       break;
     default:
       std::stringstream ss;
@@ -144,7 +144,7 @@ static Status FromInt64(const PrimitiveNode& node, TypePtr* out) {
       *out = ::arrow::uint64();
       break;
     case LogicalType::DECIMAL:
-      *out = MakeDecimalType(node);
+      *out = MakeDecimal128Type(node);
       break;
     case LogicalType::TIMESTAMP_MILLIS:
       *out = TIMESTAMP_MS;
@@ -542,7 +542,8 @@ Status FieldToNode(const std::shared_ptr<Field>& field,
     case ArrowType::DECIMAL: {
       type = ParquetType::FIXED_LEN_BYTE_ARRAY;
       logical_type = LogicalType::DECIMAL;
-      const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(*field->type());
+      const auto& decimal_type =
+          static_cast<const ::arrow::Decimal128Type&>(*field->type());
       precision = decimal_type.precision();
       scale = decimal_type.scale();
       length = DecimalSize(precision);

@@ -362,7 +362,7 @@ static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::arrow::DataType& type
           break;
         case ::arrow::Type::DECIMAL: {
           const auto& decimal_type =
-              static_cast<const ::arrow::DecimalType&>(values_type);
+              static_cast<const ::arrow::Decimal128Type&>(values_type);
           precision = decimal_type.precision();
           scale = decimal_type.scale();
           byte_width = DecimalSize(precision);
@@ -375,7 +375,7 @@ static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::arrow::DataType& type
       byte_width = static_cast<const ::arrow::FixedSizeBinaryType&>(type).byte_width();
       break;
     case ::arrow::Type::DECIMAL: {
-      const auto& decimal_type = static_cast<const ::arrow::DecimalType&>(type);
+      const auto& decimal_type = static_cast<const ::arrow::Decimal128Type&>(type);
       precision = decimal_type.precision();
       scale = decimal_type.scale();
       byte_width = DecimalSize(precision);
