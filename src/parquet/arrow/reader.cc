@@ -1040,7 +1040,9 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
   const int64_t length = reader->values_written();
 
   using ElementType = typename ParquetIntegerType::c_type;
-  static_assert(std::is_signed<ElementType>::value, "ElementType is not signed");
+  static_assert(std::is_same<ElementType, int32_t>::value ||
+                    std::is_same<ElementType, int64_t>::value,
+                "ElementType must be int32_t or int64_t");
 
   const auto values = reinterpret_cast<const ElementType*>(reader->values());
 
@@ -1051,15 +1053,18 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
   RETURN_NOT_OK(::arrow::AllocateBuffer(pool, length * type_length, &data));
   uint8_t* out_ptr = data->mutable_data();
 
-  using ::arrow::BitUtil::ToLittleEndian;
+  using ::arrow::BitUtil::FromLittleEndian;
 
   for (int64_t i = 0; i < length; ++i, out_ptr += type_length) {
-    const ElementType value = values[i];
+    // sign/zero extend int32_t values, otherwise a no-op
+    const auto value = static_cast<int64_t>(values[i]);
 
     auto out_ptr_view = reinterpret_cast<uint64_t*>(out_ptr);
-    out_ptr_view[0] = ToLittleEndian(static_cast<uint64_t>(value));
 
-    // no need to byteswap here because we're either all ones or all zeros
+    // No-op on little endian machines, byteswap on big endian
+    out_ptr_view[0] = FromLittleEndian(static_cast<uint64_t>(value));
+
+    // no need to byteswap here because we're sign/zero extending exactly 8 bytes
     out_ptr_view[1] = static_cast<uint64_t>(value < 0 ? -1 : 0);
   }
 
