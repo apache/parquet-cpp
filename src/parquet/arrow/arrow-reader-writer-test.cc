@@ -914,12 +914,12 @@ TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
     const bool value_is_valid = values->IsValid(i);
     const bool expected_value_is_valid = expected.IsValid(i);
 
-    ASSERT_EQ(value_is_valid, expected_value_is_valid);
+    ASSERT_EQ(expected_value_is_valid, value_is_valid);
 
     if (value_is_valid) {
       uint32_t value = values->Value(i);
       int64_t expected_value = expected.Value(i);
-      ASSERT_EQ(value, expected_value);
+      ASSERT_EQ(expected_value, static_cast<int64_t>(value));
     }
   }
 }
