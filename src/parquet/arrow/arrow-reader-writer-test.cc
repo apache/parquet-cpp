@@ -1972,7 +1972,7 @@ TEST_P(TestArrowReaderAdHocSpark, ReadDecimals) {
 
   std::shared_ptr<Array> expected_array;
 
-  ::arrow::DecimalBuilder builder(decimal_type, pool);
+  ::arrow::Decimal128Builder builder(decimal_type, pool);
 
   for (int32_t i = 0; i < expected_length; ++i) {
     ::arrow::Decimal128 value((i + 1) * 100);

@@ -34,8 +34,8 @@ template <int32_t PRECISION>
 struct DecimalWithPrecisionAndScale {
   static_assert(PRECISION >= 1 && PRECISION <= 38, "Invalid precision value");
 
-  using type = ::arrow::DecimalType;
-  static constexpr ::arrow::Type::type type_id = ::arrow::DecimalType::type_id;
+  using type = ::arrow::Decimal128Type;
+  static constexpr ::arrow::Type::type type_id = ::arrow::Decimal128Type::type_id;
   static constexpr int32_t precision = PRECISION;
   static constexpr int32_t scale = PRECISION - 1;
 };
@@ -156,8 +156,9 @@ NonNullArray(size_t size, std::shared_ptr<Array>* out) {
   constexpr int32_t kDecimalScale = DecimalWithPrecisionAndScale<precision>::scale;
 
   const auto type = ::arrow::decimal(kDecimalPrecision, kDecimalScale);
-  ::arrow::DecimalBuilder builder(type);
-  const int32_t byte_width = static_cast<const ::arrow::DecimalType&>(*type).byte_width();
+  ::arrow::Decimal128Builder builder(type);
+  const int32_t byte_width =
+      static_cast<const ::arrow::Decimal128Type&>(*type).byte_width();
 
   constexpr int32_t seed = 0;
 
@@ -317,7 +318,8 @@ NullableArray(size_t size, size_t num_nulls, uint32_t seed,
   constexpr int32_t kDecimalPrecision = precision;
   constexpr int32_t kDecimalScale = DecimalWithPrecisionAndScale<precision>::scale;
   const auto type = ::arrow::decimal(kDecimalPrecision, kDecimalScale);
-  const int32_t byte_width = static_cast<const ::arrow::DecimalType&>(*type).byte_width();
+  const int32_t byte_width =
+      static_cast<const ::arrow::Decimal128Type&>(*type).byte_width();
 
   std::shared_ptr<::arrow::Buffer> out_buf;
   RETURN_NOT_OK(::arrow::AllocateBuffer(::arrow::default_memory_pool(), size * byte_width,
@@ -325,7 +327,7 @@ NullableArray(size_t size, size_t num_nulls, uint32_t seed,
 
   random_decimals(size, seed, precision, out_buf->mutable_data());
 
-  ::arrow::DecimalBuilder builder(type);
+  ::arrow::Decimal128Builder builder(type);
   RETURN_NOT_OK(builder.Append(out_buf->data(), size, valid_bytes.data()));
   return builder.Finish(out);
 }
