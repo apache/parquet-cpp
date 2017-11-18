@@ -921,7 +921,8 @@ class DeltaByteArrayDecoder : public Decoder<ByteArrayType> {
       ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
       : Decoder<ByteArrayType>(descr, Encoding::DELTA_BYTE_ARRAY),
         prefix_len_decoder_(nullptr, pool),
-        suffix_decoder_(nullptr, pool) {}
+        suffix_decoder_(nullptr, pool),
+        last_value_(0, nullptr) {}
 
   virtual void SetData(int num_values, const uint8_t* data, int len) {
     num_values_ = num_values;
