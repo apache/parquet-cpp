@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 
 #include <sstream>
+#include <arrow/compute/api.h>
 
 #include "parquet/api/reader.h"
 #include "parquet/api/writer.h"
@@ -44,7 +45,6 @@ using arrow::ArrayVisitor;
 using arrow::Buffer;
 using arrow::ChunkedArray;
 using arrow::Column;
-using arrow::EncodeArrayToDictionary;
 using arrow::ListArray;
 using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
@@ -52,6 +52,9 @@ using arrow::Status;
 using arrow::Table;
 using arrow::TimeUnit;
 using arrow::default_memory_pool;
+using arrow::compute::DictionaryEncode;
+using arrow::compute::FunctionContext;
+using arrow::compute::Datum;
 using arrow::io::BufferReader;
 
 using arrow::test::randint;
@@ -619,8 +622,10 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalDictionaryWrite) {
 
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
 
-  std::shared_ptr<Array> dict_values;
-  ASSERT_OK(EncodeArrayToDictionary(*values, default_memory_pool(), &dict_values));
+  Datum out;
+  FunctionContext ctx(default_memory_pool());
+  ASSERT_OK(DictionaryEncode(&ctx, Datum(values), &out));
+  std::shared_ptr<Array> dict_values = MakeArray(out.array());
   std::shared_ptr<GroupNode> schema =
       MakeSimpleSchema(*dict_values->type(), Repetition::OPTIONAL);
   this->WriteColumn(schema, dict_values);
