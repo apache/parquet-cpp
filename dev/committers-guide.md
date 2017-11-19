@@ -45,7 +45,7 @@ and that key will need to be added to our KEYS file as well.
 
 2. Add your gpg key to the Apache Parquet {format,mr,cpp} KEYS file:
 
-               git clone https://git-wip-us.apache.org/repos/asf/parquet-{format,mr,cpp}.git
+               git clone git@github.com:apache/parquet-cpp.git
                (gpg --list-sigs <KEY ID> && gpg --armor --export <KEY ID>) >> KEYS
                git add KEYS && git commit -m "Adding gpg key for <APACHE ID>"
                ./rbt post -o -g
