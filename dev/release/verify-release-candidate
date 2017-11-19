@@ -43,7 +43,11 @@ fetch_archive() {
   download_rc_file ${dist_name}.tar.gz.sha512
   gpg --verify ${dist_name}.tar.gz.asc ${dist_name}.tar.gz
   gpg --print-md MD5 ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.md5
-  sha512sum ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.sha512
+  if [ "$(uname)" == "Darwin" ]; then
+    shasum -a 512 ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.sha512
+  else
+    sha512sum ${dist_name}.tar.gz | diff - ${dist_name}.tar.gz.sha512
+  fi
 }
 
 run_tests() {
