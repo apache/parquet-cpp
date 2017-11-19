@@ -877,38 +877,54 @@ struct TransferFunctor<
 };
 
 static uint64_t BytesToInteger(const uint8_t* bytes, int32_t start, int32_t stop) {
+  using ::arrow::BitUtil::FromBigEndian;
+
   const int32_t length = stop - start;
 
   DCHECK_GE(length, 0);
   DCHECK_LE(length, 8);
 
   switch (length) {
-    // We can forego the loop if the number of bytes to convert is a power of two
     case 0:
       return 0;
+    case 1:
+      return bytes[start];
     case 2:
-      return ::arrow::BitUtil::FromBigEndian(
-          *reinterpret_cast<const uint16_t*>(bytes + start));
+      return FromBigEndian(*reinterpret_cast<const uint16_t*>(bytes + start));
+    case 3: {
+      const uint64_t first_two_bytes =
+          FromBigEndian(*reinterpret_cast<const uint16_t*>(bytes + start));
+      const uint64_t last_byte = bytes[stop - 1];
+      return first_two_bytes << 8 | last_byte;
+    }
     case 4:
-      return ::arrow::BitUtil::FromBigEndian(
-          *reinterpret_cast<const uint32_t*>(bytes + start));
+      return FromBigEndian(*reinterpret_cast<const uint32_t*>(bytes + start));
+    case 5: {
+      const uint64_t first_four_bytes =
+          FromBigEndian(*reinterpret_cast<const uint32_t*>(bytes + start));
+      const uint64_t last_byte = bytes[stop - 1];
+      return first_four_bytes << 8 | last_byte;
+    }
+    case 6: {
+      const uint64_t first_four_bytes =
+          FromBigEndian(*reinterpret_cast<const uint32_t*>(bytes + start));
+      const uint64_t last_two_bytes =
+          FromBigEndian(*reinterpret_cast<const uint16_t*>(bytes + start + 4));
+      return first_four_bytes << 16 | last_two_bytes;
+    }
+    case 7: {
+      const uint64_t first_four_bytes =
+          FromBigEndian(*reinterpret_cast<const uint32_t*>(bytes + start));
+      const uint64_t second_two_bytes =
+          FromBigEndian(*reinterpret_cast<const uint16_t*>(bytes + start + 4));
+      const uint64_t last_byte = bytes[stop - 1];
+      return first_four_bytes << 24 | second_two_bytes << 8 | last_byte;
+    }
     case 8:
-      return ::arrow::BitUtil::FromBigEndian(
-          *reinterpret_cast<const uint64_t*>(bytes + start));
+      return FromBigEndian(*reinterpret_cast<const uint64_t*>(bytes + start));
     default: {
-      // Take a slower path for non power-of-2 number of bytes
-      uint64_t value = 0;
-
-      const auto unsigned_stop = static_cast<uint64_t>(stop);
-
-      for (int32_t i = start; i < stop; ++i) {
-        const uint64_t bits_to_shift = (unsigned_stop - i - 1) * CHAR_BIT;
-        const uint64_t byte_value = bytes[i];
-        const uint64_t shifted_value = byte_value << bits_to_shift;
-        value |= shifted_value;
-      }
-
-      return value;
+      DCHECK(false);
+      return UINT64_MAX;
     }
   }
 }
