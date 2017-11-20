@@ -460,6 +460,11 @@ if ("${COMPILER_FAMILY}" STREQUAL "clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CLANG_OPTIONS}")
 endif()
 
+if ("${COMPILER_FAMILY}" STREQUAL "msvc")
+  # MSVC version of -Wno-deprecated
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")
+endif()
+
 ############################################################
 # "make lint" target
 ############################################################
