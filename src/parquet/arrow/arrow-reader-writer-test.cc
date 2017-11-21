@@ -23,8 +23,8 @@
 
 #include "gtest/gtest.h"
 
-#include <sstream>
 #include <arrow/compute/api.h>
+#include <sstream>
 
 #include "parquet/api/reader.h"
 #include "parquet/api/writer.h"
