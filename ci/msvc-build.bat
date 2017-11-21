@@ -28,7 +28,9 @@ if NOT "%CONFIGURATION%" == "Debug" (
 )
 
 if "%CONFIGURATION%" == "Toolchain" (
-  conda install -y boost-cpp=1.63 brotli=0.6.0 zlib=1.2.11 snappy=1.1.6 thrift-cpp=0.10.0 -c conda-forge
+  conda install -y boost-cpp=1.63 thrift-cpp=0.10.0 ^
+      brotli=0.6.0 zlib=1.2.11 snappy=1.1.6 lz4-c=1.7.5 zstd=1.2.0 ^
+      -c conda-forge
 
   set ARROW_BUILD_TOOLCHAIN=%MINICONDA%/Library
   set PARQUET_BUILD_TOOLCHAIN=%MINICONDA%/Library
