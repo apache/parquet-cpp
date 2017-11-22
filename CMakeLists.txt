@@ -562,7 +562,9 @@ else()
       NOT DEFINED ENV{BROTLI_STATIC_LIB_DEC} OR
       NOT DEFINED ENV{BROTLI_STATIC_LIB_COMMON} OR
       NOT DEFINED ENV{SNAPPY_STATIC_LIB} OR
-      NOT DEFINED ENV{ZLIB_STATIC_LIB})
+      NOT DEFINED ENV{ZLIB_STATIC_LIB} OR
+      NOT DEFINED ENV{LZ4_STATIC_LIB} OR
+      NOT DEFINED ENV{ZSTD_STATIC_LIB})
     message(FATAL_ERROR "Missing transitive dependencies for Arrow static linking")
   endif()
 
@@ -571,6 +573,8 @@ else()
   set(BROTLI_STATIC_LIB_COMMON "$ENV{BROTLI_STATIC_LIB_COMMON}")
   set(SNAPPY_STATIC_LIB "$ENV{SNAPPY_STATIC_LIB}")
   set(ZLIB_STATIC_LIB "$ENV{ZLIB_STATIC_LIB}")
+  set(LZ4_STATIC_LIB "$ENV{LZ4_STATIC_LIB}")
+  set(ZSTD_STATIC_LIB "$ENV{ZSTD_STATIC_LIB}")
 
   add_library(brotli_enc STATIC IMPORTED)
   set_target_properties(brotli_enc PROPERTIES IMPORTED_LOCATION ${BROTLI_STATIC_LIB_ENC})
@@ -582,6 +586,10 @@ else()
   set_target_properties(snappy PROPERTIES IMPORTED_LOCATION ${SNAPPY_STATIC_LIB})
   add_library(zlib STATIC IMPORTED)
   set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_STATIC_LIB})
+  add_library(lz4 STATIC IMPORTED)
+  set_target_properties(lz4 PROPERTIES IMPORTED_LOCATION ${LZ4_STATIC_LIB})
+  add_library(zstd STATIC IMPORTED)
+  set_target_properties(zstd PROPERTIES IMPORTED_LOCATION ${ZSTD_STATIC_LIB})
 
   set(TRANSITIVE_LINK_LIBS
     snappy
@@ -589,6 +597,8 @@ else()
     brotli_enc
     brotli_dec
     brotli_common
+    lz4
+    zstd
   )
 
   set(ARROW_LINK_LIBS
