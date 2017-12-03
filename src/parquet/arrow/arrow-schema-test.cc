@@ -62,8 +62,8 @@ class TestConvertParquetSchema : public ::testing::Test {
     for (int i = 0; i < expected_schema->num_fields(); ++i) {
       auto lhs = result_schema_->field(i);
       auto rhs = expected_schema->field(i);
-      EXPECT_TRUE(lhs->Equals(rhs)) << i << " " << lhs->ToString()
-                                    << " != " << rhs->ToString();
+      EXPECT_TRUE(lhs->Equals(rhs))
+          << i << " " << lhs->ToString() << " != " << rhs->ToString();
     }
   }
 
@@ -815,9 +815,8 @@ TEST(InvalidSchema, ParquetNegativeDecimalScale) {
       ::parquet::default_writer_properties();
   std::shared_ptr<SchemaDescriptor> result_schema;
 
-  ASSERT_RAISES(
-    IOError,
-    ToParquetSchema(arrow_schema.get(), *properties.get(), &result_schema));
+  ASSERT_RAISES(IOError,
+                ToParquetSchema(arrow_schema.get(), *properties.get(), &result_schema));
 }
 
 }  // namespace arrow
