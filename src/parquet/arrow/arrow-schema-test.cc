@@ -807,5 +807,18 @@ TEST_F(TestConvertArrowSchema, ParquetFlatDecimals) {
   CheckFlatSchema(parquet_fields);
 }
 
+TEST(InvalidSchema, ParquetNegativeDecimalScale) {
+  const auto& type = ::arrow::decimal(23, -2);
+  const auto& field = ::arrow::field("f0", type);
+  const auto& arrow_schema = ::arrow::schema({field});
+  std::shared_ptr<::parquet::WriterProperties> properties =
+      ::parquet::default_writer_properties();
+  std::shared_ptr<SchemaDescriptor> result_schema;
+
+  ASSERT_RAISES(
+    IOError,
+    ToParquetSchema(arrow_schema.get(), *properties.get(), &result_schema));
+}
+
 }  // namespace arrow
 }  // namespace parquet
