@@ -114,7 +114,7 @@ std::shared_ptr<::arrow::Table> TableFromVector(
   auto field = ::arrow::field("column", type, nullable);
   auto schema = ::arrow::schema({field});
   auto column = std::make_shared<::arrow::Column>(field, array);
-  return ::arrow::Table::Make(schema, {column});
+  return std::make_shared<::arrow::Table>(schema, std::vector<decltype(column)>{column});
 }
 
 template <>
@@ -137,7 +137,7 @@ std::shared_ptr<::arrow::Table> TableFromVector<BooleanType>(const std::vector<b
   auto schema = std::make_shared<::arrow::Schema>(
       std::vector<std::shared_ptr<::arrow::Field>>({field}));
   auto column = std::make_shared<::arrow::Column>(field, array);
-  return ::arrow::Table::Make(schema, {column});
+  return std::make_shared<::arrow::Table>(schema, std::vector<decltype(column)>{column});
 }
 
 template <bool nullable, typename ParquetType>
