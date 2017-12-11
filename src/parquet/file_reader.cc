@@ -86,7 +86,7 @@ std::unique_ptr<PageReader> RowGroupReader::GetColumnPageReader(int i) {
 const RowGroupMetaData* RowGroupReader::metadata() const { return contents_->metadata(); }
 
 // RowGroupReader::Contents implementation for the Parquet file specification
-class PARQUET_EXPORT SerializedRowGroup : public RowGroupReader::Contents {
+class SerializedRowGroup : public RowGroupReader::Contents {
  public:
   SerializedRowGroup(RandomAccessSource* source, FileMetaData* file_metadata,
                      int row_group_number, const ReaderProperties& props)
