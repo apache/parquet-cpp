@@ -19,8 +19,7 @@
 
 #include "parquet/column_reader.h"
 #include "parquet/column_writer.h"
-#include "parquet/file/reader-internal.h"
-#include "parquet/file/writer-internal.h"
+#include "parquet/file_reader-internal.h"
 #include "parquet/util/memory.h"
 
 namespace parquet {
@@ -33,8 +32,8 @@ std::unique_ptr<Int64Writer> BuildWriter(int64_t output_size, OutputStream* dst,
                                          ColumnChunkMetaDataBuilder* metadata,
                                          ColumnDescriptor* schema,
                                          const WriterProperties* properties) {
-  std::unique_ptr<SerializedPageWriter> pager(
-      new SerializedPageWriter(dst, Compression::UNCOMPRESSED, metadata));
+  std::unique_ptr<PageWriter> pager =
+      PageWriter::Open(dst, Compression::UNCOMPRESSED, metadata);
   return std::unique_ptr<Int64Writer>(
       new Int64Writer(metadata, std::move(pager), Encoding::PLAIN, properties));
 }

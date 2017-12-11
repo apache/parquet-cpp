@@ -27,9 +27,9 @@
 
 #include "parquet/column_reader.h"
 #include "parquet/column_scanner.h"
-#include "parquet/file/printer.h"
-#include "parquet/file/reader-internal.h"
-#include "parquet/file/reader.h"
+#include "parquet/file_reader-internal.h"
+#include "parquet/file_reader.h"
+#include "parquet/printer.h"
 #include "parquet/util/memory.h"
 
 using std::string;

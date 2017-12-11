@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "parquet/file/reader.h"
+#include "parquet/file_reader.h"
 
 #include <cstdio>
 #include <memory>
@@ -29,7 +29,7 @@
 #include "parquet/column_reader.h"
 #include "parquet/column_scanner.h"
 #include "parquet/exception.h"
-#include "parquet/file/reader-internal.h"
+#include "parquet/file_reader-internal.h"
 #include "parquet/types.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/memory.h"

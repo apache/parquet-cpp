@@ -19,8 +19,7 @@
 
 #include "parquet/column_reader.h"
 #include "parquet/column_writer.h"
-#include "parquet/file/reader-internal.h"
-#include "parquet/file/writer-internal.h"
+#include "parquet/file_reader-internal.h"
 #include "parquet/test-specialization.h"
 #include "parquet/test-util.h"
 #include "parquet/types.h"
@@ -74,8 +73,8 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
     sink_.reset(new InMemoryOutputStream());
     metadata_ = ColumnChunkMetaDataBuilder::Make(
         writer_properties_, this->descr_, reinterpret_cast<uint8_t*>(&thrift_metadata_));
-    std::unique_ptr<SerializedPageWriter> pager(
-        new SerializedPageWriter(sink_.get(), column_properties.codec, metadata_.get()));
+    std::unique_ptr<PageWriter> pager =
+        PageWriter::Open(sink_.get(), column_properties.codec, metadata_.get());
     WriterProperties::Builder wp_builder;
     if (column_properties.encoding == Encoding::PLAIN_DICTIONARY ||
         column_properties.encoding == Encoding::RLE_DICTIONARY) {

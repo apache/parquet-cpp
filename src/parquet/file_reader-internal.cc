@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "parquet/file/reader-internal.h"
+#include "parquet/file_reader-internal.h"
 
 #include <string.h>
 #include <algorithm>

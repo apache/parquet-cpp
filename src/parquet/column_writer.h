@@ -69,6 +69,28 @@ class PARQUET_EXPORT LevelEncoder {
   std::unique_ptr<::arrow::BitWriter> bit_packed_encoder_;
 };
 
+class PageWriter {
+ public:
+  virtual ~PageWriter() {}
+
+  static std::unique_ptr<PageWriter> Open(
+      OutputStream* sink, Compression::type codec, ColumnChunkMetaDataBuilder* metadata,
+      ::arrow::MemoryPool* pool = ::arrow::default_memory_pool());
+
+  // The Column Writer decides if dictionary encoding is used if set and
+  // if the dictionary encoding has fallen back to default encoding on reaching dictionary
+  // page limit
+  virtual void Close(bool has_dictionary, bool fallback) = 0;
+
+  virtual int64_t WriteDataPage(const CompressedDataPage& page) = 0;
+
+  virtual int64_t WriteDictionaryPage(const DictionaryPage& page) = 0;
+
+  virtual bool has_compressor() = 0;
+
+  virtual void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) = 0;
+};
+
 static constexpr int WRITE_BATCH_SIZE = 1000;
 class PARQUET_EXPORT ColumnWriter {
  public:
