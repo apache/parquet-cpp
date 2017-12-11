@@ -375,6 +375,7 @@ enable_testing()
 # Dependencies
 ############################################################
 
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -661,7 +662,7 @@ if (NOT MSVC)
 endif()
 
 # List of thrift output targets
-set(THRIFT_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/parquet)
+set(THRIFT_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/parquet)
 set(THRIFT_OUTPUT_FILES "${THRIFT_OUTPUT_DIR}/parquet_types.cpp")
 set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_types.h")
 set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_constants.cpp")
