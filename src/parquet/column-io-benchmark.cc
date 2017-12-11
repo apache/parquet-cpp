@@ -19,7 +19,8 @@
 
 #include "parquet/column_reader.h"
 #include "parquet/column_writer.h"
-#include "parquet/file_reader-internal.h"
+#include "parquet/file_reader.h"
+#include "parquet/parquet_types.h"
 #include "parquet/util/memory.h"
 
 namespace parquet {
@@ -109,8 +110,8 @@ BENCHMARK_TEMPLATE(BM_WriteInt64Column, Repetition::REPEATED, Compression::ZSTD)
 std::unique_ptr<Int64Reader> BuildReader(std::shared_ptr<Buffer>& buffer,
                                          int64_t num_values, ColumnDescriptor* schema) {
   std::unique_ptr<InMemoryInputStream> source(new InMemoryInputStream(buffer));
-  std::unique_ptr<SerializedPageReader> page_reader(
-      new SerializedPageReader(std::move(source), num_values, Compression::UNCOMPRESSED));
+  std::unique_ptr<PageReader> page_reader =
+      PageReader::Open(std::move(source), num_values, Compression::UNCOMPRESSED);
   return std::unique_ptr<Int64Reader>(new Int64Reader(schema, std::move(page_reader)));
 }
 

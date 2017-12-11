@@ -19,7 +19,7 @@
 
 #include "parquet/column_reader.h"
 #include "parquet/column_writer.h"
-#include "parquet/file_reader-internal.h"
+#include "parquet/parquet_types.h"
 #include "parquet/test-specialization.h"
 #include "parquet/test-util.h"
 #include "parquet/types.h"
@@ -62,8 +62,8 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
                    Compression::type compression = Compression::UNCOMPRESSED) {
     auto buffer = sink_->GetBuffer();
     std::unique_ptr<InMemoryInputStream> source(new InMemoryInputStream(buffer));
-    std::unique_ptr<SerializedPageReader> page_reader(
-        new SerializedPageReader(std::move(source), num_rows, compression));
+    std::unique_ptr<PageReader> page_reader =
+        PageReader::Open(std::move(source), num_rows, compression);
     reader_.reset(new TypedColumnReader<TestType>(this->descr_, std::move(page_reader)));
   }
 

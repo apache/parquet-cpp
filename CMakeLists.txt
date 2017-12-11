@@ -692,7 +692,6 @@ set(LIBPARQUET_SRCS
   src/parquet/column_writer.cc
   src/parquet/exception.cc
   src/parquet/file_reader.cc
-  src/parquet/file_reader-internal.cc
   src/parquet/file_writer.cc
   src/parquet/metadata.cc
   src/parquet/parquet_constants.cpp

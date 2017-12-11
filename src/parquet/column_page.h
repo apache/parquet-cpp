@@ -168,17 +168,6 @@ class DictionaryPage : public Page {
   bool is_sorted_;
 };
 
-// Abstract page iterator interface. This way, we can feed column pages to the
-// ColumnReader through whatever mechanism we choose
-class PageReader {
- public:
-  virtual ~PageReader() {}
-
-  // @returns: shared_ptr<Page>(nullptr) on EOS, std::shared_ptr<Page>
-  // containing new Page otherwise
-  virtual std::shared_ptr<Page> NextPage() = 0;
-};
-
 }  // namespace parquet
 
 #endif  // PARQUET_COLUMN_PAGE_H

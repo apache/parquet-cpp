@@ -26,8 +26,8 @@
 
 #include "parquet/column_reader.h"
 #include "parquet/column_writer.h"
-#include "parquet/file/reader.h"
-#include "parquet/file/writer.h"
+#include "parquet/file_reader.h"
+#include "parquet/file_writer.h"
 #include "parquet/schema.h"
 #include "parquet/statistics.h"
 #include "parquet/test-specialization.h"

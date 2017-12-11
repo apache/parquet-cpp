@@ -22,7 +22,7 @@
 
 #include "parquet/column_page.h"
 #include "parquet/encoding.h"
-#include "parquet/file/metadata.h"
+#include "parquet/metadata.h"
 #include "parquet/properties.h"
 #include "parquet/schema.h"
 #include "parquet/statistics.h"
