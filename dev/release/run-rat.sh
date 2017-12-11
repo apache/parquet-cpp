@@ -31,6 +31,7 @@ $RAT $1 \
   -e asan_symbolize.py \
   -e cpplint.py \
   -e pax_global_header \
+  -e clang_format_exclusions.txt \
   > rat.txt
 cat rat.txt
 UNAPPROVED=`cat rat.txt  | grep "Unknown Licenses" | head -n 1 | cut -d " " -f 1`
