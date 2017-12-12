@@ -375,6 +375,7 @@ enable_testing()
 # Dependencies
 ############################################################
 
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -661,7 +662,7 @@ if (NOT MSVC)
 endif()
 
 # List of thrift output targets
-set(THRIFT_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/parquet)
+set(THRIFT_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/parquet)
 set(THRIFT_OUTPUT_FILES "${THRIFT_OUTPUT_DIR}/parquet_types.cpp")
 set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_types.h")
 set(THRIFT_OUTPUT_FILES ${THRIFT_OUTPUT_FILES} "${THRIFT_OUTPUT_DIR}/parquet_constants.cpp")
@@ -683,30 +684,23 @@ add_custom_command(
 # Library config
 
 set(LIBPARQUET_SRCS
-  src/parquet/exception.cc
-  src/parquet/types.cc
-
   src/parquet/arrow/reader.cc
   src/parquet/arrow/record_reader.cc
   src/parquet/arrow/schema.cc
   src/parquet/arrow/writer.cc
-
   src/parquet/column_reader.cc
   src/parquet/column_scanner.cc
   src/parquet/column_writer.cc
-
-  src/parquet/file/metadata.cc
-  src/parquet/file/printer.cc
-  src/parquet/file/reader.cc
-  src/parquet/file/reader-internal.cc
-  src/parquet/file/writer.cc
-  src/parquet/file/writer-internal.cc
-
-  src/parquet/schema.cc
-  src/parquet/statistics.cc
-
+  src/parquet/exception.cc
+  src/parquet/file_reader.cc
+  src/parquet/file_writer.cc
+  src/parquet/metadata.cc
   src/parquet/parquet_constants.cpp
   src/parquet/parquet_types.cpp
+  src/parquet/printer.cc
+  src/parquet/schema.cc
+  src/parquet/statistics.cc
+  src/parquet/types.cc
   src/parquet/util/comparison.cc
   src/parquet/util/memory.cc
 )
@@ -785,7 +779,6 @@ endif()
 add_subdirectory(src/parquet)
 add_subdirectory(src/parquet/api)
 add_subdirectory(src/parquet/arrow)
-add_subdirectory(src/parquet/file)
 add_subdirectory(src/parquet/util)
 
 if (NOT MSVC)
