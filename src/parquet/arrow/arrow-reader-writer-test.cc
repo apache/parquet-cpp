@@ -811,13 +811,16 @@ TEST_F(TestInt96ParquetIO, ReadIntoTimestamp) {
   *(reinterpret_cast<int64_t*>(&(day.value))) =
       seconds * INT64_C(1000) * INT64_C(1000) * INT64_C(1000) + 145738543;
   // Compute the corresponding nanosecond timestamp
-  struct tm datetime = {0};
+  struct tm datetime;
+  memset(&datetime, 0, sizeof(struct tm));
   datetime.tm_year = 70;
   datetime.tm_mon = 0;
   datetime.tm_mday = 2;
   datetime.tm_hour = 11;
   datetime.tm_min = 35;
-  struct tm epoch = {0};
+  struct tm epoch;
+  memset(&epoch, 0, sizeof(struct tm));
+
   epoch.tm_year = 70;
   epoch.tm_mday = 1;
   // Nanoseconds since the epoch

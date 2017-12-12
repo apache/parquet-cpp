@@ -518,7 +518,7 @@ class DictEncoder : public Encoder<DType> {
     ClearIndices();
     PARQUET_THROW_NOT_OK(buffer->Resize(result_size, false));
     return buffer;
-  };
+  }
 
   void Put(const T* values, int num_values) override {
     for (int i = 0; i < num_values; i++) {
@@ -757,7 +757,7 @@ inline void DictEncoder<FLBAType>::WriteDict(uint8_t* buffer) {
 template <typename DType>
 inline int DictEncoder<DType>::WriteIndices(uint8_t* buffer, int buffer_len) {
   // Write bit width in first byte
-  *buffer = bit_width();
+  *buffer = static_cast<uint8_t>(bit_width());
   ++buffer;
   --buffer_len;
 

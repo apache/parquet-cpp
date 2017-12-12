@@ -188,9 +188,9 @@ int main(int argc, char** argv) {
     for (int i = 0; i < NUM_ROWS_PER_ROW_GROUP; i++) {
       parquet::ByteArray value;
       char hello[FIXED_LENGTH] = "parquet";
-      hello[7] = '0' + i / 100;
-      hello[8] = '0' + (i / 10) % 10;
-      hello[9] = '0' + i % 10;
+      hello[7] = '0' + static_cast<char>(i / 100);
+      hello[8] = '0' + static_cast<char>((i / 10) % 10);
+      hello[9] = '0' + static_cast<char>(i % 10);
       if (i % 2 == 0) {
         int16_t definition_level = 1;
         value.ptr = reinterpret_cast<const uint8_t*>(&hello[0]);
@@ -411,9 +411,9 @@ int main(int argc, char** argv) {
         assert(rows_read == 1);
         // Verify the value written
         char expected_value[FIXED_LENGTH] = "parquet";
-        expected_value[7] = '0' + i / 100;
-        expected_value[8] = '0' + (i / 10) % 10;
-        expected_value[9] = '0' + i % 10;
+        expected_value[7] = static_cast<char>('0' + i / 100);
+        expected_value[8] = static_cast<char>('0' + (i / 10) % 10);
+        expected_value[9] = static_cast<char>('0' + i % 10);
         if (i % 2 == 0) {  // only alternate values exist
           // There are no NULL values in the rows written
           assert(values_read == 1);

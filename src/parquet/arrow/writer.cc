@@ -912,11 +912,10 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
   }
   std::shared_ptr<Array> values_array = _values_array->Slice(values_offset, num_values);
 
-#define WRITE_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)               \
-  case ::arrow::Type::ArrowEnum:                                          \
-    return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(              \
-        column_writer, values_array, num_levels, def_levels, rep_levels); \
-    break;
+#define WRITE_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)  \
+  case ::arrow::Type::ArrowEnum:                             \
+    return TypedWriteBatch<ParquetType, ::arrow::ArrowType>( \
+        column_writer, values_array, num_levels, def_levels, rep_levels);
 
   switch (values_type) {
     case ::arrow::Type::UINT32: {
@@ -953,14 +952,13 @@ Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
       WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)
       WRITE_BATCH_CASE(TIME64, Time64Type, Int64Type)
     default:
-      std::stringstream ss;
-      ss << "Data type not supported as list value: " << values_array->type()->ToString();
-      return Status::NotImplemented(ss.str());
+      break;
   }
 
   PARQUET_CATCH_NOT_OK(column_writer->Close());
-
-  return Status::OK();
+  std::stringstream ss;
+  ss << "Data type not supported as list value: " << values_array->type()->ToString();
+  return Status::NotImplemented(ss.str());
 }
 
 Status FileWriter::WriteColumnChunk(const ::arrow::Array& array) {

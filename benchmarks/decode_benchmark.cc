@@ -86,7 +86,7 @@ class DeltaBitPackEncoder {
       // The bit width for this block is the number of bits needed to store
       // (max_delta - min_delta).
       int bit_width = arrow::BitUtil::NumRequiredBits(max_delta - min_delta);
-      mini_block_widths[i] = bit_width;
+      mini_block_widths[i] = static_cast<uint8_t>(bit_width);
 
       // Encode this mini blocking using min_delta and bit_width
       for (int j = 0; j < n; ++j) {

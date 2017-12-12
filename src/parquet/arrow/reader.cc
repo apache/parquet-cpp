@@ -122,7 +122,7 @@ class AllRowGroupsIterator : public FileColumnIterator {
       result = nullptr;
     }
     return result;
-  };
+  }
 
  private:
   int next_row_group_;
@@ -145,7 +145,7 @@ class SingleRowGroupIterator : public FileColumnIterator {
         reader_->RowGroup(row_group_number_)->GetColumnPageReader(column_index_);
     done_ = true;
     return result;
-  };
+  }
 
  private:
   int row_group_number_;
@@ -631,7 +631,7 @@ Status PrimitiveImpl::WrapIntoListArray(std::shared_ptr<Array>* array) {
       if (nullable[i]) {
         def_level++;
       }
-      empty_def_level[i] = def_level;
+      empty_def_level[i] = static_cast<int16_t>(def_level);
       def_level++;
     }
 
