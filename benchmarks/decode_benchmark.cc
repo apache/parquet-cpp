@@ -302,6 +302,7 @@ void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& d
   printf("\n%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n", codec->name(),
          uncompressed_len, static_cast<int>(compressed_len));
 
+
   double mult = num_iters * data.size() * 1000.;
   parquet::StopWatch sw;
   sw.Start();
