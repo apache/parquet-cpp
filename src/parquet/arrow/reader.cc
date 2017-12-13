@@ -298,8 +298,8 @@ Status FileReader::Impl::GetReaderForNode(
       // TODO(itaiin): Remove the -1 index hack when all types of nested reads
       // are supported. This currently just signals the lower level reader resolution
       // to abort
-      RETURN_NOT_OK(GetReaderForNode(index, group->field(i).get(), indices, def_level + 1,
-                                     &child_reader));
+      RETURN_NOT_OK(GetReaderForNode(index, group->field(i).get(), indices,
+                                     static_cast<int16_t>(def_level + 1), &child_reader));
       if (child_reader != nullptr) {
         children.push_back(std::move(child_reader));
       }

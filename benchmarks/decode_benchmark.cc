@@ -42,32 +42,33 @@ class DeltaBitPackEncoder {
 
   uint8_t* Encode(int* encoded_len) {
     uint8_t* result = new uint8_t[10 * 1024 * 1024];
-    int num_mini_blocks = arrow::BitUtil::Ceil(num_values() - 1, mini_block_size_);
+    int num_mini_blocks = static_cast<int>(arrow::BitUtil::Ceil(num_values() - 1,
+                                                                mini_block_size_));
     uint8_t* mini_block_widths = NULL;
 
     arrow::BitWriter writer(result, 10 * 1024 * 1024);
 
     // Writer the size of each block. We only use 1 block currently.
-    writer.PutVlqInt(num_mini_blocks * mini_block_size_);
+    writer.PutVlqInt(static_cast<uint32_t>(num_mini_blocks * mini_block_size_));
 
     // Write the number of mini blocks.
-    writer.PutVlqInt(num_mini_blocks);
+    writer.PutVlqInt(static_cast<uint32_t>(num_mini_blocks));
 
     // Write the number of values.
     writer.PutVlqInt(num_values() - 1);
 
     // Write the first value.
-    writer.PutZigZagVlqInt(values_[0]);
+    writer.PutZigZagVlqInt(static_cast<uint32_t>(values_[0]));
 
     // Compute the values as deltas and the min delta.
     int64_t min_delta = std::numeric_limits<int64_t>::max();
-    for (int i = values_.size() - 1; i > 0; --i) {
+    for (size_t i = values_.size() - 1; i > 0; --i) {
       values_[i] -= values_[i - 1];
       min_delta = std::min(min_delta, values_[i]);
     }
 
     // Write out the min delta.
-    writer.PutZigZagVlqInt(min_delta);
+    writer.PutZigZagVlqInt(static_cast<int32_t>(min_delta));
 
     // We need to save num_mini_blocks bytes to store the bit widths of the mini
     // blocks.
@@ -105,7 +106,7 @@ class DeltaBitPackEncoder {
     return result;
   }
 
-  int num_values() const { return values_.size(); }
+  int num_values() const { return static_cast<int>(values_.size()); }
 
  private:
   int mini_block_size_;
@@ -121,11 +122,11 @@ class DeltaLengthByteArrayEncoder {
         plain_encoded_len_(0) {}
 
   void Add(const std::string& s) {
-    Add(reinterpret_cast<const uint8_t*>(s.data()), s.size());
+    Add(reinterpret_cast<const uint8_t*>(s.data()), static_cast<int>(s.size()));
   }
 
   void Add(const uint8_t* ptr, int len) {
-    plain_encoded_len_ += len + sizeof(int);
+    plain_encoded_len_ += static_cast<int>(len + sizeof(int));
     len_encoder_.Add(len);
     memcpy(buffer_ + offset_, ptr, len);
     offset_ += len;
@@ -136,7 +137,7 @@ class DeltaLengthByteArrayEncoder {
     memmove(buffer_ + *encoded_len + sizeof(int), buffer_, offset_);
     memcpy(buffer_, encoded_len, sizeof(int));
     memcpy(buffer_ + sizeof(int), encoded_lengths, *encoded_len);
-    *encoded_len += offset_ + sizeof(int);
+    *encoded_len += static_cast<int>(offset_ + sizeof(int));
     return buffer_;
   }
 
@@ -155,8 +156,8 @@ class DeltaByteArrayEncoder {
   DeltaByteArrayEncoder() : plain_encoded_len_(0) {}
 
   void Add(const std::string& s) {
-    plain_encoded_len_ += s.size() + sizeof(int);
-    int min_len = std::min(s.size(), last_value_.size());
+    plain_encoded_len_ += static_cast<int>(s.size() + sizeof(int));
+    int min_len = static_cast<int>(std::min(s.size(), last_value_.size()));
     int prefix_len = 0;
     for (int i = 0; i < min_len; ++i) {
       if (s[i] == last_value_[i]) {
@@ -167,7 +168,7 @@ class DeltaByteArrayEncoder {
     }
     prefix_len_encoder_.Add(prefix_len);
     suffix_encoder_.Add(reinterpret_cast<const uint8_t*>(s.data()) + prefix_len,
-                        s.size() - prefix_len);
+                        static_cast<int>(s.size() - prefix_len));
     last_value_ = s;
   }
 
@@ -181,7 +182,7 @@ class DeltaByteArrayEncoder {
     memcpy(buffer, &prefix_buffer_len, sizeof(int));
     memcpy(buffer + sizeof(int), prefix_buffer, prefix_buffer_len);
     memcpy(buffer + sizeof(int) + prefix_buffer_len, suffix_buffer, suffix_buffer_len);
-    *encoded_len = sizeof(int) + prefix_buffer_len + suffix_buffer_len;
+    *encoded_len = static_cast<int>(sizeof(int) + prefix_buffer_len + suffix_buffer_len);
     return buffer;
   }
 
@@ -198,7 +199,7 @@ class DeltaByteArrayEncoder {
 uint64_t TestPlainIntEncoding(const uint8_t* data, int num_values, int batch_size) {
   uint64_t result = 0;
   parquet::PlainDecoder<parquet::Int64Type> decoder(nullptr);
-  decoder.SetData(num_values, data, num_values * sizeof(int64_t));
+  decoder.SetData(num_values, data, static_cast<int>(num_values * sizeof(int64_t)));
   std::vector<int64_t> values(batch_size);
   for (int i = 0; i < num_values;) {
     int n = decoder.Decode(values.data(), batch_size);
@@ -227,14 +228,15 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
     encoder.Add(values[i]);
   }
 
-  int raw_len = encoder.num_values() * sizeof(int);
+  int raw_len = static_cast<int>(encoder.num_values() * sizeof(int));
   int len;
   uint8_t* buffer = encoder.Encode(&len);
 
   if (benchmark_iters == -1) {
     printf("%s\n", name);
     printf("  Raw len: %d\n", raw_len);
-    printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / static_cast<float>(raw_len));
+    printf("  Encoded len: %d (%0.2f%%)\n", len,
+           static_cast<float>(len) * 100.0f / static_cast<float>(raw_len));
     decoder.SetData(encoder.num_values(), buffer, len);
     for (int i = 0; i < encoder.num_values(); ++i) {
       int64_t x = 0;
@@ -249,7 +251,8 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
   } else {
     printf("%s\n", name);
     printf("  Raw len: %d\n", raw_len);
-    printf("  Encoded len: %d (%0.2f%%)\n", len, len * 100 / static_cast<float>(raw_len));
+    printf("  Encoded len: %d (%0.2f%%)\n", len,
+           static_cast<float>(len) * 100.0f / static_cast<float>(raw_len));
 
     uint64_t result = 0;
     std::vector<int64_t> buf(benchmark_batch_size);
@@ -266,9 +269,9 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
       }
     }
     uint64_t elapsed = sw.Stop();
-    double num_ints = values.size() * benchmark_iters * 1000.;
+    double num_ints = static_cast<double>(values.size() * benchmark_iters) * 1000.;
     printf("%s rate (batch size = %2d): %0.3fM per second.\n", name, benchmark_batch_size,
-           num_ints / elapsed);
+           num_ints / static_cast<double>(elapsed));
     return result;
   }
 }
@@ -285,10 +288,10 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
 void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& data,
                             int num_iters, int batch_size) {
   const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(&data[0]);
-  int uncompressed_len = data.size() * sizeof(int64_t);
+  int uncompressed_len = static_cast<int>(data.size() * sizeof(int64_t));
   uint8_t* decompressed_data = new uint8_t[uncompressed_len];
 
-  int max_compressed_size = codec->MaxCompressedLen(uncompressed_len, raw_data);
+  int64_t max_compressed_size = codec->MaxCompressedLen(uncompressed_len, raw_data);
   uint8_t* compressed_data = new uint8_t[max_compressed_size];
   int64_t compressed_len;
   DCHECK(codec

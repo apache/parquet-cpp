@@ -1672,7 +1672,7 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
       leaf1_def_levels[i] = (i % 3 == 0) ? 0 : 1;
       // leaf2 is optional, can be null in the primitive (def-level 1) or
       // struct level (def-level 0)
-      leaf2_def_levels[i] = i % 3;
+      leaf2_def_levels[i] = static_cast<int16_t>(i % 3);
       // leaf3 is required
       leaf3_def_levels[i] = 0;
     }

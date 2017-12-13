@@ -186,7 +186,7 @@ class LevelBuilder {
     if (nullable_[rep_level]) {
       if (null_counts_[rep_level] == 0 ||
           BitUtil::GetBit(valid_bitmaps_[rep_level], index + array_offsets_[rep_level])) {
-        return HandleNonNullList(def_level + 1, rep_level, index);
+        return HandleNonNullList(static_cast<int16_t>(def_level + 1), rep_level, index);
       } else {
         return def_levels_.Append(def_level);
       }
@@ -203,24 +203,26 @@ class LevelBuilder {
       return def_levels_.Append(def_level);
     }
     if (recursion_level < static_cast<int64_t>(offsets_.size())) {
-      return HandleListEntries(def_level + 1, rep_level + 1, inner_offset, inner_length);
+      return HandleListEntries(static_cast<int16_t>(def_level + 1),
+                               static_cast<int16_t>(rep_level + 1), inner_offset,
+                               inner_length);
     } else {
       // We have reached the leaf: primitive list, handle remaining nullables
       for (int64_t i = 0; i < inner_length; i++) {
         if (i > 0) {
-          RETURN_NOT_OK(rep_levels_.Append(rep_level + 1));
+          RETURN_NOT_OK(rep_levels_.Append(static_cast<int16_t>(rep_level + 1)));
         }
         if (nullable_[recursion_level] &&
             ((null_counts_[recursion_level] == 0) ||
              BitUtil::GetBit(valid_bitmaps_[recursion_level],
                              inner_offset + i + array_offsets_[recursion_level]))) {
-          RETURN_NOT_OK(def_levels_.Append(def_level + 2));
+          RETURN_NOT_OK(def_levels_.Append(static_cast<int16_t>(def_level + 2)));
         } else {
           // This can be produced in two case:
           //  * elements are nullable and this one is null (i.e. max_def_level = def_level
           //  + 2)
           //  * elements are non-nullable (i.e. max_def_level = def_level + 1)
-          RETURN_NOT_OK(def_levels_.Append(def_level + 1));
+          RETURN_NOT_OK(def_levels_.Append(static_cast<int16_t>(def_level + 1)));
         }
       }
       return Status::OK();
