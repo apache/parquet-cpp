@@ -177,8 +177,11 @@ set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -std=c++11")
 endif()
 
 if ("${COMPILER_FAMILY}" STREQUAL "msvc")
+  # Support large object code
+  set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} /bigobj")
+
   # MSVC version of -Wno-deprecated
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")
+  set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} /wd4996")
 endif()
 
 if (PARQUET_USE_SSE)
