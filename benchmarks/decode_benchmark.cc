@@ -283,7 +283,7 @@ uint64_t TestBinaryPackedEncoding(const char* name, const std::vector<int64_t>& 
   }                                                                            \
   elapsed = sw.Stop();                                                         \
   printf("%s rate (batch size = %2d): %0.3fM per second.\n", NAME, BATCH_SIZE, \
-         mult / elapsed);
+         mult / static_cast<double>(elapsed));
 
 void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& data,
                             int num_iters, int batch_size) {
@@ -302,19 +302,19 @@ void TestPlainIntCompressed(::arrow::Codec* codec, const std::vector<int64_t>& d
   printf("\n%s:\n  Uncompressed len: %d\n  Compressed len:   %d\n", codec->name(),
          uncompressed_len, static_cast<int>(compressed_len));
 
-
-  double mult = num_iters * data.size() * 1000.;
+  double mult = static_cast<double>(num_iters * data.size()) * 1000.;
   parquet::StopWatch sw;
   sw.Start();
   uint64_t r = 0;
   for (int i = 0; i < num_iters; ++i) {
     ABORT_NOT_OK(codec->Decompress(compressed_len, compressed_data, uncompressed_len,
                                    decompressed_data));
-    r += TestPlainIntEncoding(decompressed_data, data.size(), batch_size);
+    r += TestPlainIntEncoding(decompressed_data, static_cast<int>(data.size()),
+                              batch_size);
   }
   int64_t elapsed = sw.Stop();
   printf("Compressed(%s) plain int rate (batch size = %2d): %0.3fM per second.\n",
-         codec->name(), batch_size, mult / elapsed);
+         codec->name(), batch_size, mult / static_cast<double>(elapsed));
 
   delete[] compressed_data;
   delete[] decompressed_data;
