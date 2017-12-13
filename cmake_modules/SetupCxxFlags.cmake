@@ -92,6 +92,8 @@ if ("${UPPERCASE_BUILD_WARNING_LEVEL}" STREQUAL "CHECKIN")
 -Wno-gnu-zero-variadic-macro-arguments -Wconversion -Wno-sign-conversion \
 -Wno-disabled-macro-expansion -Wno-shorten-64-to-32")
 
+    message(STATUS "Clang version: ${COMPILER_VERSION}")
+
     # Version numbers where warnings are introduced
     if ("${COMPILER_VERSION}" VERSION_GREATER "3.3")
       set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wno-gnu-folding-constant")

@@ -51,7 +51,7 @@ elseif("${COMPILER_VERSION_FULL}" MATCHES ".*based on LLVM.*")
 # clang on Mac OS X, XCode 7+.
 elseif("${COMPILER_VERSION_FULL}" MATCHES ".*clang-.*")
   set(COMPILER_FAMILY "clang")
-
+  set(COMPILER_VERSION "4.0")
 # gcc
 elseif("${COMPILER_VERSION_FULL_LOWER}" MATCHES ".*gcc[ -]version.*")
   set(COMPILER_FAMILY "gcc")
