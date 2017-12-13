@@ -86,7 +86,7 @@ if ("${UPPERCASE_BUILD_WARNING_LEVEL}" STREQUAL "CHECKIN")
 -Wno-implicit-fallthrough -Wno-unreachable-code-return \
 -Wno-float-equal -Wno-missing-prototypes \
 -Wno-old-style-cast -Wno-covered-switch-default \
--Wno-format-nonliteral \
+-Wno-format-nonliteral -Wno-missing-noreturn \
 -Wno-cast-align -Wno-vla-extension -Wno-shift-sign-overflow \
 -Wno-used-but-marked-unused -Wno-missing-variable-declarations \
 -Wno-gnu-zero-variadic-macro-arguments -Wconversion -Wno-sign-conversion \
