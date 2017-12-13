@@ -342,20 +342,21 @@ Status FileWriter::Impl::TypedWriteBatch(ColumnWriter* column_writer,
                                          const int16_t* rep_levels) {
   using ArrowCType = typename ArrowType::c_type;
 
-  auto data = static_cast<const PrimitiveArray*>(array.get());
-  auto data_ptr = reinterpret_cast<const ArrowCType*>(data->raw_values());
+  const auto& data = static_cast<const PrimitiveArray&>(*array);
+  auto data_ptr =
+      reinterpret_cast<const ArrowCType*>(data.values()->data()) + data.offset();
   auto writer = reinterpret_cast<TypedColumnWriter<ParquetType>*>(column_writer);
 
-  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
+  if (writer->descr()->schema_node()->is_required() || (data.null_count() == 0)) {
     // no nulls, just dump the data
     RETURN_NOT_OK((WriteNonNullableBatch<ParquetType, ArrowType>(
         writer, static_cast<const ArrowType&>(*array->type()), array->length(),
         num_levels, def_levels, rep_levels, data_ptr)));
   } else {
-    const uint8_t* valid_bits = data->null_bitmap_data();
+    const uint8_t* valid_bits = data.null_bitmap_data();
     RETURN_NOT_OK((WriteNullableBatch<ParquetType, ArrowType>(
-        writer, static_cast<const ArrowType&>(*array->type()), data->length(), num_levels,
-        def_levels, rep_levels, valid_bits, data->offset(), data_ptr)));
+        writer, static_cast<const ArrowType&>(*array->type()), data.length(), num_levels,
+        def_levels, rep_levels, valid_bits, data.offset(), data_ptr)));
   }
   PARQUET_CATCH_NOT_OK(writer->Close());
   return Status::OK();
