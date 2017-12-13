@@ -129,6 +129,10 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_BUILD_BENCHMARKS
     "Build the libparquet benchmark suite"
     OFF)
+
+  set(PARQUET_BUILD_WARNING_LEVEL "PRODUCTION" CACHE STRING
+    "Levels of compiler warnings for development: PRODUCTION/CHECKIN/EVERYTHING")
+
   option(PARQUET_BOOST_USE_SHARED
     "Rely on boost shared libraries where relevant"
     ON)
@@ -375,6 +379,10 @@ enable_testing()
 # Dependencies
 ############################################################
 
+# Determine compiler version
+include(CompilerInfo)
+include(SetupCxxFlags)
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -388,83 +396,17 @@ else()
 endif()
 include(ThirdpartyToolchain)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_COMMON_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PARQUET_CXXFLAGS}")
+
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+
 # Thrift requires these definitions for some types that we use
 add_definitions(-DHAVE_INTTYPES_H -DHAVE_NETDB_H)
 if (MSVC)
   add_definitions(-DNOMINMAX -D_CRT_SECURE_NO_WARNINGS)
 else()
   add_definitions(-DHAVE_NETINET_IN_H -fPIC)
-endif()
-
-#############################################################
-# Compiler flags and release types
-
-# compiler flags for different build types (run 'cmake -DCMAKE_BUILD_TYPE=<type> .')
-# For all builds:
-# For CMAKE_BUILD_TYPE=Debug
-#   -ggdb: Enable gdb debugging
-# For CMAKE_BUILD_TYPE=FastDebug
-#   Same as DEBUG, except with -O1
-# For CMAKE_BUILD_TYPE=Release
-#   -O3: Enable all compiler optimizations
-#   Debug symbols are stripped for reduced binary size. Add
-#   -DPARQUET_CXXFLAGS="-g" to include them
-if (MSVC)
-  set(CXX_FLAGS_DEBUG "${CXX_FLAGS_DEBUG} /bigobj") # TODO set /bigobj only for specific lib
-else()
-  set(CXX_FLAGS_DEBUG "-ggdb -O0")
-  set(CXX_FLAGS_FASTDEBUG "-ggdb -O1")
-  set(CXX_FLAGS_RELEASE "-O3")
-endif()
-
-string (TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
-
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_DEBUG}")
-
-elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "FASTDEBUG")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_FASTDEBUG}")
-elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RELEASE")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_RELEASE}")
-else()
-  message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}")
-endif ()
-
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-
-set(CMAKE_CXX_FLAGS "${PARQUET_CXXFLAGS} ${CMAKE_CXX_FLAGS}")
-if (MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
-else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing -Wall")
-endif()
-
-if (PARQUET_USE_SSE)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-  add_definitions(-DPARQUET_USE_SSE)
-endif()
-
-if (APPLE)
-  # Use libc++ to avoid linker errors on some platforms
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif()
-
-# Determine compiler version
-include(CompilerInfo)
-
-if ("${COMPILER_FAMILY}" STREQUAL "clang")
-  # Using Clang with ccache causes a bunch of spurious warnings that are
-  # purportedly fixed in the next version of ccache. See the following for details:
-  #
-  #   http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html
-  #   http://petereisentraut.blogspot.com/2011/09/ccache-and-clang-part-2.html
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Qunused-arguments")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CLANG_OPTIONS}")
-endif()
-
-if ("${COMPILER_FAMILY}" STREQUAL "msvc")
-  # MSVC version of -Wno-deprecated
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")
 endif()
 
 ############################################################
