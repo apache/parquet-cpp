@@ -325,14 +325,19 @@ class ArrowColumnWriter {
 
     int64_t values_written = 0;
     while (values_written < size) {
-      const Array& chunk = *data.chunk(chunk_index++);
-      const int64_t chunk_write_size = std::min(size - values_written, chunk.length());
+      const Array& chunk = *data.chunk(chunk_index);
+      const int64_t available_values = chunk.length() - chunk_offset;
+      const int64_t chunk_write_size = std::min(size - values_written, available_values);
 
       // The chunk offset here will be 0 except for possibly the first chunk
       // because of the advancing logic above
       std::shared_ptr<Array> array_to_write = chunk.Slice(chunk_offset, chunk_write_size);
       RETURN_NOT_OK(Write(*array_to_write));
-      chunk_offset = 0;
+
+      if (chunk_write_size == available_values) {
+        chunk_offset = 0;
+        ++chunk_index;
+      }
       values_written += chunk_write_size;
     }
 
