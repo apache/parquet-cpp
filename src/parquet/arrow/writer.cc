@@ -71,8 +71,7 @@ namespace {
 class LevelBuilder {
  public:
   explicit LevelBuilder(MemoryPool* pool)
-      : def_levels_(::arrow::int16(), pool),
-        rep_levels_(::arrow::int16(), pool) {}
+      : def_levels_(::arrow::int16(), pool), rep_levels_(::arrow::int16(), pool) {}
 
   Status VisitInline(const Array& array);
 
@@ -110,8 +109,7 @@ class LevelBuilder {
   NOT_IMPLEMENTED_VISIT(Interval)
 
   Status GenerateLevels(const Array& array, const std::shared_ptr<Field>& field,
-                        int64_t* values_offset, int64_t* num_values,
-                        int64_t* num_levels,
+                        int64_t* values_offset, int64_t* num_values, int64_t* num_levels,
                         std::shared_ptr<PoolBuffer>* def_levels,
                         std::shared_ptr<PoolBuffer>* rep_levels,
                         std::shared_ptr<Array>* values_array) {
@@ -142,8 +140,7 @@ class LevelBuilder {
       *rep_levels = nullptr;
       if (nullable_[0]) {
         RETURN_NOT_OK(def_levels->Resize(array.length() * sizeof(int16_t), false));
-        auto def_levels_ptr =
-            reinterpret_cast<int16_t*>(def_levels->mutable_data());
+        auto def_levels_ptr = reinterpret_cast<int16_t*>(def_levels->mutable_data());
         if (array.null_count() == 0) {
           std::fill(def_levels_ptr, def_levels_ptr + array.length(), 1);
         } else if (array.null_count() == array.length()) {
@@ -152,11 +149,7 @@ class LevelBuilder {
           ::arrow::internal::BitmapReader valid_bits_reader(
               array.null_bitmap_data(), array.offset(), array.length());
           for (int i = 0; i < array.length(); i++) {
-            if (valid_bits_reader.IsSet()) {
-              def_levels_ptr[i] = 1;
-            } else {
-              def_levels_ptr[i] = 0;
-            }
+            def_levels_ptr[i] = valid_bits_reader.IsSet() ? 1 : 0;
             valid_bits_reader.Next();
           }
         }
@@ -260,8 +253,7 @@ Status LevelBuilder::VisitInline(const Array& array) {
 
 struct ColumnWriterContext {
   ColumnWriterContext(MemoryPool* memory_pool, ArrowWriterProperties* properties)
-      : memory_pool(memory_pool), properties(properties),
-        data_buffer(memory_pool) {
+      : memory_pool(memory_pool), properties(properties), data_buffer(memory_pool) {
     this->def_level_buffer = std::make_shared<PoolBuffer>(memory_pool);
   }
 
@@ -326,10 +318,10 @@ class ArrowColumnWriter {
     }
     std::shared_ptr<Array> values_array = _values_array->Slice(values_offset, num_values);
 
-#define WRITE_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)             \
-    case ::arrow::Type::ArrowEnum:                                      \
-      return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(          \
-          *values_array, num_levels, def_levels, rep_levels);
+#define WRITE_BATCH_CASE(ArrowEnum, ArrowType, ParquetType)                            \
+  case ::arrow::Type::ArrowEnum:                                                       \
+    return TypedWriteBatch<ParquetType, ::arrow::ArrowType>(*values_array, num_levels, \
+                                                            def_levels, rep_levels);
 
     switch (values_type) {
       case ::arrow::Type::UINT32: {
@@ -345,31 +337,69 @@ class ArrowColumnWriter {
       }
         WRITE_BATCH_CASE(NA, NullType, Int32Type)
       case ::arrow::Type::TIMESTAMP:
-          return WriteTimestamps(values_array, num_levels, def_levels, rep_levels);
+        return WriteTimestamps(values_array, num_levels, def_levels, rep_levels);
         WRITE_BATCH_CASE(BOOL, BooleanType, BooleanType)
-          WRITE_BATCH_CASE(INT8, Int8Type, Int32Type)
-          WRITE_BATCH_CASE(UINT8, UInt8Type, Int32Type)
-          WRITE_BATCH_CASE(INT16, Int16Type, Int32Type)
-          WRITE_BATCH_CASE(UINT16, UInt16Type, Int32Type)
-          WRITE_BATCH_CASE(INT32, Int32Type, Int32Type)
-          WRITE_BATCH_CASE(INT64, Int64Type, Int64Type)
-          WRITE_BATCH_CASE(UINT64, UInt64Type, Int64Type)
-          WRITE_BATCH_CASE(FLOAT, FloatType, FloatType)
-          WRITE_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
-          WRITE_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
-          WRITE_BATCH_CASE(STRING, BinaryType, ByteArrayType)
-          WRITE_BATCH_CASE(FIXED_SIZE_BINARY, FixedSizeBinaryType, FLBAType)
-          WRITE_BATCH_CASE(DECIMAL, Decimal128Type, FLBAType)
-          WRITE_BATCH_CASE(DATE32, Date32Type, Int32Type)
-          WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
-          WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)
-          WRITE_BATCH_CASE(TIME64, Time64Type, Int64Type)
+        WRITE_BATCH_CASE(INT8, Int8Type, Int32Type)
+        WRITE_BATCH_CASE(UINT8, UInt8Type, Int32Type)
+        WRITE_BATCH_CASE(INT16, Int16Type, Int32Type)
+        WRITE_BATCH_CASE(UINT16, UInt16Type, Int32Type)
+        WRITE_BATCH_CASE(INT32, Int32Type, Int32Type)
+        WRITE_BATCH_CASE(INT64, Int64Type, Int64Type)
+        WRITE_BATCH_CASE(UINT64, UInt64Type, Int64Type)
+        WRITE_BATCH_CASE(FLOAT, FloatType, FloatType)
+        WRITE_BATCH_CASE(DOUBLE, DoubleType, DoubleType)
+        WRITE_BATCH_CASE(BINARY, BinaryType, ByteArrayType)
+        WRITE_BATCH_CASE(STRING, BinaryType, ByteArrayType)
+        WRITE_BATCH_CASE(FIXED_SIZE_BINARY, FixedSizeBinaryType, FLBAType)
+        WRITE_BATCH_CASE(DECIMAL, Decimal128Type, FLBAType)
+        WRITE_BATCH_CASE(DATE32, Date32Type, Int32Type)
+        WRITE_BATCH_CASE(DATE64, Date64Type, Int32Type)
+        WRITE_BATCH_CASE(TIME32, Time32Type, Int32Type)
+        WRITE_BATCH_CASE(TIME64, Time64Type, Int64Type)
       default:
-          break;
+        break;
     }
     std::stringstream ss;
     ss << "Data type not supported as list value: " << values_array->type()->ToString();
     return Status::NotImplemented(ss.str());
+  }
+
+  Status Write(const ChunkedArray& data, int64_t offset, const int64_t size) {
+    int64_t absolute_position = 0;
+    int chunk_index = 0;
+    int chunk_offset = 0;
+    while (chunk_index < data->num_chunks() && absolute_position < offset) {
+      const int64_t chunk_length = data->chunk(chunk_index)->length();
+      if (absolute_position + chunk_length > offset) {
+        // Relative offset into the chunk to reach the desired start offset for
+        // writing
+        chunk_offset = offset - absolute_position;
+        break;
+      } else {
+        ++chunk_index;
+        absolute_position += chunk_length;
+      }
+    }
+
+    if (absolute_position >= data.length()) {
+      return Status::Invalid("Cannot write data at offset past end of chunked array");
+    }
+
+    int64_t values_written = 0;
+    while (values_written < size) {
+      const Array& chunk = *data->chunk(chunk_index++);
+      const int64_t chunk_write_size = std::min(size - values_written, chunk.length());
+
+      // The chunk offset here will be 0 except for possibly the first chunk
+      // because of the advancing logic above
+      std::shared_ptr<Array> array_to_write =
+          chunk->Slice(chunk_offset, chunk_write_size);
+      RETURN_NOT_OK(arrow_writer.Write(*array_to_write));
+      chunk_offset = 0;
+      values_written += chunk_write_size;
+    }
+
+    return Status::OK();
   }
 
   Status Close() {
@@ -379,13 +409,11 @@ class ArrowColumnWriter {
 
  private:
   template <typename ParquetType, typename ArrowType>
-  Status TypedWriteBatch(const Array& data,
-                         int64_t num_levels, const int16_t* def_levels,
+  Status TypedWriteBatch(const Array& data, int64_t num_levels, const int16_t* def_levels,
                          const int16_t* rep_levels);
 
-  Status WriteTimestamps(const std::shared_ptr<Array>& data,
-                         int64_t num_levels, const int16_t* def_levels,
-                         const int16_t* rep_levels);
+  Status WriteTimestamps(const std::shared_ptr<Array>& data, int64_t num_levels,
+                         const int16_t* def_levels, const int16_t* rep_levels);
 
   Status WriteTimestampsCoerce(const std::shared_ptr<Array>& data, int64_t num_levels,
                                const int16_t* def_levels, const int16_t* rep_levels);
@@ -394,13 +422,34 @@ class ArrowColumnWriter {
   Status WriteNonNullableBatch(const ArrowType& type, int64_t num_values,
                                int64_t num_levels, const int16_t* def_levels,
                                const int16_t* rep_levels,
-                               const typename ArrowType::c_type* data_ptr);
+                               const typename ArrowType::c_type* values);
 
   template <typename ParquetType, typename ArrowType>
   Status WriteNullableBatch(const ArrowType& type, int64_t num_values, int64_t num_levels,
                             const int16_t* def_levels, const int16_t* rep_levels,
                             const uint8_t* valid_bits, int64_t valid_bits_offset,
-                            const typename ArrowType::c_type* data_ptr);
+                            const typename ArrowType::c_type* values);
+
+  template <typename ParquetType>
+  Status WriteBatch(int64_t num_values, const int16_t* def_levels,
+                    const int16_t* rep_levels,
+                    const typename ParquetType::c_type* values) {
+    auto typed_writer = static_cast<TypedColumnWriter<ParquetType>*>(writer_);
+    PARQUET_CATCH_NOT_OK(
+        typed_writer->WriteBatch(num_levels, def_levels, rep_levels, values));
+    return Status::OK();
+  }
+
+  template <typename ParquetType>
+  void WriteBatchSpaced(int64_t num_values, const int16_t* def_levels,
+                        const int16_t* rep_levels, const uint8_t* valid_bits,
+                        int64_t valid_bits_offset,
+                        const typename ParquetType::c_type* values) {
+    auto typed_writer = static_cast<TypedColumnWriter<ParquetType>*>(writer_);
+    PARQUET_CATCH_NOT_OK(typed_writer->WriteBatchSpaced(
+        num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer));
+    return Status::OK();
+  }
 
   ColumnWriterContext* ctx_;
   ColumnWriter* writer_;
@@ -408,96 +457,79 @@ class ArrowColumnWriter {
 };
 
 template <typename ParquetType, typename ArrowType>
-Status ArrowColumnWriter::TypedWriteBatch(const Array& array,
-                                          int64_t num_levels, const int16_t* def_levels,
+Status ArrowColumnWriter::TypedWriteBatch(const Array& array, int64_t num_levels,
+                                          const int16_t* def_levels,
                                           const int16_t* rep_levels) {
   using ArrowCType = typename ArrowType::c_type;
 
   const auto& data = static_cast<const PrimitiveArray&>(array);
-  auto data_ptr =
+  auto values =
       reinterpret_cast<const ArrowCType*>(data.values()->data()) + data.offset();
 
   if (writer_->descr()->schema_node()->is_required() || (data.null_count() == 0)) {
     // no nulls, just dump the data
     RETURN_NOT_OK((WriteNonNullableBatch<ParquetType, ArrowType>(
-        static_cast<const ArrowType&>(*array.type()), array.length(),
-        num_levels, def_levels, rep_levels, data_ptr)));
+        static_cast<const ArrowType&>(*array.type()), array.length(), num_levels,
+        def_levels, rep_levels, values)));
   } else {
     const uint8_t* valid_bits = data.null_bitmap_data();
     RETURN_NOT_OK((WriteNullableBatch<ParquetType, ArrowType>(
         static_cast<const ArrowType&>(*array.type()), data.length(), num_levels,
-        def_levels, rep_levels, valid_bits, data.offset(), data_ptr)));
+        def_levels, rep_levels, valid_bits, data.offset(), values)));
   }
   return Status::OK();
 }
 
 template <typename ParquetType, typename ArrowType>
 Status ArrowColumnWriter::WriteNonNullableBatch(
-    const ArrowType& type, int64_t num_values,
-    int64_t num_levels, const int16_t* def_levels,
-    const int16_t* rep_levels,
-    const typename ArrowType::c_type* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<ParquetType>*>(writer_);
-
+    const ArrowType& type, int64_t num_values, int64_t num_levels,
+    const int16_t* def_levels, const int16_t* rep_levels,
+    const typename ArrowType::c_type* values) {
   using ParquetCType = typename ParquetType::c_type;
   ParquetCType* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<ParquetCType>(num_values, &buffer));
 
-  std::copy(data_ptr, data_ptr + num_values, buffer);
-  PARQUET_CATCH_NOT_OK(
-      typed_writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+  std::copy(values, values + num_values, buffer);
+
+  return WriteTyped<ParquetType>(num_levels, def_levels, rep_levels, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::WriteNonNullableBatch<Int32Type, ::arrow::Date64Type>(
     const ::arrow::Date64Type& type, int64_t num_values, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels,
-    const int64_t* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<Int32Type>*>(writer_);
-
+    const int16_t* def_levels, const int16_t* rep_levels, const int64_t* values) {
   int32_t* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<int32_t>(num_values, &buffer));
 
   for (int i = 0; i < num_values; i++) {
-    buffer[i] = static_cast<int32_t>(data_ptr[i] / 86400000);
+    buffer[i] = static_cast<int32_t>(values[i] / 86400000);
   }
-  PARQUET_CATCH_NOT_OK(
-      typed_writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+
+  return WriteBatch<Int32Type>(num_levels, def_levels, rep_levels, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::WriteNonNullableBatch<Int32Type, ::arrow::Time32Type>(
     const ::arrow::Time32Type& type, int64_t num_values, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels,
-    const int32_t* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<Int32Type>*>(writer_);
-
+    const int16_t* def_levels, const int16_t* rep_levels, const int32_t* values) {
   int32_t* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<int32_t>(num_values, &buffer));
   if (type.unit() == TimeUnit::SECOND) {
     for (int i = 0; i < num_values; i++) {
-      buffer[i] = data_ptr[i] * 1000;
+      buffer[i] = values[i] * 1000;
     }
   } else {
-    std::copy(data_ptr, data_ptr + num_values, buffer);
+    std::copy(values, values + num_values, buffer);
   }
-  PARQUET_CATCH_NOT_OK(
-      typed_writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+  return WriteBatch<Int32Type>(num_levels, def_levels, rep_levels, buffer);
 }
 
-#define NONNULLABLE_BATCH_FAST_PATH(ParquetType, ArrowType, CType)      \
-  template <>                                                           \
-  Status ArrowColumnWriter::WriteNonNullableBatch<ParquetType, ArrowType>( \
-      const ArrowType& type,                                            \
-      int64_t num_values, int64_t num_levels, const int16_t* def_levels, \
-      const int16_t* rep_levels, const CType* data_ptr) {               \
-    auto typed_writer = static_cast<TypedColumnWriter<ParquetType>*>(writer_); \
-    PARQUET_CATCH_NOT_OK(                                               \
-        typed_writer->WriteBatch(num_levels, def_levels, rep_levels, data_ptr)); \
-    return Status::OK();                                                \
+#define NONNULLABLE_BATCH_FAST_PATH(ParquetType, ArrowType, CType)                 \
+  template <>                                                                      \
+  Status ArrowColumnWriter::WriteNonNullableBatch<ParquetType, ArrowType>(         \
+      const ArrowType& type, int64_t num_values, int64_t num_levels,               \
+      const int16_t* def_levels, const int16_t* rep_levels, const CType* buffer) { \
+    return WriteBatch<ParquetType>(num_levels, def_levels, rep_levels, buffer);    \
   }
 
 NONNULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Int32Type, int32_t)
@@ -508,103 +540,68 @@ NONNULLABLE_BATCH_FAST_PATH(FloatType, ::arrow::FloatType, float)
 NONNULLABLE_BATCH_FAST_PATH(DoubleType, ::arrow::DoubleType, double)
 
 template <typename ParquetType, typename ArrowType>
-Status ArrowColumnWriter::WriteNullableBatch(const ArrowType& type, int64_t num_values,
-                                             int64_t num_levels, const int16_t* def_levels,
-                                             const int16_t* rep_levels,
-                                             const uint8_t* valid_bits,
-                                             int64_t valid_bits_offset,
-                                             const typename ArrowType::c_type* data_ptr) {
+Status ArrowColumnWriter::WriteNullableBatch(
+    const ArrowType& type, int64_t num_values, int64_t num_levels,
+    const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,
+    int64_t valid_bits_offset, const typename ArrowType::c_type* values) {
   using ParquetCType = typename ParquetType::c_type;
-
-  auto typed_writer = static_cast<TypedColumnWriter<ParquetType>*>(writer_);
 
   ParquetCType* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<ParquetCType>(num_values, &buffer));
-
-  ::arrow::internal::BitmapReader valid_bits_reader(valid_bits, valid_bits_offset,
-                                                    num_values);
   for (int i = 0; i < num_values; i++) {
-    if (valid_bits_reader.IsSet()) {
-      buffer[i] = static_cast<ParquetCType>(data_ptr[i]);
-    }
-    valid_bits_reader.Next();
+    buffer[i] = static_cast<ParquetCType>(values[i]);
   }
-  PARQUET_CATCH_NOT_OK(typed_writer->WriteBatchSpaced(
-      num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer));
 
-  return Status::OK();
+  return WriteBatchSpaced<ParquetType>(num_levels, def_levels, rep_levels, valid_bits,
+                                       valid_bits_offset, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::WriteNullableBatch<Int32Type, ::arrow::Date64Type>(
-    , const ::arrow::Date64Type& type,
-    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
-    const int16_t* rep_levels, const uint8_t* valid_bits, int64_t valid_bits_offset,
-    const int64_t* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<Int32Type>*>(writer_);
-
+    , const ::arrow::Date64Type& type, int64_t num_values, int64_t num_levels,
+    const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,
+    int64_t valid_bits_offset, const int64_t* values) {
   int32_t* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<int32_t>(num_values, &buffer));
-  ::arrow::internal::BitmapReader valid_bits_reader(valid_bits, valid_bits_offset,
-                                                    num_values);
-  for (int i = 0; i < num_values; i++) {
-    if (valid_bits_reader.IsSet()) {
-      // Convert from milliseconds into days since the epoch
-      buffer[i] = static_cast<int32_t>(data_ptr[i] / 86400000);
-    }
-    valid_bits_reader.Next();
-  }
-  PARQUET_CATCH_NOT_OK(typed_writer->WriteBatchSpaced(
-      num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer));
 
-  return Status::OK();
+  for (int i = 0; i < num_values; i++) {
+    // Convert from milliseconds into days since the epoch
+    buffer[i] = static_cast<int32_t>(values[i] / 86400000);
+  }
+
+  return WriteBatchSpaced<Int32Type>(num_levels, def_levels, rep_levels, valid_bits,
+                                     valid_bits_offset, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::WriteNullableBatch<Int32Type, ::arrow::Time32Type>(
     const ::arrow::Time32Type& type, int64_t num_values, int64_t num_levels,
     const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,
-    int64_t valid_bits_offset, const int32_t* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<Int32Type>*>(writer_);
-
+    int64_t valid_bits_offset, const int32_t* values) {
   int32_t* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<int32_t>(num_values, &buffer));
 
-  ::arrow::internal::BitmapReader valid_bits_reader(valid_bits, valid_bits_offset,
-                                                    num_values);
-
   if (type.unit() == TimeUnit::SECOND) {
     for (int i = 0; i < num_values; i++) {
-      if (valid_bits_reader.IsSet()) {
-        buffer[i] = data_ptr[i] * 1000;
-      }
-      valid_bits_reader.Next();
+      buffer[i] = values[i] * 1000;
     }
   } else {
     for (int i = 0; i < num_values; i++) {
-      if (valid_bits_reader.IsSet()) {
-        buffer[i] = data_ptr[i];
-      }
-      valid_bits_reader.Next();
+      buffer[i] = values[i];
     }
   }
-  PARQUET_CATCH_NOT_OK(typed_writer->WriteBatchSpaced(
-      num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer));
-
-  return Status::OK();
+  return WriteBatchSpaced<Int32Type>(num_levels, def_levels, rep_levels, valid_bits,
+                                     valid_bits_offset, buffer);
 }
 
-#define NULLABLE_BATCH_FAST_PATH(ParquetType, ArrowType, CType)         \
-  template <>                                                           \
-  Status ArrowColumnWriter::WriteNullableBatch<ParquetType, ArrowType>( \
-      const ArrowType& type,                                            \
-      int64_t num_values, int64_t num_levels, const int16_t* def_levels, \
-      const int16_t* rep_levels, const uint8_t* valid_bits, int64_t valid_bits_offset, \
-      const CType* data_ptr) {                                          \
-    auto typed_writer = static_cast<TypedColumnWriter<ParquetType>*>(writer_); \
-    PARQUET_CATCH_NOT_OK(typed_writer->WriteBatchSpaced(                \
-        num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, data_ptr)); \
-    return Status::OK();                                                \
+#define NULLABLE_BATCH_FAST_PATH(ParquetType, ArrowType, CType)                          \
+  template <>                                                                            \
+  Status ArrowColumnWriter::WriteNullableBatch<ParquetType, ArrowType>(                  \
+      const ArrowType& type, int64_t num_values, int64_t num_levels,                     \
+      const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,   \
+      int64_t valid_bits_offset, const CType* values) {                                  \
+    return WriteBatchSpaced<ParquetType>(num_levels, def_levels, rep_levels, valid_bits, \
+                                         valid_bits_offset, values);                     \
   }
 
 NULLABLE_BATCH_FAST_PATH(Int32Type, ::arrow::Int32Type, int32_t)
@@ -618,80 +615,66 @@ NONNULLABLE_BATCH_FAST_PATH(Int64Type, ::arrow::TimestampType, int64_t)
 
 template <>
 Status ArrowColumnWriter::WriteNullableBatch<Int96Type, ::arrow::TimestampType>(
-    , const ::arrow::TimestampType& type,
-    int64_t num_values, int64_t num_levels, const int16_t* def_levels,
-    const int16_t* rep_levels, const uint8_t* valid_bits, int64_t valid_bits_offset,
-    const int64_t* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<Int96Type>*>(writer_);
+    , const ::arrow::TimestampType& type, int64_t num_values, int64_t num_levels,
+    const int16_t* def_levels, const int16_t* rep_levels, const uint8_t* valid_bits,
+    int64_t valid_bits_offset, const int64_t* values) {
   Int96* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<Int96>(num_values, &buffer));
-  ::arrow::internal::BitmapReader valid_bits_reader(valid_bits, valid_bits_offset,
-                                                    num_values);
   if (type.unit() == TimeUnit::NANO) {
     for (int i = 0; i < num_values; i++) {
-      if (valid_bits_reader.IsSet()) {
-        internal::NanosecondsToImpalaTimestamp(data_ptr[i], buffer + i);
-      }
-      valid_bits_reader.Next();
+      internal::NanosecondsToImpalaTimestamp(values[i], &buffer[i]);
     }
   } else {
     return Status::NotImplemented("Only NANO timestamps are supported for Int96 writing");
   }
-  PARQUET_CATCH_NOT_OK(typed_writer->WriteBatchSpaced(
-      num_levels, def_levels, rep_levels, valid_bits, valid_bits_offset, buffer));
-
-  return Status::OK();
+  return WriteBatchSpaced<Int96Type>(num_levels, def_levels, rep_levels, valid_bits,
+                                     valid_bits_offset, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::WriteNonNullableBatch<Int96Type, ::arrow::TimestampType>(
     TypedColumnWriter<Int96Type>* writer, const ::arrow::TimestampType& type,
     int64_t num_values, int64_t num_levels, const int16_t* def_levels,
-    const int16_t* rep_levels, const int64_t* data_ptr) {
-  auto typed_writer = static_cast<TypedColumnWriter<Int96Type>*>(writer_);
+    const int16_t* rep_levels, const int64_t* values) {
   Int96* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<Int96>(num_values, &buffer));
   if (type.unit() == TimeUnit::NANO) {
     for (int i = 0; i < num_values; i++) {
-      internal::NanosecondsToImpalaTimestamp(data_ptr[i], buffer + i);
+      internal::NanosecondsToImpalaTimestamp(values[i], buffer + i);
     }
   } else {
     return Status::NotImplemented("Only NANO timestamps are supported for Int96 writing");
   }
-  PARQUET_CATCH_NOT_OK(
-      typed_writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+  return WriteBatch<Int96Type>(num_levels, def_levels, rep_levels, buffer);
 }
 
-Status ArrowColumnWriter::WriteTimestamps(const Array& values,
-                                          int64_t num_levels, const int16_t* def_levels,
+Status ArrowColumnWriter::WriteTimestamps(const Array& values, int64_t num_levels,
+                                          const int16_t* def_levels,
                                           const int16_t* rep_levels) {
-  const auto& type = static_cast<::arrow::TimestampType&>(*values.type());
+  const auto& type = static_cast<const ::arrow::TimestampType&>(*values.type());
 
   const bool is_nanosecond = type.unit() == TimeUnit::NANO;
 
   if (is_nanosecond && ctx_->properties->support_deprecated_int96_timestamps()) {
-    return TypedWriteBatch<Int96Type, ::arrow::TimestampType>(
-        values, num_levels, def_levels, rep_levels);
+    return TypedWriteBatch<Int96Type, ::arrow::TimestampType>(values, num_levels,
+                                                              def_levels, rep_levels);
   } else if (is_nanosecond ||
              (ctx_->properties->coerce_timestamps_enabled() &&
               (type.unit() != ctx_->properties->coerce_timestamps_unit()))) {
     // Casting is required. This covers several cases
     // * Nanoseconds -> cast to microseconds
     // * coerce_timestamps_enabled_, cast all timestamps to requested unit
-    return WriteTimestampsCoerce(values, num_levels, def_levels,
-                                 rep_levels);
+    return WriteTimestampsCoerce(values, num_levels, def_levels, rep_levels);
   } else {
     // No casting of timestamps is required, take the fast path
-    return TypedWriteBatch<Int64Type, ::arrow::TimestampType>(
-        values, num_levels, def_levels, rep_levels);
+    return TypedWriteBatch<Int64Type, ::arrow::TimestampType>(values, num_levels,
+                                                              def_levels, rep_levels);
   }
 }
 
-Status ArrowColumnWriter::WriteTimestampsCoerce(const Array& array,
-                                               int64_t num_levels,
-                                               const int16_t* def_levels,
-                                               const int16_t* rep_levels) {
+Status ArrowColumnWriter::WriteTimestampsCoerce(const Array& array, int64_t num_levels,
+                                                const int16_t* def_levels,
+                                                const int16_t* rep_levels) {
   // Note that we can only use ctx_->data_buffer here as we write timestamps with the fast
   // path.
   int64_t* buffer;
@@ -699,7 +682,7 @@ Status ArrowColumnWriter::WriteTimestampsCoerce(const Array& array,
 
   const auto& data = static_cast<const ::arrow::TimestampArray&>(array);
 
-  auto data_ptr = data.raw_values();
+  auto values = data.raw_values();
   const auto& type = static_cast<const ::arrow::TimestampType&>(*array.type());
 
   TimeUnit::type target_unit = ctx_->properties->coerce_timestamps_enabled()
@@ -709,20 +692,20 @@ Status ArrowColumnWriter::WriteTimestampsCoerce(const Array& array,
 
   auto DivideBy = [&](const int64_t factor) {
     for (int64_t i = 0; i < array.length(); i++) {
-      if (!data.IsNull(i) && (data_ptr[i] % factor != 0)) {
+      if (!data.IsNull(i) && (values[i] % factor != 0)) {
         std::stringstream ss;
         ss << "Casting from " << type.ToString() << " to " << target_type->ToString()
-           << " would lose data: " << data_ptr[i];
+           << " would lose data: " << values[i];
         return Status::Invalid(ss.str());
       }
-      buffer[i] = data_ptr[i] / factor;
+      buffer[i] = values[i] / factor;
     }
     return Status::OK();
   };
 
   auto MultiplyBy = [&](const int64_t factor) {
     for (int64_t i = 0; i < array.length(); i++) {
-      buffer[i] = data_ptr[i] * factor;
+      buffer[i] = values[i] * factor;
     }
     return Status::OK();
   };
@@ -765,90 +748,82 @@ Status ArrowColumnWriter::WriteTimestampsCoerce(const Array& array,
 
 template <>
 Status ArrowColumnWriter::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
-    const std::shared_ptr<Array>& array, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels) {
-
+    const std::shared_ptr<Array>& array, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels) {
   bool* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<bool>(array->length(), &buffer));
 
-  auto data = static_cast<const BooleanArray*>(array.get());
-  auto data_ptr = reinterpret_cast<const uint8_t*>(data->values()->data());
+  auto data = static_cast<const BooleanArray&>(*array);
+  auto values = reinterpret_cast<const uint8_t*>(data.values()->data());
 
   int buffer_idx = 0;
   int64_t offset = array->offset();
-  for (int i = 0; i < data->length(); i++) {
-    if (!data->IsNull(i)) {
-      buffer[buffer_idx++] = BitUtil::GetBit(data_ptr, offset + i);
+  for (int i = 0; i < data.length(); i++) {
+    if (!data.IsNull(i)) {
+      buffer[buffer_idx++] = BitUtil::GetBit(values, offset + i);
     }
   }
-  auto typed_writer = reinterpret_cast<TypedColumnWriter<BooleanType>*>(writer_);
-  PARQUET_CATCH_NOT_OK(writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+
+  return WriteBatch<BooleanType>(num_levels, def_levels, rep_levels, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::TypedWriteBatch<Int32Type, ::arrow::NullType>(
-    const std::shared_ptr<Array>& array, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels) {
-  auto typed_writer = reinterpret_cast<TypedColumnWriter<Int32Type>*>(writer_);
-  PARQUET_CATCH_NOT_OK(typed_writer->WriteBatch(num_levels, def_levels, rep_levels, nullptr));
-  return Status::OK();
+    const std::shared_ptr<Array>& array, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels) {
+  return WriteBatch<Int32Type>(num_levels, def_levels, rep_levels, nullptr);
 }
 
 template <>
 Status ArrowColumnWriter::TypedWriteBatch<ByteArrayType, ::arrow::BinaryType>(
-    const std::shared_ptr<Array>& array, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels) {
+    const std::shared_ptr<Array>& array, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels) {
   ByteArray* buffer;
   RETURN_NOT_OK(ctx_->GetScratchData<ByteArray>(num_values, &buffer));
 
-  auto data = static_cast<const BinaryArray*>(array.get());
+  auto data = static_cast<const BinaryArray&>(*array);
   // In the case of an array consisting of only empty strings or all null,
-  // data->data() points already to a nullptr, thus data->data()->data() will
+  // data.data() points already to a nullptr, thus data.data()->data() will
   // segfault.
-  const uint8_t* data_ptr = nullptr;
-  if (data->value_data()) {
-    data_ptr = reinterpret_cast<const uint8_t*>(data->value_data()->data());
-    DCHECK(data_ptr != nullptr);
+  const uint8_t* values = nullptr;
+  if (data.value_data()) {
+    values = reinterpret_cast<const uint8_t*>(data.value_data()->data());
+    DCHECK(values != nullptr);
   }
-  auto writer = reinterpret_cast<TypedColumnWriter<ByteArrayType>*>(column_writer);
 
   // Slice offset is accounted for in raw_value_offsets
-  const int32_t* value_offset = data->raw_value_offsets();
+  const int32_t* value_offset = data.raw_value_offsets();
 
-  if (writer->descr()->schema_node()->is_required() || (data->null_count() == 0)) {
+  if (writer_->descr()->schema_node()->is_required() || (data.null_count() == 0)) {
     // no nulls, just dump the data
-    for (int64_t i = 0; i < data->length(); i++) {
+    for (int64_t i = 0; i < data.length(); i++) {
       buffer[i] =
-          ByteArray(value_offset[i + 1] - value_offset[i], data_ptr + value_offset[i]);
+          ByteArray(value_offset[i + 1] - value_offset[i], values + value_offset[i]);
     }
   } else {
     int buffer_idx = 0;
-    for (int64_t i = 0; i < data->length(); i++) {
-      if (!data->IsNull(i)) {
+    for (int64_t i = 0; i < data.length(); i++) {
+      if (!data.IsNull(i)) {
         buffer[buffer_idx++] =
-            ByteArray(value_offset[i + 1] - value_offset[i], data_ptr + value_offset[i]);
+            ByteArray(value_offset[i + 1] - value_offset[i], values + value_offset[i]);
       }
     }
   }
-  PARQUET_CATCH_NOT_OK(
-      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+
+  return WriteBatch<ByteArrayType>(num_levels, def_levels, rep_levels, buffer);
 }
 
 template <>
 Status ArrowColumnWriter::TypedWriteBatch<FLBAType, ::arrow::FixedSizeBinaryType>(
-    ColumnWriter* column_writer, const std::shared_ptr<Array>& array, int64_t num_levels,
-    const int16_t* def_levels, const int16_t* rep_levels) {
-  RETURN_NOT_OK(ctx_->data_buffer.Resize(array->length() * sizeof(FLBA), false));
+    const std::shared_ptr<Array>& array, int64_t num_levels, const int16_t* def_levels,
+    const int16_t* rep_levels) {
   const auto& data = static_cast<const FixedSizeBinaryArray&>(*array);
   const int64_t length = data.length();
 
-  auto buffer = reinterpret_cast<FLBA*>(ctx_->data_buffer.mutable_data());
+  FLBA* buffer;
+  RETURN_NOT_OK(ctx_->GetScratchData<FLBA>(num_values, &buffer));
 
-  auto writer = reinterpret_cast<TypedColumnWriter<FLBAType>*>(column_writer);
-
-  if (writer->descr()->schema_node()->is_required() || data.null_count() == 0) {
+  if (writer_->descr()->schema_node()->is_required() || data.null_count() == 0) {
     // no nulls, just dump the data
     // todo(advancedxy): use a writeBatch to avoid this step
     for (int64_t i = 0; i < length; i++) {
@@ -862,9 +837,8 @@ Status ArrowColumnWriter::TypedWriteBatch<FLBAType, ::arrow::FixedSizeBinaryType
       }
     }
   }
-  PARQUET_CATCH_NOT_OK(
-      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+
+  return WriteBatch<FLBAType>(num_levels, def_levels, rep_levels, buffer);
 }
 
 template <>
@@ -874,20 +848,18 @@ Status ArrowColumnWriter::TypedWriteBatch<FLBAType, ::arrow::Decimal128Type>(
   const auto& data = static_cast<const Decimal128Array&>(*array);
   const int64_t length = data.length();
 
-  // TODO(phillipc): This is potentially very wasteful if we have a lot of nulls
-  std::vector<uint64_t> big_endian_values(static_cast<size_t>(length) * 2);
-
-  RETURN_NOT_OK(ctx_->data_buffer.Resize(length * sizeof(FLBA), false));
-  auto buffer = reinterpret_cast<FLBA*>(ctx_->data_buffer.mutable_data());
-
-  auto writer = reinterpret_cast<TypedColumnWriter<FLBAType>*>(column_writer);
+  FLBA* buffer;
+  RETURN_NOT_OK(ctx_->GetScratchData<FLBA>(num_values, &buffer));
 
   const auto& decimal_type = static_cast<const ::arrow::Decimal128Type&>(*data.type());
   const int32_t offset =
       decimal_type.byte_width() - DecimalSize(decimal_type.precision());
 
   const bool does_not_have_nulls =
-      writer->descr()->schema_node()->is_required() || data.null_count() == 0;
+      writer_->descr()->schema_node()->is_required() || data.null_count() == 0;
+
+  // TODO(phillipc): This is potentially very wasteful if we have a lot of nulls
+  std::vector<uint64_t> big_endian_values(static_cast<size_t>(length) * 2);
 
   // TODO(phillipc): Look into whether our compilers will perform loop unswitching so we
   // don't have to keep writing two loops to handle the case where we know there are no
@@ -914,9 +886,8 @@ Status ArrowColumnWriter::TypedWriteBatch<FLBAType, ::arrow::Decimal128Type>(
       }
     }
   }
-  PARQUET_CATCH_NOT_OK(
-      writer->WriteBatch(num_levels, def_levels, rep_levels, buffer));
-  return Status::OK();
+
+  return WriteBatch<FLBAType>(num_levels, def_levels, rep_levels, buffer);
 }
 
 }  // namespace
@@ -932,8 +903,8 @@ class FileWriter::Impl {
   Status NewRowGroup(int64_t chunk_size);
 
   Status WriteColumnChunk(const std::shared_ptr<Array>& data);
-  Status WriteColumnChunk(const std::shared_ptr<ChunkedArray>& data,
-                          int64_t offset, int64_t size);
+  Status WriteColumnChunk(const std::shared_ptr<ChunkedArray>& data, int64_t offset,
+                          int64_t size);
   Status Close();
 
   const WriterProperties& properties() const { return *writer_->properties(); }
@@ -954,8 +925,7 @@ FileWriter::Impl::Impl(MemoryPool* pool, std::unique_ptr<ParquetFileWriter> writ
                        const std::shared_ptr<ArrowWriterProperties>& arrow_properties)
     : writer_(std::move(writer)),
       row_group_writer_(nullptr),
-      writer_context_(pool, arrow_properties.get())
-      arrow_properties_(arrow_properties),
+      writer_context_(pool, arrow_properties.get()) arrow_properties_(arrow_properties),
       closed_(false) {}
 
 Status FileWriter::Impl::NewRowGroup(int64_t chunk_size) {
@@ -985,13 +955,15 @@ Status FileWriter::NewRowGroup(int64_t chunk_size) {
   return impl_->NewRowGroup(chunk_size);
 }
 
-Status FileWriter::Impl::WriteColumnChunk(const std::shared_ptr<Array>& data) {
-  auto chunked_array = std::make_shared<::arrow::ChunkedArray>(data);
-  return WriteColumnChunk(chunked_array, 0, data->length());
+Status FileWriter::Impl::WriteColumnChunk(const Array& data) {
+  // A bit awkward here since cannot instantiate ChunkedArray from const Array&
+  auto chunked_array =
+      std::make_shared<::arrow::ChunkedArray>(::arrow::MakeArray(data.data()));
+  return WriteColumnChunk(chunked_array, 0, data.length());
 }
 
 Status FileWriter::Impl::WriteColumnChunk(const std::shared_ptr<ChunkedArray>& data,
-                                          int64_t offset, int64_t size) {
+                                          int64_t offset, const int64_t size) {
   // DictionaryArrays are not yet handled with a fast path. To still support
   // writing them as a workaround, we convert them back to their non-dictionary
   // representation.
@@ -1016,28 +988,27 @@ Status FileWriter::Impl::WriteColumnChunk(const std::shared_ptr<ChunkedArray>& d
   ColumnWriter* column_writer;
   PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
 
+  // TODO(wesm): This trick to construct a schema for one Parquet root node
+  // will not work for arbitrary nested data
   int current_column_idx = row_group_writer_->current_column();
   std::shared_ptr<::arrow::Schema> arrow_schema;
   RETURN_NOT_OK(FromParquetSchema(writer_->schema(), {current_column_idx - 1},
                                   writer_->key_value_metadata(), &arrow_schema));
 
-  ArrowColumnWriter arrow_writer(column_writer, arrow_schema->field(0));
+  ArrowColumnWriter arrow_writer(&ctx_, column_writer, arrow_schema->field(0));
 
-  int64_t write_offset = 0;
-  int chunk_index = 0;
-  int chunk_offset = 0;
-  while (chunk_index < data->num_chunks() && write_offset < offset) {
-    if (write_offset + data->chunk(chunk_index)->length() > offset) {
-      // Relative offset into the chunk to reach the desired start offset for
-      // writing
-      chunk_offset = offset - write_offset;
-    }
-  }
-  return chunk_wr
+  RETURN_NOT_OK(arrow_writer.Write(*data, offset, size));
+
+  PARQUET_CATCH_NOT_OK(column_writer->Close());
+  return Status::OK();
 }
 
-Status FileWriter::WriteColumnChunk(const ::arrow::Array& array) {
-  return impl_->WriteColumnChunk(array);
+Status FileWriter::WriteColumnChunk(const ::arrow::Array& data) {
+  return impl_->WriteColumnChunk(data);
+}
+
+Status FileWriter::WriteColumnChunk(const std::shared_ptr<::arrow::ChunkedArray>& data) {
+  return impl_->WriteColumnChunk(data);
 }
 
 Status FileWriter::Close() { return impl_->Close(); }
@@ -1092,11 +1063,7 @@ Status FileWriter::Open(const ::arrow::Schema& schema, ::arrow::MemoryPool* pool
   return Open(schema, pool, wrapper, properties, arrow_properties, writer);
 }
 
-namespace {
-
-
-
-}  // namespace
+namespace {}  // namespace
 
 Status FileWriter::WriteTable(const Table& table, int64_t chunk_size) {
   if (chunk_size <= 0) {
