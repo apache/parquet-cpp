@@ -827,7 +827,7 @@ Status ArrowColumnWriter::TypedWriteBatch<FLBAType, ::arrow::Decimal128Type>(
 
 Status ArrowColumnWriter::Write(const Array& data) {
   ::arrow::Type::type values_type;
-  RETURN_NOT_OK(GetLeafType(*field_->type(), &values_type));
+  RETURN_NOT_OK(GetLeafType(*data.type(), &values_type));
 
   std::shared_ptr<Array> _values_array;
   int64_t values_offset;

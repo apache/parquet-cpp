@@ -1315,32 +1315,48 @@ TEST(TestArrowReadWrite, ConvertedDateTimeTypes) {
 
   auto f0 = field("f0", ::arrow::date64());
   auto f1 = field("f1", ::arrow::time32(TimeUnit::SECOND));
-  std::shared_ptr<::arrow::Schema> schema(new ::arrow::Schema({f0, f1}));
+  auto f2 = field("f2", ::arrow::date64());
+  auto f3 = field("f3", ::arrow::time32(TimeUnit::SECOND));
+
+  auto schema = ::arrow::schema({f0, f1, f2, f3});
 
   std::vector<int64_t> a0_values = {1489190400000, 1489276800000, 1489363200000,
                                     1489449600000, 1489536000000, 1489622400000};
   std::vector<int32_t> a1_values = {0, 1, 2, 3, 4, 5};
 
-  std::shared_ptr<Array> a0, a1, x0, x1;
+  std::shared_ptr<Array> a0, a1, a0_nonnull, a1_nonnull, x0, x1, x0_nonnull, x1_nonnull;
+
   ArrayFromVector<::arrow::Date64Type, int64_t>(f0->type(), is_valid, a0_values, &a0);
+  ArrayFromVector<::arrow::Date64Type, int64_t>(f0->type(), a0_values, &a0_nonnull);
+
   ArrayFromVector<::arrow::Time32Type, int32_t>(f1->type(), is_valid, a1_values, &a1);
+  ArrayFromVector<::arrow::Time32Type, int32_t>(f1->type(), a1_values, &a1_nonnull);
 
   std::vector<std::shared_ptr<::arrow::Column>> columns = {
-      std::make_shared<Column>("f0", a0), std::make_shared<Column>("f1", a1)};
+      std::make_shared<Column>("f0", a0), std::make_shared<Column>("f1", a1),
+      std::make_shared<Column>("f2", a0_nonnull),
+      std::make_shared<Column>("f3", a1_nonnull)};
   auto table = Table::Make(schema, columns);
 
   // Expected schema and values
   auto e0 = field("f0", ::arrow::date32());
   auto e1 = field("f1", ::arrow::time32(TimeUnit::MILLI));
-  std::shared_ptr<::arrow::Schema> ex_schema(new ::arrow::Schema({e0, e1}));
+  auto e2 = field("f2", ::arrow::date32());
+  auto e3 = field("f3", ::arrow::time32(TimeUnit::MILLI));
+  auto ex_schema = ::arrow::schema({e0, e1, e2, e3});
 
   std::vector<int32_t> x0_values = {17236, 17237, 17238, 17239, 17240, 17241};
   std::vector<int32_t> x1_values = {0, 1000, 2000, 3000, 4000, 5000};
   ArrayFromVector<::arrow::Date32Type, int32_t>(e0->type(), is_valid, x0_values, &x0);
+  ArrayFromVector<::arrow::Date32Type, int32_t>(e0->type(), x0_values, &x0_nonnull);
+
   ArrayFromVector<::arrow::Time32Type, int32_t>(e1->type(), is_valid, x1_values, &x1);
+  ArrayFromVector<::arrow::Time32Type, int32_t>(e1->type(), x1_values, &x1_nonnull);
 
   std::vector<std::shared_ptr<::arrow::Column>> ex_columns = {
-      std::make_shared<Column>("f0", x0), std::make_shared<Column>("f1", x1)};
+      std::make_shared<Column>("f0", x0), std::make_shared<Column>("f1", x1),
+      std::make_shared<Column>("f2", x0_nonnull),
+      std::make_shared<Column>("f3", x1_nonnull)};
   auto ex_table = Table::Make(ex_schema, ex_columns);
 
   std::shared_ptr<Table> result;
