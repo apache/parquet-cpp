@@ -106,7 +106,6 @@ class LevelBuilder {
   NOT_IMPLEMENTED_VISIT(Struct)
   NOT_IMPLEMENTED_VISIT(Union)
   NOT_IMPLEMENTED_VISIT(Dictionary)
-  NOT_IMPLEMENTED_VISIT(Interval)
 
   Status GenerateLevels(const Array& array, const std::shared_ptr<Field>& field,
                         int64_t* values_offset, int64_t* num_values, int64_t* num_levels,
@@ -305,7 +304,7 @@ class ArrowColumnWriter {
   Status Write(const ChunkedArray& data, int64_t offset, const int64_t size) {
     int64_t absolute_position = 0;
     int chunk_index = 0;
-    int chunk_offset = 0;
+    int64_t chunk_offset = 0;
     while (chunk_index < data.num_chunks() && absolute_position < offset) {
       const int64_t chunk_length = data.chunk(chunk_index)->length();
       if (absolute_position + chunk_length > offset) {
