@@ -156,6 +156,9 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
       "Arrow static lib suffix used on Windows with MSVC (default _static)")
     set(THRIFT_MSVC_STATIC_LIB_SUFFIX "md" CACHE STRING
       "Thrift static lib suffix used on Windows with MSVC (default md)")
+    option(PARQUET_USE_STATIC_CRT
+      "Build Parquet with statically linked CRT"
+      OFF)
   endif()
 endif()
 

@@ -58,6 +58,9 @@ endif()
 # find boost headers and libs
 set(Boost_DEBUG TRUE)
 set(Boost_USE_MULTITHREADED ON)
+if (MSVC AND PARQUET_USE_STATIC_CRT)
+  set(Boost_USE_STATIC_RUNTIME ON)
+endif()
 if (PARQUET_BOOST_USE_SHARED)
   # Find shared Boost libraries.
   set(Boost_USE_STATIC_LIBS OFF)
@@ -188,8 +191,13 @@ if (NOT THRIFT_FOUND)
 
   set(THRIFT_STATIC_LIB_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}thrift")
   if (MSVC)
-    set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}md")
-    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DWITH_MT=OFF")
+    if (PARQUET_USE_STATIC_CRT)
+      set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}mt")
+      set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DWITH_MT=ON")
+    else()
+      set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}md")
+      set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DWITH_MT=OFF")
+    endif()
   endif()
   if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
     set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}d")
@@ -258,8 +266,11 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
 
     set(GTEST_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                          -DCMAKE_INSTALL_PREFIX=${GTEST_PREFIX}
-                         -Dgtest_force_shared_crt=ON
                          -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS})
+                
+    if (MSVC AND NOT PARQUET_USE_STATIC_CRT)
+      set(GTEST_CMAKE_ARGS ${GTEST_CMAKE_ARGS} -Dgtest_force_shared_crt=ON)
+    endif()
 
     ExternalProject_Add(googletest_ep
       URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
@@ -364,6 +375,10 @@ if (NOT ARROW_FOUND)
     -DARROW_BUILD_SHARED=${PARQUET_BUILD_SHARED}
     -DARROW_BOOST_USE_SHARED=${PARQUET_BOOST_USE_SHARED}
     -DARROW_BUILD_TESTS=OFF)
+
+  if (MSVC AND PARQUET_USE_STATIC_CRT)
+    set(ARROW_CMAKE_ARGS ${ARROW_CMAKE_ARGS} -DARROW_USE_STATIC_CRT=ON)
+  endif()
 
   if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
     set(ARROW_VERSION "501d60e918bd4d10c429ab34e0b8e8a87dffb732")

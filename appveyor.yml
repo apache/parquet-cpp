@@ -35,6 +35,16 @@ environment:
     - GENERATOR: Visual Studio 14 2015 Win64
       PYTHON: "3.5"
       ARCH: "64"
+      CONFIGURATION: "Debug"
+      USE_STATIC_CRT: "ON"
+    - GENERATOR: Visual Studio 14 2015 Win64
+      PYTHON: "3.5"
+      ARCH: "64"
+      CONFIGURATION: "Release"
+      USE_STATIC_CRT: "ON"
+    - GENERATOR: Visual Studio 14 2015 Win64
+      PYTHON: "3.5"
+      ARCH: "64"
       CONFIGURATION: "Toolchain"
   MSVC_DEFAULT_OPTIONS: ON
   BOOST_ROOT: C:\Libraries\boost_1_63_0
