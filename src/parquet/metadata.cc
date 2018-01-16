@@ -41,8 +41,8 @@ const ApplicationVersion ApplicationVersion::PARQUET_CPP_FIXED_STATS_VERSION =
 template <typename DType>
 static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
     const format::ColumnMetaData& metadata, const ColumnDescriptor* descr) {
-  // If new fields max_value/min_value are set, then return them.
-  if (metadata.statistics.__isset.max_value || metadata.statistics.__isset.min_value) {
+  // If ColumnOrder is defined, return max_value and min_value
+  if (descr->column_order().get_order() == ColumnOrder::TYPE_DEFINED_ORDER) {
     return std::make_shared<TypedRowGroupStatistics<DType>>(
         descr, metadata.statistics.min_value, metadata.statistics.max_value,
         metadata.num_values - metadata.statistics.null_count,
@@ -310,6 +310,7 @@ class FileMetaData::FileMetaDataImpl {
     }
 
     InitSchema();
+    InitColumnOrders();
     InitKeyValueMetadata();
   }
   ~FileMetaDataImpl() {}
@@ -356,6 +357,23 @@ class FileMetaData::FileMetaDataImpl {
     schema::FlatSchemaConverter converter(&metadata_->schema[0],
                                           static_cast<int>(metadata_->schema.size()));
     schema_.Init(converter.Convert());
+  }
+  void InitColumnOrders() {
+    // update ColumnOrder
+    std::vector<parquet::ColumnOrder> column_orders;
+    if (metadata_->__isset.column_orders) {
+      for (auto column_order : metadata_->column_orders) {
+        if (column_order.__isset.TYPE_ORDER) { 
+          column_orders.push_back(ColumnOrder::type_defined_);
+        } else {
+          column_orders.push_back(ColumnOrder::undefined_);
+        }
+      }
+    } else {
+        column_orders.resize(schema_.num_columns(), ColumnOrder::undefined_);
+    }
+    
+    schema_.updateColumnOrders(column_orders);
   }
   SchemaDescriptor schema_;
   ApplicationVersion writer_version_;
@@ -808,6 +826,15 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
     }
     metadata_->__set_version(file_version);
     metadata_->__set_created_by(properties_->created_by());
+
+    // Empty TypeDefinedOrder implies choose SortOrder based on LogicalType/PhysicalType
+    format::TypeDefinedOrder type_defined_order;
+    format::ColumnOrder column_order;
+    column_order.__set_TYPE_ORDER(type_defined_order);
+    column_order.__isset.TYPE_ORDER = true;
+    metadata_->column_orders.resize(schema_->num_columns(), column_order);
+    metadata_->__isset.column_orders = true;
+
     parquet::schema::SchemaFlattener flattener(
         static_cast<parquet::schema::GroupNode*>(schema_->schema_root().get()),
         &metadata_->schema);
