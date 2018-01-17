@@ -478,8 +478,8 @@ class TestStatistics : public ::testing::Test {
   std::vector<EncodedStatistics> stats_;
 };
 
-using CompareTestTypes = ::testing::Types<Int32Type, Int64Type, FloatType,
-                                          DoubleType, ByteArrayType, FLBAType>;
+using CompareTestTypes = ::testing::Types<Int32Type, Int64Type, FloatType, DoubleType,
+                                          ByteArrayType, FLBAType>;
 
 // TYPE::INT32
 template <>

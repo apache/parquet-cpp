@@ -363,16 +363,16 @@ class FileMetaData::FileMetaDataImpl {
     std::vector<parquet::ColumnOrder> column_orders;
     if (metadata_->__isset.column_orders) {
       for (auto column_order : metadata_->column_orders) {
-        if (column_order.__isset.TYPE_ORDER) { 
+        if (column_order.__isset.TYPE_ORDER) {
           column_orders.push_back(ColumnOrder::type_defined_);
         } else {
           column_orders.push_back(ColumnOrder::undefined_);
         }
       }
     } else {
-        column_orders.resize(schema_.num_columns(), ColumnOrder::undefined_);
+      column_orders.resize(schema_.num_columns(), ColumnOrder::undefined_);
     }
-    
+
     schema_.updateColumnOrders(column_orders);
   }
   SchemaDescriptor schema_;

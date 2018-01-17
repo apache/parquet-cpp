@@ -132,13 +132,14 @@ struct SortOrder {
 
 class ColumnOrder {
  public:
-  enum type {UNDEFINED, TYPE_DEFINED_ORDER};
-  ColumnOrder(ColumnOrder::type column_order) : column_order_(column_order) {}
+  enum type { UNDEFINED, TYPE_DEFINED_ORDER };
+  explicit ColumnOrder(ColumnOrder::type column_order) : column_order_(column_order) {}
   ColumnOrder() : column_order_(type::TYPE_DEFINED_ORDER) {}
-  ColumnOrder::type get_order() {return column_order_;}
+  ColumnOrder::type get_order() { return column_order_; }
 
   static ColumnOrder undefined_;
   static ColumnOrder type_defined_;
+
  private:
   ColumnOrder::type column_order_;
 };

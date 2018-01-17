@@ -219,7 +219,8 @@ void TestPrimitiveWriter<TestType>::ReadColumnFully(Compression::type compressio
 }
 
 template <>
-void TestPrimitiveWriter<Int96Type>::ReadAndCompare(Compression::type compression, int64_t num_rows) {
+void TestPrimitiveWriter<Int96Type>::ReadAndCompare(Compression::type compression,
+                                                    int64_t num_rows) {
   this->SetupValuesOut(num_rows);
   this->ReadColumnFully(compression);
   std::shared_ptr<CompareDefault<Int96Type>> compare;

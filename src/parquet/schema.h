@@ -212,7 +212,7 @@ class PARQUET_EXPORT PrimitiveNode : public Node {
   ColumnOrder column_order() const { return column_order_; }
 
   void SetColumnOrder(ColumnOrder column_order) { column_order_ = column_order; }
-  
+
   int32_t type_length() const { return type_length_; }
 
   const DecimalMetadata& decimal_metadata() const { return decimal_metadata_; }
@@ -230,7 +230,7 @@ class PARQUET_EXPORT PrimitiveNode : public Node {
   int32_t type_length_;
   DecimalMetadata decimal_metadata_;
   ColumnOrder column_order_;
-  
+
   // For FIXED_LEN_BYTE_ARRAY
   void SetTypeLength(int32_t length) { type_length_ = length; }
 

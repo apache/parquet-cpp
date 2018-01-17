@@ -614,7 +614,7 @@ class SchemaUpdater : public Node::Visitor {
       for (int i = 0; i < group_node->field_count(); ++i) {
         group_node->field(i)->Visit(this);
       }
-    } else { // leaf node
+    } else {  // leaf node
       PrimitiveNode* leaf_node = static_cast<PrimitiveNode*>(node);
       leaf_node->SetColumnOrder(column_orders_[leaf_count_++]);
     }
@@ -632,7 +632,6 @@ void SchemaDescriptor::updateColumnOrders(const std::vector<ColumnOrder>& column
   SchemaUpdater visitor(column_orders);
   const_cast<GroupNode*>(group_node_)->Visit(&visitor);
 }
-
 
 void SchemaDescriptor::Init(const NodePtr& schema) {
   schema_ = schema;
