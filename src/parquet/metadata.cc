@@ -831,7 +831,11 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
     metadata_->__set_version(file_version);
     metadata_->__set_created_by(properties_->created_by());
 
-    // Empty TypeDefinedOrder implies choose SortOrder based on LogicalType/PhysicalType
+    // Users cannot set the `ColumnOrder` since we donot not have user defined sort order
+    // in the spec yet.
+    // We always default to `TYPE_DEFINED_ORDER`. We can expose it in
+    // the API once we have user defined sort orders in the Parquet format.
+    // TypeDefinedOrder implies choose SortOrder based on LogicalType/PhysicalType
     format::TypeDefinedOrder type_defined_order;
     format::ColumnOrder column_order;
     column_order.__set_TYPE_ORDER(type_defined_order);
