@@ -513,10 +513,9 @@ bool ApplicationVersion::HasCorrectStatistics(Type::type col_type,
   // Parquet cpp version 1.3.0 onwards stats are computed correctly for all types
   if ((application_ != "parquet-cpp") || (VersionLt(PARQUET_CPP_FIXED_STATS_VERSION))) {
     // Only SIGNED are valid
-    if (SortOrder::SIGNED != sort_order) return false;
-
-    // None of the current tools write INT96 Statistics correctly
-    if (col_type == Type::INT96) return false;
+    if (SortOrder::SIGNED != sort_order) {
+      return false;
+    }
 
     // Statistics of other types are OK
     if (col_type != Type::FIXED_LEN_BYTE_ARRAY && col_type != Type::BYTE_ARRAY) {
@@ -527,6 +526,11 @@ bool ApplicationVersion::HasCorrectStatistics(Type::type col_type,
   // parquet-mr during the same time as PARQUET-251, see PARQUET-297
   if (application_ == "unknown") {
     return true;
+  }
+
+  // Unknown sort order has incorrect stats
+  if (SortOrder::UNKNOWN == sort_order) {
+    return false;
   }
 
   // PARQUET-251

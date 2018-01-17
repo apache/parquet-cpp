@@ -213,8 +213,9 @@ SortOrder::type DefaultSortOrder(Type::type primitive) {
       return SortOrder::SIGNED;
     case Type::BYTE_ARRAY:
     case Type::FIXED_LEN_BYTE_ARRAY:
-    case Type::INT96:
       return SortOrder::UNSIGNED;
+    case Type::INT96:
+      return SortOrder::UNKNOWN;
   }
   return SortOrder::UNKNOWN;
 }
