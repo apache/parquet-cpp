@@ -33,7 +33,7 @@ if NOT "%CONFIGURATION%" == "Debug" (
 )
 
 if "%CONFIGURATION%" == "Toolchain" (
-  conda install -y boost-cpp=1.63 thrift-cpp=0.10.0 ^
+  conda install -y boost-cpp=1.63 thrift-cpp=0.11.0 ^
       brotli=0.6.0 zlib=1.2.11 snappy=1.1.6 lz4-c=1.7.5 zstd=1.2.0 ^
       -c conda-forge
 
