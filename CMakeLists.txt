@@ -551,6 +551,8 @@ else()
     zstd
   )
 
+  add_definitions(-DARROW_EXPORTING)
+
   set(ARROW_LINK_LIBS
     arrow_static
     ${TRANSITIVE_LINK_LIBS})
