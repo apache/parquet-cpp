@@ -494,7 +494,7 @@ else()
     boost_static_regex)
   if(MSVC)
     set(BOOST_LINK_LIBS ${BOOST_LINK_LIBS}
-      boost_static_system)
+      boost_static_system boost_static_filesystem)
   endif()
 endif()
 
