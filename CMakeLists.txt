@@ -494,7 +494,7 @@ else()
     boost_static_regex)
   if(MSVC)
     set(BOOST_LINK_LIBS ${BOOST_LINK_LIBS}
-      boost_static_system)
+      boost_static_system boost_static_filesystem)
   endif()
 endif()
 
@@ -550,6 +550,8 @@ else()
     lz4
     zstd
   )
+
+  add_definitions(-DARROW_EXPORTING)
 
   set(ARROW_LINK_LIBS
     arrow_static
