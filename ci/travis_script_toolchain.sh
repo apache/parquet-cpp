@@ -54,11 +54,29 @@ export BOOST_ROOT=$CPP_TOOLCHAIN
 cmake -DPARQUET_CXXFLAGS=-Werror \
       -DPARQUET_TEST_MEMCHECK=ON \
       -DPARQUET_GENERATE_COVERAGE=1 \
+      -DCMAKE_INSTALL_PREFIX=$CPP_TOOLCHAIN \
       $TRAVIS_BUILD_DIR
 
 pushd $CPP_BUILD_DIR
 
 make -j4 || exit 1
+make install || exit 1
 ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
 
+popd
+
+# Build and run the parquet::arrow example. This also tests the usage of parquet-cpp as a library.
+
+pushd $TRAVIS_BUILD_DIR/examples/parquet-arrow
+mkdir build
+pushd build
+
+export ARROW_HOME=$CPP_TOOLCHAIN
+export PARQUET_HOME=$CPP_TOOLCHAIN
+
+cmake ..
+make VERBOSE=1
+./parquet-arrow-reader-writer
+
+popd
 popd
