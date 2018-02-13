@@ -61,14 +61,15 @@ set(Boost_USE_MULTITHREADED ON)
 if (MSVC AND PARQUET_USE_STATIC_CRT)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
+if (MSVC)
+  # disable autolinking in boost
+  add_definitions(-DBOOST_ALL_NO_LIB)
+endif()
 if (PARQUET_BOOST_USE_SHARED)
   # Find shared Boost libraries.
   set(Boost_USE_STATIC_LIBS OFF)
 
   if (MSVC)
-    # disable autolinking in boost
-    add_definitions(-DBOOST_ALL_NO_LIB)
-
     # force all boost libraries to dynamic link
     add_definitions(-DBOOST_ALL_DYN_LINK)
     find_package(Boost COMPONENTS regex system REQUIRED)
