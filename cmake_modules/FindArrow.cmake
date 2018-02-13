@@ -22,6 +22,10 @@
 #  ARROW_SHARED_LIB, path to libarrow's shared library
 #  ARROW_FOUND, whether arrow has been found
 
+if (DEFINED ENV{ARROW_HOME})
+  set(ARROW_HOME "$ENV{ARROW_HOME}")
+endif()
+
 if ("${ARROW_HOME}" STREQUAL "")
   # PARQUET-955. If the user has set $ARROW_HOME in the environment, we respect
   # this, otherwise try to locate the pkgconfig in the system environment
