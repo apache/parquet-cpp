@@ -431,7 +431,17 @@ endif (UNIX)
 ############################################################
 
 # runs clang format and updates files in place.
-add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(format-example
+  COMMAND
+  ${BUILD_SUPPORT_DIR}/run_clang_format.py
+  ${CLANG_FORMAT_BIN}
+  ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
+  ${CMAKE_CURRENT_SOURCE_DIR}/examples/parquet-arrow)
+
+add_custom_target(format
+  DEPENDS format-example
+  COMMAND
+  ${BUILD_SUPPORT_DIR}/run_clang_format.py
   ${CLANG_FORMAT_BIN}
   ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
   ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -439,7 +449,14 @@ add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
 # runs clang format and exits with a non-zero exit code if any files need to be reformatted
 
 # TODO(wesm): Make this work in run_clang_format.py
-add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(check-format-examples ${BUILD_SUPPORT_DIR}/run_clang_format.py
+   ${CLANG_FORMAT_BIN}
+   ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
+   ${CMAKE_CURRENT_SOURCE_DIR}/examples/parquet-arrow 1)
+add_custom_target(check-format
+   DEPENDS check-format-examples
+   COMMAND
+   ${BUILD_SUPPORT_DIR}/run_clang_format.py
    ${CLANG_FORMAT_BIN}
    ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
    ${CMAKE_CURRENT_SOURCE_DIR}/src 1)
@@ -731,7 +748,7 @@ add_subdirectory(src/parquet/util)
 if (NOT MSVC)
   add_subdirectory(benchmarks)
 endif()
-add_subdirectory(examples)
+add_subdirectory(examples/low-level-api)
 add_subdirectory(tools)
 
 add_custom_target(clean-all

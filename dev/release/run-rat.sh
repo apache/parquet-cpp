@@ -24,6 +24,7 @@ curl -s https://repo1.maven.org/maven2/org/apache/rat/apache-rat/0.12/apache-rat
 RAT="java -jar apache-rat-0.12.jar -d "
 
 # generate the rat report
+# Ignore symlinks as RAT does not seem to understand them.
 $RAT $1 \
   -e ".*" \
   -e mman.h \
@@ -32,6 +33,8 @@ $RAT $1 \
   -e cpplint.py \
   -e pax_global_header \
   -e clang_format_exclusions.txt \
+  -e ArrowExternalProject.cmake \
+  -e FindArrow.cmake \
   > rat.txt
 cat rat.txt
 UNAPPROVED=`cat rat.txt  | grep "Unknown Licenses" | head -n 1 | cut -d " " -f 1`
