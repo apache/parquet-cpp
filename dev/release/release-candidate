@@ -28,7 +28,7 @@ set -o nounset
 
 rc_number=0
 override_version=''
-parquetcpp_git_web_url='https://git-wip-us.apache.org/repos/asf?p=parquet-cpp.git'
+parquetcpp_git_web_url='https://gitbox.apache.org/repos/asf?p=parquet-cpp.git'
 parquet_svn_dist_url='https://dist.apache.org/repos/dist/dev/parquet'
 
 function print_help_and_exit {
