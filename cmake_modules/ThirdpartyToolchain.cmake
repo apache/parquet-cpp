@@ -181,6 +181,8 @@ if (NOT THRIFT_FOUND)
                         "-DCMAKE_INSTALL_RPATH=${THRIFT_PREFIX}/lib"
                         "-DBUILD_SHARED_LIBS=OFF"
                         "-DBUILD_TESTING=OFF"
+                        "-DBUILD_EXAMPLES=OFF"
+                        "-DBUILD_TUTORIALS=OFF"
                         "-DWITH_QT4=OFF"
                         "-DWITH_C_GLIB=OFF"
                         "-DWITH_JAVA=OFF"
@@ -188,6 +190,7 @@ if (NOT THRIFT_FOUND)
                         "-DWITH_HASKELL=OFF"
                         "-DWITH_CPP=ON"
                         "-DWITH_STATIC_LIB=ON"
+                        "-DWITH_LIBEVENT=OFF"
                         )
 
   set(THRIFT_STATIC_LIB_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}thrift")
