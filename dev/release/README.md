@@ -17,7 +17,7 @@ How to release
 ==============
 
 1. Do a fresh `git clone` of the repository using the ASF git as origin.
-2. Set the git author to your gpg signing key.
+2. Set the git author to your gpg signing key using `git config --local user.email "<mail>"`.
 3. Create an RC using `./dev/release/release-candidate -r <rcNum> -v <version>` starting with `rcNum=0`.
    You could first do a dry-run by adding `-p` at the end.
 4. Check that the uploaded RC is valid using `./dev/release/verify-release-candidate <version> <rcNum>`.
