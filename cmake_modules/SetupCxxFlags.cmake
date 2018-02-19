@@ -109,6 +109,11 @@ if ("${UPPERCASE_BUILD_WARNING_LEVEL}" STREQUAL "CHECKIN")
       set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wno-undefined-func-template")
     endif()
 
+    if ("${COMPILER_VERSION}" VERSION_GREATER "4.0")
+      set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wno-unused-template \
+-Wno-zero-as-null-pointer-constant")
+    endif()
+
     # Treat all compiler warnings as errors
     set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wno-unknown-warning-option -Werror")
   elseif ("${COMPILER_FAMILY}" STREQUAL "gcc")
