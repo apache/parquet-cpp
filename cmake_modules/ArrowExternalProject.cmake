@@ -64,7 +64,8 @@ endif()
 ExternalProject_Add(arrow_ep
   URL ${ARROW_URL}
   ${ARROW_CONFIGURE}
-  BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}")
+  BUILD_BYPRODUCTS "${ARROW_SHARED_LIB}" "${ARROW_STATIC_LIB}"
+  ${EP_LOG_OPTIONS})
 
 if (MSVC)
   ExternalProject_Add_Step(arrow_ep copy_dll_step
