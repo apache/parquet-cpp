@@ -404,6 +404,11 @@ else()
 endif()
 include(ThirdpartyToolchain)
 
+if (THRIFT_VERSION VERSION_LESS "0.11.0")
+  add_definitions(-DPARQUET_THRIFT_USE_BOOST)
+  message(STATUS "Using Boost in Thrift header")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PARQUET_CXXFLAGS}")
 
