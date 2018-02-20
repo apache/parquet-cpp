@@ -30,6 +30,18 @@ if (NOT MSVC)
   set(EP_C_FLAGS "${EP_C_FLAGS} -fPIC")
 endif()
 
+if (NOT PARQUET_VERBOSE_THIRDPARTY_BUILD)
+  set(EP_LOG_OPTIONS
+    LOG_CONFIGURE 1
+    LOG_BUILD 1
+    LOG_INSTALL 1
+    LOG_DOWNLOAD 1)
+  set(Boost_DEBUG FALSE)
+else()
+  set(EP_LOG_OPTIONS)
+  set(Boost_DEBUG TRUE)
+endif()
+
 # ----------------------------------------------------------------------
 # Configure toolchain with environment variables, if the exist
 
@@ -52,7 +64,6 @@ endif()
 # Boost
 
 # find boost headers and libs
-set(Boost_DEBUG TRUE)
 set(Boost_USE_MULTITHREADED ON)
 if (MSVC AND PARQUET_USE_STATIC_CRT)
   set(Boost_USE_STATIC_RUNTIME ON)
@@ -168,6 +179,7 @@ if (NOT THRIFT_FOUND)
     URL "http://zlib.net/fossils/zlib-1.2.8.tar.gz"
     BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
     ${ZLIB_BUILD_BYPRODUCTS}
+    ${EP_LOG_OPTIONS}
     CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
 
   set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
@@ -212,7 +224,10 @@ if (NOT THRIFT_FOUND)
       URL https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
       URL_HASH MD5=a2e979ea9928fbf8567e995e9c0df765
       SOURCE_DIR ${WINFLEXBISON_PREFIX}
-      CONFIGURE_COMMAND "" BUILD_COMMAND "" INSTALL_COMMAND "")
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND ""
+      INSTALL_COMMAND ""
+      ${EP_LOG_OPTIONS})
     set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} winflexbison_ep)
 
     set(THRIFT_CMAKE_ARGS "-DFLEX_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_flex.exe"
@@ -229,7 +244,8 @@ if (NOT THRIFT_FOUND)
     URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
     BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
     CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
-    DEPENDS ${THRIFT_DEPENDENCIES})
+    DEPENDS ${THRIFT_DEPENDENCIES}
+    ${EP_LOG_OPTIONS})
 
   set(THRIFT_VENDORED 1)
 else()
@@ -268,7 +284,7 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
     set(GTEST_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                          -DCMAKE_INSTALL_PREFIX=${GTEST_PREFIX}
                          -DCMAKE_CXX_FLAGS=${GTEST_CMAKE_CXX_FLAGS})
-                
+
     if (MSVC AND NOT PARQUET_USE_STATIC_CRT)
       set(GTEST_CMAKE_ARGS ${GTEST_CMAKE_ARGS} -Dgtest_force_shared_crt=ON)
     endif()
@@ -276,7 +292,8 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
     ExternalProject_Add(googletest_ep
       URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${GTEST_STATIC_LIB}" "${GTEST_MAIN_STATIC_LIB}"
-      CMAKE_ARGS ${GTEST_CMAKE_ARGS})
+      CMAKE_ARGS ${GTEST_CMAKE_ARGS}
+      ${EP_LOG_OPTIONS})
     set(GTEST_VENDORED 1)
   else()
     find_package(GTest REQUIRED)
@@ -328,7 +345,8 @@ if(PARQUET_BUILD_BENCHMARKS AND NOT IGNORE_OPTIONAL_PACKAGES)
     ExternalProject_Add(gbenchmark_ep
       URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz"
       BUILD_BYPRODUCTS "${GBENCHMARK_STATIC_LIB}"
-      CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS})
+      CMAKE_ARGS ${GBENCHMARK_CMAKE_ARGS}
+      ${EP_LOG_OPTIONS})
     set(GBENCHMARK_VENDORED 1)
   else()
     find_package(GBenchmark REQUIRED)
