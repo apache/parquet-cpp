@@ -96,6 +96,67 @@ void TypedRowGroupStatistics<DType>::Reset() {
   has_min_max_ = false;
 }
 
+template <typename T>
+inline int getValueBeginOffset(const T* values, int64_t count) {
+  return 0;
+}
+
+template <typename T>
+inline int getValueEndOffset(const T* values, int64_t count) {
+  return count;
+}
+
+template <typename T>
+inline bool notNaN (const T* value) {
+  return true;
+}
+
+template <>
+inline int getValueBeginOffset<float>(const float* values, int64_t count) {
+  // Skip NaNs
+  for (int64_t i = 0; i < count; i++) {
+     if (!std::isnan(values[i])) return i;
+  }
+  return count;
+}
+
+template <>
+inline int getValueEndOffset<float>(const float* values, int64_t count) {
+  // Skip NaNs
+  for (int64_t i = (count - 1); i > 0; i--) {
+     if (!std::isnan(values[i])) return (i + 1);
+  }
+  return count;
+}
+
+template <>
+inline bool notNaN<float>(const float* value) {
+  return !std::isnan(*value);
+}
+
+template <>
+inline int getValueBeginOffset<double>(const double* values, int64_t count) {
+  // Skip NaNs
+  for (int64_t i = 0; i < count; i++) {
+     if (!std::isnan(values[i])) return i;
+  }
+  return 0;
+}
+
+template <>
+inline int getValueEndOffset<double>(const double* values, int64_t count) {
+  // Skip NaNs
+  for (int64_t i = (count - 1); i > 0; i--) {
+     if (!std::isnan(values[i])) return (i + 1);
+  }
+  return 0;
+}
+
+template <>
+inline bool notNaN<double>(const double* value) {
+  return !std::isnan(*value);
+}
+
 template <typename DType>
 void TypedRowGroupStatistics<DType>::Update(const T* values, int64_t num_not_null,
                                             int64_t num_null) {
@@ -107,8 +168,17 @@ void TypedRowGroupStatistics<DType>::Update(const T* values, int64_t num_not_nul
   // TODO: support distinct count?
   if (num_not_null == 0) return;
 
+  // PARQUET-1225: Handle NaNs
+  // The problem arises only if the starting/ending value(s)
+  // of the values-buffer contain NaN
+  int64_t begin_offset = getValueBeginOffset(values, num_not_null);
+  int64_t end_offset = getValueEndOffset(values, num_not_null);
+
+  // All values are NaN
+  if (end_offset < begin_offset) return;
+
   auto batch_minmax =
-      std::minmax_element(values, values + num_not_null, std::ref(*(this->comparator_)));
+      std::minmax_element(values + begin_offset, values + end_offset, std::ref(*(this->comparator_)));
   if (!has_min_max_) {
     has_min_max_ = true;
     Copy(*batch_minmax.first, &min_, min_buffer_.get());
@@ -142,7 +212,8 @@ void TypedRowGroupStatistics<DType>::UpdateSpaced(const T* values,
   ::arrow::internal::BitmapReader valid_bits_reader(valid_bits, valid_bits_offset,
                                                     length);
   for (; i < length; i++) {
-    if (valid_bits_reader.IsSet()) {
+    // PARQUET-1225: Handle NaNs
+    if (valid_bits_reader.IsSet() && notNaN(&values[i])) {
       break;
     }
     valid_bits_reader.Next();

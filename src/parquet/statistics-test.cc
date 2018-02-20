@@ -659,5 +659,37 @@ TEST_F(TestStatisticsFLBA, UnknownSortOrder) {
   ASSERT_FALSE(cc_metadata->is_stats_set());
 }
 
+// PARQUET-1225: Float NaN values may lead to incorrect filtering under certain circumstances
+TEST(TestStatisticsFloatNan, NaNValues) {
+  constexpr int NUM_VALUES = 10;
+  NodePtr node = PrimitiveNode::Make("nan_float", Repetition::OPTIONAL, Type::FLOAT);
+  ColumnDescriptor descr(node, 1, 1);
+  TypedRowGroupStatistics<FloatType> nan_stats(&descr);
+  float values[NUM_VALUES] =
+        {std::nanf(""), -4.0f, -3.0f, -2.0f, -1.0f, std::nanf(""), 1.0f, 2.0f, 3.0f, std::nanf("")};
+  nan_stats.Update(&values[0], NUM_VALUES, 0);
+  float min = nan_stats.min();
+  float max = nan_stats.max();
+
+  ASSERT_EQ(min, -4.0f);
+  ASSERT_EQ(max, 3.0f);
+}
+
+// NaN double values may lead to incorrect filtering under certain circumstances
+TEST(TestStatisticsDoubleNan, NaNValues) {
+  constexpr int NUM_VALUES = 10;
+  NodePtr node = PrimitiveNode::Make("nan_double", Repetition::OPTIONAL, Type::DOUBLE);
+  ColumnDescriptor descr(node, 1, 1);
+  TypedRowGroupStatistics<DoubleType> nan_stats(&descr);
+  double values[NUM_VALUES] =
+        {std::nan(""), std::nan(""), -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0};
+  double* values_ptr = &values[0];
+  nan_stats.Update(values_ptr, NUM_VALUES, 0);
+  double min = nan_stats.min();
+  double max = nan_stats.max();
+
+  ASSERT_EQ(min, -3.0);
+  ASSERT_EQ(max, 4.0);
+}
 }  // namespace test
 }  // namespace parquet
