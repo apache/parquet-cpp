@@ -40,7 +40,7 @@ conda config --set remote_connect_timeout_secs 12
 conda info -a
 
 conda create -y -q -p $CPP_TOOLCHAIN \
-      boost-cpp thrift-cpp cmake git \
+      boost-cpp thrift-cpp=0.10.0 cmake git \
       -c conda-forge
 
 source activate $CPP_TOOLCHAIN
