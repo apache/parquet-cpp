@@ -103,7 +103,7 @@ struct StatsHelper {
 
   inline int GetValueEndOffset(const T* values, int64_t count) { return count; }
 
-  inline bool NotNaN(const T value) { return true; }
+  inline bool IsNaN(const T value) { return false; }
 };
 
 template <typename T>
@@ -128,9 +128,8 @@ struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>:
     return 0;
   }
 
-  inline bool NotNaN(const T value) {
-    // If Value = NaN, false is returned
-    return (value == value);
+  inline bool IsNaN(const T value) {
+    return std::isnan(value);
   }
 };
 
@@ -216,14 +215,14 @@ void TypedRowGroupStatistics<DType>::UpdateSpaced(const T* values,
   StatsHelper<T> helper;
   for (; i < length; i++) {
     // PARQUET-1225: Handle NaNs
-    if (valid_bits_reader.IsSet() && helper.NotNaN(values[i])) {
+    if (valid_bits_reader.IsSet() && !helper.IsNaN(values[i])) {
       break;
     }
     valid_bits_reader.Next();
   }
 
   // All are NaNs and stats are not set yet
-  if ((i == length) && !helper.NotNaN(values[i - 1]) && !has_min_max_) {
+  if ((i == length) && helper.IsNaN(values[i - 1]) && !has_min_max_) {
     // Don't set has_min_max flag since
     // these values must be over-written by valid stats later
     SetNaN(&min_);
