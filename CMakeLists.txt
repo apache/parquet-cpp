@@ -151,6 +151,11 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   option(PARQUET_MINIMAL_DEPENDENCY
     "Depend only on Thirdparty headers to build libparquet. Always OFF if building binaries"
     OFF)
+
+  option(PARQUET_THRIFT_USE_BOOST
+    "Enable if Thirdparty Thrift uses boost::shared_ptr (Apache Thrift < 0.11)"
+    OFF)
+
   if (MSVC)
     set(ARROW_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
       "Arrow static lib suffix used on Windows with MSVC (default _static)")
@@ -403,11 +408,6 @@ else()
     set(IGNORE_OPTIONAL_PACKAGES OFF)
 endif()
 include(ThirdpartyToolchain)
-
-if (THRIFT_VERSION VERSION_LESS "0.11.0")
-  add_definitions(-DPARQUET_THRIFT_USE_BOOST)
-  message(STATUS "Using Boost in Thrift header")
-endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PARQUET_CXXFLAGS}")
