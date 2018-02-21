@@ -40,7 +40,7 @@ conda config --set remote_connect_timeout_secs 12
 conda info -a
 
 conda create -y -q -p $CPP_TOOLCHAIN \
-      boost-cpp thrift-cpp cmake git \
+      boost-cpp thrift-cpp=0.10.0 cmake git \
       -c conda-forge
 
 source activate $CPP_TOOLCHAIN
@@ -70,6 +70,7 @@ cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
       -DPARQUET_ARROW_LINKAGE="static" \
       -DPARQUET_BUILD_SHARED=OFF \
       -DPARQUET_BOOST_USE_SHARED=OFF \
+      -DPARQUET_THRIFT_USE_BOOST=ON \
       -DPARQUET_BUILD_BENCHMARKS=ON \
       -DPARQUET_BUILD_EXAMPLES=ON \
       -DPARQUET_GENERATE_COVERAGE=1 \

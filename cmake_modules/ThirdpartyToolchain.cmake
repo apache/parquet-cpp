@@ -17,7 +17,7 @@
 
 set(GTEST_VERSION "1.8.0")
 set(GBENCHMARK_VERSION "1.1.0")
-set(THRIFT_VERSION "0.11.0")
+set(THRIFT_VENDOR_VERSION "0.11.0")
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} UPPERCASE_BUILD_TYPE)
 
@@ -244,7 +244,7 @@ if (NOT THRIFT_FOUND)
   endif()
 
   ExternalProject_Add(thrift_ep
-    URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
+    URL "http://archive.apache.org/dist/thrift/${THRIFT_VENDOR_VERSION}/thrift-${THRIFT_VENDOR_VERSION}.tar.gz"
     BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
     CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
     DEPENDS ${THRIFT_DEPENDENCIES}
@@ -259,11 +259,17 @@ include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
 message(STATUS "Thrift include dir: ${THRIFT_INCLUDE_DIR}")
 message(STATUS "Thrift static library: ${THRIFT_STATIC_LIB}")
 message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
+message(STATUS "Thrift version: ${THRIFT_VERSION}")
 add_library(thriftstatic STATIC IMPORTED)
 set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
 
 if (THRIFT_VENDORED)
   add_dependencies(thriftstatic thrift_ep)
+endif()
+
+if (PARQUET_THRIFT_USE_BOOST)
+  add_definitions(-DPARQUET_THRIFT_USE_BOOST)
+  message(STATUS "Using Boost in Thrift header")
 endif()
 
 ## GTest
