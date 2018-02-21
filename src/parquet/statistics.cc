@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <type_traits>
 
 #include "parquet/encoding-internal.h"
 #include "parquet/exception.h"
@@ -96,65 +97,63 @@ void TypedRowGroupStatistics<DType>::Reset() {
   has_min_max_ = false;
 }
 
+template <typename T, typename Enable = void>
+struct StatsHelper {
+  inline int GetValueBeginOffset(const T* values, int64_t count) {
+    return 0;
+  }
+ 
+  inline int GetValueEndOffset(const T* values, int64_t count) {
+    return count;
+  }
+
+  inline bool NotNaN (const T value) {
+    return true;
+  }
+
+};
+
 template <typename T>
-inline int getValueBeginOffset(const T* values, int64_t count) {
-  return 0;
-}
-
-template <typename T>
-inline int getValueEndOffset(const T* values, int64_t count) {
-  return count;
-}
-
-template <typename T>
-inline bool notNaN (const T* value) {
-  return true;
-}
-
-template <>
-inline int getValueBeginOffset<float>(const float* values, int64_t count) {
-  // Skip NaNs
-  for (int64_t i = 0; i < count; i++) {
-     if (!std::isnan(values[i])) return i;
+struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
+  inline int GetValueBeginOffset(const T* values, int64_t count) {
+    // Skip NaNs
+    for (int64_t i = 0; i < count; i++) {
+      if (!std::isnan(values[i] )) {
+        return i;
+      }
+    }
+    return count;
   }
-  return count;
-}
-
-template <>
-inline int getValueEndOffset<float>(const float* values, int64_t count) {
-  // Skip NaNs
-  for (int64_t i = (count - 1); i > 0; i--) {
-     if (!std::isnan(values[i])) return (i + 1);
+ 
+  inline int GetValueEndOffset(const T* values, int64_t count) {
+    // Skip NaNs
+    for (int64_t i = (count - 1); i >= 0; i--) {
+      if (!std::isnan(values[i])) {
+        return (i + 1);
+      }
+    }
+    return 0;
   }
-  return count;
-}
-
-template <>
-inline bool notNaN<float>(const float* value) {
-  return !std::isnan(*value);
-}
-
-template <>
-inline int getValueBeginOffset<double>(const double* values, int64_t count) {
-  // Skip NaNs
-  for (int64_t i = 0; i < count; i++) {
-     if (!std::isnan(values[i])) return i;
+    
+  inline bool NotNaN(const T value) {
+    // If Value = NaN, false is returned
+    return (value == value);
   }
-  return 0;
+};
+
+template<typename T>
+void SetNaN(T *value) {
+ //no-op
 }
 
-template <>
-inline int getValueEndOffset<double>(const double* values, int64_t count) {
-  // Skip NaNs
-  for (int64_t i = (count - 1); i > 0; i--) {
-     if (!std::isnan(values[i])) return (i + 1);
-  }
-  return 0;
+template<>
+void SetNaN<float>(float *value) {
+  *value = std::nanf("");
 }
 
-template <>
-inline bool notNaN<double>(const double* value) {
-  return !std::isnan(*value);
+template<>
+void SetNaN<double>(double *value) {
+  *value = std::nan("");
 }
 
 template <typename DType>
@@ -171,11 +170,21 @@ void TypedRowGroupStatistics<DType>::Update(const T* values, int64_t num_not_nul
   // PARQUET-1225: Handle NaNs
   // The problem arises only if the starting/ending value(s)
   // of the values-buffer contain NaN
-  int64_t begin_offset = getValueBeginOffset(values, num_not_null);
-  int64_t end_offset = getValueEndOffset(values, num_not_null);
+  StatsHelper<T> helper;
+  int64_t begin_offset = helper.GetValueBeginOffset(values, num_not_null);
+  int64_t end_offset = helper.GetValueEndOffset(values, num_not_null);
 
   // All values are NaN
-  if (end_offset < begin_offset) return;
+  if (end_offset < begin_offset) {
+     // Set min/max to NaNs in this case.
+     // Don't set has_min_max flag since
+     // these values must be over-written by valid stats later
+     if (!has_min_max_) {
+       SetNaN(&min_);
+       SetNaN(&max_);
+     }
+     return;
+  }
 
   auto batch_minmax =
       std::minmax_element(values + begin_offset, values + end_offset, std::ref(*(this->comparator_)));
@@ -211,13 +220,24 @@ void TypedRowGroupStatistics<DType>::UpdateSpaced(const T* values,
   int64_t i = 0;
   ::arrow::internal::BitmapReader valid_bits_reader(valid_bits, valid_bits_offset,
                                                     length);
+  StatsHelper<T> helper;
   for (; i < length; i++) {
     // PARQUET-1225: Handle NaNs
-    if (valid_bits_reader.IsSet() && notNaN(&values[i])) {
+    if (valid_bits_reader.IsSet() && helper.NotNaN(values[i])) {
       break;
     }
     valid_bits_reader.Next();
   }
+
+  // All are NaNs and stats are not set yet
+  if ((i == length) && !helper.NotNaN(values[i - 1]) && !has_min_max_) {
+    // Don't set has_min_max flag since
+    // these values must be over-written by valid stats later
+    SetNaN(&min_);
+    SetNaN(&max_);
+    return;
+  }
+
   T min = values[i];
   T max = values[i];
   for (; i < length; i++) {
