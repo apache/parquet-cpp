@@ -99,16 +99,16 @@ void TypedRowGroupStatistics<DType>::Reset() {
 
 template <typename T, typename Enable = void>
 struct StatsHelper {
-  inline int GetValueBeginOffset(const T* values, int64_t count) { return 0; }
+  inline int64_t GetValueBeginOffset(const T* values, int64_t count) { return 0; }
 
-  inline int GetValueEndOffset(const T* values, int64_t count) { return count; }
+  inline int64_t GetValueEndOffset(const T* values, int64_t count) { return count; }
 
   inline bool IsNaN(const T value) { return false; }
 };
 
 template <typename T>
 struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
-  inline int GetValueBeginOffset(const T* values, int64_t count) {
+  inline int64_t GetValueBeginOffset(const T* values, int64_t count) {
     // Skip NaNs
     for (int64_t i = 0; i < count; i++) {
       if (!std::isnan(values[i])) {
@@ -118,7 +118,7 @@ struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>:
     return count;
   }
 
-  inline int GetValueEndOffset(const T* values, int64_t count) {
+  inline int64_t GetValueEndOffset(const T* values, int64_t count) {
     // Skip NaNs
     for (int64_t i = (count - 1); i >= 0; i--) {
       if (!std::isnan(values[i])) {
