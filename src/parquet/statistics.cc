@@ -128,9 +128,7 @@ struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>:
     return 0;
   }
 
-  inline bool IsNaN(const T value) {
-    return std::isnan(value);
-  }
+  inline bool IsNaN(const T value) { return std::isnan(value); }
 };
 
 template <typename T>
@@ -222,11 +220,13 @@ void TypedRowGroupStatistics<DType>::UpdateSpaced(const T* values,
   }
 
   // All are NaNs and stats are not set yet
-  if ((i == length) && helper.IsNaN(values[i - 1]) && !has_min_max_) {
+  if ((i == length) && helper.IsNaN(values[i - 1])) {
     // Don't set has_min_max flag since
     // these values must be over-written by valid stats later
-    SetNaN(&min_);
-    SetNaN(&max_);
+    if (!has_min_max_) {
+      SetNaN(&min_);
+      SetNaN(&max_);
+    }
     return;
   }
 
