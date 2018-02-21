@@ -99,18 +99,11 @@ void TypedRowGroupStatistics<DType>::Reset() {
 
 template <typename T, typename Enable = void>
 struct StatsHelper {
-  inline int GetValueBeginOffset(const T* values, int64_t count) {
-    return 0;
-  }
- 
-  inline int GetValueEndOffset(const T* values, int64_t count) {
-    return count;
-  }
+  inline int GetValueBeginOffset(const T* values, int64_t count) { return 0; }
 
-  inline bool NotNaN (const T value) {
-    return true;
-  }
+  inline int GetValueEndOffset(const T* values, int64_t count) { return count; }
 
+  inline bool NotNaN(const T value) { return true; }
 };
 
 template <typename T>
@@ -118,13 +111,13 @@ struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>:
   inline int GetValueBeginOffset(const T* values, int64_t count) {
     // Skip NaNs
     for (int64_t i = 0; i < count; i++) {
-      if (!std::isnan(values[i] )) {
+      if (!std::isnan(values[i])) {
         return i;
       }
     }
     return count;
   }
- 
+
   inline int GetValueEndOffset(const T* values, int64_t count) {
     // Skip NaNs
     for (int64_t i = (count - 1); i >= 0; i--) {
@@ -134,25 +127,25 @@ struct StatsHelper<T, typename std::enable_if<std::is_floating_point<T>::value>:
     }
     return 0;
   }
-    
+
   inline bool NotNaN(const T value) {
     // If Value = NaN, false is returned
     return (value == value);
   }
 };
 
-template<typename T>
-void SetNaN(T *value) {
- //no-op
+template <typename T>
+void SetNaN(T* value) {
+  // no-op
 }
 
-template<>
-void SetNaN<float>(float *value) {
+template <>
+void SetNaN<float>(float* value) {
   *value = std::nanf("");
 }
 
-template<>
-void SetNaN<double>(double *value) {
+template <>
+void SetNaN<double>(double* value) {
   *value = std::nan("");
 }
 
@@ -176,18 +169,18 @@ void TypedRowGroupStatistics<DType>::Update(const T* values, int64_t num_not_nul
 
   // All values are NaN
   if (end_offset < begin_offset) {
-     // Set min/max to NaNs in this case.
-     // Don't set has_min_max flag since
-     // these values must be over-written by valid stats later
-     if (!has_min_max_) {
-       SetNaN(&min_);
-       SetNaN(&max_);
-     }
-     return;
+    // Set min/max to NaNs in this case.
+    // Don't set has_min_max flag since
+    // these values must be over-written by valid stats later
+    if (!has_min_max_) {
+      SetNaN(&min_);
+      SetNaN(&max_);
+    }
+    return;
   }
 
-  auto batch_minmax =
-      std::minmax_element(values + begin_offset, values + end_offset, std::ref(*(this->comparator_)));
+  auto batch_minmax = std::minmax_element(values + begin_offset, values + end_offset,
+                                          std::ref(*(this->comparator_)));
   if (!has_min_max_) {
     has_min_max_ = true;
     Copy(*batch_minmax.first, &min_, min_buffer_.get());

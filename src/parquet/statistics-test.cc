@@ -659,16 +659,17 @@ TEST_F(TestStatisticsFLBA, UnknownSortOrder) {
   ASSERT_FALSE(cc_metadata->is_stats_set());
 }
 
-// PARQUET-1225: Float NaN values may lead to incorrect filtering under certain circumstances
+// PARQUET-1225: Float NaN values may lead to incorrect filtering under certain
+// circumstances
 TEST(TestStatisticsFloatNaN, NaNValues) {
   constexpr int NUM_VALUES = 10;
   NodePtr node = PrimitiveNode::Make("nan_float", Repetition::OPTIONAL, Type::FLOAT);
   ColumnDescriptor descr(node, 1, 1);
-  float values[NUM_VALUES] =
-        {std::nanf(""), -4.0f, -3.0f, -2.0f, -1.0f, std::nanf(""), 1.0f, 2.0f, 3.0f, std::nanf("")};
+  float values[NUM_VALUES] = {std::nanf(""), -4.0f, -3.0f, -2.0f, -1.0f,
+                              std::nanf(""), 1.0f,  2.0f,  3.0f,  std::nanf("")};
   float nan_values[NUM_VALUES];
-  for (int i = 0; i < NUM_VALUES; i ++) {
-       nan_values[i] = std::nanf("");
+  for (int i = 0; i < NUM_VALUES; i++) {
+    nan_values[i] = std::nanf("");
   }
 
   // Test values
@@ -709,21 +710,21 @@ TEST(TestStatisticsFloatNaN, NaNValues) {
   ASSERT_EQ(max, 3.0f);
 }
 
-// PARQUET-1225: Float NaN values may lead to incorrect filtering under certain circumstances
+// PARQUET-1225: Float NaN values may lead to incorrect filtering under certain
+// circumstances
 TEST(TestStatisticsFloatNaN, NaNValuesSpaced) {
   constexpr int NUM_VALUES = 10;
   NodePtr node = PrimitiveNode::Make("nan_float", Repetition::OPTIONAL, Type::FLOAT);
   ColumnDescriptor descr(node, 1, 1);
-  float values[NUM_VALUES] =
-        {std::nanf(""), -4.0f, -3.0f, -2.0f, -1.0f, std::nanf(""), 1.0f, 2.0f, 3.0f, std::nanf("")};
+  float values[NUM_VALUES] = {std::nanf(""), -4.0f, -3.0f, -2.0f, -1.0f,
+                              std::nanf(""), 1.0f,  2.0f,  3.0f,  std::nanf("")};
   float nan_values[NUM_VALUES];
-  for (int i = 0; i < NUM_VALUES; i ++) {
-       nan_values[i] = std::nanf("");
+  for (int i = 0; i < NUM_VALUES; i++) {
+    nan_values[i] = std::nanf("");
   }
-  std::vector<uint8_t> valid_bits(
-       BitUtil::RoundUpNumBytes(NUM_VALUES) + 1, 255);
+  std::vector<uint8_t> valid_bits(BitUtil::RoundUpNumBytes(NUM_VALUES) + 1, 255);
 
-  // Test values 
+  // Test values
   TypedRowGroupStatistics<FloatType> nan_stats(&descr);
   nan_stats.UpdateSpaced(&values[0], valid_bits.data(), 0, NUM_VALUES, 0);
   float min = nan_stats.min();
@@ -767,8 +768,8 @@ TEST(TestStatisticsDoubleNaN, NaNValues) {
   NodePtr node = PrimitiveNode::Make("nan_double", Repetition::OPTIONAL, Type::DOUBLE);
   ColumnDescriptor descr(node, 1, 1);
   TypedRowGroupStatistics<DoubleType> nan_stats(&descr);
-  double values[NUM_VALUES] =
-        {std::nan(""), std::nan(""), -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0};
+  double values[NUM_VALUES] = {std::nan(""), std::nan(""), -3.0, -2.0, -1.0,
+                               0.0,          1.0,          2.0,  3.0,  4.0};
   double* values_ptr = &values[0];
   nan_stats.Update(values_ptr, NUM_VALUES, 0);
   double min = nan_stats.min();
