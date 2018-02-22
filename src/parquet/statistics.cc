@@ -97,6 +97,18 @@ void TypedRowGroupStatistics<DType>::Reset() {
   has_min_max_ = false;
 }
 
+template <typename DType>
+inline void TypedRowGroupStatistics<DType>::SetMinMax(const T& min, const T& max) {
+  if (!has_min_max_) {
+    has_min_max_ = true;
+    Copy(min, &min_, min_buffer_.get());
+    Copy(max, &max_, max_buffer_.get());
+  } else {
+    Copy(std::min(min_, min, std::ref(*(this->comparator_))), &min_, min_buffer_.get());
+    Copy(std::max(max_, max, std::ref(*(this->comparator_))), &max_, max_buffer_.get());
+  }
+}
+
 template <typename T, typename Enable = void>
 struct StatsHelper {
   inline int64_t GetValueBeginOffset(const T* values, int64_t count) { return 0; }
@@ -178,16 +190,8 @@ void TypedRowGroupStatistics<DType>::Update(const T* values, int64_t num_not_nul
 
   auto batch_minmax = std::minmax_element(values + begin_offset, values + end_offset,
                                           std::ref(*(this->comparator_)));
-  if (!has_min_max_) {
-    has_min_max_ = true;
-    Copy(*batch_minmax.first, &min_, min_buffer_.get());
-    Copy(*batch_minmax.second, &max_, max_buffer_.get());
-  } else {
-    Copy(std::min(min_, *batch_minmax.first, std::ref(*(this->comparator_))), &min_,
-         min_buffer_.get());
-    Copy(std::max(max_, *batch_minmax.second, std::ref(*(this->comparator_))), &max_,
-         max_buffer_.get());
-  }
+
+  SetMinMax(*batch_minmax.first, *batch_minmax.second);
 }
 
 template <typename DType>
@@ -242,14 +246,8 @@ void TypedRowGroupStatistics<DType>::UpdateSpaced(const T* values,
     }
     valid_bits_reader.Next();
   }
-  if (!has_min_max_) {
-    has_min_max_ = true;
-    Copy(min, &min_, min_buffer_.get());
-    Copy(max, &max_, max_buffer_.get());
-  } else {
-    Copy(std::min(min_, min, std::ref(*(this->comparator_))), &min_, min_buffer_.get());
-    Copy(std::max(max_, max, std::ref(*(this->comparator_))), &max_, max_buffer_.get());
-  }
+
+  SetMinMax(min, max);
 }
 
 template <typename DType>
@@ -268,17 +266,7 @@ void TypedRowGroupStatistics<DType>::Merge(const TypedRowGroupStatistics<DType>&
 
   if (!other.HasMinMax()) return;
 
-  if (!has_min_max_) {
-    Copy(other.min_, &this->min_, min_buffer_.get());
-    Copy(other.max_, &this->max_, max_buffer_.get());
-    has_min_max_ = true;
-    return;
-  }
-
-  Copy(std::min(this->min_, other.min_, std::ref(*(this->comparator_))), &this->min_,
-       min_buffer_.get());
-  Copy(std::max(this->max_, other.max_, std::ref(*(this->comparator_))), &this->max_,
-       max_buffer_.get());
+  SetMinMax(other.min_, other.max_);
 }
 
 template <typename DType>
