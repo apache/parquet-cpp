@@ -57,6 +57,7 @@ using parquet::schema::Node;
 // Help reduce verbosity
 using ParquetReader = parquet::ParquetFileReader;
 using arrow::ParallelFor;
+using arrow::RecordBatchReader;
 
 using parquet::internal::RecordReader;
 
@@ -152,6 +153,64 @@ class SingleRowGroupIterator : public FileColumnIterator {
   bool done_;
 };
 
+class RowGroupRecordBatchReader : public ::arrow::RecordBatchReader {
+ public:
+    explicit RowGroupRecordBatchReader(const std::vector<int>& row_group_indices,
+                                       const std::vector<int>& column_indices,
+                                       FileReader* reader)
+      : row_group_indices_(row_group_indices),
+        column_indices_(column_indices),
+        file_reader_(reader),
+        next_row_group_(0) {
+      file_reader_->GetSchema(column_indices_, &schema_);
+    }
+
+    ~RowGroupRecordBatchReader() {}
+
+    std::shared_ptr<::arrow::Schema> schema() const override {
+      return schema_;
+    }
+
+    Status ReadNext(std::shared_ptr<::arrow::RecordBatch> *out) override {
+      if (table_ != nullptr) { // one row group has been loaded
+        std::shared_ptr<::arrow::RecordBatch> tmp;
+        table_batch_reader_->ReadNext(&tmp);
+        if (tmp != nullptr) { // some column chunks are left in table
+          *out = tmp;
+          return Status::OK();
+        } else { // the entire table is consumed
+          table_batch_reader_.reset();
+          table_.reset();
+        }
+      }
+
+      // all row groups has been consumed
+      if (next_row_group_ == row_group_indices_.size()) {
+        *out = nullptr;
+        return Status::OK();
+      }
+
+      RETURN_NOT_OK(file_reader_->ReadRowGroup(row_group_indices_[next_row_group_],
+                                               column_indices_,
+                                               &table_));
+
+      next_row_group_++;
+      table_batch_reader_.reset(new ::arrow::TableBatchReader(*table_.get()));
+      table_batch_reader_->ReadNext(out);
+      return Status::OK();
+    }
+
+
+ private:
+    std::vector<int> row_group_indices_;
+    std::vector<int> column_indices_;
+    FileReader* file_reader_;
+    int next_row_group_;
+    std::shared_ptr<::arrow::Table> table_;
+    std::unique_ptr<::arrow::TableBatchReader> table_batch_reader_;
+    std::shared_ptr<::arrow::Schema> schema_;
+};
+
 // ----------------------------------------------------------------------
 // File reader implementation
 
@@ -187,6 +246,8 @@ class FileReader::Impl {
   const ParquetFileReader* parquet_reader() const { return reader_.get(); }
 
   int num_row_groups() const { return reader_->metadata()->num_row_groups(); }
+
+  int num_columns() const { return reader_->metadata()->num_columns(); }
 
   void set_num_threads(int num_threads) { num_threads_ = num_threads; }
 
@@ -518,6 +579,11 @@ Status FileReader::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
   return impl_->GetColumn(i, out);
 }
 
+Status FileReader::GetSchema(const std::vector<int> &indices,
+                             std::shared_ptr<::arrow::Schema> *out) {
+  return impl_->GetSchema(indices, out);
+}
+
 Status FileReader::ReadColumn(int i, std::shared_ptr<Array>* out) {
   try {
     return impl_->ReadColumn(i, out);
@@ -532,6 +598,26 @@ Status FileReader::ReadSchemaField(int i, std::shared_ptr<Array>* out) {
   } catch (const ::parquet::ParquetException& e) {
     return ::arrow::Status::IOError(e.what());
   }
+}
+
+Status FileReader::GetRecordBatchReader(const std::vector<int> &row_group_indices,
+                                        std::shared_ptr<RecordBatchReader> *out) {
+  std::vector<int> indices(impl_->num_columns());
+
+  for (size_t j = 0; j < indices.size(); ++j) {
+    indices[j] = static_cast<int>(j);
+  }
+
+  return GetRecordBatchReader(row_group_indices, indices, out);
+}
+
+Status  FileReader::GetRecordBatchReader(const std::vector<int> &row_group_indices,
+                                         const std::vector<int> &column_indices,
+                                         std::shared_ptr<RecordBatchReader> *out) {
+  *out = std::make_shared<RowGroupRecordBatchReader>(row_group_indices,
+                                                     column_indices,
+                                                     this);
+  return Status::OK();
 }
 
 Status FileReader::ReadTable(std::shared_ptr<Table>* out) {
