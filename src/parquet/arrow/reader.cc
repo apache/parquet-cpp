@@ -205,7 +205,7 @@ class RowGroupRecordBatchReader : public ::arrow::RecordBatchReader {
     std::vector<int> row_group_indices_;
     std::vector<int> column_indices_;
     FileReader* file_reader_;
-    int next_row_group_;
+    size_t next_row_group_;
     std::shared_ptr<::arrow::Table> table_;
     std::unique_ptr<::arrow::TableBatchReader> table_batch_reader_;
     std::shared_ptr<::arrow::Schema> schema_;
