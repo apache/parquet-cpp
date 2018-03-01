@@ -573,7 +573,7 @@ else()
     zstd
   )
 
-  add_definitions(-DARROW_EXPORTING)
+  add_definitions(-DARROW_STATIC)
 
   set(ARROW_LINK_LIBS
     arrow_static
