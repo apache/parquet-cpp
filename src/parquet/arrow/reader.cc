@@ -155,60 +155,55 @@ class SingleRowGroupIterator : public FileColumnIterator {
 
 class RowGroupRecordBatchReader : public ::arrow::RecordBatchReader {
  public:
-    explicit RowGroupRecordBatchReader(const std::vector<int>& row_group_indices,
-                                       const std::vector<int>& column_indices,
-                                       FileReader* reader)
+  explicit RowGroupRecordBatchReader(const std::vector<int>& row_group_indices,
+                                     const std::vector<int>& column_indices,
+                                     std::shared_ptr<::arrow::Schema> schema,
+                                     FileReader* reader)
       : row_group_indices_(row_group_indices),
         column_indices_(column_indices),
+        schema_(schema),
         file_reader_(reader),
-        next_row_group_(0) {
-      file_reader_->GetSchema(column_indices_, &schema_);
-    }
+        next_row_group_(0) {}
 
-    ~RowGroupRecordBatchReader() {}
+  ~RowGroupRecordBatchReader() {}
 
-    std::shared_ptr<::arrow::Schema> schema() const override {
-      return schema_;
-    }
+  std::shared_ptr<::arrow::Schema> schema() const override { return schema_; }
 
-    Status ReadNext(std::shared_ptr<::arrow::RecordBatch> *out) override {
-      if (table_ != nullptr) { // one row group has been loaded
-        std::shared_ptr<::arrow::RecordBatch> tmp;
-        table_batch_reader_->ReadNext(&tmp);
-        if (tmp != nullptr) { // some column chunks are left in table
-          *out = tmp;
-          return Status::OK();
-        } else { // the entire table is consumed
-          table_batch_reader_.reset();
-          table_.reset();
-        }
-      }
-
-      // all row groups has been consumed
-      if (next_row_group_ == row_group_indices_.size()) {
-        *out = nullptr;
+  Status ReadNext(std::shared_ptr<::arrow::RecordBatch>* out) override {
+    if (table_ != nullptr) {  // one row group has been loaded
+      std::shared_ptr<::arrow::RecordBatch> tmp;
+      RETURN_NOT_OK(table_batch_reader_->ReadNext(&tmp));
+      if (tmp != nullptr) {  // some column chunks are left in table
+        *out = tmp;
         return Status::OK();
+      } else {  // the entire table is consumed
+        table_batch_reader_.reset();
+        table_.reset();
       }
+    }
 
-      RETURN_NOT_OK(file_reader_->ReadRowGroup(row_group_indices_[next_row_group_],
-                                               column_indices_,
-                                               &table_));
-
-      next_row_group_++;
-      table_batch_reader_.reset(new ::arrow::TableBatchReader(*table_.get()));
-      table_batch_reader_->ReadNext(out);
+    // all row groups has been consumed
+    if (next_row_group_ == row_group_indices_.size()) {
+      *out = nullptr;
       return Status::OK();
     }
 
+    RETURN_NOT_OK(file_reader_->ReadRowGroup(row_group_indices_[next_row_group_],
+                                             column_indices_, &table_));
+
+    next_row_group_++;
+    table_batch_reader_.reset(new ::arrow::TableBatchReader(*table_.get()));
+    return table_batch_reader_->ReadNext(out);
+  }
 
  private:
-    std::vector<int> row_group_indices_;
-    std::vector<int> column_indices_;
-    FileReader* file_reader_;
-    size_t next_row_group_;
-    std::shared_ptr<::arrow::Table> table_;
-    std::unique_ptr<::arrow::TableBatchReader> table_batch_reader_;
-    std::shared_ptr<::arrow::Schema> schema_;
+  std::vector<int> row_group_indices_;
+  std::vector<int> column_indices_;
+  std::shared_ptr<::arrow::Schema> schema_;
+  FileReader* file_reader_;
+  size_t next_row_group_;
+  std::shared_ptr<::arrow::Table> table_;
+  std::unique_ptr<::arrow::TableBatchReader> table_batch_reader_;
 };
 
 // ----------------------------------------------------------------------
@@ -579,8 +574,8 @@ Status FileReader::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
   return impl_->GetColumn(i, out);
 }
 
-Status FileReader::GetSchema(const std::vector<int> &indices,
-                             std::shared_ptr<::arrow::Schema> *out) {
+Status FileReader::GetSchema(const std::vector<int>& indices,
+                             std::shared_ptr<::arrow::Schema>* out) {
   return impl_->GetSchema(indices, out);
 }
 
@@ -600,8 +595,8 @@ Status FileReader::ReadSchemaField(int i, std::shared_ptr<Array>* out) {
   }
 }
 
-Status FileReader::GetRecordBatchReader(const std::vector<int> &row_group_indices,
-                                        std::shared_ptr<RecordBatchReader> *out) {
+Status FileReader::GetRecordBatchReader(const std::vector<int>& row_group_indices,
+                                        std::shared_ptr<RecordBatchReader>* out) {
   std::vector<int> indices(impl_->num_columns());
 
   for (size_t j = 0; j < indices.size(); ++j) {
@@ -611,12 +606,26 @@ Status FileReader::GetRecordBatchReader(const std::vector<int> &row_group_indice
   return GetRecordBatchReader(row_group_indices, indices, out);
 }
 
-Status  FileReader::GetRecordBatchReader(const std::vector<int> &row_group_indices,
-                                         const std::vector<int> &column_indices,
-                                         std::shared_ptr<RecordBatchReader> *out) {
-  *out = std::make_shared<RowGroupRecordBatchReader>(row_group_indices,
-                                                     column_indices,
-                                                     this);
+Status FileReader::GetRecordBatchReader(const std::vector<int>& row_group_indices,
+                                        const std::vector<int>& column_indices,
+                                        std::shared_ptr<RecordBatchReader>* out) {
+  // column indicies check
+  std::shared_ptr<::arrow::Schema> schema;
+  RETURN_NOT_OK(GetSchema(column_indices, &schema));
+
+  // row group indices check
+  int max_num = num_row_groups();
+  for (auto row_group_index : row_group_indices) {
+    if (row_group_index < 0 || row_group_index >= max_num) {
+      std::ostringstream ss;
+      ss << "Some index in row_group_indices is " << row_group_index
+         << ", which is either < 0 or >= num_row_groups(" << max_num << ")";
+      return Status::Invalid(ss.str());
+    }
+  }
+
+  *out = std::make_shared<RowGroupRecordBatchReader>(row_group_indices, column_indices,
+                                                     schema, this);
   return Status::OK();
 }
 
