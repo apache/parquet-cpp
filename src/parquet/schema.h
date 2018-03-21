@@ -269,7 +269,7 @@ class PARQUET_EXPORT GroupNode : public Node {
   // is returned.
   int FieldIndex(const std::string& name) const;
   // Get the index of a field by its node, or negative value if not found.
-  int FieldIndex(const Node* node) const;
+  int FieldIndex(const Node& node) const;
 
   int field_count() const { return static_cast<int>(fields_.size()); }
 
@@ -403,7 +403,7 @@ class PARQUET_EXPORT SchemaDescriptor {
   // is returned.
   int ColumnIndex(const std::string& node_path) const;
   // Get the index of a column by its node, or negative value if not found.
-  int ColumnIndex(const schema::Node* node) const;
+  int ColumnIndex(const schema::Node& node) const;
 
   bool Equals(const SchemaDescriptor& other) const;
 

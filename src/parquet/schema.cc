@@ -272,11 +272,11 @@ int GroupNode::FieldIndex(const std::string& name) const {
   return search->second;
 }
 
-int GroupNode::FieldIndex(const Node* node) const {
-  auto search = field_name_to_idx_.equal_range(node->name());
+int GroupNode::FieldIndex(const Node& node) const {
+  auto search = field_name_to_idx_.equal_range(node.name());
   for (auto it = search.first; it != search.second; ++it) {
     const int idx = it->second;
-    if (node == field(idx).get()) {
+    if (&node == field(idx).get()) {
       return idx;
     }
   }
@@ -718,11 +718,11 @@ int SchemaDescriptor::ColumnIndex(const std::string& node_path) const {
   return search->second;
 }
 
-int SchemaDescriptor::ColumnIndex(const Node* node) const {
-  auto search = leaf_to_idx_.equal_range(node->path()->ToDotString());
+int SchemaDescriptor::ColumnIndex(const Node& node) const {
+  auto search = leaf_to_idx_.equal_range(node.path()->ToDotString());
   for (auto it = search.first; it != search.second; ++it) {
     const int idx = it->second;
-    if (node == Column(idx)->schema_node().get()) {
+    if (&node == Column(idx)->schema_node().get()) {
       return idx;
     }
   }

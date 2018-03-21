@@ -319,7 +319,7 @@ Status FileReader::Impl::GetReaderForNode(
       }
       walker = group->field(0).get();
     }
-    auto column_index = reader_->metadata()->schema()->ColumnIndex(walker);
+    auto column_index = reader_->metadata()->schema()->ColumnIndex(*walker);
 
     // If the index of the column is found then a reader for the coliumn is needed.
     // Otherwise *out keeps the nullptr value.

@@ -1685,9 +1685,8 @@ TEST(TestArrowReadWrite, TableWithDuplicateColumns) {
   ArrayFromVector<::arrow::Int8Type, int8_t>(a0_values, &a0);
   ArrayFromVector<::arrow::Int16Type, int16_t>(a1_values, &a1);
 
-  auto table = Table::Make(schema,
-                           {std::make_shared<Column>(f0->name(), a0),
-                            std::make_shared<Column>(f1->name(), a1)});
+  auto table = Table::Make(schema, {std::make_shared<Column>(f0->name(), a0),
+                                    std::make_shared<Column>(f1->name(), a1)});
   CheckSimpleRoundtrip(table, table->num_rows());
 }
 
