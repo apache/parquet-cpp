@@ -155,7 +155,7 @@ struct ByteArray {
 };
 
 inline bool operator==(const ByteArray& left, const ByteArray& right) {
-  return left.len == right.len && std::equal(left.ptr, left.ptr + left.len, right.ptr);
+  return left.len == right.len && 0 == std::memcmp(left.ptr, left.ptr + left.len, right.ptr);
 }
 
 inline bool operator!=(const ByteArray& left, const ByteArray& right) {
