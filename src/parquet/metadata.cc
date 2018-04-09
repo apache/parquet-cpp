@@ -31,12 +31,20 @@
 
 namespace parquet {
 
-const ApplicationVersion ApplicationVersion::PARQUET_251_FIXED_VERSION =
-    ApplicationVersion("parquet-mr version 1.8.0");
-const ApplicationVersion ApplicationVersion::PARQUET_816_FIXED_VERSION =
-    ApplicationVersion("parquet-mr version 1.2.9");
-const ApplicationVersion ApplicationVersion::PARQUET_CPP_FIXED_STATS_VERSION =
-    ApplicationVersion("parquet-cpp version 1.3.0");
+const ApplicationVersion& ApplicationVersion::PARQUET_251_FIXED_VERSION() {
+  static ApplicationVersion version("parquet-mr version 1.8.0");
+  return version;
+}
+
+const ApplicationVersion& ApplicationVersion::PARQUET_816_FIXED_VERSION() {
+  static ApplicationVersion version("parquet-mr version 1.2.9");
+  return version;
+}
+
+const ApplicationVersion& ApplicationVersion::PARQUET_CPP_FIXED_STATS_VERSION() {
+  static ApplicationVersion version("parquet-cpp version 1.3.0");
+  return version;
+}
 
 template <typename DType>
 static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
@@ -511,7 +519,7 @@ bool ApplicationVersion::VersionEq(const ApplicationVersion& other_version) cons
 bool ApplicationVersion::HasCorrectStatistics(Type::type col_type,
                                               SortOrder::type sort_order) const {
   // Parquet cpp version 1.3.0 onwards stats are computed correctly for all types
-  if ((application_ != "parquet-cpp") || (VersionLt(PARQUET_CPP_FIXED_STATS_VERSION))) {
+  if ((application_ != "parquet-cpp") || (VersionLt(PARQUET_CPP_FIXED_STATS_VERSION()))) {
     // Only SIGNED are valid
     if (SortOrder::SIGNED != sort_order) {
       return false;
@@ -534,7 +542,7 @@ bool ApplicationVersion::HasCorrectStatistics(Type::type col_type,
   }
 
   // PARQUET-251
-  if (VersionLt(PARQUET_251_FIXED_VERSION)) {
+  if (VersionLt(PARQUET_251_FIXED_VERSION())) {
     return false;
   }
 
