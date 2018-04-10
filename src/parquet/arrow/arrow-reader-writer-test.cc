@@ -389,11 +389,9 @@ void AssertTablesEqual(const Table& expected, const Table& actual,
     if (!actual.Equals(expected)) {
       for (int i = 0; i < expected.num_columns(); ++i) {
         ss << "Actual column " << i << std::endl;
-	ss << "Column " << i << " type " << actual.column(i)->type()->name() << std::endl;
         PrintColumn(*actual.column(i), &ss);
 
         ss << "Expected column " << i << std::endl;
-	ss << "Column " << i << " type " << expected.column(i)->type()->name() << std::endl;
         PrintColumn(*expected.column(i), &ss);
       }
       FAIL() << ss.str();
