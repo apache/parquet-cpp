@@ -458,7 +458,7 @@ void FileMetaData::WriteTo(OutputStream* dst) { return impl_->WriteTo(dst); }
 
 ApplicationVersion::ApplicationVersion(const std::string& application, int major,
                                        int minor, int patch)
-    : application_(application), version{major, minor, patch} {}
+    : application_(application), version{major, minor, patch, "", "", ""} {}
 
 ApplicationVersion::ApplicationVersion(const std::string& created_by) {
   boost::regex app_regex{ApplicationVersion::APPLICATION_FORMAT};
