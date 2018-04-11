@@ -32,17 +32,17 @@
 namespace parquet {
 
 const ApplicationVersion& ApplicationVersion::PARQUET_251_FIXED_VERSION() {
-  static ApplicationVersion version("parquet-mr version 1.8.0");
+  static ApplicationVersion version("parquet-mr", 1, 8, 0);
   return version;
 }
 
 const ApplicationVersion& ApplicationVersion::PARQUET_816_FIXED_VERSION() {
-  static ApplicationVersion version("parquet-mr version 1.2.9");
+  static ApplicationVersion version("parquet-mr", 1, 2, 9);
   return version;
 }
 
 const ApplicationVersion& ApplicationVersion::PARQUET_CPP_FIXED_STATS_VERSION() {
-  static ApplicationVersion version("parquet-cpp version 1.3.0");
+  static ApplicationVersion version("parquet-cpp", 1, 3, 0);
   return version;
 }
 
@@ -455,6 +455,10 @@ std::shared_ptr<const KeyValueMetadata> FileMetaData::key_value_metadata() const
 }
 
 void FileMetaData::WriteTo(OutputStream* dst) { return impl_->WriteTo(dst); }
+
+ApplicationVersion::ApplicationVersion(const std::string& application, int major,
+                                       int minor, int patch)
+    : application_(application), version{major, minor, patch} {}
 
 ApplicationVersion::ApplicationVersion(const std::string& created_by) {
   boost::regex app_regex{ApplicationVersion::APPLICATION_FORMAT};

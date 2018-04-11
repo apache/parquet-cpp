@@ -74,6 +74,7 @@ class ApplicationVersion {
 
   ApplicationVersion() {}
   explicit ApplicationVersion(const std::string& created_by);
+  ApplicationVersion(const std::string& application, int major, int minor, int patch);
 
   // Returns true if version is strictly less than other_version
   bool VersionLt(const ApplicationVersion& other_version) const;
