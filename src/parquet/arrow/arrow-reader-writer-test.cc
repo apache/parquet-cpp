@@ -1779,7 +1779,7 @@ TEST(TestArrowReadWrite, DictionaryColumnChunkedWrite) {
   // The column name gets changed on output to the name of the
   // field, and it also turns into a nullable column
   columns.emplace_back(MakeColumn("dictionary", expected_array, true));
-  ;
+
   fields.clear();
   fields.emplace_back(::arrow::field("dictionary", ::arrow::utf8()));
   schema = ::arrow::schema(fields);
