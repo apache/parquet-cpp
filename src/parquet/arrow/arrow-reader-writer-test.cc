@@ -1405,7 +1405,14 @@ TEST(TestArrowReadWrite, ConvertedDateTimeTypes) {
 
 // Regression for ARROW-2802
 TEST(TestArrowReadWrite, CoerceTimestampsAndSupportDeprecatedInt96) {
-  using namespace ::arrow;
+  using ::arrow::Column;
+  using ::arrow::Field;
+  using ::arrow::Schema;
+  using ::arrow::Table;
+  using ::arrow::TimeUnit;
+  using ::arrow::TimestampType;
+  using ::arrow::TimestampBuilder;
+  using ::arrow::default_memory_pool;
 
   auto timestamp_type = std::make_shared<TimestampType>(TimeUnit::NANO);
 
@@ -1442,9 +1449,10 @@ TEST(TestArrowReadWrite, CoerceTimestampsAndSupportDeprecatedInt96) {
   auto actual_column = result->column(0);
   auto data = actual_column->data();
   auto expected_values =
-      static_cast<NumericArray<TimestampType>*>(values.get())->raw_values();
+      static_cast<::arrow::NumericArray<TimestampType>*>(values.get())->raw_values();
   for (int ii = 0; ii < data->num_chunks(); ++ii) {
-    auto chunk = static_cast<NumericArray<TimestampType>*>(data->chunk(ii).get());
+    auto chunk =
+        static_cast<::arrow::NumericArray<TimestampType>*>(data->chunk(ii).get());
     auto values = chunk->raw_values();
     for (int64_t jj = 0; jj < chunk->length(); ++jj, ++expected_values) {
       // Check that the nanos have been converted to micros
