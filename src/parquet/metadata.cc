@@ -67,21 +67,21 @@ static std::shared_ptr<RowGroupStatistics> MakeTypedColumnStats(
 std::shared_ptr<RowGroupStatistics> MakeColumnStats(
     const format::ColumnMetaData& meta_data, const ColumnDescriptor* descr) {
   switch (meta_data.type) {
-    case Type::BOOLEAN:
+    case format::Type::BOOLEAN:
       return MakeTypedColumnStats<BooleanType>(meta_data, descr);
-    case Type::INT32:
+    case format::Type::INT32:
       return MakeTypedColumnStats<Int32Type>(meta_data, descr);
-    case Type::INT64:
+    case format::Type::INT64:
       return MakeTypedColumnStats<Int64Type>(meta_data, descr);
-    case Type::INT96:
+    case format::Type::INT96:
       return MakeTypedColumnStats<Int96Type>(meta_data, descr);
-    case Type::DOUBLE:
+    case format::Type::DOUBLE:
       return MakeTypedColumnStats<DoubleType>(meta_data, descr);
-    case Type::FLOAT:
+    case format::Type::FLOAT:
       return MakeTypedColumnStats<FloatType>(meta_data, descr);
-    case Type::BYTE_ARRAY:
+    case format::Type::BYTE_ARRAY:
       return MakeTypedColumnStats<ByteArrayType>(meta_data, descr);
-    case Type::FIXED_LEN_BYTE_ARRAY:
+    case format::Type::FIXED_LEN_BYTE_ARRAY:
       return MakeTypedColumnStats<FLBAType>(meta_data, descr);
   }
   throw ParquetException("Can't decode page statistics for selected column type");

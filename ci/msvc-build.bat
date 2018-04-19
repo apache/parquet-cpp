@@ -34,7 +34,7 @@ if NOT "%CONFIGURATION%" == "Debug" (
 
 if "%CONFIGURATION%" == "Toolchain" (
   conda install -y boost-cpp=1.63 thrift-cpp=0.11.0 ^
-      brotli=0.6.0 zlib=1.2.11 snappy=1.1.6 lz4-c=1.7.5 zstd=1.2.0 ^
+      brotli zlib=1.2.11 snappy=1.1.6 lz4-c=1.7.5 zstd=1.2.0 ^
       -c conda-forge
 
   set ARROW_BUILD_TOOLCHAIN=%MINICONDA%/Library
@@ -47,7 +47,7 @@ if "%CONFIGURATION%" == "Toolchain" (
       .. || exit /B
 
   cmake --build . --config Release || exit /B
-  ctest -VV || exit /B
+  ctest --output-on-failure || exit /B
 )
 
 if NOT "%CONFIGURATION%" == "Toolchain" (
@@ -61,6 +61,6 @@ if NOT "%CONFIGURATION%" == "Toolchain" (
   cmake --build . --config %CONFIGURATION% || exit /B
 
   if "%CONFIGURATION%" == "Release" (
-    ctest -VV || exit /B
+    ctest --output-on-failure || exit /B
   )
 )

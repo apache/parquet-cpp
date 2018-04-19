@@ -325,13 +325,13 @@ TEST(TestArrowInputFile, Basics) {
 
   ASSERT_NO_THROW(source->ReadAt(0, 4, buffer));
   ASSERT_EQ(0, std::memcmp(buffer, "this", 4));
-  ASSERT_EQ(4, source->Tell());
+  ASSERT_EQ(0, source->Tell());
 
   std::shared_ptr<Buffer> pq_buffer;
 
   ASSERT_NO_THROW(pq_buffer = source->Read(7));
 
-  auto expected_buffer = std::make_shared<Buffer>(data_buffer + 4, 7);
+  auto expected_buffer = std::make_shared<Buffer>(data_buffer, 7);
 
   ASSERT_TRUE(expected_buffer->Equals(*pq_buffer.get()));
 }

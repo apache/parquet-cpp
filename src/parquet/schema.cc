@@ -41,9 +41,9 @@ std::shared_ptr<ColumnPath> ColumnPath::FromDotString(const std::string& dotstri
   std::string item;
   std::vector<std::string> path;
   while (std::getline(ss, item, '.')) {
-    path.push_back(item);
+    path.emplace_back(item);
   }
-  return std::shared_ptr<ColumnPath>(new ColumnPath(std::move(path)));
+  return std::make_shared<ColumnPath>(std::move(path));
 }
 
 std::shared_ptr<ColumnPath> ColumnPath::FromNode(const Node& node) {
@@ -52,7 +52,7 @@ std::shared_ptr<ColumnPath> ColumnPath::FromNode(const Node& node) {
   const Node* cursor = &node;
   // The schema node is not part of the ColumnPath
   while (cursor->parent()) {
-    rpath_.push_back(cursor->name());
+    rpath_.emplace_back(cursor->name());
     cursor = cursor->parent();
   }
 
@@ -68,7 +68,7 @@ std::shared_ptr<ColumnPath> ColumnPath::extend(const std::string& node_name) con
   std::copy(path_.cbegin(), path_.cend(), path.begin());
   path[path_.size()] = node_name;
 
-  return std::shared_ptr<ColumnPath>(new ColumnPath(std::move(path)));
+  return std::make_shared<ColumnPath>(std::move(path));
 }
 
 std::string ColumnPath::ToDotString() const {
@@ -312,8 +312,7 @@ static inline NodeParams GetNodeParams(const format::SchemaElement* element) {
 
 std::unique_ptr<Node> GroupNode::FromParquet(const void* opaque_element, int node_id,
                                              const NodeVector& fields) {
-  const format::SchemaElement* element =
-      static_cast<const format::SchemaElement*>(opaque_element);
+  auto element = static_cast<const format::SchemaElement*>(opaque_element);
   NodeParams params = GetNodeParams(element);
   return std::unique_ptr<Node>(new GroupNode(params.name, params.repetition, fields,
                                              params.logical_type, node_id));
@@ -321,8 +320,7 @@ std::unique_ptr<Node> GroupNode::FromParquet(const void* opaque_element, int nod
 
 std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element,
                                                  int node_id) {
-  const format::SchemaElement* element =
-      static_cast<const format::SchemaElement*>(opaque_element);
+  auto element = static_cast<const format::SchemaElement*>(opaque_element);
   NodeParams params = GetNodeParams(element);
 
   std::unique_ptr<PrimitiveNode> result =
@@ -335,7 +333,7 @@ std::unique_ptr<Node> PrimitiveNode::FromParquet(const void* opaque_element,
 }
 
 void GroupNode::ToParquet(void* opaque_element) const {
-  format::SchemaElement* element = static_cast<format::SchemaElement*>(opaque_element);
+  auto element = static_cast<format::SchemaElement*>(opaque_element);
   element->__set_name(name_);
   element->__set_num_children(field_count());
   element->__set_repetition_type(ToThrift(repetition_));
@@ -345,7 +343,7 @@ void GroupNode::ToParquet(void* opaque_element) const {
 }
 
 void PrimitiveNode::ToParquet(void* opaque_element) const {
-  format::SchemaElement* element = static_cast<format::SchemaElement*>(opaque_element);
+  auto element = static_cast<format::SchemaElement*>(opaque_element);
 
   element->__set_name(name_);
   element->__set_repetition_type(ToThrift(repetition_));
@@ -386,7 +384,7 @@ std::unique_ptr<Node> FlatSchemaConverter::NextNode() {
 
   int node_id = next_id();
 
-  const void* opaque_element = static_cast<const void*>(&element);
+  auto opaque_element = static_cast<const void*>(&element);
 
   if (element.num_children == 0) {
     // Leaf (primitive) node
@@ -396,7 +394,7 @@ std::unique_ptr<Node> FlatSchemaConverter::NextNode() {
     NodeVector fields;
     for (int i = 0; i < element.num_children; ++i) {
       std::unique_ptr<Node> field = NextNode();
-      fields.push_back(NodePtr(field.release()));
+      fields.emplace_back(field.release());
     }
     return GroupNode::FromParquet(opaque_element, node_id, fields);
   }
@@ -413,7 +411,7 @@ std::shared_ptr<SchemaDescriptor> FromParquet(const std::vector<SchemaElement>& 
   FlatSchemaConverter converter(&schema[0], static_cast<int>(schema.size()));
   std::unique_ptr<Node> root = converter.Convert();
 
-  std::shared_ptr<SchemaDescriptor> descr = std::make_shared<SchemaDescriptor>();
+  auto descr = std::make_shared<SchemaDescriptor>();
   descr->Init(std::shared_ptr<GroupNode>(static_cast<GroupNode*>(root.release())));
 
   return descr;
@@ -432,10 +430,10 @@ class SchemaVisitor : public Node::ConstVisitor {
   void Visit(const Node* node) override {
     format::SchemaElement element;
     node->ToParquet(&element);
-    elements_->push_back(element);
+    elements_->emplace_back(element);
 
     if (node->is_group()) {
-      const GroupNode* group_node = static_cast<const GroupNode*>(node);
+      auto group_node = static_cast<const GroupNode*>(node);
       for (int i = 0; i < group_node->field_count(); ++i) {
         group_node->field(i)->VisitConst(this);
       }
@@ -606,12 +604,12 @@ class SchemaUpdater : public Node::Visitor {
 
   void Visit(Node* node) override {
     if (node->is_group()) {
-      GroupNode* group_node = static_cast<GroupNode*>(node);
+      auto group_node = static_cast<GroupNode*>(node);
       for (int i = 0; i < group_node->field_count(); ++i) {
         group_node->field(i)->Visit(this);
       }
     } else {  // leaf node
-      PrimitiveNode* leaf_node = static_cast<PrimitiveNode*>(node);
+      auto leaf_node = static_cast<PrimitiveNode*>(node);
       leaf_node->SetColumnOrder(column_orders_[leaf_count_++]);
     }
   }
@@ -671,13 +669,13 @@ void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
 
   // Now, walk the schema and create a ColumnDescriptor for each leaf node
   if (node->is_group()) {
-    const GroupNode* group = static_cast<const GroupNode*>(node.get());
+    auto group = static_cast<const GroupNode*>(node.get());
     for (int i = 0; i < group->field_count(); ++i) {
       BuildTree(group->field(i), max_def_level, max_rep_level, base);
     }
   } else {
     // Primitive node, append to leaves
-    leaves_.push_back(ColumnDescriptor(node, max_def_level, max_rep_level, this));
+    leaves_.emplace_back(node, max_def_level, max_rep_level);
     leaf_to_base_.emplace(static_cast<int>(leaves_.size()) - 1, base);
     leaf_to_idx_.emplace(node->path()->ToDotString(),
                          static_cast<int>(leaves_.size()) - 1);
@@ -686,12 +684,10 @@ void SchemaDescriptor::BuildTree(const NodePtr& node, int16_t max_def_level,
 
 ColumnDescriptor::ColumnDescriptor(const schema::NodePtr& node,
                                    int16_t max_definition_level,
-                                   int16_t max_repetition_level,
-                                   const SchemaDescriptor* schema_descr)
+                                   int16_t max_repetition_level)
     : node_(node),
       max_definition_level_(max_definition_level),
-      max_repetition_level_(max_repetition_level),
-      schema_descr_(schema_descr) {
+      max_repetition_level_(max_repetition_level) {
   if (!node_->is_primitive()) {
     throw ParquetException("Must be a primitive type");
   }
@@ -730,7 +726,8 @@ int SchemaDescriptor::ColumnIndex(const Node& node) const {
 }
 
 const schema::Node* SchemaDescriptor::GetColumnRoot(int i) const {
-  DCHECK(i >= 0 && i < static_cast<int>(leaves_.size()));
+  DCHECK_GE(i, 0);
+  DCHECK_LT(i, static_cast<int>(leaves_.size()));
   return leaf_to_base_.find(i)->second.get();
 }
 
