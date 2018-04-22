@@ -205,6 +205,14 @@ if (NOT THRIFT_FOUND)
                         "-DWITH_LIBEVENT=OFF"
                         )
 
+  # Thrift also uses boost. Forward important boost settings if there were ones passed.
+  if (DEFINED BOOST_ROOT)
+    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DBOOST_ROOT=${BOOST_ROOT}")
+  endif()
+  if (DEFINED Boost_NAMESPACE)
+    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DBoost_NAMESPACE=${Boost_NAMESPACE}")
+  endif()
+
   set(THRIFT_STATIC_LIB_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}thrift")
   if (MSVC)
     if (PARQUET_USE_STATIC_CRT)
