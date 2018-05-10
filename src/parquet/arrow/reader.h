@@ -39,6 +39,7 @@ namespace parquet {
 
 namespace arrow {
 
+class ArrayBatchedDeserializer;
 class ColumnChunkReader;
 class ColumnReader;
 class RowGroupReader;
@@ -249,7 +250,6 @@ class PARQUET_EXPORT ColumnChunkReader {
 // might change in the future.
 class PARQUET_EXPORT ColumnReader {
  public:
-  class PARQUET_NO_EXPORT ColumnReaderImpl;
   virtual ~ColumnReader();
 
   // Scan the next array of the indicated size. The actual size of the
@@ -264,8 +264,8 @@ class PARQUET_EXPORT ColumnReader {
   ::arrow::Status NextBatch(int64_t batch_size, std::shared_ptr<::arrow::Array>* out);
 
  private:
-  std::unique_ptr<ColumnReaderImpl> impl_;
-  explicit ColumnReader(std::unique_ptr<ColumnReaderImpl> impl);
+  std::unique_ptr<ArrayBatchedDeserializer> deserializer_;
+  explicit ColumnReader(std::unique_ptr<ArrayBatchedDeserializer>& deserializer);
 
   friend class FileReader;
   friend class PrimitiveImpl;

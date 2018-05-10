@@ -42,6 +42,7 @@
 #include "parquet/util/test-common.h"
 
 #include "arrow/api.h"
+#include "arrow/pretty_print.h"
 #include "arrow/test-util.h"
 #include "arrow/type_traits.h"
 #include "arrow/util/decimal.h"
@@ -427,7 +428,8 @@ void CheckSimpleRoundtrip(const std::shared_ptr<Table>& table, int64_t row_group
                           const std::shared_ptr<ArrowWriterProperties>& arrow_properties =
                               default_arrow_writer_properties()) {
   std::shared_ptr<Table> result;
-  DoSimpleRoundtrip(table, 1, row_group_size, {}, &result, arrow_properties);
+  ASSERT_NO_FATAL_FAILURE(
+      DoSimpleRoundtrip(table, 1, row_group_size, {}, &result, arrow_properties));
   ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*table, *result, false));
 }
 
@@ -554,8 +556,8 @@ class TestParquetIO : public ::testing::Test {
   void ReadAndCheckSingleColumnTable(const std::shared_ptr<Array>& values) {
     std::shared_ptr<::arrow::Table> out;
     std::unique_ptr<FileReader> reader;
-    ReaderFromSink(&reader);
-    ReadTableFromFile(std::move(reader), &out);
+    ASSERT_NO_FATAL_FAILURE(ReaderFromSink(&reader));
+    ASSERT_NO_FATAL_FAILURE(ReadTableFromFile(std::move(reader), &out));
     ASSERT_EQ(1, out->num_columns());
     ASSERT_EQ(values->length(), out->num_rows());
 
@@ -1043,8 +1045,8 @@ TEST_F(TestNullParquetIO, NullListColumn) {
 
     std::shared_ptr<Table> out;
     std::unique_ptr<FileReader> reader;
-    this->ReaderFromSink(&reader);
-    this->ReadTableFromFile(std::move(reader), &out);
+    ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
+    ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(reader), &out));
     ASSERT_EQ(1, out->num_columns());
     ASSERT_EQ(offsets.size() - 1, out->num_rows());
 
@@ -1132,7 +1134,7 @@ class TestPrimitiveParquetIO : public TestParquetIO<TestType> {
     ASSERT_NO_FATAL_FAILURE(MakeTestFile(values, num_chunks, &file_reader));
 
     std::shared_ptr<Table> out;
-    this->ReadTableFromFile(std::move(file_reader), &out);
+    ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(file_reader), &out));
     ASSERT_EQ(1, out->num_columns());
     ASSERT_EQ(SMALL_SIZE, out->num_rows());
 
@@ -1242,6 +1244,136 @@ TEST(TestArrowReadWrite, DateTimeTypes) {
   MakeDateTimeTypesTable(&table, true);
 
   ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*table, *result));
+}
+
+TEST(TestArrowReadWrite, DremelExampleTest) {
+  std::string dir_string(test::get_data_dir());
+  std::stringstream ss;
+  ss << dir_string << "/dremel.parquet";
+  auto parquet_reader = ParquetFileReader::OpenFile(ss.str());
+  parquet::arrow::FileReader reader(::arrow::default_memory_pool(),
+                                    std::move(parquet_reader));
+  std::shared_ptr<::arrow::Table> out;
+  ASSERT_OK(reader.ReadTable(&out));
+
+  // Dremel paper uses int64, but the sample file
+  // stored them as int32
+  auto forward = std::make_shared<::arrow::Int32Builder>();
+  auto backward = std::make_shared<::arrow::Int32Builder>();
+  auto docId = std::make_shared<::arrow::Int32Builder>();
+  auto country = std::make_shared<::arrow::StringBuilder>();
+  auto code = std::make_shared<::arrow::StringBuilder>();
+  auto url = std::make_shared<::arrow::StringBuilder>();
+
+  std::vector<std::shared_ptr<::arrow::Field>> language_fields;
+  language_fields.emplace_back(
+      std::make_shared<::arrow::Field>("Code", ::arrow::utf8(), false));
+  language_fields.emplace_back(
+      std::make_shared<::arrow::Field>("Country", ::arrow::utf8()));
+
+  auto language_type = std::make_shared<::arrow::StructType>(language_fields);
+  std::vector<std::shared_ptr<::arrow::ArrayBuilder>> language_builders = {code, country};
+  auto language = std::make_shared<::arrow::StructBuilder>(
+      language_type, ::arrow::default_memory_pool(), std::move(language_builders));
+  auto language_list =
+      std::make_shared<::arrow::ListBuilder>(::arrow::default_memory_pool(), language);
+
+  auto backward_list =
+      std::make_shared<::arrow::ListBuilder>(::arrow::default_memory_pool(), backward);
+  auto forward_list =
+      std::make_shared<::arrow::ListBuilder>(::arrow::default_memory_pool(), forward);
+  std::vector<std::shared_ptr<::arrow::Field>> links_fields;
+  links_fields.emplace_back(
+      std::make_shared<::arrow::Field>("Backward_Outer", backward_list->type(), false));
+  links_fields.emplace_back(
+      std::make_shared<::arrow::Field>("Forward_Outer", backward_list->type(), false));
+  auto links_type = std::make_shared<::arrow::StructType>(links_fields);
+  ::arrow::StructBuilder links(links_type, ::arrow::default_memory_pool(),
+                               {forward_list, backward_list});
+
+  std::vector<std::shared_ptr<::arrow::Field>> name_fields;
+  name_fields.emplace_back(
+      std::make_shared<::arrow::Field>("Language_Outer", language_list->type(), false));
+  name_fields.emplace_back(std::make_shared<::arrow::Field>("Url", url->type()));
+
+  auto name_type = std::make_shared<::arrow::StructType>(name_fields);
+  std::vector<std::shared_ptr<::arrow::ArrayBuilder>> name_builders = {language_list,
+                                                                       url};
+  auto name = std::make_shared<::arrow::StructBuilder>(
+      name_type, ::arrow::default_memory_pool(), std::move(name_builders));
+  ::arrow::ListBuilder name_list(::arrow::default_memory_pool(), name);
+
+  // Row 1
+  docId->Append(10);
+  links.Append();
+  name_list.Append();
+
+  // 3 forward links
+  forward_list->Append();
+  forward->Append(20);
+  forward->Append(40);
+  forward->Append(60);
+  // No backward links
+  backward_list->Append();
+
+  // First name
+  name->Append();
+  language_list->Append();
+  language->Append();
+  code->Append("en-us");
+  country->Append("us");
+
+  language->Append();
+  code->Append("en");
+  country->AppendNull();
+
+  url->Append("http://A");
+
+  // Second name
+  name->Append();
+  language_list->Append();
+  url->Append("http://B");
+
+  // Third name
+  name->Append();
+  language_list->Append();
+  language->Append();
+  code->Append("en-gb");
+  country->Append("gb");
+  url->AppendNull();
+
+  // Row 2
+  docId->Append(20);
+  links.Append();
+  name_list.Append();
+
+  backward_list->Append();
+  backward->Append(10);
+  backward->Append(30);
+  forward_list->Append();
+  forward->Append(80);
+
+  name->Append();
+  language_list->Append();
+  url->Append("http://C");
+
+  std::shared_ptr<::arrow::Array> docIdArray, nameArray, linksArray;
+
+  ASSERT_OK(docId->Finish(&docIdArray));
+  ASSERT_OK(name_list.Finish(&nameArray));
+  ASSERT_OK(links.Finish(&linksArray));
+
+  std::vector<std::shared_ptr<::arrow::Field>> fields;
+  fields.emplace_back(
+      std::make_shared<::arrow::Field>("DocId", docIdArray->type(), false));
+  fields.emplace_back(std::make_shared<::arrow::Field>("Links", linksArray->type()));
+  fields.emplace_back(std::make_shared<::arrow::Field>("Name", nameArray->type(), false));
+
+  auto schema = std::make_shared<::arrow::Schema>(fields);
+
+  auto expected = ::arrow::Table::Make(schema, {docIdArray, linksArray, nameArray});
+
+  ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*expected, *out));
 }
 
 TEST(TestArrowReadWrite, CoerceTimestamps) {
@@ -1445,8 +1577,8 @@ TEST(TestArrowReadWrite, CoerceTimestampsAndSupportDeprecatedInt96) {
   using ::arrow::Schema;
   using ::arrow::Table;
   using ::arrow::TimeUnit;
-  using ::arrow::TimestampType;
   using ::arrow::TimestampBuilder;
+  using ::arrow::TimestampType;
   using ::arrow::default_memory_pool;
 
   auto timestamp_type = std::make_shared<TimestampType>(TimeUnit::NANO);
@@ -2161,6 +2293,7 @@ TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
 
   std::shared_ptr<Table> table;
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
+
   ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 2);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
@@ -2228,9 +2361,11 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
 }
 
 TEST_F(TestNestedSchemaRead, StructAndListTogetherUnsupported) {
+#if 0
   ASSERT_NO_FATAL_FAILURE(CreateSimpleNestedParquet(Repetition::REPEATED));
   std::shared_ptr<Table> table;
   ASSERT_RAISES(NotImplemented, reader_->ReadTable(&table));
+#endif
 }
 
 TEST_P(TestNestedSchemaRead, DeepNestedSchemaRead) {

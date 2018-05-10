@@ -658,6 +658,7 @@ add_custom_command(
 # Library config
 
 set(LIBPARQUET_SRCS
+  src/parquet/arrow/deserializer.cc
   src/parquet/arrow/reader.cc
   src/parquet/arrow/record_reader.cc
   src/parquet/arrow/schema.cc

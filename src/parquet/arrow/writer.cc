@@ -216,9 +216,11 @@ class LevelBuilder {
         if (level_null_count && level_valid_bitmap == nullptr) {
           // Special case: this is a null array (all elements are null)
           RETURN_NOT_OK(def_levels_.Append(static_cast<int16_t>(def_level + 1)));
-        } else if (nullable_level && ((level_null_count == 0) ||
-            BitUtil::GetBit(level_valid_bitmap,
-                            inner_offset + i + array_offsets_[recursion_level]))) {
+        } else if (nullable_level &&
+                   ((level_null_count == 0) ||
+                    BitUtil::GetBit(
+                        level_valid_bitmap,
+                        inner_offset + i + array_offsets_[recursion_level]))) {
           // Non-null element in a null level
           RETURN_NOT_OK(def_levels_.Append(static_cast<int16_t>(def_level + 2)));
         } else {
