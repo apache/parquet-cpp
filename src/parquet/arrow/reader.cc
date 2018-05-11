@@ -248,7 +248,7 @@ FileReader::FileReader(MemoryPool* pool, std::unique_ptr<ParquetFileReader> read
 FileReader::~FileReader() {}
 
 Status FileReader::Impl::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
-  DeserializerBuilder builder(reader_);
+  DeserializerBuilder builder(reader_, pool_);
   std::unique_ptr<ArrayBatchedDeserializer> deserializer;
   RETURN_NOT_OK(builder.BuildArrayBatchedDeserializer(i, deserializer));
   (*out).reset(new ColumnReader(deserializer));
@@ -256,7 +256,7 @@ Status FileReader::Impl::GetColumn(int i, std::unique_ptr<ColumnReader>* out) {
 }
 
 Status FileReader::Impl::ReadSchemaField(int i, std::shared_ptr<Array>* out) {
-  DeserializerBuilder builder(reader_);
+  DeserializerBuilder builder(reader_, pool_);
   std::unique_ptr<ArrayDeserializer> deserializer;
   RETURN_NOT_OK(builder.BuildSchemaNodeDeserializer(i, deserializer));
   deserializer->DeserializeArray(*out);
@@ -264,7 +264,7 @@ Status FileReader::Impl::ReadSchemaField(int i, std::shared_ptr<Array>* out) {
 }
 
 Status FileReader::Impl::ReadColumn(int i, std::shared_ptr<Array>* out) {
-  DeserializerBuilder builder(reader_);
+  DeserializerBuilder builder(reader_, pool_);
   std::unique_ptr<ArrayDeserializer> deserializer;
   RETURN_NOT_OK(builder.BuildColumnDeserializer(i, deserializer));
   deserializer->DeserializeArray(*out);
@@ -280,7 +280,7 @@ Status FileReader::Impl::GetSchema(const std::vector<int>& indices,
 
 Status FileReader::Impl::ReadColumnChunk(int column_index, int row_group_index,
                                          std::shared_ptr<Array>* out) {
-  DeserializerBuilder builder(reader_);
+  DeserializerBuilder builder(reader_, pool_);
   std::unique_ptr<ArrayDeserializer> deserializer;
   RETURN_NOT_OK(
       builder.BuildColumnChunkDeserializer(column_index, row_group_index, deserializer));
@@ -291,7 +291,7 @@ Status FileReader::Impl::ReadColumnChunk(int column_index, int row_group_index,
 Status FileReader::Impl::ReadRowGroup(int row_group_index,
                                       const std::vector<int>& indices,
                                       std::shared_ptr<::arrow::Table>* out) {
-  DeserializerBuilder builder(reader_);
+  DeserializerBuilder builder(reader_, pool_);
   std::unique_ptr<TableDeserializer> deserializer;
   RETURN_NOT_OK(
       builder.BuildRowGroupDeserializer(row_group_index, indices, deserializer));
@@ -301,7 +301,7 @@ Status FileReader::Impl::ReadRowGroup(int row_group_index,
 
 Status FileReader::Impl::ReadTable(const std::vector<int>& indices,
                                    std::shared_ptr<Table>* out) {
-  DeserializerBuilder builder(reader_);
+  DeserializerBuilder builder(reader_, pool_);
   std::unique_ptr<TableDeserializer> deserializer;
   RETURN_NOT_OK(builder.BuildFileDeserializer(indices, deserializer));
   deserializer->DeserializeTable(*out);

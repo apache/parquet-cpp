@@ -21,6 +21,7 @@
 #include <tuple>
 
 #include "arrow/builder.h"
+#include "arrow/memory_pool.h"
 #include "arrow/table.h"
 #include "arrow/type.h"
 #include "arrow/util/bit-util.h"
@@ -150,6 +151,43 @@ static inline int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timest
 }
 // End: copied from reader.cc
 
+// This is a "tagged" integer type for definition/repetition levels.
+// The tag gives us strong typing so that we can differentiate between
+// definition and repeition level arguments in the DeserializerBuilder
+// build function calls.
+template <typename Tag>
+class Level
+{
+
+public:
+
+  Level() : value_(0)
+  {
+  }
+
+  Level& operator++()
+  {
+    ++value_;
+    return *this;
+  }
+
+  int16_t operator*() const
+  {
+    return value_;
+  }
+  
+private:
+
+  int16_t value_;
+  
+};
+
+struct Repetition;
+struct Definition;
+
+using RepetitionLevel = Level<Repetition>;
+using DefinitionLevel = Level<Definition>;
+  
 //
 // This is a utility class that is used by primitive node deserializer
 // nodes. It's similar to a std::list, but stores its data as a contiguous
@@ -157,15 +195,25 @@ static inline int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timest
 template <typename T>
 class PrimitiveDeserializerArray {
  public:
-  PrimitiveDeserializerArray(int64_t capacity)
-      :  // TODO: use memory pools and buffers
-        data_(new T[capacity]),
-        capacity_(capacity),
-        size_(0),
-        index_(0) {}
+  PrimitiveDeserializerArray(::arrow::MemoryPool* pool, int64_t capacity)
+      :
+    pool_(pool),
+    capacity_(capacity),
+    size_(0),
+    index_(0) {}
 
-  ~PrimitiveDeserializerArray() { delete[] data_; }
+  ~PrimitiveDeserializerArray() {
+    pool_->Free(reinterpret_cast<uint8_t*>(data_), capacity_);
+  }
 
+  Status Initialize()
+  {
+    uint8_t* out;
+    RETURN_NOT_OK(pool_->Allocate(sizeof(T) * capacity_, &out));
+    data_ = reinterpret_cast<T*>(out);
+    return Status::OK();
+  }
+  
   bool const Empty() const { return index_ >= size_; }
 
   T Front() const { return data_[index_]; }
@@ -177,6 +225,8 @@ class PrimitiveDeserializerArray {
     size_ = 0;
   }
 
+  ::arrow::MemoryPool* pool_;
+  
   T* data_;
 
   int64_t capacity_;
@@ -198,26 +248,34 @@ class DeserializerNode {
 
   //
   // \brief Deserializes the next set of values.
-  // \param[in] this is used to find out what the next set of
-  //            repetitions will be. This is used by list
-  //            (aka - repeated) nodes in their Deserialize method
-  //            to determine whether or not they need to repeat
-  //            and call Deserialize for their child nodes
-  //            again before popping back to their parent node.
   // \param[in] the current repeition level. When this is first called
   //            when deserializing a row, it should be zero. It may be
   //            non-zero when a list node is calling a child node
   //            during a repetition. In those cases, a child node may
   //            do nothing because it's next value doesn't repeat at
   //            the current repeition level.
-  virtual void Deserialize(LevelSet& next_repetitions,
-                           int16_t current_repetition_level) = 0;
+  // \param[out] this is used to find out what the next set of
+  //            repetitions will be. This is used by list
+  //            (aka - repeated) nodes in their Deserialize method
+  //            to determine whether or not they need to repeat
+  //            and call Deserialize for their child nodes
+  //            again before popping back to their parent node.
+  // \return error status if there is no more data for this node
+  virtual Status Deserialize(RepetitionLevel current_repetition_level,
+			     LevelSet& next_repetitions) = 0;
 
   // \brief Skips deserialization. This is used by group and list
   //        nodes when they are nullable, in which they call this
   //        method on their child nodes so that they do not append
   //        any values to their builders.
-  virtual void Skip(LevelSet& next_repetitions) = 0;
+  // \param[out] this is used to find out what the next set of
+  //            repetitions will be. This is used by list
+  //            (aka - repeated) nodes in their Deserialize method
+  //            to determine whether or not they need to repeat
+  //            and call Deserialize for their child nodes
+  //            again before popping back to their parent node.
+  // \return error status if there is no more data for this node  
+  virtual Status Skip(LevelSet& next_repetitions) = 0;
 
   // \brief returns the maximum definition level of all of this
   //        node's descendants. In the case of a primitive node
@@ -225,9 +283,10 @@ class DeserializerNode {
   //        one exists) or zero otherwise. In the case of a group
   //        node, it will simply take the maximum of all of its
   //        child nodes.
-  // \return the maximum definition level for this nodes and its
-  //         descendants
-  virtual int16_t CurrentMaxDefinitionLevel() = 0;
+  // \param[out] the maximum definition level for this nodes and its
+  //             descendants
+  // \return error status if there is no more data for this node
+  virtual Status CurrentMaxDefinitionLevel(int16_t& level) = 0;
 
   // \brief returns the array buidler that was used by this node
   //        to append values and null in calls to Deserialize
@@ -237,18 +296,30 @@ class DeserializerNode {
   // \brief initializes this node for a new row group. This is used
   //        by primitive node deserializers to obtain a column reader
   //        for that row group
-  virtual void InitializeRowGroup(
+  // \return status error if this node is a primitive node and the
+  //         column index is out of bounds
+  virtual Status InitializeRowGroup(
       std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader) = 0;
 };
 
+//
+// The PrimitiveAppender class is used adapt the reading of parquet
+// values from a ColumnReader to calls to a builder's append method.
+// The reason this is needed is that the signature of the builder's
+// Append method varies by type. For example, byte arrays take
+// a pointer and a length whereas primitive types take just a value.
+// By using partial specialization for various types, the deserializer
+// code for primitive types does not need specialization but instead
+// delegates to these set of classes to handle it.
+//
 template <typename ParquetType, typename BuilderType>
 class PrimitiveAppender {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, BuilderType& builder,
+  Status Append(const ColumnDescriptor* descriptor, BuilderType& builder,
               ParquetValueType value) {
     using value_type = typename BuilderType::value_type;
-    builder.Append(static_cast<value_type>(value));
+    return builder.Append(static_cast<value_type>(value));
   }
 };
 
@@ -256,9 +327,9 @@ template <typename BuilderType>
 class PrimitiveAppender<::parquet::ByteArray, BuilderType> {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, BuilderType& builder,
+  Status Append(const ColumnDescriptor* descriptor, BuilderType& builder,
               ParquetValueType value) {
-    builder.Append(value.ptr, value.len);
+    return builder.Append(value.ptr, value.len);
   }
 };
 
@@ -266,9 +337,9 @@ template <typename BuilderType>
 class PrimitiveAppender<FLBA, BuilderType> {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, BuilderType& builder,
+  Status Append(const ColumnDescriptor* descriptor, BuilderType& builder,
               ParquetValueType value) {
-    builder.Append(value.ptr);
+    return builder.Append(value.ptr);
   }
 };
 
@@ -276,12 +347,12 @@ template <>
 class PrimitiveAppender<ByteArray, ::arrow::Decimal128Builder> {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, ::arrow::DecimalBuilder& builder,
+  Status Append(const ColumnDescriptor* descriptor, ::arrow::DecimalBuilder& builder,
               ParquetValueType value) {
     int64_t high;
     uint64_t low;
     BytesToIntegerPair(value.ptr, value.len, &high, &low);
-    builder.Append(::arrow::Decimal128(high, low));
+    return builder.Append(::arrow::Decimal128(high, low));
   }
 };
 
@@ -289,12 +360,12 @@ template <>
 class PrimitiveAppender<FLBA, ::arrow::Decimal128Builder> {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, ::arrow::DecimalBuilder& builder,
+  Status Append(const ColumnDescriptor* descriptor, ::arrow::DecimalBuilder& builder,
               ParquetValueType value) {
     int64_t high;
     uint64_t low;
     BytesToIntegerPair(value.ptr, descriptor->type_length(), &high, &low);
-    builder.Append(::arrow::Decimal128(high, low));
+    return builder.Append(::arrow::Decimal128(high, low));
   }
 };
 
@@ -302,9 +373,9 @@ template <typename ParquetType>
 class PrimitiveAppender<ParquetType, ::arrow::Decimal128Builder> {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, ::arrow::DecimalBuilder& builder,
+  Status Append(const ColumnDescriptor* descriptor, ::arrow::DecimalBuilder& builder,
               ParquetValueType value) {
-    builder.Append(::arrow::Decimal128(value));
+    return builder.Append(::arrow::Decimal128(value));
   }
 };
 
@@ -312,20 +383,20 @@ template <>
 class PrimitiveAppender<Int96, ::arrow::TimestampBuilder> {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, ::arrow::TimestampBuilder& builder,
+  Status Append(const ColumnDescriptor* descriptor, ::arrow::TimestampBuilder& builder,
               ParquetValueType value) {
-    builder.Append(impala_timestamp_to_nanoseconds(value));
+    return builder.Append(impala_timestamp_to_nanoseconds(value));
   }
 };
 
 class NullPrimitiveAppender {
  public:
   template <typename ParquetValueType>
-  void Append(const ColumnDescriptor* descriptor, ::arrow::NullBuilder& builder,
+  Status Append(const ColumnDescriptor* descriptor, ::arrow::NullBuilder& builder,
               ParquetValueType value) {
-    // This should never be called.
-    // TODO: add error values and have this return
-    // Status::Invalid.
+    std::ostringstream stream;
+    stream << "Unexpected call to NullPrimitiveAppender::Append";
+    return Status::Invalid(stream.str());
   }
 };
 
@@ -342,28 +413,66 @@ template <>
 class PrimitiveAppender<ByteArray, ::arrow::NullBuilder> : public NullPrimitiveAppender {
 };
 
+//
+// This is the base class for primitive types deserializers.
+// The ColumnReaderType should be an instantiation of
+// TypeColumnReader (see column_reader.h). The ArrayBuilderType
+// should be an instantiation of one of the Arrow builders
+// (e.g. - Int32Builder). This class is used for initializing
+// the column reader and appending values, whereas the sub-classes
+// handle reading of repetition and definition levels and implement
+// the DeserializerNode virtual functions.
+//  
 template <typename ColumnReaderType, typename ArrayBuilderType>
 class PrimitiveDeserializerNode : public DeserializerNode {
- public:
+
+public:
+
   PrimitiveDeserializerNode(const ColumnDescriptor* const descriptor, int column_index,
                             int64_t buffer_size,
-                            std::shared_ptr<ArrayBuilderType> const& builder)
+                            std::shared_ptr<ArrayBuilderType> const& builder,
+			    ::arrow::MemoryPool* pool)
       : descriptor_(descriptor),
         column_index_(column_index),
-        values_(buffer_size),
+        values_(pool, buffer_size),
         builder_(builder) {}
 
   std::shared_ptr<::arrow::ArrayBuilder> GetArrayBuilder() { return builder_; }
 
-  void InitializeRowGroup(std::shared_ptr<RowGroupReader> const& row_group_reader) final {
-    column_reader_ = std::static_pointer_cast<ColumnReaderType>(
-        row_group_reader->Column(column_index_));
+  // \brief initializes the column reader for this deserializer
+  // \param[in] the reader for the row group from which the column reader
+  //            is obtained
+  // \return error status if the column index is out of bounds
+  Status InitializeRowGroup(std::shared_ptr<RowGroupReader> const& row_group_reader) final {
+    if (column_index_ < row_group_reader->metadata()->num_columns())
+    {
+      column_reader_ = std::static_pointer_cast<ColumnReaderType>(
+								  row_group_reader->Column(column_index_));
+    }
+    else
+    {
+      std::ostringstream stream;
+      stream << "Invalid column index " << column_index_ << " for row group ";
+      return Status::Invalid(stream.str());
+    }
+    return Status::OK();
   }
 
+  virtual Status Initialize()
+  {
+    return values_.Initialize();
+  }
+  
  protected:
-  void Append() {
-    appender_.Append(descriptor_, *builder_, values_.Front());
+
+  // \brief appends the next value in this node's values array. It is
+  //        assumed that the caller has checked to make sure that the
+  //        values buffer is not empty
+  // \return error status if the call to the builder's Append function fails
+  Status Append() {
+    auto status = appender_.Append(descriptor_, *builder_, values_.Front());
     values_.PopFront();
+    return status;
   }
 
   const ColumnDescriptor* const descriptor_;
@@ -379,58 +488,120 @@ class PrimitiveDeserializerNode : public DeserializerNode {
   std::shared_ptr<ColumnReaderType> column_reader_;
 };
 
-template <typename ColumnReaderType, typename ArrayBuilderType, bool HasDefinitionLevels,
-          bool HasRepetitionLevels>
+// This enum is used to differentiate between the three
+// different types of primitive deserializers
+enum PrimitiveSerializerType
+{
+  // This means that the node in the tree has no ancestors (including
+  // itself) that are repeated or optional
+  REQUIRED,
+  // This means that the node in the tree has only ancestors
+  // (including itself) that are required or optional, and therefore
+  // doesn't need to store repetition levels but does need to store
+  // definition levels
+  OPTIONAL,
+  // This means that the node in the tree has at least one ancestor
+  // (including itself)
+  REPEATED
+};
+  
+//
+// The TypedPrimitiveDeserializerNode does the heavy lifting of
+// reading repetition and definition levels and implementing
+// the DeserializerNode interface for primitive types. There are
+// three specializations based on whether or not the field
+// has definition levels or repetition levels (e.g. - a required
+// field at depth 1 doesn't have repeition or definition levels
+// and they are not stored in the parquet file). By using
+// specialization in this manner, we save space and also don't
+// have to do things like check if the max repetition or
+// max definition level is zero. Unfortunately, this pattern is not
+// yet being used in the column reader classes, so those checks
+// still happen in calls to ReadBatch.
+//
+template <typename ColumnReaderType, typename ArrayBuilderType,
+	  PrimitiveSerializerType Serializertype>
 class TypedPrimitiveDeserializerNode;
 
+// Specialization for a field that has definition levels but no
+// repetition levels. For example, the following schemas would
+// create this type of node:
+//
+// message root {
+//    optional int32 field;
+// }
+//
+// message root {
+//    optional group contact {
+//       required bytearray name (UTF8);
+//       optional int32 phone_number;
+//    }  
+//
+// Both name and phone_number would be serialized with this type of
+// node because they have a max definition level of 1 and 2 respectively.  
+//   
 template <typename ColumnReaderType, typename ArrayBuilderType>
-class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType, true, false>
+class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
+				     PrimitiveSerializerType::OPTIONAL>
     : public PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType> {
  public:
+
   TypedPrimitiveDeserializerNode(const ColumnDescriptor* const descriptor,
                                  int const column_index, std::size_t buffer_size,
-                                 std::shared_ptr<ArrayBuilderType> const& builder)
+                                 std::shared_ptr<ArrayBuilderType> const& builder,
+				 ::arrow::MemoryPool* pool)
       : PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType>(
-            descriptor, column_index, buffer_size, builder),
-        definition_levels_(buffer_size) {}
+								      descriptor, column_index, buffer_size, builder, pool),
+    definition_levels_(pool, buffer_size) {}
 
-  void Skip(DeserializerNode::LevelSet& next_repetitions) final {
+  Status Initialize() final
+  {
+    RETURN_NOT_OK(definition_levels_.Initialize());
+    return PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType>::Initialize();    
+  }
+  
+  Status Skip(DeserializerNode::LevelSet& next_repetitions) final {
     if (!Fill()) {
-      return;
+      std::ostringstream stream;
+      stream << "Unable to skip data";
+      return Status::IOError(stream.str());
     }
     if (definition_levels_.Front() == this->descriptor_->max_definition_level()) {
       this->values_.PopFront();
     }
     definition_levels_.PopFront();
+    return Status::OK();
   }
 
-  int16_t CurrentMaxDefinitionLevel() final {
+  Status CurrentMaxDefinitionLevel(int16_t& level) final {
     if (!Fill()) {
-      // TODO: change the return type to bool when there is
-      // better error handling for not filling values
-      return 0;
+      std::ostringstream stream;
+      stream << "Unable to read current max definition level";
+      return Status::IOError(stream.str());
     }
-    return definition_levels_.Front();
+    level = definition_levels_.Front();
+    return Status::OK();
   }
 
-  void Deserialize(DeserializerNode::LevelSet& next_repetitions,
-                   int16_t current_repetition_level) final {
+  Status Deserialize(RepetitionLevel current_repetition_level,
+		     DeserializerNode::LevelSet& next_repetitions) final {
     if (!Fill()) {
-      // TODO: check the current_repetition_level against
-      // the max repetition level and throw an exception
-      // if necessary?
-      return;
+      std::ostringstream stream;
+      stream << "Unable to deserialize value";
+      return Status::IOError(stream.str());
     }
     if (definition_levels_.Front() == this->descriptor_->max_definition_level()) {
       // The value is not null
-      this->Append();
+      RETURN_NOT_OK(this->Append());
     } else {
-      this->builder_->AppendNull();
+      RETURN_NOT_OK(this->builder_->AppendNull());
     }
     definition_levels_.PopFront();
+    return Status::OK();
   }
 
  private:
+
   bool Fill() {
     if (!definition_levels_.Empty()) {
       return true;
@@ -444,64 +615,95 @@ class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType, true, f
   }
 
   PrimitiveDeserializerArray<int16_t> definition_levels_;
+
 };
 
+//
+// Specialization for a field that has both definition and repetition levels.
+// For example, the following schema would create this type of node:
+//
+// message root {
+//    required group list_outer (LIST) {
+//        repeated group list_inner {
+//            required int32 value;  
+//        }
+//    }
+// }  
 template <typename ColumnReaderType, typename ArrayBuilderType>
-class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType, true, true>
+class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
+				     PrimitiveSerializerType::REPEATED>
     : public PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType> {
  public:
   TypedPrimitiveDeserializerNode(const ColumnDescriptor* const descriptor,
                                  int column_index, std::size_t buffer_size,
-                                 std::shared_ptr<ArrayBuilderType> const& builder)
+                                 std::shared_ptr<ArrayBuilderType> const& builder,
+				 ::arrow::MemoryPool* pool)
       : PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType>(
-            descriptor, column_index, buffer_size, builder),
-        definition_levels_(buffer_size),
-        repetition_levels_(buffer_size) {}
+								      descriptor, column_index, buffer_size, builder, pool),
+    definition_levels_(pool, buffer_size),
+    repetition_levels_(pool, buffer_size) {}
 
-  int16_t CurrentMaxDefinitionLevel() final {
+  Status Initialize() final
+  {
+    RETURN_NOT_OK(definition_levels_.Initialize());
+    RETURN_NOT_OK(repetition_levels_.Initialize());
+    return PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType>::Initialize();
+  }
+  
+  Status CurrentMaxDefinitionLevel(int16_t& level) final {
     if (!Fill()) {
-      return false;
+      std::ostringstream stream;
+      stream << "Unable to determine current max definition level";
+      return Status::IOError(stream.str());
     }
-    return definition_levels_.Front();
+    level = definition_levels_.Front();
+    return Status::OK();
   }
 
-  void Skip(DeserializerNode::LevelSet& next_repetitions) final {
+  Status Skip(DeserializerNode::LevelSet& next_repetitions) final {
     if (!Fill()) {
-      return;
+      std::ostringstream stream;
+      stream << "Unable to determine skip data";
+      return Status::IOError(stream.str());
     }
     if (definition_levels_.Front() == this->descriptor_->max_definition_level()) {
       this->values_.PopFront();
     }
     definition_levels_.PopFront();
     AddRepetitions(next_repetitions);
+    return Status::OK();
   }
 
-  void Deserialize(DeserializerNode::LevelSet& next_repetitions,
-                   int16_t current_repetition_level) final {
-    if (!Fill()) {
-      // TODO: check the current_repetition_level against
-      // the max repetition level and throw an exception
-      // if necessary?
-      return;
+  Status Deserialize(RepetitionLevel current_repetition_level,
+		     DeserializerNode::LevelSet& next_repetitions) final {
+    if (!Fill())
+    {
+      std::ostringstream stream;
+      stream << "Unable to fill values when deserializing";
+      return Status::IOError(stream.str());
     }
     // See Dremel paper: second entry for Links.Backward would
     // apply in this case and return
-    if (repetition_levels_.Front() != current_repetition_level) {
-      return;
+    if (repetition_levels_.Front() != *current_repetition_level) {
+      return Status::OK();
     }
 
     if (definition_levels_.Front() == this->descriptor_->max_definition_level()) {
       // The value is not null
-      this->Append();
+      RETURN_NOT_OK(this->Append());
     } else {
       // Insert a null
-      this->builder_->AppendNull();
+      RETURN_NOT_OK(this->builder_->AppendNull());
     }
     definition_levels_.PopFront();
     AddRepetitions(next_repetitions);
+    return Status::OK();
   }
 
  private:
+
+  // This is factored into its own method because it's used in both
+  // Skip and Deserialize
   void AddRepetitions(DeserializerNode::LevelSet& next_repetitions) {
     repetition_levels_.PopFront();
     if (Fill()) {
@@ -530,37 +732,57 @@ class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType, true, t
   PrimitiveDeserializerArray<int16_t> repetition_levels_;
 };
 
+//
+// Specialization for a field that has neither definition nor repetition levels.
+// For example, all of the primitive fields in the following schema
+// would create this type of node:
+//
+// message root {
+//    required group contact {
+//        required bytearray name (UTF8);
+//        required group address {
+//            required bytearray street (UTF8);
+//            required int32 number;
+//            required bytearray city (UTF8);
+//            required int8 zip;
+//        }
+//    }
+// }  
 template <typename ColumnReaderType, typename ArrayBuilderType>
-class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType, false, false>
+class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
+				     PrimitiveSerializerType::REQUIRED>
     : public PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType> {
  public:
   TypedPrimitiveDeserializerNode(const ColumnDescriptor* const descriptor,
                                  int column_index, std::size_t buffer_size,
-                                 std::shared_ptr<ArrayBuilderType> const& builder)
+                                 std::shared_ptr<ArrayBuilderType> const& builder,
+				 ::arrow::MemoryPool* pool)
       : PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType>(
-            descriptor, column_index, buffer_size, builder) {}
+								      descriptor, column_index, buffer_size, builder, pool) {}
 
-  int16_t CurrentMaxDefinitionLevel() final {
-    return this->descriptor_->max_definition_level();
+  Status CurrentMaxDefinitionLevel(int16_t& level) final {
+    level = this->descriptor_->max_definition_level();
+    return Status::OK();
   }
 
-  void Skip(DeserializerNode::LevelSet& next_repetitions) final {
-    // This should only happen if there is some problem
-    // with the reading of the data.
+  Status Skip(DeserializerNode::LevelSet& next_repetitions) final {
+    std::ostringstream stream;
+    stream << "Call to Skip made when it shouldn't have";
+    return Status::Invalid(stream.str());
   }
 
-  void Deserialize(DeserializerNode::LevelSet& next_repetitions,
-                   int16_t current_repetition_level) final {
+  Status Deserialize(RepetitionLevel current_repetition_level,
+		     DeserializerNode::LevelSet& next_repetitions) final {
     if (!Fill()) {
-      // TODO: check the current_repetition_level against
-      // the max repetition level and throw an exception
-      // if necessary?
-      return;
+      std::ostringstream stream;
+      stream << "Unable to load more values in call to Deserialize";
+      return Status::IOError(stream.str());
     }
-    this->Append();
+    return this->Append();
   }
 
  private:
+
   bool Fill() {
     if (!this->values_.Empty()) {
       return true;
@@ -571,45 +793,83 @@ class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType, false, 
                                     &this->values_.size_);
     return !this->values_.Empty();
   }
+  
 };
 
+//
+// Deserializer for lists that are required. The Parquet spec on list
+// types requires that the schema for a required list looks likes this:
+//
+// required group list_outer (LIST) {
+//     repeated group list_inner {
+//         (required|optional) <type> element ...
+//     }
+// }
+//
+// The reason for the outer level of nesting is that without it
+// you wouldn't be able to differentiate a list of a single null
+// from an empty list. By having this extra level, an empty list
+// is indicated when the max definition level of the list_outer's
+// descendants are equal to list_outer's max definition level, and
+// a list of null would be indicated by a definition level of
+// list_inner's descendants that is equal to list_inner's max
+// definition level.
+//  
+// The constructor of this class takes the max_definition_level of
+// list_outer and the max_repetition_level of list_inner  
 class ListDeserializerNode : public DeserializerNode {
- public:
+
+public:
+
   ListDeserializerNode(std::unique_ptr<DeserializerNode>&& node_reader,
-                       int16_t max_repetition_level, int16_t max_definition_level)
+		       ::arrow::MemoryPool* pool,
+                       RepetitionLevel max_repetition_level,
+		       DefinitionLevel max_definition_level)
       : node_reader_(std::move(node_reader)),
         max_repetition_level_(max_repetition_level),
         max_definition_level_(max_definition_level),
         builder_(std::make_shared<::arrow::ListBuilder>(
-            ::arrow::default_memory_pool(), node_reader_->GetArrayBuilder())) {}
+            pool, node_reader_->GetArrayBuilder())) {}
 
-  int16_t CurrentMaxDefinitionLevel() final {
-    return node_reader_->CurrentMaxDefinitionLevel();
+  Status CurrentMaxDefinitionLevel(int16_t& level) final {
+    return node_reader_->CurrentMaxDefinitionLevel(level);
   }
 
-  void Skip(LevelSet& next_repetitions) final { node_reader_->Skip(next_repetitions); }
+  Status Skip(LevelSet& next_repetitions) final {
+    return node_reader_->Skip(next_repetitions);
+  }
 
-  void Deserialize(LevelSet& next_repetitions, int16_t current_repetition_level) {
-    builder_->Append();
-    if (node_reader_->CurrentMaxDefinitionLevel() == max_definition_level_) {
+  Status Deserialize(RepetitionLevel current_repetition_level, LevelSet& next_repetitions) {
+    RETURN_NOT_OK(builder_->Append());
+    int16_t current_max_definition_level;
+    RETURN_NOT_OK(node_reader_->CurrentMaxDefinitionLevel(current_max_definition_level));
+    if (current_max_definition_level == *max_definition_level_) {
       // This is just an empty list
-      node_reader_->Skip(next_repetitions);
+      return node_reader_->Skip(next_repetitions);
     } else {
       // Deserialize the first one
-      node_reader_->Deserialize(next_repetitions, current_repetition_level);
+      RETURN_NOT_OK(node_reader_->Deserialize(current_repetition_level, next_repetitions));
       // Deserialize the repetitions
-      DeserializeRepetitions(next_repetitions);
+      return DeserializeRepetitions(next_repetitions);
     }
   }
 
   std::shared_ptr<::arrow::ArrayBuilder> GetArrayBuilder() final { return builder_; }
 
-  void InitializeRowGroup(std::shared_ptr<RowGroupReader> const& row_group_reader) {
-    node_reader_->InitializeRowGroup(row_group_reader);
+  Status InitializeRowGroup(std::shared_ptr<RowGroupReader> const& row_group_reader) {
+    return node_reader_->InitializeRowGroup(row_group_reader);
   }
 
  protected:
-  void DeserializeRepetitions(LevelSet& next_repetitions) {
+
+  // \brief keeps appending elements to the current list as long as
+  //        the descendants of this node have repetitions at this list's
+  //        repetition level
+  // \param[in] the set of next repetitions from the last call to
+  //            children's Deserialize functions.
+  // \return status error if calls to child node Deserialize functions
+  //         produce an error
+  Status DeserializeRepetitions(LevelSet& next_repetitions) {
     bool repetition_at_this_level = true;
     while (!next_repetitions.empty() && repetition_at_this_level) {
       // next_repetitions is a sorted set, so end
@@ -619,57 +879,92 @@ class ListDeserializerNode : public DeserializerNode {
       // and then re-check if we repeated at this level
       auto highest = next_repetitions.end();
       --highest;
-      repetition_at_this_level = (*highest == max_repetition_level_);
+      repetition_at_this_level = (*highest == *max_repetition_level_);
       if (repetition_at_this_level) {
         next_repetitions.erase(highest);
-        node_reader_->Deserialize(next_repetitions, max_repetition_level_);
+        RETURN_NOT_OK(node_reader_->Deserialize(max_repetition_level_, next_repetitions));
       }
     }
+    return Status::OK();    
   }
 
   std::unique_ptr<DeserializerNode> node_reader_;
 
-  int16_t max_repetition_level_;
+  RepetitionLevel max_repetition_level_;
 
-  int16_t max_definition_level_;
+  DefinitionLevel max_definition_level_;
 
   std::shared_ptr<::arrow::ListBuilder> builder_;
 };
 
+//
+// Deserializer for lists that are optional. The Parquet spec on list
+// types requires that the schema for an optional list looks likes this:
+//
+// optional group list_outer (LIST) {
+//     repeated group list_inner {
+//         (required|optional) <type> element ...
+//     }
+// }
+//
+// When deserializing, if the max definition level of this node's
+// children is less than list_outer's max definition level, then
+// we append a null. If it's equal to it, then we create an empty
+// list. Otherwise, we create a non-empty list.
+//
+// The constructor of this class takes the max_definition_level of
+// list_outer and the max_repetition_level of list_inner
 class NullableListDeserializerNode : public ListDeserializerNode {
- public:
-  NullableListDeserializerNode(std::unique_ptr<DeserializerNode>&& node_reader,
-                               int16_t max_repetition_level, int16_t max_definition_level)
-      : ListDeserializerNode(std::forward<std::unique_ptr<DeserializerNode>>(node_reader),
-                             max_repetition_level, max_definition_level) {}
 
-  void Deserialize(LevelSet& next_repetitions, int16_t current_repetition_level) final {
-    auto max_definition_level = node_reader_->CurrentMaxDefinitionLevel();
-    if (max_definition_level < max_definition_level_) {
+public:
+
+  NullableListDeserializerNode(std::unique_ptr<DeserializerNode>&& node_reader,
+			       ::arrow::MemoryPool* pool,
+                               RepetitionLevel max_repetition_level,
+			       DefinitionLevel max_definition_level)
+      : ListDeserializerNode(std::forward<std::unique_ptr<DeserializerNode>>(node_reader),
+                             pool, max_repetition_level, max_definition_level) {}
+
+  Status Deserialize(RepetitionLevel current_repetition_level, LevelSet& next_repetitions) final {
+    int16_t current_max_definition_level;
+    RETURN_NOT_OK(node_reader_->CurrentMaxDefinitionLevel(current_max_definition_level));
+    if (current_max_definition_level < *max_definition_level_) {
       // It's null
-      builder_->AppendNull();
-      node_reader_->Skip(next_repetitions);
-    } else if (max_definition_level == max_definition_level_) {
+      RETURN_NOT_OK(builder_->AppendNull());
+      RETURN_NOT_OK(node_reader_->Skip(next_repetitions));
+    } else if (current_max_definition_level == *max_definition_level_) {
       // Empty list
-      builder_->Append();
-      node_reader_->Skip(next_repetitions);
+      RETURN_NOT_OK(builder_->Append());
+      RETURN_NOT_OK(node_reader_->Skip(next_repetitions));
     } else {
-      builder_->Append();
-      node_reader_->Deserialize(next_repetitions, current_repetition_level);
+      RETURN_NOT_OK(builder_->Append());
+      RETURN_NOT_OK(node_reader_->Deserialize(current_repetition_level, next_repetitions));
+      RETURN_NOT_OK(DeserializeRepetitions(next_repetitions));      
     }
-    // TODO: should this be in the else block above?
-    DeserializeRepetitions(next_repetitions);
+    return Status::OK();
   }
 };
 
+//
+// Serializer for a group (aka struct) node. The schema for such a node
+// would look like this;
+//
+// (repeated|required) group pair {
+//    required int32 key;
+//    required bytearray value (UTF8);
+// }
+//
+// This has an Optional template parameter so that we can remove unnecessary checks
+// for required nodes at compile time.
+//  
 template <bool Optional>
 class NestedDeserializerNode : public DeserializerNode {
  public:
-  NestedDeserializerNode(std::string const& name, int16_t max_definition_level,
+  NestedDeserializerNode(DefinitionLevel max_definition_level,
                          std::vector<std::unique_ptr<DeserializerNode>>&& children,
-                         std::vector<std::shared_ptr<::arrow::Field>>& fields)
-      : name_(name),
-        children_(std::move(children)),
+                         std::vector<std::shared_ptr<::arrow::Field>>& fields,
+			 ::arrow::MemoryPool* pool)
+      : children_(std::move(children)),
         max_definition_level_(max_definition_level) {
     std::vector<std::shared_ptr<::arrow::ArrayBuilder>> child_builders;
     for (auto const& child : children_) {
@@ -677,70 +972,84 @@ class NestedDeserializerNode : public DeserializerNode {
     }
     auto arrow_type = std::make_shared<::arrow::StructType>(fields);
     builder_ = std::make_shared<::arrow::StructBuilder>(
-        arrow_type, ::arrow::default_memory_pool(), std::move(child_builders));
+        arrow_type, pool, std::move(child_builders));
   }
 
-  void Skip(LevelSet& next_repetitions) {
+  Status Skip(LevelSet& next_repetitions) {
     for (auto& child : children_) {
-      child->Skip(next_repetitions);
+      RETURN_NOT_OK(child->Skip(next_repetitions));
     }
+    return Status::OK();
   }
 
-  int16_t CurrentMaxDefinitionLevel() final {
-    int16_t max = 0;
+  Status CurrentMaxDefinitionLevel(int16_t& max) final {
+    max = 0;
     for (auto& child : children_) {
-      auto current = child->CurrentMaxDefinitionLevel();
+      int16_t current;
+      RETURN_NOT_OK(child->CurrentMaxDefinitionLevel(current));
       if (current > max) {
         max = current;
       }
     }
-    return max;
+    return Status::OK();
   }
 
-  void Deserialize(LevelSet& next_repetitions, int16_t current_repetition_level) final {
+  Status Deserialize(RepetitionLevel current_repetition_level, LevelSet& next_repetitions) final {
     // TODO: detect this at tree construction time. If all of
     // the fields inside this nested node are required, then
     // there is no need to do this check.
     auto has_data = !Optional;
     if (Optional) {
-      has_data = CurrentMaxDefinitionLevel() >= max_definition_level_;
+      int16_t current_max_definition_level;
+      RETURN_NOT_OK(CurrentMaxDefinitionLevel(current_max_definition_level));
+      has_data = current_max_definition_level >= *max_definition_level_;
     }
     if (has_data) {
-      builder_->Append();
+      RETURN_NOT_OK(builder_->Append());
     } else {
-      builder_->AppendNull();
+      RETURN_NOT_OK(builder_->AppendNull());
     }
     // For structs, we call Deserialize even when they don't have data.
     // This ensures that the length of the child arrays match
     // the length of the struct bitmap.
     for (auto& child : children_) {
-      child->Deserialize(next_repetitions, current_repetition_level);
+      RETURN_NOT_OK(child->Deserialize(current_repetition_level, next_repetitions));
     }
+    return Status::OK();
   }
 
   std::shared_ptr<::arrow::ArrayBuilder> GetArrayBuilder() final { return builder_; }
 
-  void InitializeRowGroup(std::shared_ptr<RowGroupReader> const& row_group_reader) final {
+  Status InitializeRowGroup(std::shared_ptr<RowGroupReader> const& row_group_reader) final {
     for (auto& child : children_) {
-      child->InitializeRowGroup(row_group_reader);
+      RETURN_NOT_OK(child->InitializeRowGroup(row_group_reader));
     }
+    return Status::OK();
   }
 
  private:
-  std::string name_;
 
   std::vector<std::unique_ptr<DeserializerNode>> children_;
 
-  int16_t max_definition_level_;
+  DefinitionLevel max_definition_level_;
 
   std::shared_ptr<::arrow::StructBuilder> builder_;
 };
 
+// The following set of classes are used to drive the
+// iteration over the input data in a particular manner.
+//
+// TODO: except for the batched array serializer, it might
+//       be possible to collapse these classes through the
+//       use of iterators.  
 ArrayDeserializer::ArrayDeserializer(std::unique_ptr<DeserializerNode>&& node)
     : node_(std::move(node)) {}
 
 ArrayDeserializer::~ArrayDeserializer() {}
 
+// This class will deserialize a single array from the entire
+// file. The node that is passed to the constructor may
+// contain multiple primitive nodes as its descendants.  
 class FileArrayDeserializer : public ArrayDeserializer {
  public:
   FileArrayDeserializer(std::unique_ptr<DeserializerNode>&& node,
@@ -755,10 +1064,10 @@ class FileArrayDeserializer : public ArrayDeserializer {
     auto const num_row_groups = file_reader_->metadata()->num_row_groups();
     for (int ii = 0; ii < num_row_groups; ++ii) {
       auto row_group_reader = file_reader_->RowGroup(ii);
-      node_->InitializeRowGroup(row_group_reader);
+      RETURN_NOT_OK(node_->InitializeRowGroup(row_group_reader));
       auto const num_rows = row_group_reader_->metadata()->num_rows();
       for (int jj = 0; jj < num_rows; ++jj) {
-        node_->Deserialize(repetitions, /* repetition level */ 0);
+        RETURN_NOT_OK(node_->Deserialize(RepetitionLevel(), repetitions));
         repetitions.clear();
       }
     }
@@ -773,6 +1082,9 @@ class FileArrayDeserializer : public ArrayDeserializer {
 
 ArrayBatchedDeserializer::~ArrayBatchedDeserializer() {}
 
+// This class will deserialize a single array from the entire
+// file in batches. The node that is passed to the constructor may
+// contain multiple primitive nodes as its descendants.  
 class FileArrayBatchedDeserializer : public ArrayBatchedDeserializer {
  public:
   FileArrayBatchedDeserializer(std::unique_ptr<DeserializerNode>&& node,
@@ -782,11 +1094,15 @@ class FileArrayBatchedDeserializer : public ArrayBatchedDeserializer {
         current_row_group_(file_reader->RowGroup(0)),
         current_row_group_index_(0),
         current_row_(0) {
-    node_->InitializeRowGroup(current_row_group_);
   }
 
   ~FileArrayBatchedDeserializer() {}
 
+  Status Initialize()
+  {
+    return node_->InitializeRowGroup(current_row_group_);    
+  }
+  
   ::arrow::Status DeserializeBatch(int64_t num_records,
                                    std::shared_ptr<::arrow::Array>& array) final {
     DeserializerNode::LevelSet repetitions;
@@ -796,14 +1112,14 @@ class FileArrayBatchedDeserializer : public ArrayBatchedDeserializer {
       auto const num_rows = current_row_group_->metadata()->num_rows();
       for (; current_row_ < num_rows && records_read < num_records;
            ++current_row_, ++records_read) {
-        node_->Deserialize(repetitions, /* repetition_level */ 0);
+        RETURN_NOT_OK(node_->Deserialize(RepetitionLevel(), repetitions));
         repetitions.clear();
       }
       if (current_row_ >= num_rows) {
         ++current_row_group_index_;
         if (current_row_group_index_ < num_row_groups) {
           current_row_group_ = file_reader_->RowGroup(current_row_group_index_);
-          node_->InitializeRowGroup(current_row_group_);
+          RETURN_NOT_OK(node_->InitializeRowGroup(current_row_group_));
           current_row_ = 0;
         }
       }
@@ -823,20 +1139,29 @@ class FileArrayBatchedDeserializer : public ArrayBatchedDeserializer {
   int current_row_;
 };
 
+// This class will deserialize a single array from a single
+// row group for a single node. The DeserializeBuilder only
+// constructs this for a node that has at most one primitive
+// descendant, but it could just as well be used for nodes that
+// contain multiple primitive descendants.  
 class ColumnChunkDeserializer : public ArrayDeserializer {
  public:
   ColumnChunkDeserializer(
       std::unique_ptr<DeserializerNode>&& node,
       std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader)
       : ArrayDeserializer(std::move(node)), row_group_reader_(row_group_reader) {
-    node_->InitializeRowGroup(row_group_reader_);
   }
 
+  Status Initialize()
+  {
+    return node_->InitializeRowGroup(row_group_reader_);    
+  }
+  
   ::arrow::Status DeserializeArray(std::shared_ptr<::arrow::Array>& array) final {
     DeserializerNode::LevelSet repetitions;
     auto const num_rows = row_group_reader_->metadata()->num_rows();
     for (int ii = 0; ii < num_rows; ++ii) {
-      node_->Deserialize(repetitions, /* repetition level */ 0);
+      RETURN_NOT_OK(node_->Deserialize(RepetitionLevel(), repetitions));
       repetitions.clear();
     }
     return node_->GetArrayBuilder()->Finish(&array);
@@ -864,6 +1189,23 @@ TableDeserializer::~TableDeserializer() {}
   return Status::OK();
 }
 
+Status TableDeserializer::DeserializeRowGroup(std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader)					    
+{
+  for (auto& node : nodes_) {
+    RETURN_NOT_OK(node->InitializeRowGroup(row_group_reader));
+  }
+  DeserializerNode::LevelSet repetitions;  
+  auto const num_rows = row_group_reader->metadata()->num_rows();
+  for (int ii = 0; ii < num_rows; ++ii) {
+    for (auto& node : nodes_) {
+      RETURN_NOT_OK(node->Deserialize(RepetitionLevel(), repetitions));
+      repetitions.clear();
+    }
+  }
+  return Status::OK();
+}
+  
+// This class will deserialize all of the specified nodes from a single row group.
 class RowGroupDeserializer : public TableDeserializer {
  public:
   RowGroupDeserializer(std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
@@ -871,23 +1213,14 @@ class RowGroupDeserializer : public TableDeserializer {
                        std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader)
       : TableDeserializer(
             std::forward<std::vector<std::unique_ptr<DeserializerNode>>>(nodes), schema),
-        row_group_reader_(row_group_reader) {
-    for (auto& node : nodes_) {
-      node->InitializeRowGroup(row_group_reader);
-    }
+        row_group_reader_(row_group_reader)
+  {
   }
 
   ~RowGroupDeserializer() {}
 
   ::arrow::Status DeserializeTable(std::shared_ptr<::arrow::Table>& table) final {
-    DeserializerNode::LevelSet repetitions;
-    auto const num_rows = row_group_reader_->metadata()->num_rows();
-    for (int ii = 0; ii < num_rows; ++ii) {
-      for (auto& node : nodes_) {
-        node->Deserialize(repetitions, /* repetition level */ 0);
-        repetitions.clear();
-      }
-    }
+    DeserializeRowGroup(row_group_reader_);
     return MakeTable(table);
   }
 
@@ -895,6 +1228,7 @@ class RowGroupDeserializer : public TableDeserializer {
   std::shared_ptr<::parquet::RowGroupReader> row_group_reader_;
 };
 
+// This class wil deserialize all of the specified nodes from a Parquet file  
 class FileTableDeserializer : public TableDeserializer {
  public:
   FileTableDeserializer(std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
@@ -907,20 +1241,9 @@ class FileTableDeserializer : public TableDeserializer {
   ~FileTableDeserializer() {}
 
   ::arrow::Status DeserializeTable(std::shared_ptr<::arrow::Table>& table) {
-    DeserializerNode::LevelSet repetitions;
     auto num_row_groups = file_reader_->metadata()->num_row_groups();
     for (int ii = 0; ii < num_row_groups; ++ii) {
-      auto row_group_reader = file_reader_->RowGroup(ii);
-      for (auto& node : nodes_) {
-        node->InitializeRowGroup(row_group_reader);
-      }
-      auto const num_rows = row_group_reader->metadata()->num_rows();
-      for (int ii = 0; ii < num_rows; ++ii) {
-        for (auto& node : nodes_) {
-          node->Deserialize(repetitions, /* repetition level */ 0);
-          repetitions.clear();
-        }
-      }
+      DeserializeRowGroup(file_reader_->RowGroup(ii));
     }
     return MakeTable(table);
   }
@@ -929,9 +1252,12 @@ class FileTableDeserializer : public TableDeserializer {
   std::shared_ptr<::parquet::ParquetFileReader> file_reader_;
 };
 
+// This class does the main work of constructing deserializer
+// nodes from Parquet schema nodes.
 class DeserializerBuilder::Impl {
  public:
   Impl(std::shared_ptr<::parquet::ParquetFileReader> const& file_reader,
+       ::arrow::MemoryPool* pool,
        int64_t buffer_size);
 
   ::arrow::Status BuildSchemaNodeDeserializer(int schema_index,
@@ -963,41 +1289,149 @@ class DeserializerBuilder::Impl {
     return indices;
   }
 
+
+  // \brief calls BuildNode for each node in the parquet file's
+  //        schema
+  // \param[in] indices that are used to filter indicate which 
+  //            primitive columns to include. The indices correspond
+  //            to the index you would obtain from calling
+  //            SchemaDescriptor::Column
+  // \param[out] the deserializer nodes
+  // \param[in] if specified, the nodes will appear in the result
+  //            list based on the order in which they appeared in
+  //            column_indices. For example, if the Parquet schema has two
+  //            primitive nodes and the column_indices given is {1, 0},
+  //            then the resulting table will have the fields reversed
+  //            in the Arrow schema.
+  // \return error status if all of the column indices were out of bounds
+  //         or any of the converted/physical type specifications in the
+  //         Parquet schema are unsupported
   Status BuildNodes(std::vector<int> const& column_indices,
                     std::vector<std::unique_ptr<DeserializerNode>>& nodes,
                     bool in_index_order = true);
 
-  // TODO: make repetition_levels and definition_levels
-  // tagged/typed integers:
-  //
-  // struct RepetitionTag;
-  //
-  // template <typename Tag, typename ValueType>
-  // TaggedType;
-  //
-  // using Repetition = TaggedType<RepetitionTag, int16_t>
+  // \brief builds a deserializer node based on the Parquet node.
+  // \param[in] the parquet node
+  // \param[in] indices that are used to filter indicate which 
+  //            primitive columns to include. The indices correspond
+  //            to the index you would obtain from calling
+  //            SchemaDescriptor::Column
+  // \param[in] these indicate which indices were used in building
+  //            this node. This is used to re-order the arrays in
+  //            the schema of the deserialized Table for that it
+  //            matches the order in which the indices were specified.
+  // \param[out] the deserializer node
+  // \param[in] repetition levels seen so far. Since this function is
+  //            called recursively for group nodes, the value is
+  //            incremented as the tree is traversed. Not specifying
+  //            this value in the call should only be done when the
+  //            node is the root node.
+  // \param[in] definition levels seen so far. Used in the same manner
+  //            as the repetition levels.
+  // \return error status if all of the column indices were out of bounds
+  //         or any of the converted/physical type specifications in the
+  //         Parquet schema are unsupported
   Status BuildNode(std::shared_ptr<const Node> const& node,
                    std::vector<int> const& indices, std::vector<int>& indices_seen,
                    std::unique_ptr<DeserializerNode>& result,
-                   int16_t repetition_levels = 0, int16_t definition_levels = 0);
+                   RepetitionLevel repetition_levels = RepetitionLevel(),
+		   DefinitionLevel definition_levels = DefinitionLevel());
 
+  // \brief builds a primitive deserializer node based on the Parquet node.
+  // \param[in] the parquet node, which must point to a PrimitiveNode
+  // \param[in] indices that are used to filter indicate which 
+  //            primitive columns to include. The indices correspond
+  //            to the index you would obtain from calling
+  //            SchemaDescriptor::Column
+  // \param[in] these indicate which indices were used in building
+  //            this node. This is used to re-order the arrays in
+  //            the schema of the deserialized Table for that it
+  //            matches the order in which the indices were specified.
+  // \param[out] the deserializer node
+  // \param[in] repetition levels seen so far. Since this function is
+  //            called recursively for group nodes, the value is
+  //            incremented as the tree is traversed. Not specifying
+  //            this value in the call should only be done when the
+  //            node is the root node.
+  // \param[in] definition levels seen so far. Used in the same manner
+  //            as the repetition levels.
+  // \return error status if all of the column indices were out of bounds
+  //         or any of the converted/physical type specifications in the
+  //         Parquet schema are unsupported
   Status BuildPrimitiveNode(std::shared_ptr<const Node> const& node,
-                            int16_t repetition_levels, int16_t definition_levels,
+                            RepetitionLevel repetition_levels,
+			    DefinitionLevel definition_levels,
                             std::vector<int> const& indices,
                             std::vector<int>& indices_seen,
                             std::unique_ptr<DeserializerNode>& result);
 
+  // \brief builds a group deserializer node based on the Parquet node.
+  // \param[in] the parquet node, which must point to a GroupNode
+  // \param[in] indices that are used to filter indicate which 
+  //            primitive columns to include. The indices correspond
+  //            to the index you would obtain from calling
+  //            SchemaDescriptor::Column
+  // \param[in] these indicate which indices were used in building
+  //            this node. This is used to re-order the arrays in
+  //            the schema of the deserialized Table for that it
+  //            matches the order in which the indices were specified.
+  // \param[out] the deserializer node
+  // \param[in] repetition levels seen so far. Since this function is
+  //            called recursively for group nodes, the value is
+  //            incremented as the tree is traversed. Not specifying
+  //            this value in the call should only be done when the
+  //            node is the root node.
+  // \param[in] definition levels seen so far. Used in the same manner
+  //            as the repetition levels.
+  // \return error status if all of the column indices were out of bounds
+  //         or any of the converted/physical type specifications in the
+  //         Parquet schema are unsupported
   Status BuildGroupNode(std::shared_ptr<const Node> const& node,
-                        int16_t repetition_levels, int16_t definition_levels,
+                        RepetitionLevel repetition_levels,
+			DefinitionLevel definition_levels,
                         std::vector<int> const& indices, std::vector<int>& indices_seen,
                         std::unique_ptr<DeserializerNode>& result);
 
+  // \brief builds a list deserializer node based on the Parquet node.
+  // \param[in] the parquet node, which must point to a GroupNode which
+  //            has a LIST annotation.
+  // \param[in] indices that are used to filter indicate which 
+  //            primitive columns to include. The indices correspond
+  //            to the index you would obtain from calling
+  //            SchemaDescriptor::Column
+  // \param[in] these indicate which indices were used in building
+  //            this node. This is used to re-order the arrays in
+  //            the schema of the deserialized Table for that it
+  //            matches the order in which the indices were specified.
+  // \param[out] the deserializer node
+  // \param[in] repetition levels seen so far. Since this function is
+  //            called recursively for group nodes, the value is
+  //            incremented as the tree is traversed. Not specifying
+  //            this value in the call should only be done when the
+  //            node is the root node.
+  // \param[in] definition levels seen so far. Used in the same manner
+  //            as the repetition levels.
+  // \return error status if all of the column indices were out of bounds
+  //         or any of the converted/physical type specifications in the
+  //         Parquet schema are unsupported
   Status BuildListNode(std::shared_ptr<const GroupNode> const& node,
-                       int16_t repetition_levels, int16_t definition_levels,
+                       RepetitionLevel repetition_levels,
+		       DefinitionLevel definition_levels,
                        std::vector<int> const& indices, std::vector<int>& indices_seen,
                        std::unique_ptr<DeserializerNode>& result);
 
-  template <bool HasDefinition, bool HasRepetition>
+  // \brief builds a typed primitive node. This is the main entry point
+  //        for a number of SFINAE based calls. 
+  // \param[in] the parquet node, which must point to a PrimitiveNode
+  // \param[in] the column descriptor, which is used in error
+  //            messages to report what node had an unsupported type
+  // \parma[in] the index of the column, which is stored in the node
+  //            and then later used to lookup the column reader from
+  //            the row group reader
+  // \param[out] the deserializer node
+  // \return error status if any of the converted/physical type
+  //         specifications in the Parquet schema are unsupported  
+  template <PrimitiveSerializerType SerializerType>
   Status MakeTypedPrimitiveDeserializerNode(
       std::shared_ptr<const Node> const& node,
       const ColumnDescriptor* const column_descriptor, int column_index,
@@ -1005,36 +1439,28 @@ class DeserializerBuilder::Impl {
     auto primitive_node = std::static_pointer_cast<const PrimitiveNode>(node);
     switch (primitive_node->physical_type()) {
       case Type::BOOLEAN:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::BooleanType, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::BooleanType, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::INT32:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::Int32Type, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::Int32Type, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::INT64:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::Int64Type, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::Int64Type, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::INT96:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::Int96Type, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::Int96Type, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::FLOAT:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::FloatType, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::FloatType, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::DOUBLE:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::DoubleType, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::DoubleType, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::BYTE_ARRAY:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::ByteArrayType, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::ByteArrayType, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::FIXED_LEN_BYTE_ARRAY:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::FLBAType, HasDefinition,
-                                                    HasRepetition>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::FLBAType, SerializerType>(
             primitive_node, column_descriptor, column_index, result);
       default:
         std::ostringstream stream;
@@ -1043,98 +1469,106 @@ class DeserializerBuilder::Impl {
     }
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  // \brief builds a typed primitive node, taking into account it's
+  //        logical (aka converted) type.
+  // \param[in] the parquet node, which must point to a PrimitiveNode
+  // \param[in] the column descriptor, which is used in error
+  //            messages to report what node had an unsupported type
+  // \parma[in] the index of the column, which is stored in the node
+  //            and then later used to lookup the column reader from
+  //            the row group reader
+  // \param[out] the deserializer node
+  // \return error status if any of the converted/physical type
+  //         specifications in the Parquet schema are unsupported  
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   Status MakeLogicalPrimitiveDeserializerNode(
       std::shared_ptr<const PrimitiveNode> const& node,
       const ColumnDescriptor* const column_descriptor, int column_index,
       std::unique_ptr<DeserializerNode>& result) {
     switch (node->logical_type()) {
       case parquet::LogicalType::DATE:
-        return MakeDateDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeDateDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::TIME_MILLIS:
-        return MakeTimeMillisDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeTimeMillisDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::TIME_MICROS:
-        return MakeTimeMicrosDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeTimeMicrosDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::TIMESTAMP_MILLIS:
-        return MakeTimestampDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeTimestampDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, ::arrow::TimeUnit::MILLI, result);
       case parquet::LogicalType::TIMESTAMP_MICROS:
-        return MakeTimestampDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeTimestampDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, ::arrow::TimeUnit::MICRO, result);
       case parquet::LogicalType::DECIMAL:
-        return MakeDecimalDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeDecimalDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::UINT_8:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt8Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::UINT_16:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt16Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::UINT_32:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt32Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::UINT_64:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt64Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::INT_8:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int8Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::INT_16:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int16Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::INT_32:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int32Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::INT_64:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int64Builder,
-                                           HasDefinition, HasRepetition>(
+                                           SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::UTF8:
-        return MakeUTF8DeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeUTF8DeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::NA:
-        return MakeNullDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+        return MakeNullDeserializerNode<ParquetType, SerializerType>(
             column_descriptor, column_index, result);
       default:
         switch (node->physical_type()) {
           case Type::BOOLEAN:
-            return MakeBooleanDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+            return MakeBooleanDeserializerNode<ParquetType, SerializerType>(
                 column_descriptor, column_index, result);
           case Type::INT32:
             return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int32Builder,
-                                               HasDefinition, HasRepetition>(
+                                               SerializerType>(
                 column_descriptor, column_index, result);
           case Type::INT64:
             return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int64Builder,
-                                               HasDefinition, HasRepetition>(
+                                               SerializerType>(
                 column_descriptor, column_index, result);
           case Type::FLOAT:
-            return MakeFloatDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+            return MakeFloatDeserializerNode<ParquetType, SerializerType>(
                 column_descriptor, column_index, result);
           case Type::DOUBLE:
-            return MakeDoubleDeserializerNode<ParquetType, HasDefinition, HasRepetition>(
+            return MakeDoubleDeserializerNode<ParquetType, SerializerType>(
                 column_descriptor, column_index, result);
           case Type::BYTE_ARRAY:
-            return MakeByteArrayDeserializerNode<ParquetType, HasDefinition,
-                                                 HasRepetition>(column_descriptor,
+            return MakeByteArrayDeserializerNode<ParquetType, SerializerType>(column_descriptor,
                                                                 column_index, result);
           case Type::FIXED_LEN_BYTE_ARRAY:
-            return MakeFixedLengthByteArrayDeserializerNode<ParquetType, HasDefinition,
-                                                            HasRepetition>(
+            return MakeFixedLengthByteArrayDeserializerNode<ParquetType, SerializerType>(
                 column_descriptor, column_index, result);
           case Type::INT96:
-            return MakeImpalaTimestampDeserializerNode<ParquetType, HasDefinition,
-                                                       HasRepetition>(
+            return MakeImpalaTimestampDeserializerNode<ParquetType, SerializerType>(
                 column_descriptor, column_index, result);
           default:
             std::ostringstream stream;
@@ -1144,16 +1578,26 @@ class DeserializerBuilder::Impl {
     }
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  // 
+  // The functions below create the various logical types of primitive nodes.
+  // Since the ParquetType template parameter is determined at run-time and we
+  // bind that earlier in the call stack, we can use SFINAE to limit the
+  // allowable types for a particular field (e.g. - Timestamp types can only
+  // be constructed from an int64 physical type).
+  //
+  // Most of the code is boiler-plate, except for the fact that there are
+  // different builders for the various types.
+  
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   Status MakeNullDeserializerNode(const ColumnDescriptor* const column_descriptor,
                                   int column_index,
                                   std::unique_ptr<DeserializerNode>& result) {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::NullBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result);
+                                             SerializerType>(
+									   column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int96Type>::value,
                           Status>::type
   MakeImpalaTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1161,12 +1605,11 @@ class DeserializerBuilder::Impl {
                                       std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::TimestampType>(::arrow::TimeUnit::NANO);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::TimestampBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, arrow_type,
-        ::arrow::default_memory_pool());
+                                             SerializerType>(
+        column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int96Type>::value,
                           Status>::type
   MakeImpalaTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1188,7 +1631,7 @@ class DeserializerBuilder::Impl {
          std::is_same<ParquetType, parquet::FLBAType>::value);
   };
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<SupportsDecimal<ParquetType>::value, Status>::type
   MakeDecimalDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index,
@@ -1196,12 +1639,11 @@ class DeserializerBuilder::Impl {
     auto arrow_type = std::make_shared<::arrow::Decimal128Type>(
         column_descriptor->type_precision(), column_descriptor->type_scale());
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Decimal128Builder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, arrow_type,
-        ::arrow::default_memory_pool());
+                                             SerializerType>(
+        column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!SupportsDecimal<ParquetType>::value, Status>::type
   MakeDecimalDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index,
@@ -1213,18 +1655,18 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::BooleanType>::value,
                           Status>::type
   MakeBooleanDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index,
                               std::unique_ptr<DeserializerNode>& result) {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::BooleanBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result);
+                                             SerializerType>(
+									   column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::BooleanType>::value,
                           Status>::type
   MakeBooleanDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1237,17 +1679,17 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeDateDeserializerNode(const ColumnDescriptor* const column_descriptor,
                            int column_index, std::unique_ptr<DeserializerNode>& result) {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Date32Builder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result);
+                                             SerializerType>(
+									   column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeDateDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1259,7 +1701,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeTimeMillisDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1267,12 +1709,11 @@ class DeserializerBuilder::Impl {
                                  std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::Time32Type>(::arrow::TimeUnit::MILLI);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Time32Builder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, arrow_type,
-        ::arrow::default_memory_pool());
+                                             SerializerType>(
+        column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeTimeMillisDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1285,7 +1726,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimeMicrosDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1293,12 +1734,11 @@ class DeserializerBuilder::Impl {
                                  std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::Time64Type>(::arrow::TimeUnit::MICRO);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Time64Builder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, arrow_type,
-        ::arrow::default_memory_pool());
+                                             SerializerType>(
+        column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimeMicrosDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1311,7 +1751,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1319,12 +1759,11 @@ class DeserializerBuilder::Impl {
                                 std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::TimestampType>(time_unit);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::TimestampBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, arrow_type,
-        ::arrow::default_memory_pool());
+                                             SerializerType>(
+        column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1354,21 +1793,19 @@ class DeserializerBuilder::Impl {
     static constexpr auto value = (both_ints && parquet_size >= arrow_size);
   };
 
-  template <typename ParquetType, typename ArrayBuilderType, bool HasDefinition,
-            bool HasRepetition>
+  template <typename ParquetType, typename ArrayBuilderType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<CanCastInteger<ParquetType, ArrayBuilderType>::value,
                           Status>::type
   MakeIntegerDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index, std::unique_ptr<DeserializerNode>& result)
 
   {
-    return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ArrayBuilderType, HasDefinition,
-                                             HasRepetition>(column_descriptor,
-                                                            column_index, result);
+    return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ArrayBuilderType, SerializerType>(column_descriptor,
+                                                            column_index, result,
+							    pool_);
   }
 
-  template <typename ParquetType, typename ArrayBuilderType, bool HasDefinition,
-            bool HasRepetition>
+  template <typename ParquetType, typename ArrayBuilderType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!CanCastInteger<ParquetType, ArrayBuilderType>::value,
                           Status>::type
   MakeIntegerDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1381,20 +1818,19 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeUTF8DeserializerNode(const ColumnDescriptor* const column_descriptor,
                            int column_index, std::unique_ptr<DeserializerNode>& result)
 
   {
-    return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::BinaryBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, ::arrow::utf8(),
-        ::arrow::default_memory_pool());
+    return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::StringBuilder,
+                                             SerializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeUTF8DeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1406,7 +1842,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeByteArrayDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1415,11 +1851,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::BinaryBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result);
+                                             SerializerType>(
+									   column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeByteArrayDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1432,7 +1868,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::FLBAType>::value,
                           Status>::type
   MakeFixedLengthByteArrayDeserializerNode(
@@ -1443,12 +1879,11 @@ class DeserializerBuilder::Impl {
     auto arrow_type =
         std::make_shared<::arrow::FixedSizeBinaryType>(column_descriptor->type_length());
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::FixedSizeBinaryBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result, arrow_type,
-        ::arrow::default_memory_pool());
+                                             SerializerType>(
+        column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::FLBAType>::value,
                           Status>::type
   MakeFixedLengthByteArrayDeserializerNode(
@@ -1461,7 +1896,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::DoubleType>::value,
                           Status>::type
   MakeDoubleDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1469,11 +1904,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::DoubleBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result);
+                                             SerializerType>(
+									   column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::DoubleType>::value,
                           Status>::type
   MakeDoubleDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1486,7 +1921,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::FloatType>::value,
                           Status>::type
   MakeFloatDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1494,11 +1929,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::FloatBuilder,
-                                             HasDefinition, HasRepetition>(
-        column_descriptor, column_index, result);
+                                             SerializerType>(
+									   column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, bool HasDefinition, bool HasRepetition>
+  template <typename ParquetType, PrimitiveSerializerType SerializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::FloatType>::value,
                           Status>::type
   MakeFloatDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1510,22 +1945,39 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, typename ArrayBuilderType, bool HasDefinition,
-            bool HasRepetition, typename... Args>
+  // \brief The primary function for creating a primitive node. This will
+  //        create an array builder of the specified type, passing
+  //        args to its constructor, and finally pass that builder
+  //        to the TypedPrimitiveDeserializerNode constructor
+  // \param[in] the column descriptor, which is used in error
+  //            messages to report what node had an unsupported type
+  // \parma[in] the index of the column, which is stored in the node
+  //            and then later used to lookup the column reader from
+  //            the row group reader
+  // \param[in] arguments that are passed to the BuilderType's
+  //            constructor
+  // \param[out] the deserializer node
+  // \return error status if any of the converted/physical type
+  //         specifications in the Parquet schema are unsupported  
+  template <typename ParquetType, typename ArrayBuilderType, PrimitiveSerializerType SerializerType, typename... Args>
   Status MakeTypedPrimitiveNodeWithBuilder(
       const ColumnDescriptor* const column_descriptor, int column_index,
       std::unique_ptr<DeserializerNode>& result, Args&&... args) {
     auto builder = std::make_shared<ArrayBuilderType>(std::forward<Args>(args)...);
     using ReturnType =
         TypedPrimitiveDeserializerNode<TypedColumnReader<ParquetType>, ArrayBuilderType,
-                                       HasDefinition, HasRepetition>;
-    result = std::unique_ptr<DeserializerNode>(
-        new ReturnType(column_descriptor, column_index, buffer_size_, builder));
+                                       SerializerType>;
+    auto node = std::unique_ptr<ReturnType>(new ReturnType(column_descriptor, column_index, buffer_size_, builder, pool_));
+    RETURN_NOT_OK(node->Initialize());
+    result = std::move(node);
     return Status::OK();
   }
 
+  // This method is pulled out here instead of inside BuildNode because
+  // we skip the "middle" node when constructing List nodes.
   void IncrementLevels(std::shared_ptr<const Node> const& node,
-                       int16_t& repetition_levels, int16_t& definition_levels) {
+                       RepetitionLevel& repetition_levels,
+		       DefinitionLevel& definition_levels) {
     if (!node->is_required()) {
       ++definition_levels;
     }
@@ -1536,12 +1988,16 @@ class DeserializerBuilder::Impl {
 
   std::shared_ptr<::parquet::ParquetFileReader> file_reader_;
 
+  ::arrow::MemoryPool* pool_;
+  
   int64_t buffer_size_;
 };
 
 DeserializerBuilder::Impl::Impl(
-    std::shared_ptr<::parquet::ParquetFileReader> const& file_reader, int64_t buffer_size)
-    : file_reader_(file_reader), buffer_size_(buffer_size) {}
+    std::shared_ptr<::parquet::ParquetFileReader> const& file_reader,
+    ::arrow::MemoryPool* pool,
+    int64_t buffer_size)
+  : file_reader_(file_reader), pool_(pool), buffer_size_(buffer_size) {}
 
 ::arrow::Status DeserializerBuilder::Impl::BuildSchemaNodeDeserializer(
     int schema_index, std::unique_ptr<ArrayDeserializer>& result) {
@@ -1590,7 +2046,9 @@ DeserializerBuilder::Impl::Impl(
     stream << "were created";
     return Status::Invalid(stream.str());
   }
-  result.reset(new FileArrayBatchedDeserializer(std::move(nodes[0]), file_reader_));
+  std::unique_ptr<FileArrayBatchedDeserializer> deserializer(new FileArrayBatchedDeserializer(std::move(nodes[0]), file_reader_));
+  RETURN_NOT_OK(deserializer->Initialize());
+  result = std::move(deserializer);
   return Status::OK();
 }
 
@@ -1607,8 +2065,10 @@ DeserializerBuilder::Impl::Impl(
     stream << "were created";
     return Status::Invalid(stream.str());
   }
-  result.reset(new ColumnChunkDeserializer(std::move(nodes[0]),
-                                           file_reader_->RowGroup(row_group_index)));
+  std::unique_ptr<ColumnChunkDeserializer> deserializer(new ColumnChunkDeserializer(std::move(nodes[0]),
+										    file_reader_->RowGroup(row_group_index)));
+  RETURN_NOT_OK(deserializer->Initialize());
+  result = std::move(deserializer);
   return Status::OK();
 }
 
@@ -1706,8 +2166,8 @@ Status DeserializerBuilder::Impl::BuildNode(std::shared_ptr<const Node> const& n
                                             std::vector<int> const& indices,
                                             std::vector<int>& indices_seen,
                                             std::unique_ptr<DeserializerNode>& result,
-                                            int16_t repetition_levels,
-                                            int16_t definition_levels) {
+                                            RepetitionLevel repetition_levels,
+                                            DefinitionLevel definition_levels) {
   IncrementLevels(node, repetition_levels, definition_levels);
   if (node->is_group()) {
     return BuildGroupNode(node, repetition_levels, definition_levels, indices,
@@ -1719,8 +2179,8 @@ Status DeserializerBuilder::Impl::BuildNode(std::shared_ptr<const Node> const& n
 }
 
 Status DeserializerBuilder::Impl::BuildPrimitiveNode(
-    std::shared_ptr<const Node> const& node, int16_t repetition_levels,
-    int16_t definition_levels, std::vector<int> const& indices,
+    std::shared_ptr<const Node> const& node, RepetitionLevel repetition_levels,
+    DefinitionLevel definition_levels, std::vector<int> const& indices,
     std::vector<int>& indices_seen, std::unique_ptr<DeserializerNode>& result) {
   auto const schema = file_reader_->metadata()->schema();
   auto column_index = schema->ColumnIndex(*node);
@@ -1734,25 +2194,25 @@ Status DeserializerBuilder::Impl::BuildPrimitiveNode(
   }
   indices_seen.emplace_back(column_index);
   auto column_descriptor = schema->Column(column_index);
-  if (definition_levels > 0) {
-    if (repetition_levels > 0) {
+  if (*definition_levels > 0) {
+    if (*repetition_levels > 0) {
       // The path to the node either contains only repeated nodes or
       // a mix of repeated and optional nodes.
-      return MakeTypedPrimitiveDeserializerNode<true, true>(node, column_descriptor,
+      return MakeTypedPrimitiveDeserializerNode<PrimitiveSerializerType::REPEATED>(node, column_descriptor,
                                                             column_index, result);
     } else {
       // A field that is either itself optional or a descendant of
       // an optional field (e.g. - member of a struct that is optional)
       // but does not have any ancestors in the tree that are repeated.
       // It therefore won't have any repetition levels.
-      return MakeTypedPrimitiveDeserializerNode<true, false>(node, column_descriptor,
+      return MakeTypedPrimitiveDeserializerNode<PrimitiveSerializerType::OPTIONAL>(node, column_descriptor,
                                                              column_index, result);
     }
-  } else if (repetition_levels == 0) {
+  } else if (*repetition_levels == 0) {
     // A field that is always present (max_definition_level ==
     // 0 && max_repetition_level == 0) and therefore doesn't
     // need repetition levels or definition levels
-    return MakeTypedPrimitiveDeserializerNode<false, false>(node, column_descriptor,
+    return MakeTypedPrimitiveDeserializerNode<PrimitiveSerializerType::REQUIRED>(node, column_descriptor,
                                                             column_index, result);
   } else {
     // This should never happen since a non-zero max repetition level
@@ -1760,21 +2220,21 @@ Status DeserializerBuilder::Impl::BuildPrimitiveNode(
     std::ostringstream stream;
     stream << "Primitive node " << node->path()->ToDotString();
     stream << " has a max_repetition_level or ";
-    stream << definition_levels;
+    stream << *definition_levels;
     stream << " and a max_definition_level of ";
-    stream << repetition_levels;
+    stream << *repetition_levels;
     return Status::Invalid(stream.str());
   }
   if (node->is_repeated()) {
-    result.reset(new ListDeserializerNode(std::move(result), repetition_levels,
+    result.reset(new ListDeserializerNode(std::move(result), pool_, repetition_levels,
                                           definition_levels));
   }
   return Status::OK();
 }
 
 Status DeserializerBuilder::Impl::BuildGroupNode(
-    std::shared_ptr<const Node> const& node, int16_t repetition_levels,
-    int16_t definition_levels, std::vector<int> const& indices,
+    std::shared_ptr<const Node> const& node, RepetitionLevel repetition_levels,
+    DefinitionLevel definition_levels, std::vector<int> const& indices,
     std::vector<int>& indices_seen, std::unique_ptr<DeserializerNode>& result) {
   // TODO: implement a proper Visitor interface in Node
   auto group_node = std::static_pointer_cast<const GroupNode>(node);
@@ -1808,40 +2268,26 @@ Status DeserializerBuilder::Impl::BuildGroupNode(
     return Status::OK();
   }
   if (node->is_optional()) {
-    result.reset(new NestedDeserializerNode<true>(node->name(), definition_levels,
-                                                  std::move(children), fields));
+    result.reset(new NestedDeserializerNode<true>(definition_levels,
+                                                  std::move(children), fields,
+						  pool_));
   } else {
-    result.reset(new NestedDeserializerNode<false>(node->name(), definition_levels,
-                                                   std::move(children), fields));
+    result.reset(new NestedDeserializerNode<false>(definition_levels,
+                                                   std::move(children), fields,
+						   pool_));
   }
   if (node->is_repeated()) {
-    // TODO: do we even test this? It may actually be implemented
-    // incorrectly because it doesn't contain the nesting that
-    // exists in LIST nodes. For example, this code path would
-    // be run for a node like this:
-    //
-    // repeated int32 element
-    //
-    // But that's the same code which is used for this:
-    //
-    // required group (LIST) {
-    //    repated group list_group {
-    //         required int32 element
-    //    }
-    // }
-    //
-    // The danger of using the same implementation is that in this
-    // path we can't differentiate between an empty list and a list
-    // with a null
-    result.reset(new ListDeserializerNode(std::move(result), repetition_levels,
-                                          definition_levels));
+    std::ostringstream stream;
+    stream << "Deserializing from Parquet repeated nodes to Arrow ";
+    stream << "is not supported without a LIST annotation";
+    return Status::Invalid(stream.str());
   }
   return Status::OK();
 }
 
 Status DeserializerBuilder::Impl::BuildListNode(
-    std::shared_ptr<const GroupNode> const& node, int16_t repetition_levels,
-    int16_t definition_levels, std::vector<int> const& indices,
+    std::shared_ptr<const GroupNode> const& node, RepetitionLevel repetition_levels,
+    DefinitionLevel definition_levels, std::vector<int> const& indices,
     std::vector<int>& indices_seen, std::unique_ptr<DeserializerNode>& result) {
   //
   // A list node must have this schema:
@@ -1922,18 +2368,20 @@ Status DeserializerBuilder::Impl::BuildListNode(
   // there aren't, then it writes a null and skips writing
   // any of its children.
   if (node->is_optional()) {
-    result.reset(new NullableListDeserializerNode(std::move(child), repetition_levels,
+    result.reset(new NullableListDeserializerNode(std::move(child), pool_, repetition_levels,
                                                   current_max_definition_level));
   } else {
-    result.reset(new ListDeserializerNode(std::move(child), repetition_levels,
+    result.reset(new ListDeserializerNode(std::move(child), pool_, repetition_levels,
                                           current_max_definition_level));
   }
   return Status::OK();
 }
 
 DeserializerBuilder::DeserializerBuilder(
-    std::shared_ptr<::parquet::ParquetFileReader> const& file_reader, int64_t buffer_size)
-    : impl_(new Impl(file_reader, buffer_size)) {}
+    std::shared_ptr<::parquet::ParquetFileReader> const& file_reader,
+    ::arrow::MemoryPool* pool,
+    int64_t buffer_size)
+  : impl_(new Impl(file_reader, pool, buffer_size)) {} 
 
 DeserializerBuilder::~DeserializerBuilder() {}
 

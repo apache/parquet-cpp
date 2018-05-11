@@ -510,8 +510,8 @@ class TestParquetIO : public ::testing::Test {
     std::shared_ptr<Array> out;
 
     std::unique_ptr<FileReader> reader;
-    ReaderFromSink(&reader);
-    ReadSingleColumnFile(std::move(reader), &out);
+    ASSERT_NO_FATAL_FAILURE(ReaderFromSink(&reader));
+    ASSERT_NO_FATAL_FAILURE(ReadSingleColumnFile(std::move(reader), &out));
 
     internal::AssertArraysEqual(values, *out);
   }
