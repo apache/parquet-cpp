@@ -26,7 +26,7 @@
 namespace arrow {
 
 class Array;
-class MemoryPool; 
+class MemoryPool;
 class Schema;
 class Table;
 
@@ -40,7 +40,7 @@ class RowGroupReader;
 namespace arrow {
 
 class DeserializerNode;
- 
+
 //
 // This header file contains classes that can deserialize from Parquet
 // files into Arrow arrays and tables. It supports nested structures
@@ -157,8 +157,9 @@ class PARQUET_EXPORT TableDeserializer {
   //        group and deserializes each node
   // \param[in] the row group reader
   // \return status error if there is a problem deserializing the row group
-  ::arrow::Status DeserializeRowGroup(std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader);
-  
+  ::arrow::Status DeserializeRowGroup(
+      std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader);
+
  private:
   // Schema, which was most likely obtained from a call to
   // FromParquetSchema
@@ -181,7 +182,7 @@ class PARQUET_EXPORT DeserializerBuilder {
   //            many values will be buffered when reading from primitive
   //            columns.
   DeserializerBuilder(std::shared_ptr<::parquet::ParquetFileReader> const& file_reader,
-		      ::arrow::MemoryPool* pool,
+                      ::arrow::MemoryPool* pool,
                       // TODO: make this configurable from a reader
                       // properties object
                       int64_t buffer_size = 1024);

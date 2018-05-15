@@ -57,7 +57,6 @@ static inline int64_t impala_timestamp_to_nanoseconds(const Int96& impala_timest
   int64_t nanoseconds = *(reinterpret_cast<const int64_t*>(&(impala_timestamp.value)));
   return days_since_epoch * kNanosecondsInADay + nanoseconds;
 }
-// End: copied from reader.cc
 
 // This is a "tagged" integer type for definition/repetition levels.
 // The tag gives us strong typing so that we can differentiate between

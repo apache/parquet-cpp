@@ -71,80 +71,6 @@ using ::arrow::BitUtil::BytesForBits;
 template <typename ArrowType>
 using ArrayType = typename ::arrow::TypeTraits<ArrowType>::ArrayType;
 
-// ----------------------------------------------------------------------
-// Iteration utilities
-
-// Abstraction to decouple row group iteration details from the ColumnReader,
-// so we can read only a single row group if we want
-class FileColumnIterator {
- public:
-  explicit FileColumnIterator(int column_index, ParquetFileReader* reader)
-      : column_index_(column_index),
-        reader_(reader),
-        schema_(reader->metadata()->schema()) {}
-
-  virtual ~FileColumnIterator() {}
-
-  virtual std::unique_ptr<::parquet::PageReader> NextChunk() = 0;
-
-  const SchemaDescriptor* schema() const { return schema_; }
-
-  const ColumnDescriptor* descr() const { return schema_->Column(column_index_); }
-
-  std::shared_ptr<FileMetaData> metadata() const { return reader_->metadata(); }
-
-  int column_index() const { return column_index_; }
-
- protected:
-  int column_index_;
-  ParquetFileReader* reader_;
-  const SchemaDescriptor* schema_;
-};
-
-class AllRowGroupsIterator : public FileColumnIterator {
- public:
-  explicit AllRowGroupsIterator(int column_index, ParquetFileReader* reader)
-      : FileColumnIterator(column_index, reader), next_row_group_(0) {}
-
-  std::unique_ptr<::parquet::PageReader> NextChunk() override {
-    std::unique_ptr<::parquet::PageReader> result;
-    if (next_row_group_ < reader_->metadata()->num_row_groups()) {
-      result = reader_->RowGroup(next_row_group_)->GetColumnPageReader(column_index_);
-      next_row_group_++;
-    } else {
-      result = nullptr;
-    }
-    return result;
-  }
-
- private:
-  int next_row_group_;
-};
-
-class SingleRowGroupIterator : public FileColumnIterator {
- public:
-  explicit SingleRowGroupIterator(int column_index, int row_group_number,
-                                  ParquetFileReader* reader)
-      : FileColumnIterator(column_index, reader),
-        row_group_number_(row_group_number),
-        done_(false) {}
-
-  std::unique_ptr<::parquet::PageReader> NextChunk() override {
-    if (done_) {
-      return nullptr;
-    }
-
-    auto result =
-        reader_->RowGroup(row_group_number_)->GetColumnPageReader(column_index_);
-    done_ = true;
-    return result;
-  }
-
- private:
-  int row_group_number_;
-  bool done_;
-};
-
 class RowGroupRecordBatchReader : public ::arrow::RecordBatchReader {
  public:
   explicit RowGroupRecordBatchReader(const std::vector<int>& row_group_indices,
@@ -221,9 +147,6 @@ class FileReader::Impl {
   Status ReadTable(const std::vector<int>& indices, std::shared_ptr<Table>* table);
   Status ReadTable(std::shared_ptr<Table>* table);
   Status ReadRowGroup(int i, std::shared_ptr<Table>* table);
-
-  bool CheckForFlatColumn(const ColumnDescriptor* descr);
-  bool CheckForFlatListColumn(const ColumnDescriptor* descr);
 
   const ParquetFileReader* parquet_reader() const { return reader_.get(); }
 
