@@ -113,6 +113,13 @@ struct Compression {
   enum type { UNCOMPRESSED, SNAPPY, GZIP, LZO, BROTLI, LZ4, ZSTD };
 };
 
+struct Encryption {
+  enum type {
+    PARQUET_AES_GCM_V1 = 1
+  };
+};
+
+
 // parquet::PageType
 struct PageType {
   enum type { DATA_PAGE, INDEX_PAGE, DICTIONARY_PAGE, DATA_PAGE_V2 };
@@ -156,7 +163,7 @@ struct ByteArray {
 };
 
 inline bool operator==(const ByteArray& left, const ByteArray& right) {
-  return left.len == right.len && 0 == std::memcmp(left.ptr, right.ptr, left.len);
+  return left.len == right.len && std::equal(left.ptr, left.ptr + left.len, right.ptr);
 }
 
 inline bool operator!=(const ByteArray& left, const ByteArray& right) {
