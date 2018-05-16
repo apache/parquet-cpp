@@ -372,7 +372,7 @@ class PrimitiveDeserializerNode : public DeserializerNode {
 
 // This enum is used to differentiate between the three
 // different types of primitive deserializers
-enum PrimitiveSerializerType {
+enum PrimitiveDeserializerType {
   // This means that the node in the tree has no ancestors (including
   // itself) that are repeated or optional
   REQUIRED,
@@ -401,7 +401,7 @@ enum PrimitiveSerializerType {
 // still happen in calls to ReadBatch.
 //
 template <typename ColumnReaderType, typename ArrayBuilderType,
-          PrimitiveSerializerType Serializertype>
+          PrimitiveDeserializerType DeserializerType>
 class TypedPrimitiveDeserializerNode;
 
 // Specialization for a field that has definition levels but no
@@ -423,7 +423,7 @@ class TypedPrimitiveDeserializerNode;
 //
 template <typename ColumnReaderType, typename ArrayBuilderType>
 class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
-                                     PrimitiveSerializerType::OPTIONAL>
+                                     PrimitiveDeserializerType::OPTIONAL>
     : public PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType> {
  public:
   TypedPrimitiveDeserializerNode(const ColumnDescriptor* const descriptor,
@@ -508,7 +508,7 @@ class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
 // }
 template <typename ColumnReaderType, typename ArrayBuilderType>
 class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
-                                     PrimitiveSerializerType::REPEATED>
+                                     PrimitiveDeserializerType::REPEATED>
     : public PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType> {
  public:
   TypedPrimitiveDeserializerNode(const ColumnDescriptor* const descriptor,
@@ -624,7 +624,7 @@ class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
 // }
 template <typename ColumnReaderType, typename ArrayBuilderType>
 class TypedPrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType,
-                                     PrimitiveSerializerType::REQUIRED>
+                                     PrimitiveDeserializerType::REQUIRED>
     : public PrimitiveDeserializerNode<ColumnReaderType, ArrayBuilderType> {
  public:
   TypedPrimitiveDeserializerNode(const ColumnDescriptor* const descriptor,
@@ -1289,7 +1289,7 @@ class DeserializerBuilder::Impl {
   // \param[out] the deserializer node
   // \return error status if any of the converted/physical type
   //         specifications in the Parquet schema are unsupported
-  template <PrimitiveSerializerType SerializerType>
+  template <PrimitiveDeserializerType DeserializerType>
   Status MakeTypedPrimitiveDeserializerNode(
       std::shared_ptr<const Node> const& node,
       const ColumnDescriptor* const column_descriptor, int column_index,
@@ -1297,29 +1297,31 @@ class DeserializerBuilder::Impl {
     auto primitive_node = std::static_pointer_cast<const PrimitiveNode>(node);
     switch (primitive_node->physical_type()) {
       case Type::BOOLEAN:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::BooleanType, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::BooleanType,
+                                                    DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::INT32:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::Int32Type, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::Int32Type, DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::INT64:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::Int64Type, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::Int64Type, DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::INT96:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::Int96Type, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::Int96Type, DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::FLOAT:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::FloatType, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::FloatType, DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::DOUBLE:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::DoubleType, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::DoubleType,
+                                                    DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::BYTE_ARRAY:
         return MakeLogicalPrimitiveDeserializerNode<parquet::ByteArrayType,
-                                                    SerializerType>(
+                                                    DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       case Type::FIXED_LEN_BYTE_ARRAY:
-        return MakeLogicalPrimitiveDeserializerNode<parquet::FLBAType, SerializerType>(
+        return MakeLogicalPrimitiveDeserializerNode<parquet::FLBAType, DeserializerType>(
             primitive_node, column_descriptor, column_index, result);
       default:
         std::ostringstream stream;
@@ -1339,95 +1341,96 @@ class DeserializerBuilder::Impl {
   // \param[out] the deserializer node
   // \return error status if any of the converted/physical type
   //         specifications in the Parquet schema are unsupported
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   Status MakeLogicalPrimitiveDeserializerNode(
       std::shared_ptr<const PrimitiveNode> const& node,
       const ColumnDescriptor* const column_descriptor, int column_index,
       std::unique_ptr<DeserializerNode>& result) {
     switch (node->logical_type()) {
       case parquet::LogicalType::DATE:
-        return MakeDateDeserializerNode<ParquetType, SerializerType>(
+        return MakeDateDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::TIME_MILLIS:
-        return MakeTimeMillisDeserializerNode<ParquetType, SerializerType>(
+        return MakeTimeMillisDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::TIME_MICROS:
-        return MakeTimeMicrosDeserializerNode<ParquetType, SerializerType>(
+        return MakeTimeMicrosDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::TIMESTAMP_MILLIS:
-        return MakeTimestampDeserializerNode<ParquetType, SerializerType>(
+        return MakeTimestampDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, ::arrow::TimeUnit::MILLI, result);
       case parquet::LogicalType::TIMESTAMP_MICROS:
-        return MakeTimestampDeserializerNode<ParquetType, SerializerType>(
+        return MakeTimestampDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, ::arrow::TimeUnit::MICRO, result);
       case parquet::LogicalType::DECIMAL:
-        return MakeDecimalDeserializerNode<ParquetType, SerializerType>(
+        return MakeDecimalDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::UINT_8:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt8Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::UINT_16:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt16Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::UINT_32:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt32Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::UINT_64:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::UInt64Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::INT_8:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int8Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::INT_16:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int16Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::INT_32:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int32Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::INT_64:
         return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int64Builder,
-                                           SerializerType>(column_descriptor,
-                                                           column_index, result);
+                                           DeserializerType>(column_descriptor,
+                                                             column_index, result);
       case parquet::LogicalType::UTF8:
-        return MakeUTF8DeserializerNode<ParquetType, SerializerType>(
+        return MakeUTF8DeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, result);
       case parquet::LogicalType::NA:
-        return MakeNullDeserializerNode<ParquetType, SerializerType>(
+        return MakeNullDeserializerNode<ParquetType, DeserializerType>(
             column_descriptor, column_index, result);
       default:
         switch (node->physical_type()) {
           case Type::BOOLEAN:
-            return MakeBooleanDeserializerNode<ParquetType, SerializerType>(
+            return MakeBooleanDeserializerNode<ParquetType, DeserializerType>(
                 column_descriptor, column_index, result);
           case Type::INT32:
             return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int32Builder,
-                                               SerializerType>(column_descriptor,
-                                                               column_index, result);
+                                               DeserializerType>(column_descriptor,
+                                                                 column_index, result);
           case Type::INT64:
             return MakeIntegerDeserializerNode<ParquetType, ::arrow::Int64Builder,
-                                               SerializerType>(column_descriptor,
-                                                               column_index, result);
+                                               DeserializerType>(column_descriptor,
+                                                                 column_index, result);
           case Type::FLOAT:
-            return MakeFloatDeserializerNode<ParquetType, SerializerType>(
+            return MakeFloatDeserializerNode<ParquetType, DeserializerType>(
                 column_descriptor, column_index, result);
           case Type::DOUBLE:
-            return MakeDoubleDeserializerNode<ParquetType, SerializerType>(
+            return MakeDoubleDeserializerNode<ParquetType, DeserializerType>(
                 column_descriptor, column_index, result);
           case Type::BYTE_ARRAY:
-            return MakeByteArrayDeserializerNode<ParquetType, SerializerType>(
+            return MakeByteArrayDeserializerNode<ParquetType, DeserializerType>(
                 column_descriptor, column_index, result);
           case Type::FIXED_LEN_BYTE_ARRAY:
-            return MakeFixedLengthByteArrayDeserializerNode<ParquetType, SerializerType>(
+            return MakeFixedLengthByteArrayDeserializerNode<ParquetType,
+                                                            DeserializerType>(
                 column_descriptor, column_index, result);
           case Type::INT96:
-            return MakeImpalaTimestampDeserializerNode<ParquetType, SerializerType>(
+            return MakeImpalaTimestampDeserializerNode<ParquetType, DeserializerType>(
                 column_descriptor, column_index, result);
           default:
             std::ostringstream stream;
@@ -1447,16 +1450,16 @@ class DeserializerBuilder::Impl {
   // Most of the code is boiler-plate, except for the fact that there are
   // different builders for the various types.
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   Status MakeNullDeserializerNode(const ColumnDescriptor* const column_descriptor,
                                   int column_index,
                                   std::unique_ptr<DeserializerNode>& result) {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::NullBuilder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int96Type>::value,
                           Status>::type
   MakeImpalaTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1464,11 +1467,11 @@ class DeserializerBuilder::Impl {
                                       std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::TimestampType>(::arrow::TimeUnit::NANO);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::TimestampBuilder,
-                                             SerializerType>(
+                                             DeserializerType>(
         column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int96Type>::value,
                           Status>::type
   MakeImpalaTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1490,7 +1493,7 @@ class DeserializerBuilder::Impl {
          std::is_same<ParquetType, parquet::FLBAType>::value);
   };
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<SupportsDecimal<ParquetType>::value, Status>::type
   MakeDecimalDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index,
@@ -1498,11 +1501,11 @@ class DeserializerBuilder::Impl {
     auto arrow_type = std::make_shared<::arrow::Decimal128Type>(
         column_descriptor->type_precision(), column_descriptor->type_scale());
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Decimal128Builder,
-                                             SerializerType>(
+                                             DeserializerType>(
         column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!SupportsDecimal<ParquetType>::value, Status>::type
   MakeDecimalDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index,
@@ -1514,18 +1517,18 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::BooleanType>::value,
                           Status>::type
   MakeBooleanDeserializerNode(const ColumnDescriptor* const column_descriptor,
                               int column_index,
                               std::unique_ptr<DeserializerNode>& result) {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::BooleanBuilder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::BooleanType>::value,
                           Status>::type
   MakeBooleanDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1538,17 +1541,17 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeDateDeserializerNode(const ColumnDescriptor* const column_descriptor,
                            int column_index, std::unique_ptr<DeserializerNode>& result) {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Date32Builder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeDateDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1560,7 +1563,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeTimeMillisDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1568,11 +1571,11 @@ class DeserializerBuilder::Impl {
                                  std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::Time32Type>(::arrow::TimeUnit::MILLI);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Time32Builder,
-                                             SerializerType>(
+                                             DeserializerType>(
         column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int32Type>::value,
                           Status>::type
   MakeTimeMillisDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1585,7 +1588,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimeMicrosDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1593,11 +1596,11 @@ class DeserializerBuilder::Impl {
                                  std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::Time64Type>(::arrow::TimeUnit::MICRO);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::Time64Builder,
-                                             SerializerType>(
+                                             DeserializerType>(
         column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimeMicrosDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1610,7 +1613,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1618,11 +1621,11 @@ class DeserializerBuilder::Impl {
                                 std::unique_ptr<DeserializerNode>& result) {
     auto arrow_type = std::make_shared<::arrow::TimestampType>(time_unit);
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::TimestampBuilder,
-                                             SerializerType>(
+                                             DeserializerType>(
         column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::Int64Type>::value,
                           Status>::type
   MakeTimestampDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1653,7 +1656,7 @@ class DeserializerBuilder::Impl {
   };
 
   template <typename ParquetType, typename ArrayBuilderType,
-            PrimitiveSerializerType SerializerType>
+            PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<CanCastInteger<ParquetType, ArrayBuilderType>::value,
                           Status>::type
   MakeIntegerDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1661,12 +1664,12 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ArrayBuilderType,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
   template <typename ParquetType, typename ArrayBuilderType,
-            PrimitiveSerializerType SerializerType>
+            PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!CanCastInteger<ParquetType, ArrayBuilderType>::value,
                           Status>::type
   MakeIntegerDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1679,7 +1682,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeUTF8DeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1687,11 +1690,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::StringBuilder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeUTF8DeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1703,7 +1706,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeByteArrayDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1712,11 +1715,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::BinaryBuilder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::ByteArrayType>::value,
                           Status>::type
   MakeByteArrayDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1729,7 +1732,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::FLBAType>::value,
                           Status>::type
   MakeFixedLengthByteArrayDeserializerNode(
@@ -1740,11 +1743,11 @@ class DeserializerBuilder::Impl {
     auto arrow_type =
         std::make_shared<::arrow::FixedSizeBinaryType>(column_descriptor->type_length());
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::FixedSizeBinaryBuilder,
-                                             SerializerType>(
+                                             DeserializerType>(
         column_descriptor, column_index, result, arrow_type, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::FLBAType>::value,
                           Status>::type
   MakeFixedLengthByteArrayDeserializerNode(
@@ -1757,7 +1760,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::DoubleType>::value,
                           Status>::type
   MakeDoubleDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1765,11 +1768,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::DoubleBuilder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::DoubleType>::value,
                           Status>::type
   MakeDoubleDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1782,7 +1785,7 @@ class DeserializerBuilder::Impl {
     return Status::Invalid(stream.str());
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<std::is_same<ParquetType, parquet::FloatType>::value,
                           Status>::type
   MakeFloatDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1790,11 +1793,11 @@ class DeserializerBuilder::Impl {
 
   {
     return MakeTypedPrimitiveNodeWithBuilder<ParquetType, ::arrow::FloatBuilder,
-                                             SerializerType>(column_descriptor,
-                                                             column_index, result, pool_);
+                                             DeserializerType>(
+        column_descriptor, column_index, result, pool_);
   }
 
-  template <typename ParquetType, PrimitiveSerializerType SerializerType>
+  template <typename ParquetType, PrimitiveDeserializerType DeserializerType>
   typename std::enable_if<!std::is_same<ParquetType, parquet::FloatType>::value,
                           Status>::type
   MakeFloatDeserializerNode(const ColumnDescriptor* const column_descriptor,
@@ -1821,13 +1824,13 @@ class DeserializerBuilder::Impl {
   // \return error status if any of the converted/physical type
   //         specifications in the Parquet schema are unsupported
   template <typename ParquetType, typename ArrayBuilderType,
-            PrimitiveSerializerType SerializerType, typename... Args>
+            PrimitiveDeserializerType DeserializerType, typename... Args>
   Status MakeTypedPrimitiveNodeWithBuilder(
       const ColumnDescriptor* const column_descriptor, int column_index,
       std::unique_ptr<DeserializerNode>& result, Args&&... args) {
     auto builder = std::make_shared<ArrayBuilderType>(std::forward<Args>(args)...);
     using ReturnType = TypedPrimitiveDeserializerNode<TypedColumnReader<ParquetType>,
-                                                      ArrayBuilderType, SerializerType>;
+                                                      ArrayBuilderType, DeserializerType>;
     auto node = std::unique_ptr<ReturnType>(
         new ReturnType(column_descriptor, column_index, buffer_size_, builder, pool_));
     RETURN_NOT_OK(node->Initialize());
@@ -2060,21 +2063,21 @@ Status DeserializerBuilder::Impl::BuildPrimitiveNode(
     if (*repetition_levels > 0) {
       // The path to the node either contains only repeated nodes or
       // a mix of repeated and optional nodes.
-      return MakeTypedPrimitiveDeserializerNode<PrimitiveSerializerType::REPEATED>(
+      return MakeTypedPrimitiveDeserializerNode<PrimitiveDeserializerType::REPEATED>(
           node, column_descriptor, column_index, result);
     } else {
       // A field that is either itself optional or a descendant of
       // an optional field (e.g. - member of a struct that is optional)
       // but does not have any ancestors in the tree that are repeated.
       // It therefore won't have any repetition levels.
-      return MakeTypedPrimitiveDeserializerNode<PrimitiveSerializerType::OPTIONAL>(
+      return MakeTypedPrimitiveDeserializerNode<PrimitiveDeserializerType::OPTIONAL>(
           node, column_descriptor, column_index, result);
     }
   } else if (*repetition_levels == 0) {
     // A field that is always present (max_definition_level ==
     // 0 && max_repetition_level == 0) and therefore doesn't
     // need repetition levels or definition levels
-    return MakeTypedPrimitiveDeserializerNode<PrimitiveSerializerType::REQUIRED>(
+    return MakeTypedPrimitiveDeserializerNode<PrimitiveDeserializerType::REQUIRED>(
         node, column_descriptor, column_index, result);
   } else {
     // This should never happen since a non-zero max repetition level
