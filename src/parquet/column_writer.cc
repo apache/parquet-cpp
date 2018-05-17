@@ -436,8 +436,9 @@ int64_t ColumnWriter::Close() {
     // rationale is that some engines may use the minimum value in the page as
     // the true minimum for aggregations and there is no way to mark that a
     // value has been truncated and is a lower bound and not in the page.
-    if (chunk_statistics.is_set() && chunk_statistics.max_stat_length() <=
-                                         properties_->max_stats_size(descr_->path())) {
+    if (chunk_statistics.is_set() &&
+        chunk_statistics.max_stat_length() <=
+            properties_->max_statistics_size(descr_->path())) {
       metadata_->SetStatistics(SortOrder::SIGNED == descr_->sort_order(),
                                chunk_statistics);
     }

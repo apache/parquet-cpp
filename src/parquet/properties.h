@@ -104,6 +104,33 @@ class PARQUET_EXPORT ColumnProperties {
         statistics_enabled_(statistics_enabled),
         max_stats_size_(max_stats_size) {}
 
+  void set_encoding(Encoding::type encoding) { encoding_ = encoding; }
+
+  void set_compression(Compression::type codec) { codec_ = codec; }
+
+  void set_dictionary_enabled(bool dictionary_enabled) {
+    dictionary_enabled_ = dictionary_enabled;
+  }
+
+  void set_statistics_enabled(bool statistics_enabled) {
+    statistics_enabled_ = statistics_enabled;
+  }
+
+  void set_max_statistics_size(size_t max_stats_size) {
+    max_stats_size_ = max_stats_size;
+  }
+
+  Encoding::type encoding() const { return encoding_; }
+
+  Compression::type compression() const { return codec_; }
+
+  bool dictionary_enabled() const { return dictionary_enabled_; }
+
+  bool statistics_enabled() const { return statistics_enabled_; }
+
+  size_t max_statistics_size() const { return max_stats_size_; }
+
+ private:
   Encoding::type encoding_;
   Compression::type codec_;
   bool dictionary_enabled_;
@@ -131,12 +158,12 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     Builder* enable_dictionary() {
-      default_column_properties_.dictionary_enabled_ = true;
+      default_column_properties_.set_dictionary_enabled(true);
       return this;
     }
 
     Builder* disable_dictionary() {
-      default_column_properties_.dictionary_enabled_ = false;
+      default_column_properties_.set_dictionary_enabled(false);
       return this;
     }
 
@@ -200,7 +227,7 @@ class PARQUET_EXPORT WriterProperties {
         throw ParquetException("Can't use dictionary encoding as fallback encoding");
       }
 
-      default_column_properties_.encoding_ = encoding_type;
+      default_column_properties_.set_encoding(encoding_type);
       return this;
     }
 
@@ -232,12 +259,12 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     Builder* compression(Compression::type codec) {
-      default_column_properties_.codec_ = codec;
+      default_column_properties_.set_compression(codec);
       return this;
     }
 
-    Builder* max_stats_size(size_t max_stats_sz) {
-      default_column_properties_.max_stats_size_ = max_stats_sz;
+    Builder* max_statistics_size(size_t max_stats_sz) {
+      default_column_properties_.set_max_statistics_size(max_stats_sz);
       return this;
     }
 
@@ -252,12 +279,12 @@ class PARQUET_EXPORT WriterProperties {
     }
 
     Builder* enable_statistics() {
-      default_column_properties_.statistics_enabled_ = true;
+      default_column_properties_.set_statistics_enabled(true);
       return this;
     }
 
     Builder* disable_statistics() {
-      default_column_properties_.statistics_enabled_ = false;
+      default_column_properties_.set_statistics_enabled(false);
       return this;
     }
 
@@ -289,12 +316,12 @@ class PARQUET_EXPORT WriterProperties {
           return it->second;
       };
 
-      for (const auto& item : encodings_) get(item.first).encoding_ = item.second;
-      for (const auto& item : codecs_) get(item.first).codec_ = item.second;
+      for (const auto& item : encodings_) get(item.first).set_encoding(item.second);
+      for (const auto& item : codecs_) get(item.first).set_compression(item.second);
       for (const auto& item : dictionary_enabled_)
-        get(item.first).dictionary_enabled_ = item.second;
+        get(item.first).set_dictionary_enabled(item.second);
       for (const auto& item : statistics_enabled_)
-        get(item.first).statistics_enabled_ = item.second;
+        get(item.first).set_statistics_enabled(item.second);
 
       return std::shared_ptr<WriterProperties>(
           new WriterProperties(pool_, dictionary_pagesize_limit_, write_batch_size_,
@@ -357,23 +384,23 @@ class PARQUET_EXPORT WriterProperties {
   }
 
   Encoding::type encoding(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_properties(path).encoding_;
+    return column_properties(path).encoding();
   }
 
   Compression::type compression(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_properties(path).codec_;
+    return column_properties(path).compression();
   }
 
   bool dictionary_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_properties(path).dictionary_enabled_;
+    return column_properties(path).dictionary_enabled();
   }
 
   bool statistics_enabled(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_properties(path).statistics_enabled_;
+    return column_properties(path).statistics_enabled();
   }
 
-  size_t max_stats_size(const std::shared_ptr<schema::ColumnPath>& path) const {
-    return column_properties(path).max_stats_size_;
+  size_t max_statistics_size(const std::shared_ptr<schema::ColumnPath>& path) const {
+    return column_properties(path).max_statistics_size();
   }
 
  private:
