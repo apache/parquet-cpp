@@ -52,6 +52,9 @@ class PARQUET_EXPORT EncodedStatistics {
     return has_min || has_max || has_null_count || has_distinct_count;
   }
 
+  // larger of the max_ and min_ stat values
+  inline size_t max_stat_length() { return std::max(max_->length(), min_->length()); }
+
   inline EncodedStatistics& set_max(const std::string& value) {
     *max_ = value;
     has_max = true;
