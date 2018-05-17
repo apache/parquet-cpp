@@ -18,6 +18,7 @@
 #ifndef PARQUET_COLUMN_STATISTICS_H
 #define PARQUET_COLUMN_STATISTICS_H
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
