@@ -72,19 +72,20 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
       const ColumnProperties& column_properties = ColumnProperties()) {
     sink_.reset(new InMemoryOutputStream());
     WriterProperties::Builder wp_builder;
-    if (column_properties.encoding == Encoding::PLAIN_DICTIONARY ||
-        column_properties.encoding == Encoding::RLE_DICTIONARY) {
+    if (column_properties.encoding_ == Encoding::PLAIN_DICTIONARY ||
+        column_properties.encoding_ == Encoding::RLE_DICTIONARY) {
       wp_builder.enable_dictionary();
     } else {
       wp_builder.disable_dictionary();
-      wp_builder.encoding(column_properties.encoding);
+      wp_builder.encoding(column_properties.encoding_);
     }
+    wp_builder.max_stats_size(column_properties.max_stats_size_);
     writer_properties_ = wp_builder.build();
 
     metadata_ = ColumnChunkMetaDataBuilder::Make(
         writer_properties_, this->descr_, reinterpret_cast<uint8_t*>(&thrift_metadata_));
     std::unique_ptr<PageWriter> pager =
-        PageWriter::Open(sink_.get(), column_properties.codec, metadata_.get());
+        PageWriter::Open(sink_.get(), column_properties.codec_, metadata_.get());
     std::shared_ptr<ColumnWriter> writer =
         ColumnWriter::Make(metadata_.get(), std::move(pager), writer_properties_.get());
     return std::static_pointer_cast<TypedColumnWriter<TestType>>(writer);
@@ -535,18 +536,36 @@ TEST_F(TestBooleanValuesWriter, AlternateBooleanValues) {
 // Prevent writing large stats
 using TestByteArrayValuesWriter = TestPrimitiveWriter<ByteArrayType>;
 TEST_F(TestByteArrayValuesWriter, OmitStats) {
+  int min_len = 1024 * 4;
+  int max_len = 1024 * 8;
   this->SetUpSchema(Repetition::REQUIRED);
   auto writer = this->BuildWriter();
 
   values_.resize(SMALL_SIZE);
-  InitWideByteArrayValues(SMALL_SIZE, this->values_, this->buffer_);
+  InitWideByteArrayValues(SMALL_SIZE, this->values_, this->buffer_, min_len, max_len);
   writer->WriteBatch(SMALL_SIZE, nullptr, nullptr, this->values_.data());
   writer->Close();
 
   ASSERT_FALSE(this->metadata_is_stats_set());
 }
 
-TEST_F(TestByteArrayValuesWriter, CheckStats) {
+TEST_F(TestByteArrayValuesWriter, LimitStats) {
+  int min_len = 1024 * 4;
+  int max_len = 1024 * 8;
+  this->SetUpSchema(Repetition::REQUIRED);
+  ColumnProperties column_properties;
+  column_properties.max_stats_size_ = static_cast<size_t>(max_len);
+  auto writer = this->BuildWriter(SMALL_SIZE, column_properties);
+
+  values_.resize(SMALL_SIZE);
+  InitWideByteArrayValues(SMALL_SIZE, this->values_, this->buffer_, min_len, max_len);
+  writer->WriteBatch(SMALL_SIZE, nullptr, nullptr, this->values_.data());
+  writer->Close();
+
+  ASSERT_TRUE(this->metadata_is_stats_set());
+}
+
+TEST_F(TestByteArrayValuesWriter, CheckDefaultStats) {
   this->SetUpSchema(Repetition::REQUIRED);
   auto writer = this->BuildWriter();
   this->GenerateData(SMALL_SIZE);
