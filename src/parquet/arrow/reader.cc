@@ -692,7 +692,9 @@ int FileReader::num_row_groups() const { return impl_->num_row_groups(); }
 
 void FileReader::set_num_threads(int num_threads) {}
 
-void FileReader::set_use_threads(bool use_threads) { impl_->set_use_threads(use_threads); }
+void FileReader::set_use_threads(bool use_threads) {
+  impl_->set_use_threads(use_threads);
+}
 
 Status FileReader::ScanContents(std::vector<int> columns, const int32_t column_batch_size,
                                 int64_t* num_rows) {
