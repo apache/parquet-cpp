@@ -50,5 +50,5 @@ cmake -G "%GENERATOR%" ^
       ..  || exit /B
 cmake --build . --target INSTALL --config %CONFIGURATION%  || exit /B
 
-ctest -VV  || exit /B
+ctest --output-on-failure  || exit /B
 popd

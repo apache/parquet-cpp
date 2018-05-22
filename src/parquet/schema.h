@@ -332,8 +332,7 @@ void PARQUET_EXPORT PrintSchema(const schema::Node* schema, std::ostream& stream
 class PARQUET_EXPORT ColumnDescriptor {
  public:
   ColumnDescriptor(const schema::NodePtr& node, int16_t max_definition_level,
-                   int16_t max_repetition_level,
-                   const SchemaDescriptor* schema_descr = nullptr);
+                   int16_t max_repetition_level);
 
   bool Equals(const ColumnDescriptor& other) const;
 
@@ -369,11 +368,6 @@ class PARQUET_EXPORT ColumnDescriptor {
 
   int16_t max_definition_level_;
   int16_t max_repetition_level_;
-
-  // When this descriptor is part of a real schema (and not being used for
-  // testing purposes), maintain a link back to the parent SchemaDescriptor to
-  // enable reverse graph traversals
-  const SchemaDescriptor* schema_descr_;
 };
 
 // Container for the converted Parquet schema with a computed information from
@@ -389,9 +383,6 @@ class PARQUET_EXPORT ColumnDescriptor {
 // TODO(wesm): this object can be recomputed from a Schema
 class PARQUET_EXPORT SchemaDescriptor {
  public:
-  SchemaDescriptor() {}
-  ~SchemaDescriptor() {}
-
   // Analyze the schema
   void Init(std::unique_ptr<schema::Node> schema);
   void Init(const schema::NodePtr& schema);

@@ -1733,7 +1733,40 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   std::vector<std::shared_ptr<::arrow::Column>> columns = {chunked_col};
   auto chunked_table = Table::Make(table->schema(), columns);
 
-  ASSERT_TRUE(table->Equals(*chunked_table));
+  const auto& t = *table;
+  const auto& ct = *chunked_table;
+  bool res = t.Equals(ct);
+
+  ASSERT_TRUE(t.schema()->Equals(*ct.schema()))
+                << "schemas are not equal, left:"
+                << t.schema()->ToString() << "\nright: " << ct.schema()->ToString();
+  ASSERT_EQ(t.num_columns(), ct.num_columns());
+  std::stringstream buf;
+  std::vector<bool> not_equals(static_cast<size_t>(t.num_columns()));
+  for (int i = 0; i < t.num_columns(); ++i) {
+    auto& left_col = *t.column(i);
+    auto& right_col = *ct.column(i);
+    auto ne = not_equals[i] = !left_col.Equals(right_col);
+    if (ne) {
+      std::ostringstream buf2;
+      int j = 0;
+      for (const auto& chunk : left_col.data()->chunks()) {
+        buf2 << "LEFT[" << j << "] ==  " << chunk->ToString();
+        ++j;
+      }
+      j = 0;
+      for (const auto& chunk : right_col.data()->chunks()) {
+        buf2 << "RIGHT[" << j << "] == " << chunk->ToString();
+        ++j;
+      }
+      buf << "column i == " << i << " not equal, data:" << buf2.str() << " \n";
+    }
+  }
+
+  auto any_not_equal = std::all_of(
+      not_equals.cbegin(), not_equals.cend(), std::logical_not<bool>());
+  ASSERT_TRUE(any_not_equal) << buf.str();
+  ASSERT_TRUE(res);
 }
 
 typedef std::function<void(int, std::shared_ptr<::DataType>*, std::shared_ptr<Array>*)>

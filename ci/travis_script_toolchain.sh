@@ -61,7 +61,7 @@ pushd $CPP_BUILD_DIR
 
 make -j4 || exit 1
 make install || exit 1
-ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
+ctest --output-on-failure -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
 
 popd
 
