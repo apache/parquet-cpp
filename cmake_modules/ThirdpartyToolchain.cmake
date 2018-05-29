@@ -287,6 +287,10 @@ if(PARQUET_BUILD_TESTS AND NOT IGNORE_OPTIONAL_PACKAGES)
   if("$ENV{GTEST_HOME}" STREQUAL "")
     if(APPLE)
       set(GTEST_CMAKE_CXX_FLAGS "${EP_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes")
+    elseif(MSVC)
+      # Workaround https://github.com/google/googletest/issues/1111 until
+      # a new gtest version is released
+      set(GTEST_CMAKE_CXX_FLAGS "${EP_CXX_FLAGS} -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING")
     else()
       set(GTEST_CMAKE_CXX_FLAGS "${EP_CXX_FLAGS}")
     endif()
