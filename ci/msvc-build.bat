@@ -32,6 +32,17 @@ if NOT "%CONFIGURATION%" == "Debug" (
   set PARQUET_CXXFLAGS="%PARQUET_CXXFLAGS% /WX"
 )
 
+if "%GENERATOR%"=="NMake Makefiles" set need_vcvarsall=1
+
+if defined need_vcvarsall (
+    @rem Select desired compiler version
+    if "%APPVEYOR_BUILD_WORKER_IMAGE%" == "Visual Studio 2017" (
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
+    ) else (
+        call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
+    )
+)
+
 if "%CONFIGURATION%" == "Toolchain" (
   conda install -y boost-cpp=1.63 thrift-cpp=0.11.0 ^
       brotli=0.6.0 zlib=1.2.11 snappy=1.1.6 lz4-c=1.7.5 zstd=1.2.0 ^
@@ -47,7 +58,6 @@ if "%CONFIGURATION%" == "Toolchain" (
       .. || exit /B
 
   cmake --build . --config Release || exit /B
-  ctest -VV || exit /B
 )
 
 if NOT "%CONFIGURATION%" == "Toolchain" (
@@ -59,8 +69,9 @@ if NOT "%CONFIGURATION%" == "Toolchain" (
         .. || exit /B
 
   cmake --build . --config %CONFIGURATION% || exit /B
+)
 
-  if "%CONFIGURATION%" == "Release" (
+if NOT "%CONFIGURATION%" == "Debug" (
+    @rem Tests are too slow and/or hang in debug mode
     ctest -VV || exit /B
-  )
 )

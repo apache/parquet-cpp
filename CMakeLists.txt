@@ -164,12 +164,24 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     option(PARQUET_USE_STATIC_CRT
       "Build Parquet with statically linked CRT"
       OFF)
+    option(PARQUET_USE_CLCACHE
+      "Use clcache if available"
+      ON)
   endif()
 
   option(PARQUET_VERBOSE_THIRDPARTY_BUILD
     "If off, output from ExternalProjects will be logged to files rather than shown"
     OFF)
 
+endif()
+
+if (MSVC AND PARQUET_USE_CLCACHE AND
+     (("${CMAKE_GENERATOR}" STREQUAL "NMake Makefiles") OR
+      ("${CMAKE_GENERATOR}" STREQUAL "Ninja")))
+  find_program(CLCACHE_FOUND clcache)
+  if(CLCACHE_FOUND)
+    set(CMAKE_CXX_COMPILER ${CLCACHE_FOUND})
+  endif(CLCACHE_FOUND)
 endif()
 
 include(BuildUtils)
