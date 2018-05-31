@@ -18,6 +18,9 @@
 # Operating system (build VM template)
 os: Visual Studio 2015
 
+matrix:
+  fast_finish: true
+
 environment:
   matrix:
     - GENERATOR: NMake Makefiles
@@ -28,10 +31,12 @@ environment:
       PYTHON: "3.5"
       ARCH: "64"
       CONFIGURATION: "Debug"
-    - GENERATOR: Visual Studio 14 2015 Win64
+    - GENERATOR: Visual Studio 15 2017 Win64
       PYTHON: "3.5"
       ARCH: "64"
       CONFIGURATION: "Release"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      BOOST_ROOT: C:\Libraries\boost_1_64_0
     - GENERATOR: Visual Studio 14 2015 Win64
       PYTHON: "3.5"
       ARCH: "64"
@@ -46,14 +51,18 @@ environment:
       PYTHON: "3.5"
       ARCH: "64"
       CONFIGURATION: "Toolchain"
+
   MSVC_DEFAULT_OPTIONS: ON
   BOOST_ROOT: C:\Libraries\boost_1_63_0
   BOOST_LIBRARYDIR: C:\Libraries\boost_1_63_0\lib64-msvc-14.0
+  USE_CLCACHE: false
 
 init:
   - set MINICONDA=C:\Miniconda35-x64
   - set PATH=%MINICONDA%;%MINICONDA%/Scripts;%MINICONDA%/Library/bin;%PATH%
-  - if "%GENERATOR%"=="NMake Makefiles" call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64
 
 build_script:
   - call ci\msvc-build.bat
+
+# Disable test discovery
+test: off
