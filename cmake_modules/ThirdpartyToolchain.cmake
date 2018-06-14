@@ -249,6 +249,11 @@ if (NOT THRIFT_FOUND)
                           "-DWITH_PLUGIN=OFF"
                           ${THRIFT_CMAKE_ARGS})
     set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} zlib_ep)
+  elseif (APPLE)
+    if (DEFINED BISON_EXECUTABLE)
+      set(THRIFT_CMAKE_ARGS "-DBISON_EXECUTABLE=${BISON_EXECUTABLE}"
+                            ${THRIFT_CMAKE_ARGS})
+    endif()
   endif()
 
   ExternalProject_Add(thrift_ep
