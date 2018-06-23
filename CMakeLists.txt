@@ -674,6 +674,7 @@ set(LIBPARQUET_SRCS
   src/parquet/arrow/record_reader.cc
   src/parquet/arrow/schema.cc
   src/parquet/arrow/writer.cc
+  src/parquet/bloom.cc
   src/parquet/column_reader.cc
   src/parquet/column_scanner.cc
   src/parquet/column_writer.cc
@@ -681,6 +682,7 @@ set(LIBPARQUET_SRCS
   src/parquet/file_reader.cc
   src/parquet/file_writer.cc
   src/parquet/metadata.cc
+  src/parquet/murmur3.cc
   src/parquet/parquet_constants.cpp
   src/parquet/parquet_types.cpp
   src/parquet/printer.cc
