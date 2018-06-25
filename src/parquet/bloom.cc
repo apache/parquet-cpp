@@ -182,24 +182,23 @@ uint64_t Bloom::hash(double value) {
   return out[0];
 }
 
-
 uint64_t Bloom::hash(const Int96 *value) {
   uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void *>(const_cast<uint32_t*>(value->value)),
+  (*hashFunc)(reinterpret_cast<const void *>(value->value),
     sizeof(value->value), DEFAULT_SEED, &out);
   return out[0];
 }
 
 uint64_t Bloom::hash(const ByteArray *value) {
   uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void *>(const_cast<uint8_t*>(value->ptr)),
+  (*hashFunc)(reinterpret_cast<const void *>(value->ptr),
     value->len, DEFAULT_SEED, &out);
   return out[0];
 }
 
 uint64_t Bloom::hash(const FLBA *value, uint32_t len) {
   uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void *>(const_cast<uint8_t*>(value->ptr)),
+  (*hashFunc)(reinterpret_cast<const void *>(value->ptr),
     len, DEFAULT_SEED, &out);
   return out[0];
 }

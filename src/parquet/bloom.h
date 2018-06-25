@@ -49,15 +49,6 @@ class Bloom final {
     BLOCK
   };
 
-  /**
-   * Default false positive probability value use to calculate optimal number of bits
-   * used by bloom filter.
-   */
-  static constexpr double DEFAULT_FPP = 0.01;
-
-  // Bloom filter data header, including number of bytes, hash strategy and algorithm.
-  static constexpr int HEADER_SIZE = 12;
-
   // Bytes in a tiny bloom filter block.
   static constexpr int BYTES_PER_FILTER_BLOCK = 32;
 
@@ -78,7 +69,7 @@ class Bloom final {
  public:
   /// Constructor of bloom filter. The range of num_bytes should be within
   /// [BYTES_PER_FILTER_BLOCK, DEFAULT_MAXIMUM_BLOOM_FILTER_BYTES], it will be
-  /// round up/down to lower/upper bound if num_bytes is out of range. It will use
+  /// rounded up/down to lower/upper bound if num_bytes is out of range. It will use
   /// murmur3_x64_128 as its default hash function and the block based algorithm.
   /// @param num_bytes The number of bytes to store bloom filter bitset.
   explicit Bloom(uint32_t num_bytes);
@@ -153,7 +144,7 @@ class Bloom final {
   // Create a new bitset for bloom filter, the size will be at least 32 bytes.
   // @param num_bytes number of bytes for bitset. The range of num_bytes should be within
   // [BYTES_PER_FILTER_BLOCK, DEFAULT_MAXIMUM_BLOOM_FILTER_BYTES], it will be
-  // round up/down to lower/upper bound if num_bytes is out of range.
+  // rounded up/down to lower/upper bound if num_bytes is out of range.
   void initBitset(uint32_t num_bytes);
 
   // Set bits in mask array according to input key.
