@@ -30,22 +30,22 @@ namespace parquet {
 constexpr uint32_t Bloom::SALT[8];
 
 Bloom::Bloom(uint32_t num_bytes)
-    : num_bytes(num_bytes),
-      hash_strategy(MURMUR3_X64_128),
-      algorithm(BLOCK),
-      hashFunc(NULL) {
-  initBitset(num_bytes);
+    : num_bytes_(num_bytes),
+      hash_strategy_(HashStrategy::MURMUR3_X64_128),
+      algorithm_(Algorithm::BLOCK),
+      hash_function_(NULL) {
+  InitBitset(num_bytes);
 
-  switch (hash_strategy) {
-  case MURMUR3_X64_128:
-    this->hashFunc = &MurmurHash3_x64_128;
-    break;
-  default:
-    throw parquet::ParquetException("Unknown hash strategy.");
+  switch (hash_strategy_) {
+    case HashStrategy::MURMUR3_X64_128:
+      this->hash_function_ = &MurmurHash3_x64_128;
+      break;
+    default:
+      throw parquet::ParquetException("Unknown hash strategy.");
   }
 }
 
-void Bloom::initBitset(uint32_t num_bytes) {
+void Bloom::InitBitset(uint32_t num_bytes) {
   if (num_bytes < BYTES_PER_FILTER_BLOCK) {
     num_bytes = BYTES_PER_FILTER_BLOCK;
   }
@@ -59,26 +59,26 @@ void Bloom::initBitset(uint32_t num_bytes) {
     num_bytes = static_cast<uint32_t>(::arrow::BitUtil::NextPower2(num_bytes));
   }
 
-  this->bitset.reset(new uint32_t[num_bytes/4]);
-  memset(this->bitset.get(), 0, num_bytes);
+  this->bitset_.reset(new uint32_t[num_bytes / 4]);
+  memset(this->bitset_.get(), 0, num_bytes);
 }
 
 Bloom::Bloom(const uint8_t* bitset, uint32_t num_bytes)
-    : num_bytes(num_bytes),
-      hash_strategy(MURMUR3_X64_128),
-      algorithm(BLOCK) {
-  this->bitset.reset(new uint32_t[num_bytes/4]);
-  memcpy(this->bitset.get(), bitset, num_bytes);
-  switch (hash_strategy) {
-  case MURMUR3_X64_128:
-    this->hashFunc = &MurmurHash3_x64_128;
-    break;
-  default:
-    throw parquet::ParquetException("Not supported hash strategy");
+    : num_bytes_(num_bytes),
+      hash_strategy_(HashStrategy::MURMUR3_X64_128),
+      algorithm_(Algorithm::BLOCK) {
+  this->bitset_.reset(new uint32_t[num_bytes / 4]);
+  memcpy(this->bitset_.get(), bitset, num_bytes);
+  switch (hash_strategy_) {
+    case HashStrategy::MURMUR3_X64_128:
+      this->hash_function_ = &MurmurHash3_x64_128;
+      break;
+    default:
+      throw parquet::ParquetException("Not supported hash strategy");
   }
 }
 
-void Bloom::setMask(uint32_t key, uint32_t mask[8]) {
+void Bloom::SetMask(uint32_t key, uint32_t mask[8]) {
   for (int i = 0; i < 8; ++i) {
     mask[i] = key * SALT[i];
   }
@@ -92,9 +92,9 @@ void Bloom::setMask(uint32_t key, uint32_t mask[8]) {
   }
 }
 
-uint32_t Bloom::optimalNumOfBits(uint32_t ndv, double fpp) {
+uint32_t Bloom::OptimalNumOfBits(uint32_t ndv, double fpp) {
   DCHECK(fpp > 0.0 && fpp < 1.0);
-  const double M = -8.0 * ndv / log(1 - pow(fpp, 1.0/8));
+  const double M = -8.0 * ndv / log(1 - pow(fpp, 1.0 / 8));
   const double MAX = Bloom::DEFAULT_MAXIMUM_BLOOM_FILTER_BYTES << 3;
   int num_bits = static_cast<uint32_t>(M);
 
@@ -116,30 +116,30 @@ uint32_t Bloom::optimalNumOfBits(uint32_t ndv, double fpp) {
   return num_bits;
 }
 
-void Bloom::addElement(uint64_t hash) {
-  uint32_t* const bitset32 = bitset.get();
-  const uint32_t bucketIndex = static_cast<uint32_t>(hash >> 32)
-      & (num_bytes / BYTES_PER_FILTER_BLOCK - 1);
+void Bloom::InsertHash(uint64_t hash) {
+  uint32_t* const bitset32 = bitset_.get();
+  const uint32_t bucketIndex =
+      static_cast<uint32_t>(hash >> 32) & (num_bytes_ / BYTES_PER_FILTER_BLOCK - 1);
   uint32_t key = static_cast<uint32_t>(hash);
 
   // Calculate mask for bucket.
   uint32_t mask[8];
-  setMask(key, mask);
+  SetMask(key, mask);
 
   for (int i = 0; i < 8; i++) {
     bitset32[bucketIndex * 8 + i] |= mask[i];
   }
 }
 
-bool Bloom::contains(uint64_t hash) {
-  uint32_t * const bitset32 = bitset.get();
-  const uint32_t bucketIndex = static_cast<uint32_t>((hash >> 32)
-      & (num_bytes / BYTES_PER_FILTER_BLOCK - 1));
+bool Bloom::FindHash(uint64_t hash) {
+  uint32_t* const bitset32 = bitset_.get();
+  const uint32_t bucketIndex =
+      static_cast<uint32_t>((hash >> 32) & (num_bytes_ / BYTES_PER_FILTER_BLOCK - 1));
   uint32_t key = static_cast<uint32_t>(hash);
 
   // Calculate mask for bucket.
   uint32_t mask[8];
-  setMask(key, mask);
+  SetMask(key, mask);
 
   for (int i = 0; i < 8; ++i) {
     if (0 == (bitset32[8 * bucketIndex + i] & mask[i])) {
@@ -149,66 +149,33 @@ bool Bloom::contains(uint64_t hash) {
   return true;
 }
 
-bool Bloom::find(uint64_t hash) {
-  return contains(hash);
-}
-
-void Bloom::insert(uint64_t hash) {
-  addElement(hash);
-}
-
-uint64_t Bloom::hash(int value) {
+template <>
+uint64_t Bloom::Hash<const Int96*>(const Int96* value) {
   uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void *>(&value), sizeof(int), DEFAULT_SEED, &out);
+  (*hash_function_)(reinterpret_cast<const void*>(value->value), sizeof(value->value),
+                    DEFAULT_SEED, &out);
   return out[0];
 }
 
-uint64_t Bloom::hash(int64_t value) {
+template <>
+uint64_t Bloom::Hash<const ByteArray*>(const ByteArray* value) {
   uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void*>(&value), sizeof(int64_t), DEFAULT_SEED, &out);
+  (*hash_function_)(reinterpret_cast<const void*>(value->ptr), value->len, DEFAULT_SEED,
+                    &out);
   return out[0];
 }
 
-uint64_t Bloom::hash(float value) {
+uint64_t Bloom::Hash(const FLBA* value, uint32_t len) {
   uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void *>(&value), sizeof(float), DEFAULT_SEED, &out);
+  (*hash_function_)(reinterpret_cast<const void*>(value->ptr), len, DEFAULT_SEED, &out);
   return out[0];
 }
 
-
-uint64_t Bloom::hash(double value) {
-  uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<void *>(&value), sizeof(double), DEFAULT_SEED, &out);
-  return out[0];
+void Bloom::WriteTo(OutputStream* sink) {
+  sink->Write(reinterpret_cast<const uint8_t*>(&num_bytes_), sizeof(uint32_t));
+  sink->Write(reinterpret_cast<const uint8_t*>(&hash_strategy_), sizeof(uint32_t));
+  sink->Write(reinterpret_cast<const uint8_t*>(&algorithm_), sizeof(uint32_t));
+  sink->Write(reinterpret_cast<const uint8_t*>(bitset_.get()), num_bytes_);
 }
 
-uint64_t Bloom::hash(const Int96 *value) {
-  uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<const void *>(value->value),
-    sizeof(value->value), DEFAULT_SEED, &out);
-  return out[0];
-}
-
-uint64_t Bloom::hash(const ByteArray *value) {
-  uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<const void *>(value->ptr),
-    value->len, DEFAULT_SEED, &out);
-  return out[0];
-}
-
-uint64_t Bloom::hash(const FLBA *value, uint32_t len) {
-  uint64_t out[2];
-  (*hashFunc)(reinterpret_cast<const void *>(value->ptr),
-    len, DEFAULT_SEED, &out);
-  return out[0];
-}
-
-void Bloom::writeTo(const std::shared_ptr<OutputStream>& sink) {
-  sink->Write(reinterpret_cast<const uint8_t *>(&num_bytes), sizeof(uint32_t));
-  sink->Write(reinterpret_cast<const uint8_t *>(&hash_strategy), sizeof(uint32_t));
-  sink->Write(reinterpret_cast<const uint8_t *>(&algorithm), sizeof(uint32_t));
-  sink->Write(reinterpret_cast<const uint8_t *>(bitset.get()), num_bytes);
-}
-
-} // namespace parquet
-
+}  // namespace parquet
