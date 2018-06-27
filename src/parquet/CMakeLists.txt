@@ -26,6 +26,7 @@ install(FILES
   exception.h
   file_reader.h
   file_writer.h
+  hasher.h
   metadata.h
   murmur3.h
   printer.h

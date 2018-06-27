@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 //-----------------------------------------------------------------------------
 // MurmurHash3 was written by Austin Appleby, and is placed in the public
 // domain. The author hereby disclaims copyright to this source code.
@@ -23,34 +22,43 @@
 #ifndef _MURMURHASH3_H_
 #define _MURMURHASH3_H_
 
-//-----------------------------------------------------------------------------
-// Platform-specific functions and macros
+#include <cstdint>
 
-// Microsoft Visual Studio
+#include "parquet/hasher.h"
+#include "parquet/types.h"
 
-#if defined(_MSC_VER) && (_MSC_VER < 1600)
+namespace parquet {
 
-typedef unsigned char uint8_t;
-typedef unsigned int uint32_t;
-typedef unsigned __int64 uint64_t;
+/// Source:
+/// https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+/// (Modified to adapt to coding conventions and to inherit the Hasher abstract class)
+class MurmurHash3 : public Hasher {
+ public:
+  MurmurHash3() : seed_(DEFAULT_SEED) {}
 
-// Other compilers
+  /// Original murmur3 hash implementation
+  void Hash_x86_32(const void* key, int len, uint32_t seed, void* out);
+  void Hash_x86_128(const void* key, int len, uint32_t seed, void* out);
+  void Hash_x64_128(const void* key, int len, uint32_t seed, void* out);
 
-#else	// defined(_MSC_VER)
+  uint64_t Hash(int32_t value);
+  uint64_t Hash(int64_t value);
+  uint64_t Hash(float value);
+  uint64_t Hash(double value);
+  uint64_t Hash(const Int96* value);
+  uint64_t Hash(const ByteArray* value);
+  uint64_t Hash(const FLBA* val, uint32_t len);
 
-#include <stdint.h>
+  // Default seed for hash which comes from Murmur3 implementation in Hive
+  static constexpr int DEFAULT_SEED = 104729;
 
-#endif // !defined(_MSC_VER)
+  MurmurHash3(const MurmurHash3&) = delete;
+  ~MurmurHash3() = default;
 
-//-----------------------------------------------------------------------------
+ private:
+  uint32_t seed_;
+};
 
-void MurmurHash3_x86_32(const void *key, int len, uint32_t seed, void *out);
+}  // namespace parquet
 
-void MurmurHash3_x86_128(const void *key, int len, uint32_t seed, void *out);
-
-void MurmurHash3_x64_128(const void *key, int len, uint32_t seed, void *out);
-
-//-----------------------------------------------------------------------------
-
-#endif // _MURMURHASH3_H_
-
+#endif  // _MURMURHASH3_H_

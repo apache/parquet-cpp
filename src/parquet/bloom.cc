@@ -32,13 +32,12 @@ constexpr uint32_t Bloom::SALT[8];
 Bloom::Bloom(uint32_t num_bytes)
     : num_bytes_(num_bytes),
       hash_strategy_(HashStrategy::MURMUR3_X64_128),
-      algorithm_(Algorithm::BLOCK),
-      hash_function_(NULL) {
+      algorithm_(Algorithm::BLOCK) {
   InitBitset(num_bytes);
 
   switch (hash_strategy_) {
     case HashStrategy::MURMUR3_X64_128:
-      this->hash_function_ = &MurmurHash3_x64_128;
+      this->hasher_.reset(new MurmurHash3());
       break;
     default:
       throw parquet::ParquetException("Unknown hash strategy.");
@@ -71,7 +70,7 @@ Bloom::Bloom(const uint8_t* bitset, uint32_t num_bytes)
   memcpy(this->bitset_.get(), bitset, num_bytes);
   switch (hash_strategy_) {
     case HashStrategy::MURMUR3_X64_128:
-      this->hash_function_ = &MurmurHash3_x64_128;
+      this->hasher_.reset(new MurmurHash3());
       break;
     default:
       throw parquet::ParquetException("Not supported hash strategy");
@@ -147,28 +146,6 @@ bool Bloom::FindHash(uint64_t hash) {
     }
   }
   return true;
-}
-
-template <>
-uint64_t Bloom::Hash<const Int96*>(const Int96* value) {
-  uint64_t out[2];
-  (*hash_function_)(reinterpret_cast<const void*>(value->value), sizeof(value->value),
-                    DEFAULT_SEED, &out);
-  return out[0];
-}
-
-template <>
-uint64_t Bloom::Hash<const ByteArray*>(const ByteArray* value) {
-  uint64_t out[2];
-  (*hash_function_)(reinterpret_cast<const void*>(value->ptr), value->len, DEFAULT_SEED,
-                    &out);
-  return out[0];
-}
-
-uint64_t Bloom::Hash(const FLBA* value, uint32_t len) {
-  uint64_t out[2];
-  (*hash_function_)(reinterpret_cast<const void*>(value->ptr), len, DEFAULT_SEED, &out);
-  return out[0];
 }
 
 void Bloom::WriteTo(OutputStream* sink) {

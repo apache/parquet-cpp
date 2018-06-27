@@ -32,7 +32,8 @@ namespace test {
 TEST(Murmur3Test, TestBloomFilter) {
   int64_t result;
   const uint8_t bitset[8] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7};
-  MurmurHash3_x64_128(bitset, 8, Bloom::DEFAULT_SEED, &result);
+  MurmurHash3 murmur3;
+  murmur3.Hash_x64_128(bitset, 8, MurmurHash3::DEFAULT_SEED, &result);
   EXPECT_EQ(result, -3850979349427597861l);
 }
 

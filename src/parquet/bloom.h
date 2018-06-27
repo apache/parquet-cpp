@@ -20,6 +20,7 @@
 
 #include <cstdint>
 
+#include "parquet/hasher.h"
 #include "parquet/types.h"
 #include "parquet/util/memory.h"
 
@@ -46,9 +47,6 @@ class Bloom final {
 
   // Bytes in a tiny Bloom filter block.
   static constexpr int BYTES_PER_FILTER_BLOCK = 32;
-
-  // Default seed for hash function which comes from Murmur3 implementation in Hive
-  static constexpr int DEFAULT_SEED = 104729;
 
   // Default maximum Bloom filter size (need to discuss)
   static constexpr int DEFAULT_MAXIMUM_BLOOM_FILTER_BYTES = 16 * 1024 * 1024;
@@ -100,22 +98,22 @@ class Bloom final {
   /// @param hash the hash of value to insert into Bloom filter.
   void InsertHash(uint64_t hash);
 
-  /// Compute hash for int value by using its plain encoding result.
+  /// Compute hash for value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
   template <typename T>
   uint64_t Hash(T value) {
-    uint64_t out[2];
-    (*hash_function_)(reinterpret_cast<void*>(&value), sizeof(int), DEFAULT_SEED, &out);
-    return out[0];
+    return hasher_->Hash(value);
   }
 
   /// Compute hash for Fixed Length Byte Array value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  uint64_t Hash(const FLBA* value, uint32_t len);
+  uint64_t Hash(const FLBA* value, uint32_t len) {
+    return hasher_->Hash(value, len);
+  }
 
   /// Write Bloom filter to output stream. A Bloom filter structure should include
   /// bitset length, hash strategy, algorithm, and bitset.
@@ -135,7 +133,7 @@ class Bloom final {
 
   /// Set bits in mask array according to input key.
   /// @param key the value to calculate mask values.
-  /// @mask mask the mask array is used to set or clear bits inside a block
+  /// @param mask the mask array is used to set or clear bits inside a block
   void SetMask(uint32_t key, uint32_t mask[8]);
 
   // The number of bytes of Bloom filter bitset.
@@ -151,14 +149,9 @@ class Bloom final {
   std::unique_ptr<uint32_t[]> bitset_;
 
   // Hash function applied.
-  HashFunc hash_function_;
+  std::unique_ptr<Hasher> hasher_;
 };
 
-template <>
-uint64_t Bloom::Hash<const Int96*>(const Int96* value);
-
-template <>
-uint64_t Bloom::Hash<const ByteArray*>(const ByteArray* value);
 
 }  // namespace parquet
 #endif  // PARQUET_BLOOM_H
