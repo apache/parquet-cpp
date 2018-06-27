@@ -115,7 +115,8 @@ struct Compression {
 
 struct Encryption {
   enum type {
-    PARQUET_AES_GCM_V1 = 1
+    AES_GCM_V1 = 0,
+    AES_GCM_CTR_V1 = 1
   };
 };
 
@@ -163,7 +164,8 @@ struct ByteArray {
 };
 
 inline bool operator==(const ByteArray& left, const ByteArray& right) {
-  return left.len == right.len && 0 == std::memcmp(left.ptr, right.ptr, left.len);
+  //return left.len == right.len && 0 == std::memcmp(left.ptr, right.ptr, left.len);
+  return left.len == right.len && std::equal(left.ptr, left.ptr + left.len, right.ptr);
 }
 
 inline bool operator!=(const ByteArray& left, const ByteArray& right) {
