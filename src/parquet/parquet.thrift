@@ -661,6 +661,22 @@ struct ColumnMetaData {
   13: optional list<PageEncodingStats> encoding_stats;
 }
 
+struct ColumnCryptoMetaData {
+  /** Column path in schema **/
+  1: required list<string> path_in_schema
+  
+  /** Encrypted or plaintext column **/
+  2: required bool encrypted
+  
+  /** Column can be encrypted with the footer key,
+   * or a column-specific key **/
+  3: required bool encrypted_with_footer_key
+  
+  /** Metadata of the column-specific key.
+   * Ignored if encrypted_with_footer_key is true **/
+  4: optional binary column_key_metadata
+}
+
 struct ColumnChunk {
   /** File where column data is stored.  If not set, assumed to be same file as
     * metadata.  This path is relative to the current file.
@@ -687,6 +703,9 @@ struct ColumnChunk {
 
   /** Size of ColumnChunk's ColumnIndex, in bytes **/
   7: optional i32 column_index_length
+  
+  /** Column-specific crypto metadata (for non-uniform encryption only) **/
+  8: optional ColumnCryptoMetaData crypto_meta_data
 }
 
 struct RowGroup {
@@ -900,5 +919,33 @@ struct FileCryptoMetaData {
   
   /** Written only if uniform_encryption is false **/
   6: optional list<ColumnCryptoMetaData> column_crypto_meta_data
+}
+
+/**
+ * Supported encryption algorithms.
+ */
+enum EncryptionAlgorithm {
+  AES_GCM_V1 = 0;
+  AES_GCM_CTR_V1 = 1;
+}
+
+struct FileCryptoMetaData {
+  /** Encryption algorithm ID **/
+  1: required EncryptionAlgorithm encryption_algorithm
+  
+  /** Parquet footer can be encrypted, or left as plaintext **/
+  2: required bool encrypted_footer
+    
+  /** Metadata of key used for encryption of footer, 
+   *  and (possibly) columns **/
+  3: optional binary footer_key_metadata
+
+  /** Offset of Parquet footer (encrypted, or plaintext) **/
+  4: required i64 footer_offset
+  
+  /** If file IVs (nonces) are comprised of a fixed part,
+   *  and variable parts (random or counter), keep the fixed
+   *  part here **/
+  5: optional binary iv_prefix
 }
 
