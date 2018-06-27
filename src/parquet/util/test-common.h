@@ -103,7 +103,7 @@ static inline vector<bool> flip_coins_seed(int n, double p, uint32_t seed) {
 
 static inline vector<bool> flip_coins(int n, double p) {
   uint64_t seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  std::mt19937 gen(seed);
+  std::mt19937 gen(static_cast<uint32_t>(seed));
 
   std::bernoulli_distribution d(p);
 
