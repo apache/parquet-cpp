@@ -23,9 +23,8 @@
 #include <sstream>
 #include <iostream>
 #include "parquet/exception.h"
-#include "parquet/types.h" 
-
 #include "parquet/util/crypto.h"
+#include "parquet/types.h" 
 
 namespace parquet {
 
