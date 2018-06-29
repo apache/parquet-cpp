@@ -16,6 +16,7 @@
 // under the License.
 
 
+#include "parquet/util/crypto.h"
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -23,8 +24,6 @@
 #include <sstream>
 #include <iostream>
 #include "parquet/exception.h"
-#include "parquet/util/crypto.h"
-#include "parquet/types.h" 
 
 namespace parquet {
 
