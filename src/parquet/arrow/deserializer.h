@@ -142,25 +142,8 @@ class PARQUET_EXPORT TableDeserializer {
   virtual ::arrow::Status DeserializeTable(std::shared_ptr<::arrow::Table>& result) = 0;
 
  protected:
-  TableDeserializer(std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
-                    std::shared_ptr<::arrow::Schema> const& schema);
+  TableDeserializer(std::shared_ptr<::arrow::Schema> const& schema);
 
-  // \brief Convenience method which iterates over the nodes in this
-  //        deserializer and constructs a table from them, using
-  //        the schema passed to this object's constructor
-  // \return error status if there is an issue constructing the table
-  ::arrow::Status MakeTable(std::shared_ptr<::arrow::Table>& result);
-
-  std::vector<std::unique_ptr<DeserializerNode>> nodes_;
-
-  // \brief Convenience method which iterates over all rows in the rows
-  //        group and deserializes each node
-  // \param[in] the row group reader
-  // \return status error if there is a problem deserializing the row group
-  ::arrow::Status DeserializeRowGroup(
-      std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader);
-
- private:
   // Schema, which was most likely obtained from a call to
   // FromParquetSchema
   std::shared_ptr<::arrow::Schema> schema_;
@@ -256,6 +239,12 @@ class PARQUET_EXPORT DeserializerBuilder {
   // \brief builds a table deserializer that will deserialize all of the
   //        nodes in the Parquet schema for a particular row group.
   // \param[in] the row group to deserialize
+  // \param[in] the column indices to use for filtering the Parquet schema.
+  //            For example, if column_index 2 is specified for the example schema
+  //            at the top of this file, it will include Code and all of its
+  //            ancestors in the resulting table.
+  // \param[in] the number of threads to use when deserializing. This
+  //            will cause the top level columns to be read in parallel
   // \param[out] the deserializer
   // \return error status if there is a problem building the appropriate
   //         deserializers for various column types or if the row_group_index
@@ -263,6 +252,7 @@ class PARQUET_EXPORT DeserializerBuilder {
   //
   ::arrow::Status BuildRowGroupDeserializer(int row_group_index,
                                             const std::vector<int>& indices,
+                                            int num_threads,
                                             std::unique_ptr<TableDeserializer>& result);
 
   // \brief build a table deserializer that will only deserialize nodes that
@@ -271,11 +261,14 @@ class PARQUET_EXPORT DeserializerBuilder {
   //            For example, if column_index 2 is specified for the example schema
   //            at the top of this file, it will include Code and all of its
   //            ancestors in the resulting table.
+  // \param[in] the number of threads to use when deserializing. This
+  //            will cause the top level columns to be read in parallel
   // \param[out] the deserializer
   // \return error status if there is a problem building the appropriate
   //         deserializers for various column types or if all of the
   //         column indices are out of bounds.
   ::arrow::Status BuildFileDeserializer(const std::vector<int>& column_indices,
+                                        int num_threads,
                                         std::unique_ptr<TableDeserializer>& result);
 
  private:

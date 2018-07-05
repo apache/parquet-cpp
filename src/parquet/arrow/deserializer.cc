@@ -27,6 +27,7 @@
 #include "arrow/util/bit-util.h"
 #include "arrow/util/decimal.h"
 #include "arrow/util/logging.h"
+#include "arrow/util/parallel.h"
 #include "parquet/arrow/schema.h"
 #include "parquet/file_reader.h"
 #include "parquet/types.h"
@@ -935,7 +936,7 @@ class FileArrayDeserializer : public ArrayDeserializer {
     for (int ii = 0; ii < num_row_groups; ++ii) {
       auto row_group_reader = file_reader_->RowGroup(ii);
       RETURN_NOT_OK(node_->InitializeRowGroup(row_group_reader));
-      auto const num_rows = row_group_reader_->metadata()->num_rows();
+      auto const num_rows = row_group_reader->metadata()->num_rows();
       for (int jj = 0; jj < num_rows; ++jj) {
         RETURN_NOT_OK(node_->Deserialize(RepetitionLevel(), repetitions));
         repetitions.clear();
@@ -946,8 +947,6 @@ class FileArrayDeserializer : public ArrayDeserializer {
 
  private:
   std::shared_ptr<ParquetFileReader> file_reader_;
-
-  std::shared_ptr<::parquet::RowGroupReader> row_group_reader_;
 };
 
 ArrayBatchedDeserializer::~ArrayBatchedDeserializer() {}
@@ -1033,47 +1032,112 @@ class ColumnChunkDeserializer : public ArrayDeserializer {
   std::shared_ptr<::parquet::RowGroupReader> row_group_reader_;
 };
 
-TableDeserializer::TableDeserializer(
-    std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
-    std::shared_ptr<::arrow::Schema> const& schema)
-    : nodes_(std::move(nodes)), schema_(schema) {}
+TableDeserializer::TableDeserializer(std::shared_ptr<::arrow::Schema> const& schema)
+    : schema_(schema) {}
 
 TableDeserializer::~TableDeserializer() {}
 
-::arrow::Status TableDeserializer::MakeTable(std::shared_ptr<::arrow::Table>& result) {
-  std::vector<std::shared_ptr<::arrow::Array>> arrays;
-  for (auto const& node : nodes_) {
-    std::shared_ptr<::arrow::Array> array;
-    RETURN_NOT_OK(node->GetArrayBuilder()->Finish(&array));
-    arrays.emplace_back(std::move(array));
-  }
-  result = Table::Make(schema_, arrays);
-  return Status::OK();
-}
+//
+// A table deserializer that does it's deserialization
+// in a single thread. This is in contrast to
+// ParallelTableDeserializer which deserializes each
+// top level array in the schema in a separate thread.
+class SerialTableDeserializer : public TableDeserializer {
+ protected:
+  SerialTableDeserializer(std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
+                          std::shared_ptr<::arrow::Schema> const& schema)
+      : TableDeserializer(schema), nodes_(std::move(nodes)) {}
 
-Status TableDeserializer::DeserializeRowGroup(
-    std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader) {
-  for (auto& node : nodes_) {
-    RETURN_NOT_OK(node->InitializeRowGroup(row_group_reader));
-  }
-  DeserializerNode::LevelSet repetitions;
-  auto const num_rows = row_group_reader->metadata()->num_rows();
-  for (int ii = 0; ii < num_rows; ++ii) {
-    for (auto& node : nodes_) {
-      RETURN_NOT_OK(node->Deserialize(RepetitionLevel(), repetitions));
-      repetitions.clear();
+  // \brief Convenience method which iterates over the nodes in this
+  //        deserializer and constructs a table from them, using
+  //        the schema passed to this object's constructor
+  // \return error status if there is an issue constructing the table
+  ::arrow::Status MakeTable(std::shared_ptr<::arrow::Table>& result) {
+    std::vector<std::shared_ptr<::arrow::Array>> arrays;
+    for (auto const& node : nodes_) {
+      std::shared_ptr<::arrow::Array> array;
+      RETURN_NOT_OK(node->GetArrayBuilder()->Finish(&array));
+      arrays.emplace_back(std::move(array));
     }
+    result = Table::Make(schema_, arrays);
+    return Status::OK();
   }
-  return Status::OK();
-}
+
+  // \brief Convenience method which iterates over all rows in the rows
+  //        group and deserializes each node
+  // \param[in] the row group reader
+  // \return status error if there is a problem deserializing the row group
+  Status DeserializeRowGroup(
+      std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader) {
+    for (auto& node : nodes_) {
+      RETURN_NOT_OK(node->InitializeRowGroup(row_group_reader));
+    }
+    DeserializerNode::LevelSet repetitions;
+    auto const num_rows = row_group_reader->metadata()->num_rows();
+    for (int ii = 0; ii < num_rows; ++ii) {
+      for (auto& node : nodes_) {
+        RETURN_NOT_OK(node->Deserialize(RepetitionLevel(), repetitions));
+        repetitions.clear();
+      }
+    }
+    return Status::OK();
+  }
+
+ private:
+  std::vector<std::unique_ptr<DeserializerNode>> nodes_;
+};
+
+//
+// This is a deserializer that can deserialize columns in
+// parallel using multiple threads. It takes a vector of
+// ArrayDeserializer's and calls DeserializeArray separately
+// in each thread. Each of the ArrayDeserializer's will either
+// have a separate row group reader, or will create row group
+// readers as it iterates through the file. This ensures that
+// there is no sharing of data across the threads.
+//
+class ParallelTableDeserializer : public TableDeserializer {
+ public:
+  ParallelTableDeserializer(
+      std::shared_ptr<::arrow::Schema> const& schema,
+      std::vector<std::unique_ptr<ArrayDeserializer>>&& array_deserializers,
+      int num_threads)
+      : TableDeserializer(schema),
+        num_threads_(num_threads),
+        array_deserializers_(std::move(array_deserializers)),
+        arrays_(array_deserializers_.size()) {}
+
+  ~ParallelTableDeserializer() {}
+
+  ::arrow::Status DeserializeTable(std::shared_ptr<::arrow::Table>& table) final {
+    // For now, the parallelism is done a column basis. Other possible
+    // approaches are deserializing row groups or column chunks in parallel.
+    RETURN_NOT_OK(::arrow::ParallelFor(
+        num_threads_, static_cast<int>(array_deserializers_.size()), [this](int index) {
+          auto const array_index = static_cast<std::size_t>(index);
+          return array_deserializers_[array_index]->DeserializeArray(
+              arrays_[array_index]);
+        }));
+    table = Table::Make(schema_, arrays_);
+    return Status::OK();
+  }
+
+ private:
+  int num_threads_;
+
+  std::vector<std::unique_ptr<ArrayDeserializer>> array_deserializers_;
+
+  // Used to hold the output.
+  std::vector<std::shared_ptr<Array>> arrays_;
+};
 
 // This class will deserialize all of the specified nodes from a single row group.
-class RowGroupDeserializer : public TableDeserializer {
+class RowGroupDeserializer : public SerialTableDeserializer {
  public:
   RowGroupDeserializer(std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
                        std::shared_ptr<::arrow::Schema> const& schema,
                        std::shared_ptr<::parquet::RowGroupReader> const& row_group_reader)
-      : TableDeserializer(
+      : SerialTableDeserializer(
             std::forward<std::vector<std::unique_ptr<DeserializerNode>>>(nodes), schema),
         row_group_reader_(row_group_reader) {}
 
@@ -1089,12 +1153,12 @@ class RowGroupDeserializer : public TableDeserializer {
 };
 
 // This class wil deserialize all of the specified nodes from a Parquet file
-class FileTableDeserializer : public TableDeserializer {
+class FileTableDeserializer : public SerialTableDeserializer {
  public:
   FileTableDeserializer(std::vector<std::unique_ptr<DeserializerNode>>&& nodes,
                         std::shared_ptr<::arrow::Schema> const& schema,
                         std::shared_ptr<::parquet::ParquetFileReader> const& file_reader)
-      : TableDeserializer(
+      : SerialTableDeserializer(
             std::forward<std::vector<std::unique_ptr<DeserializerNode>>>(nodes), schema),
         file_reader_(file_reader) {}
 
@@ -1130,9 +1194,11 @@ class DeserializerBuilder::Impl {
 
   ::arrow::Status BuildRowGroupDeserializer(int row_group_index,
                                             const std::vector<int>& column_indices,
+                                            int num_threads,
                                             std::unique_ptr<TableDeserializer>& result);
 
   ::arrow::Status BuildFileDeserializer(const std::vector<int>& column_indices,
+                                        int num_threads,
                                         std::unique_ptr<TableDeserializer>& result);
 
   ::arrow::Status BuildArrayBatchedDeserializer(
@@ -1938,25 +2004,59 @@ DeserializerBuilder::Impl::Impl(
 }
 
 ::arrow::Status DeserializerBuilder::Impl::BuildRowGroupDeserializer(
-    int row_group_index, const std::vector<int>& indices,
+    int row_group_index, const std::vector<int>& indices, int num_threads,
     std::unique_ptr<TableDeserializer>& result) {
   std::vector<std::unique_ptr<DeserializerNode>> nodes;
   RETURN_NOT_OK(BuildNodes(indices, nodes));
   std::shared_ptr<::arrow::Schema> schema;
   RETURN_NOT_OK(FromParquetSchema(file_reader_->metadata()->schema(), indices, &schema));
-  result.reset(new RowGroupDeserializer(std::move(nodes), schema,
-                                        file_reader_->RowGroup(row_group_index)));
+  if (num_threads <= 1) {
+    result.reset(new RowGroupDeserializer(std::move(nodes), schema,
+                                          file_reader_->RowGroup(row_group_index)));
+  } else {
+    // When reading in parallel, we construct a
+    // ColumnChunkDeserializer for each node (aka column). The
+    // ParallelTableDeserializer simply invokes the array deserializer
+    // in a separate thread and holds onto its result
+    std::vector<std::unique_ptr<ArrayDeserializer>> array_deserializers;
+    for (auto&& node : nodes) {
+      // Note: the call to RowGroup should be done for each node,
+      // so it has its own RowGroupReader. Otherwise, it would be
+      // shared across threads and would induce a race.
+      std::unique_ptr<ColumnChunkDeserializer> current(new ColumnChunkDeserializer(
+          std::move(node), file_reader_->RowGroup(row_group_index)));
+      RETURN_NOT_OK(current->Initialize());
+      array_deserializers.push_back(std::move(current));
+    }
+    result.reset(new ParallelTableDeserializer(schema, std::move(array_deserializers),
+                                               num_threads));
+  }
   return Status::OK();
 }
 
 ::arrow::Status DeserializerBuilder::Impl::BuildFileDeserializer(
-    const std::vector<int>& column_indices, std::unique_ptr<TableDeserializer>& result) {
+    const std::vector<int>& column_indices, int num_threads,
+    std::unique_ptr<TableDeserializer>& result) {
   std::vector<std::unique_ptr<DeserializerNode>> nodes;
   RETURN_NOT_OK(BuildNodes(column_indices, nodes));
   std::shared_ptr<::arrow::Schema> schema;
   RETURN_NOT_OK(
       FromParquetSchema(file_reader_->metadata()->schema(), column_indices, &schema));
-  result.reset(new FileTableDeserializer(std::move(nodes), schema, file_reader_));
+  if (num_threads <= 1) {
+    result.reset(new FileTableDeserializer(std::move(nodes), schema, file_reader_));
+  } else {
+    // When reading in parallel, we construct a FileArrayDeserializer
+    // for each node (aka column).  The ParallelTableDeserializer
+    // simply invokes the array deserializer in a separate thread and
+    // holds onto its result
+    std::vector<std::unique_ptr<ArrayDeserializer>> array_deserializers;
+    for (auto&& node : nodes) {
+      array_deserializers.emplace_back(
+          new FileArrayDeserializer(std::move(node), file_reader_));
+    }
+    result.reset(new ParallelTableDeserializer(schema, std::move(array_deserializers),
+                                               num_threads));
+  }
   return Status::OK();
 }
 
@@ -2263,14 +2363,15 @@ DeserializerBuilder::~DeserializerBuilder() {}
 }
 
 ::arrow::Status DeserializerBuilder::BuildRowGroupDeserializer(
-    int row_group_index, const std::vector<int>& indices,
+    int row_group_index, const std::vector<int>& indices, int num_threads,
     std::unique_ptr<TableDeserializer>& result) {
-  return impl_->BuildRowGroupDeserializer(row_group_index, indices, result);
+  return impl_->BuildRowGroupDeserializer(row_group_index, indices, num_threads, result);
 }
 
 ::arrow::Status DeserializerBuilder::BuildFileDeserializer(
-    const std::vector<int>& column_indices, std::unique_ptr<TableDeserializer>& result) {
-  return impl_->BuildFileDeserializer(column_indices, result);
+    const std::vector<int>& column_indices, int num_threads,
+    std::unique_ptr<TableDeserializer>& result) {
+  return impl_->BuildFileDeserializer(column_indices, num_threads, result);
 }
 
 ::arrow::Status DeserializerBuilder::BuildArrayBatchedDeserializer(
