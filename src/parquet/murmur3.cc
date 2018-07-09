@@ -44,6 +44,9 @@ inline uint64_t rotl64(uint64_t x, int8_t r) { return (x << r) | (x >> (64 - r))
 
 #endif // !defined(_MSC_VER)
 
+typedef struct {
+	uint64_t val[2];
+}HashOutput128;
 
 #define BIG_CONSTANT(x) (x##LLU)
 
@@ -82,7 +85,7 @@ FORCE_INLINE uint64_t fmix64(uint64_t k) {
 
 //-----------------------------------------------------------------------------
 
-void MurmurHash3::Hash_x86_32(const void* key, int len, uint32_t seed, void* out) {
+void Hash_x86_32(const void* key, int len, uint32_t seed, void* out) {
   const uint8_t* data = (const uint8_t*)key;
   const int nblocks = len / 4;
 
@@ -138,7 +141,7 @@ void MurmurHash3::Hash_x86_32(const void* key, int len, uint32_t seed, void* out
   *reinterpret_cast<uint32_t*>(out) = h1;
 }
 
-void MurmurHash3::Hash_x86_128(const void* key, const int len, uint32_t seed, void* out) {
+void Hash_x86_128(const void* key, const int len, uint32_t seed, void* out) {
   const uint8_t* data = (const uint8_t*)key;
   const int nblocks = len / 16;
 
@@ -297,7 +300,7 @@ void MurmurHash3::Hash_x86_128(const void* key, const int len, uint32_t seed, vo
 
 //-----------------------------------------------------------------------------
 
-void MurmurHash3::Hash_x64_128(const void* key, const int len, const uint32_t seed,
+void Hash_x64_128(const void* key, const int len, const uint32_t seed,
                                void* out) {
   const uint8_t* data = (const uint8_t*)key;
   const int nblocks = len / 16;
@@ -405,47 +408,46 @@ void MurmurHash3::Hash_x64_128(const void* key, const int len, const uint32_t se
   reinterpret_cast<uint64_t*>(out)[1] = h2;
 }
 
-uint64_t MurmurHash3::Hash(int32_t value) {
-  uint64_t out[2];
-  Hash_x64_128(reinterpret_cast<void*>(&value), sizeof(int), seed_, out);
-  return out[0];
+template <typename T>
+uint64_t HashHelper(T value, uint32_t seed) {
+  HashOutput128 output;
+  Hash_x64_128(reinterpret_cast<void*>(&value), sizeof(T), seed, &output);
+  return output.val[0];
 }
 
-uint64_t MurmurHash3::Hash(int64_t value) {
-  uint64_t out[2];
-  Hash_x64_128(reinterpret_cast<void*>(&value), sizeof(int), seed_, out);
-  return out[0];
+uint64_t MurmurHash3::Hash(int32_t value) const {
+  return HashHelper<int32_t>(value, seed_);
 }
 
-uint64_t MurmurHash3::Hash(float value) {
-  uint64_t out[2];
-  Hash_x64_128(reinterpret_cast<void*>(&value), sizeof(int), seed_, out);
-  return out[0];
+uint64_t MurmurHash3::Hash(int64_t value) const {
+  return HashHelper<int64_t>(value, seed_);
 }
 
-uint64_t MurmurHash3::Hash(double value) {
-  uint64_t out[2];
-  Hash_x64_128(reinterpret_cast<void*>(&value), sizeof(int), seed_, out);
-  return out[0];
+uint64_t MurmurHash3::Hash(float value) const {
+  return HashHelper<float>(value, seed_);
 }
 
-uint64_t MurmurHash3::Hash(const FLBA* value, uint32_t len) {
-  uint64_t out[2];
-  Hash_x64_128(reinterpret_cast<const void*>(value->ptr), len, seed_, out);
-  return out[0];
+uint64_t MurmurHash3::Hash(double value) const {
+  return HashHelper<double>(value, seed_);
 }
 
-uint64_t MurmurHash3::Hash(const Int96* value) {
-  uint64_t out[2];
+uint64_t MurmurHash3::Hash(const FLBA* value, uint32_t len) const {
+  HashOutput128 out;
+  Hash_x64_128(reinterpret_cast<const void*>(value->ptr), len, seed_, &out);
+  return out.val[0];
+}
+
+uint64_t MurmurHash3::Hash(const Int96* value) const {
+  HashOutput128 out;
   Hash_x64_128(reinterpret_cast<const void*>(value->value), sizeof(value->value),
-		  seed_, out);
-  return out[0];
+               seed_, &out);
+  return out.val[0];
 }
 
-uint64_t MurmurHash3::Hash(const ByteArray* value) {
-  uint64_t out[2];
-  Hash_x64_128(reinterpret_cast<const void*>(value->ptr), value->len, seed_, out);
-  return out[0];
+uint64_t MurmurHash3::Hash(const ByteArray* value) const {
+  HashOutput128 out;
+  Hash_x64_128(reinterpret_cast<const void*>(value->ptr), value->len, seed_, &out);
+  return out.val[0];
 }
 
 }  // namespace parquet

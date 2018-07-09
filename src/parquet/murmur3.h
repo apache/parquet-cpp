@@ -19,8 +19,8 @@
 // MurmurHash3 was written by Austin Appleby, and is placed in the public
 // domain. The author hereby disclaims copyright to this source code.
 
-#ifndef _MURMURHASH3_H_
-#define _MURMURHASH3_H_
+#ifndef PARQUET_MURMURHASH3_H_
+#define PARQUET_MURMURHASH3_H_
 
 #include <cstdint>
 
@@ -35,30 +35,25 @@ namespace parquet {
 class MurmurHash3 : public Hasher {
  public:
   MurmurHash3() : seed_(DEFAULT_SEED) {}
+  uint64_t Hash(int32_t value) const override;
+  uint64_t Hash(int64_t value) const override;
+  uint64_t Hash(float value) const override;
+  uint64_t Hash(double value) const override;
+  uint64_t Hash(const Int96* value) const override;
+  uint64_t Hash(const ByteArray* value) const override;
+  uint64_t Hash(const FLBA* val, uint32_t len) const override;
 
-  /// Original murmur3 hash implementation
-  void Hash_x86_32(const void* key, int len, uint32_t seed, void* out);
-  void Hash_x86_128(const void* key, int len, uint32_t seed, void* out);
-  void Hash_x64_128(const void* key, int len, uint32_t seed, void* out);
-
-  uint64_t Hash(int32_t value);
-  uint64_t Hash(int64_t value);
-  uint64_t Hash(float value);
-  uint64_t Hash(double value);
-  uint64_t Hash(const Int96* value);
-  uint64_t Hash(const ByteArray* value);
-  uint64_t Hash(const FLBA* val, uint32_t len);
-
-  // Default seed for hash which comes from Murmur3 implementation in Hive
+  // Default seed for hash which comes from the Murmur3 implementation in Hive
   static constexpr int DEFAULT_SEED = 104729;
 
-  MurmurHash3(const MurmurHash3&) = delete;
-  ~MurmurHash3() = default;
+  MurmurHash3(const MurmurHash3& other) {
+	  this->seed_ = other.seed_;
+  }
 
- private:
   uint32_t seed_;
 };
 
 }  // namespace parquet
 
-#endif  // _MURMURHASH3_H_
+#endif  // PARQUET_MURMURHASH3_H_
+

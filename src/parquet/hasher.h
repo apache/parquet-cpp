@@ -29,43 +29,44 @@ class Hasher {
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(int32_t value) = 0;
+  virtual uint64_t Hash(int32_t value) const = 0;
 
   /// Compute hash for 64 bits value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(int64_t value) = 0;
+  virtual uint64_t Hash(int64_t value) const = 0;
+
 
   /// Compute hash for float value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(float value) = 0;
+  virtual uint64_t Hash(float value) const = 0;
 
   /// Compute hash for double value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(double value) = 0;
+  virtual uint64_t Hash(double value) const = 0;
 
   /// Compute hash for Int96 value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(const Int96* value) = 0;
+  virtual uint64_t Hash(const Int96* value) const = 0;
 
   /// Compute hash for ByteArray value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(const ByteArray* value) = 0;
+  virtual uint64_t Hash(const ByteArray* value) const = 0;
 
   /// Compute hash for fixed byte array value by using its plain encoding result.
   ///
   /// @param value the value to hash.
   /// @return hash result.
-  virtual uint64_t Hash(const FLBA* value, uint32_t len) = 0;
+  virtual uint64_t Hash(const FLBA* value, uint32_t len) const = 0;
 
   virtual ~Hasher() = default;
 };
