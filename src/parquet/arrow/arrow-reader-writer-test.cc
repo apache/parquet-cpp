@@ -539,7 +539,7 @@ class TestParquetIO : public ::testing::Test {
   // Prepare table of empty lists, with null values array (ARROW-2744)
   void PrepareEmptyListsTable(int64_t size, std::shared_ptr<Table>* out) {
     std::shared_ptr<Array> lists;
-    MakeEmptyListsArray(size, &lists);
+    ASSERT_OK(MakeEmptyListsArray(size, &lists));
     *out = MakeSimpleTable(lists, true /* nullable_lists */);
   }
 
