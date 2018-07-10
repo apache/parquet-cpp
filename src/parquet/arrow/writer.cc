@@ -711,7 +711,7 @@ Status ArrowColumnWriter::TypedWriteBatch<BooleanType, ::arrow::BooleanType>(
   RETURN_NOT_OK(ctx_->GetScratchData<bool>(array.length(), &buffer));
 
   const auto& data = static_cast<const BooleanArray&>(array);
-  const uint8_t* values;
+  const uint8_t* values = nullptr;
   // The values buffer may be null if the array is empty (ARROW-2744)
   if (data.values() != nullptr) {
     values = reinterpret_cast<const uint8_t*>(data.values()->data());
