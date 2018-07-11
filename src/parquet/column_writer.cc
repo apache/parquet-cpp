@@ -30,6 +30,7 @@
 #include "parquet/thrift.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/memory.h"
+#include "parquet/util/crypto.h"
 
 namespace parquet {
 
@@ -129,6 +130,7 @@ static format::Statistics ToThrift(const EncodedStatistics& row_group_statistics
 class SerializedPageWriter : public PageWriter {
  public:
   SerializedPageWriter(OutputStream* sink, Compression::type codec,
+                       std::shared_ptr<EncryptionProperties> encryption,
                        ColumnChunkMetaDataBuilder* metadata,
                        ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
       : sink_(sink),
@@ -138,7 +140,8 @@ class SerializedPageWriter : public PageWriter {
         dictionary_page_offset_(0),
         data_page_offset_(0),
         total_uncompressed_size_(0),
-        total_compressed_size_(0) {
+        total_compressed_size_(0),
+        encryption_(encryption) {
     compressor_ = GetCodecFromArrow(codec);
   }
 
@@ -159,10 +162,26 @@ class SerializedPageWriter : public PageWriter {
     dict_page_header.__set_encoding(ToThrift(page.encoding()));
     dict_page_header.__set_is_sorted(page.is_sorted());
 
+    const uint8_t* data = compressed_data->data();
+    int data_len = static_cast<int>(compressed_data->size());
+
+    std::vector<uint8_t> cdata;
+    if (encryption_.get()) {
+        int plen = data_len;
+        cdata.resize(plen + 28 + 10);
+        int clen = parquet::encrypt(encryption_->algorithm(), false,
+                                    compressed_data->data(), plen,
+                                    encryption_->key_bytes(), encryption_->key_length(),
+                                    nullptr, 0,
+                                    cdata.data());
+        data = cdata.data();
+        data_len = clen;
+    }
+
     format::PageHeader page_header;
     page_header.__set_type(format::PageType::DICTIONARY_PAGE);
     page_header.__set_uncompressed_page_size(static_cast<int32_t>(uncompressed_size));
-    page_header.__set_compressed_page_size(static_cast<int32_t>(compressed_data->size()));
+    page_header.__set_compressed_page_size(static_cast<int32_t>(data_len));
     page_header.__set_dictionary_page_header(dict_page_header);
     // TODO(PARQUET-594) crc checksum
 
@@ -171,11 +190,13 @@ class SerializedPageWriter : public PageWriter {
       dictionary_page_offset_ = start_pos;
     }
     int64_t header_size =
-        SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
-    sink_->Write(compressed_data->data(), compressed_data->size());
+        SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
+                           sink_, true, encryption_.get());
+
+    sink_->Write(data, data_len);
 
     total_uncompressed_size_ += uncompressed_size + header_size;
-    total_compressed_size_ += compressed_data->size() + header_size;
+    total_compressed_size_ += data_len + header_size;
 
     return sink_->Tell() - start_pos;
   }
@@ -224,10 +245,25 @@ class SerializedPageWriter : public PageWriter {
         ToThrift(page.repetition_level_encoding()));
     data_page_header.__set_statistics(ToThrift(page.statistics()));
 
+    const uint8_t* data = compressed_data->data();
+    int data_len = static_cast<int>(compressed_data->size());
+
+    std::vector<uint8_t> cdata;
+    if (encryption_.get()) {
+        int plen = data_len;
+        cdata.resize(plen + 28 + 10);
+        int clen = parquet::encrypt(encryption_->algorithm(), false,
+                                    compressed_data->data(), plen,
+                                    encryption_->key_bytes(), encryption_->key_length(),
+                                    nullptr, 0, cdata.data());
+        data = cdata.data();
+        data_len = clen;
+    }
+
     format::PageHeader page_header;
     page_header.__set_type(format::PageType::DATA_PAGE);
     page_header.__set_uncompressed_page_size(static_cast<int32_t>(uncompressed_size));
-    page_header.__set_compressed_page_size(static_cast<int32_t>(compressed_data->size()));
+    page_header.__set_compressed_page_size(static_cast<int32_t>(data_len));
     page_header.__set_data_page_header(data_page_header);
     // TODO(PARQUET-594) crc checksum
 
@@ -237,11 +273,13 @@ class SerializedPageWriter : public PageWriter {
     }
 
     int64_t header_size =
-        SerializeThriftMsg(&page_header, sizeof(format::PageHeader), sink_);
-    sink_->Write(compressed_data->data(), compressed_data->size());
+        SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
+                           sink_, true, encryption_.get());
+
+    sink_->Write(data, data_len);
 
     total_uncompressed_size_ += uncompressed_size + header_size;
-    total_compressed_size_ += compressed_data->size() + header_size;
+    total_compressed_size_ += data_len + header_size;
     num_values_ += page.num_values();
 
     return sink_->Tell() - start_pos;
@@ -271,6 +309,8 @@ class SerializedPageWriter : public PageWriter {
 
   // Compression codec to use.
   std::unique_ptr<::arrow::Codec> compressor_;
+
+  std::shared_ptr<EncryptionProperties> encryption_;
 };
 
 // This implementation of the PageWriter writes to the final sink on Close .
@@ -321,6 +361,7 @@ class BufferedPageWriter : public PageWriter {
 };
 
 std::unique_ptr<PageWriter> PageWriter::Open(OutputStream* sink, Compression::type codec,
+                                             std::shared_ptr<EncryptionProperties> encryption,
                                              ColumnChunkMetaDataBuilder* metadata,
                                              ::arrow::MemoryPool* pool,
                                              bool buffered_row_group) {
