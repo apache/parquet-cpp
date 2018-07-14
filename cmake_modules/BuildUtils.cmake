@@ -17,7 +17,7 @@
 
 function(ADD_LIB LIB_NAME)
   set(options)
-  set(one_value_args SHARED_LINK_FLAGS ABI_VERSION SO_VERSION LIB_BUILD_SHARED LIB_BUILD_STATIC LIB_RPATH_ORIGIN)
+  set(one_value_args SHARED_LINK_FLAGS ABI_VERSION SO_VERSION LIB_BUILD_SHARED LIB_BUILD_STATIC)
   set(multi_value_args SOURCES STATIC_LINK_LIBS STATIC_PRIVATE_LINK_LIBS SHARED_LINK_LIBS SHARED_PRIVATE_LINK_LIBS DEPENDENCIES)
   cmake_parse_arguments(ARG "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
   if(ARG_UNPARSED_ARGUMENTS)
@@ -64,7 +64,7 @@ function(ADD_LIB LIB_NAME)
         LINK_PRIVATE ${ARG_SHARED_PRIVATE_LINK_LIBS})
     endif()
 
-    if (LIB_RPATH_ORIGIN)
+    if (PARQUET_RPATH_ORIGIN)
         if (APPLE)
             set(_lib_install_rpath "@loader_path")
         else()
