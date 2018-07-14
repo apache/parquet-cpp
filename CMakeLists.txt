@@ -729,7 +729,6 @@ ADD_LIB(parquet
         STATIC_LINK_LIBS ${LIBPARQUET_INTERFACE_LINK_LIBS}
         ABI_VERSION ${PARQUET_ABI_VERSION}
         SO_VERSION ${PARQUET_SO_VERSION}
-        LIB_RPATH_ORIGIN ${PARQUET_RPATH_ORIGIN}
 )
 
 ############################################################
