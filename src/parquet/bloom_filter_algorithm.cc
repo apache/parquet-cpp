@@ -36,7 +36,7 @@ void BlockBasedAlgorithm::SetMask(uint32_t key, BlockMask& block_mask) const {
 }
 
 bool BlockBasedAlgorithm::TestBits(const uint32_t* bitset, uint32_t num_bytes,
-								   uint64_t hash) const {
+                                   uint64_t hash) const {
   const uint32_t bucket_index =
       static_cast<uint32_t>((hash >> 32) & (num_bytes / BYTES_PER_FILTER_BLOCK - 1));
   uint32_t key = static_cast<uint32_t>(hash);
@@ -47,14 +47,14 @@ bool BlockBasedAlgorithm::TestBits(const uint32_t* bitset, uint32_t num_bytes,
 
   for (int i = 0; i < BITS_SET_PER_BLOCK; ++i) {
     if (0 == (bitset[BITS_SET_PER_BLOCK * bucket_index + i] & block_mask.item[i])) {
-	  return false;
+      return false;
     }
   }
   return true;
 }
 
 void BlockBasedAlgorithm::SetBits(uint32_t* bitset, uint32_t num_bytes,
-								  uint64_t hash) const {
+                                  uint64_t hash) const {
   const uint32_t bucket_index =
       static_cast<uint32_t>(hash >> 32) & (num_bytes / BYTES_PER_FILTER_BLOCK - 1);
   uint32_t key = static_cast<uint32_t>(hash);

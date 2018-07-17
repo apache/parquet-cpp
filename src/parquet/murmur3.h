@@ -43,12 +43,10 @@ class MurmurHash3 : public Hasher {
   uint64_t Hash(const ByteArray* value) const override;
   uint64_t Hash(const FLBA* val, uint32_t len) const override;
 
-  // Default seed for hash which comes from the Murmur3 implementation in Hive
-  static constexpr int DEFAULT_SEED = 104729;
-
-  MurmurHash3(const MurmurHash3& other) {
-	  this->seed_ = other.seed_;
-  }
+ private:
+  // Default seed for hash which comes from Bloom filter in parquet-mr, it is generated
+  // by System.nanoTime() of java.
+  static constexpr int DEFAULT_SEED = 1361930890;
 
   uint32_t seed_;
 };
@@ -56,4 +54,3 @@ class MurmurHash3 : public Hasher {
 }  // namespace parquet
 
 #endif  // PARQUET_MURMURHASH3_H_
-

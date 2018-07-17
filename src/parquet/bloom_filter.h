@@ -30,27 +30,11 @@ class OutputStream;
 
 // A Bloom filter is a compact structure to indicate whether an item is not in a set or
 // probably in a set. Bloom filter class is underlying class of Bloom filter which stores
-// a bit set represents a set of elements, a hash strategy and a Bloom filter algorithm.
+// a bit set that represents a set of elements, a hash strategy and a Bloom filter
+// algorithm.
 
 // This Bloom filter uses Murmur3 hash strategy and block-based Bloom filter algorithm.
 class BloomFilter final {
- public:
-  // Hash strategy available for Bloom filter.
-  enum class HashStrategy : uint32_t { MURMUR3_X64_128 = 0 };
-
-  // Bloom filter algorithm.
-  enum class Algorithm : uint32_t { BLOCK = 0 };
-
-  // Maximum Bloom filter size, it sets to HDFS default block size 256MB
-  // This value will be reconsidered when implementing Bloom filter producer.
-  static constexpr uint32_t MAXIMUM_BLOOM_FILTER_BYTES = 1 << 27;
-
-  // L1 cache alignment of x86_64 architecture.
-  static constexpr uint32_t X64_CACHE_ALIGNMENT = 64;
-
-  // Minimum Bloom filter size, it sets to cache line bytes of x86_64.
-  static constexpr uint32_t MINIMUM_BLOOM_FILTER_BYTES = X64_CACHE_ALIGNMENT;
-
  public:
   /// Constructor of Bloom filter. The range of num_bytes should be within
   /// [MINIMUM_BLOOM_FILTER_BYTES, MAXIMUM_BLOOM_FILTER_BYTES], it will be
@@ -66,8 +50,8 @@ class BloomFilter final {
   /// function and block-based algorithm as default algorithm.
   ///
   /// @param bitset The given bitset to construct Bloom filter.
-  /// @param len Length of bitset.
-  BloomFilter(const uint32_t* bitset, uint32_t len);
+  /// @param num_bytes  The number of bytes of given bitset.
+  BloomFilter(const uint32_t* bitset, uint32_t num_bytes);
 
   BloomFilter(const BloomFilter& orig) = delete;
 
@@ -75,7 +59,11 @@ class BloomFilter final {
     if (pool_ && bitset_ && is_internal_bitset_) {
       pool_->Free(reinterpret_cast<uint8_t*>(bitset_), num_bytes_);
     }
+    external_bitset_ = NULL;
   }
+
+  /// Get the number of bytes of bitset
+  uint32_t GetBitsetSize() { return num_bytes_; }
 
   /// Calculate optimal size according to the number of distinct values and false
   /// positive probability.
@@ -122,17 +110,34 @@ class BloomFilter final {
  private:
   /// Create a new bitset for Bloom filter.
   ///
-  /// @param num_bytes number of bytes for bitset. The range of num_bytes should be within
-  ///   [BYTES_PER_FILTER_BLOCK, MAX_SANE_FILTER_BYTES], it will be
+  /// @param num_bytes number of bytes for bitset. The range of num_bytes should be
+  ///   within [MINIMUM_BLOOM_FILTER_SIZE, MAXIMUM_BLOOM_FILTER_BYTES], it will be
   ///   rounded up/down to lower/upper bound if num_bytes is out of range and also
   ///   will be rounded up to a power of 2.
   void InitBitset(uint32_t num_bytes);
 
-  // Memory pool to allocate buffer for bitset.
+  // Memory pool to allocate aligned buffer for bitset
   ::arrow::MemoryPool *pool_;
+
+  // Hash strategy available for Bloom filter.
+  enum class HashStrategy : uint32_t { MURMUR3_X64_128 = 0 };
+
+  // Bloom filter algorithm.
+  enum class Algorithm : uint32_t { BLOCK = 0 };
+
+  // Maximum Bloom filter size, it sets to HDFS default block size 128MB
+  // This value will be reconsidered when implementing Bloom filter producer.
+  static constexpr uint32_t MAXIMUM_BLOOM_FILTER_BYTES = 128 * 1024 * 1024;
+
+  // Minimum Bloom filter size, it sets to 32 bytes to fit a tiny Bloom filter
+  // in block-based algorithm.
+  static constexpr uint32_t MINIMUM_BLOOM_FILTER_BYTES = 32;
 
   // The underlying byte array for Bloom filter bitset.
   uint32_t* bitset_;
+
+  // The pointer to external bitset read from parquet file
+  const uint32_t* external_bitset_;
 
   // The variable to show whether bitset's buffer comes from client or Bloom object.
   // It is false when the bitset's buffer comes from client, and is true when the

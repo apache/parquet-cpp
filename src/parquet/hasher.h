@@ -37,7 +37,6 @@ class Hasher {
   /// @return hash result.
   virtual uint64_t Hash(int64_t value) const = 0;
 
-
   /// Compute hash for float value by using its plain encoding result.
   ///
   /// @param value the value to hash.

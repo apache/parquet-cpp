@@ -33,7 +33,7 @@ class BloomFilterAlgorithm {
   /// @param hash the hash used to calculate bit index to test
   /// @return true
   virtual bool TestBits(const uint32_t* bitset, uint32_t num_bytes,
-						uint64_t hash) const = 0;
+                        uint64_t hash) const = 0;
 
   /// Set bits in the bitset according to the hash value
   ///
@@ -49,7 +49,7 @@ class BloomFilterAlgorithm {
 // Putze et al.'s "Cache-,Hash- and Space-Efficient Bloom filters". The basic idea is to
 // hash the item to a tiny Bloom filter which size fit a single cache line or smaller.
 // This implementation sets 8 bits in each tiny Bloom filter. Each tiny Bloom filter is
-// 32 bytes to take advantage of 32-byte SIMD instruction.
+// 32 bytes to take advantage of 32-byte SIMD instructions.
 class BlockBasedAlgorithm : public BloomFilterAlgorithm {
  public:
   // Bytes in a tiny Bloom filter block.
@@ -59,19 +59,17 @@ class BlockBasedAlgorithm : public BloomFilterAlgorithm {
   static constexpr int BITS_SET_PER_BLOCK = 8;
 
   // A mask structure used to set bits in each tiny Bloom filter.
-  typedef struct {
+  struct BlockMask {
     uint32_t item[BITS_SET_PER_BLOCK];
-  } BlockMask;
+  };
 
   // The block-based algorithm needs eight odd SALT values to calculate eight indexes
   // of bit to set, one bit in each 32-bit word.
   static constexpr uint32_t SALT[BITS_SET_PER_BLOCK] = {
-			  0x47b6137bU, 0x44974d91U, 0x8824ad5bU,
-	          0xa2b7289dU, 0x705495c7U, 0x2df1424bU,
-	          0x9efc4947U, 0x5c6bfb31U};
+      0x47b6137bU, 0x44974d91U, 0x8824ad5bU, 0xa2b7289dU,
+      0x705495c7U, 0x2df1424bU, 0x9efc4947U, 0x5c6bfb31U};
 
-  bool TestBits(const uint32_t* bitset, uint32_t num_bytes,
-                uint64_t hash) const override;
+  bool TestBits(const uint32_t* bitset, uint32_t num_bytes, uint64_t hash) const override;
 
   void SetBits(uint32_t* bitset, uint32_t num_bytes, uint64_t hash) const override;
 
