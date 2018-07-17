@@ -362,12 +362,12 @@ class FileSerializer : public ParquetFileWriter::Contents {
         metadata->WriteTo(sink_.get());
       }
 
-      WriteFileEncryptMetaData(metadata_start);
+      WriteFileCryptoMetaData(metadata_start);
       sink_->Write(PARQUET_EMAGIC, 4);
     }
   }
 
-  void WriteFileEncryptMetaData(int64_t footerOffset) {
+  void WriteFileCryptoMetaData(int64_t footerOffset) {
     uint64_t crypto_offset = static_cast<uint64_t>(sink_->Tell());
 
     // Get a FileCryptoMetaData

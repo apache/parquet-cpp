@@ -369,7 +369,7 @@ public:
                             std::shared_ptr<EncryptionProperties> encryption = nullptr)
     : metadata_len_(0) {
     metadata_.reset(new format::FileMetaData);
-    DeserializeThriftMsg(metadata, metadata_len, metadata_.get(), true, encryption.get());
+    DeserializeThriftMsg(metadata, metadata_len, metadata_.get(), encryption.get());
     metadata_len_ = *metadata_len;
 
     if (metadata_->__isset.created_by) {
@@ -399,7 +399,7 @@ public:
   const ApplicationVersion& writer_version() const { return writer_version_; }
 
   void WriteTo(OutputStream* dst, EncryptionProperties* encryption) const {
-    SerializeThriftMsg(metadata_.get(), 1024, dst, true, encryption); }
+    SerializeThriftMsg(metadata_.get(), 1024, dst, encryption); }
 
   std::unique_ptr<RowGroupMetaData> RowGroup(int i) {
     if (!(i < num_row_groups())) {
@@ -557,7 +557,7 @@ public:
 
   void WriteTo(OutputStream* dst)
   {
-    SerializeThriftMsg(metadata_.get(), 1024, dst, true);
+    SerializeThriftMsg(metadata_.get(), 1024, dst);
   }
 
 
@@ -804,7 +804,7 @@ public:
         auto encrypt_props = properties_->encryption(column_->path());
         uint64_t metadata_start = sink->Tell();
 
-        SerializeThriftMsg(&meta_data_, sizeof(format::ColumnMetaData), sink, true,
+        SerializeThriftMsg(&meta_data_, sizeof(format::ColumnMetaData), sink,
                            encrypt_props.get());
 
         // Set the ColumnMetaData offset at the “file_offset” field in the ColumnChunk.

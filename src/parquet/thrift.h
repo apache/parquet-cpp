@@ -117,7 +117,6 @@ static inline format::EncryptionAlgorithm::type ToThrift(Encryption::type type) 
 // set to the actual length of the header.
 template <class T>
 inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deserialized_msg,
-                                 bool isMetadata = true,
                                  EncryptionProperties* encryption = nullptr
         ) {
     if (encryption == nullptr) {
@@ -141,22 +140,19 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
     else {
         // first 4 bytes for length
         uint8_t clenBytes[4];
-        clenBytes[3] = buf[3];
-        clenBytes[2] = buf[2];
-        clenBytes[1] = buf[1];
-        clenBytes[0] = buf[0];
+        memcpy(clenBytes, buf, 4);
 
         uint32_t clen = *(reinterpret_cast<uint32_t*>(clenBytes));
 
        // decrypt
-        std::vector<uint8_t> decrypted_buffer(clen); // TODO
+        std::vector<uint8_t> decrypted_buffer(encryption->calculate_plain_size(clen));
         std::vector<uint8_t> key_bytes(encryption->key_length());
         for (int i = 0; i< encryption->key_length(); i++) {
           key_bytes.push_back(encryption->key_bytes()[i]);
         }
 
         int decrypted_buffer_len = parquet::decrypt(
-                encryption->algorithm(), isMetadata, &buf[4], clen,
+                encryption->algorithm(), true, &buf[4], clen,
                 key_bytes.data(), encryption->key_length(), nullptr, 0,
                 decrypted_buffer.data());
 
@@ -189,7 +185,6 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
 // the expected size of the serialized object
 template <class T>
 inline int64_t SerializeThriftMsg(T* obj, uint32_t len, OutputStream* out,
-                                  bool isMetadata = true,
                                   EncryptionProperties* encryption = nullptr) {
   shared_ptr<apache::thrift::transport::TMemoryBuffer> mem_buffer(
       new apache::thrift::transport::TMemoryBuffer(len));
@@ -216,9 +211,9 @@ inline int64_t SerializeThriftMsg(T* obj, uint32_t len, OutputStream* out,
     return out_length;
   }
   else {
-    std::vector<uint8_t> cipher_buffer(out_length + 28 + 10);  // TODO
+    std::vector<uint8_t> cipher_buffer(encryption->calculate_cipher_size(len));
     int cipher_buffer_len = parquet::encrypt(
-                encryption->algorithm(), isMetadata, out_buffer, out_length,
+                encryption->algorithm(), true, out_buffer, out_length,
                 encryption->key_bytes(), encryption->key_length(), nullptr, 0,
                 cipher_buffer.data());
 

@@ -168,7 +168,7 @@ class SerializedPageWriter : public PageWriter {
     std::vector<uint8_t> cdata;
     if (encryption_.get()) {
         int plen = data_len;
-        cdata.resize(plen + 28 + 10);
+        cdata.resize(encryption_->calculate_cipher_size(plen));
         int clen = parquet::encrypt(encryption_->algorithm(), false,
                                     compressed_data->data(), plen,
                                     encryption_->key_bytes(), encryption_->key_length(),
@@ -191,7 +191,7 @@ class SerializedPageWriter : public PageWriter {
     }
     int64_t header_size =
         SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
-                           sink_, true, encryption_.get());
+                           sink_, encryption_.get());
 
     sink_->Write(data, data_len);
 
@@ -251,7 +251,7 @@ class SerializedPageWriter : public PageWriter {
     std::vector<uint8_t> cdata;
     if (encryption_.get()) {
         int plen = data_len;
-        cdata.resize(plen + 28 + 10);
+        cdata.resize(encryption_->calculate_cipher_size(plen));
         int clen = parquet::encrypt(encryption_->algorithm(), false,
                                     compressed_data->data(), plen,
                                     encryption_->key_bytes(), encryption_->key_length(),
@@ -274,7 +274,7 @@ class SerializedPageWriter : public PageWriter {
 
     int64_t header_size =
         SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
-                           sink_, true, encryption_.get());
+                           sink_, encryption_.get());
 
     sink_->Write(data, data_len);
 
