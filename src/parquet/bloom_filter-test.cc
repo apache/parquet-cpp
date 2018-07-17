@@ -226,34 +226,34 @@ TEST(CompatibilityTest, TestBloomFilter) {
 // Also it is used to test whether OptimalNumOfBits returns value between
 // [MINIMUM_BLOOM_FILTER_SIZE, MAXIMUM_BLOOM_FILTER_SIZE].
 TEST(OptimalValueTest, TestBloomFilter) {
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(256, 0.01), 2048);
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(512, 0.01), 4096);
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(1024, 0.01), 8192);
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(2048, 0.01), 16384);
+  EXPECT_GT(BloomFilter::OptimalNumOfBits(256, 0.01), UINT32_C(2048));
+  EXPECT_GT(BloomFilter::OptimalNumOfBits(512, 0.01), UINT32_C(4096));
+  EXPECT_GT(BloomFilter::OptimalNumOfBits(1024, 0.01), UINT32_C(8192));
+  EXPECT_GT(BloomFilter::OptimalNumOfBits(2048, 0.01), UINT32_C(16384));
 
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(200, 0.01), 2048);
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(300, 0.01), 4096);
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(700, 0.01), 8192);
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(1500, 0.01), 16384);
+  EXPECT_GE(BloomFilter::OptimalNumOfBits(200, 0.01), UINT32_C(2048));
+  EXPECT_GE(BloomFilter::OptimalNumOfBits(300, 0.01), UINT32_C(4096));
+  EXPECT_GE(BloomFilter::OptimalNumOfBits(700, 0.01), UINT32_C(8192));
+  EXPECT_GE(BloomFilter::OptimalNumOfBits(1500, 0.01), UINT32_C(16384));
 
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.025), 2048);
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.025), 4096);
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.025), 8192);
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.025), 16384);
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.025), UINT32_C(2048));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.025), UINT32_C(4096));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.025), UINT32_C(8192));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.025), UINT32_C(16384));
 
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(200, 0.05), 2048);
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(300, 0.05), 4096);
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(700, 0.05), 8192);
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(1500, 0.05), 16384);
+  EXPECT_LE(BloomFilter::OptimalNumOfBits(200, 0.05), UINT32_C(2048));
+  EXPECT_LE(BloomFilter::OptimalNumOfBits(300, 0.05), UINT32_C(4096));
+  EXPECT_LE(BloomFilter::OptimalNumOfBits(700, 0.05), UINT32_C(8192));
+  EXPECT_LE(BloomFilter::OptimalNumOfBits(1500, 0.05), UINT32_C(16384));
 
   // Boundary check
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.01) / 8, 32);
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.01) / 8, UINT32_C(32));
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(std::numeric_limits<uint32_t>::max(), 0.01) / 8,
-            128 * 1024 * 1024);
+            UINT32_C(134217728));
 
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.25) / 8, 32);
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.25) / 8, UINT32_C(32));
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(std::numeric_limits<uint32_t>::max(), 0.25) / 8,
-            128 * 1024 * 1024);
+            UINT32_C(134217728));
 }
 
 }  // namespace test
