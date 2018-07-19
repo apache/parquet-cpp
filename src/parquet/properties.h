@@ -41,7 +41,7 @@ static bool DEFAULT_USE_BUFFERED_STREAM = false;
 // should find a better name???
 class PARQUET_EXPORT EncryptionProperties {
  private:
-  static inline uint8_t* str2bytes(std::string str) 
+  static inline uint8_t* str2bytes(std::string& str)
   {
     if (str.empty()) return nullptr;
 
@@ -103,7 +103,7 @@ class PARQUET_EXPORT ColumnEncryptionProperties {
   std::string key() { return key_; }
   std::string key_metadata() { return key_metadata_; }
 
-  void set_encryption_key(std::string key, uint32_t key_id)
+  void set_encryption_key(std::string key, uint32_t key_id = 0)
   {
     std::string key_metadata = key_id == 0
         ? "" : std::string(reinterpret_cast<char*>(&key_id), 4);
@@ -158,7 +158,13 @@ class PARQUET_EXPORT FileDecryptionProperties {
     if (key.length() != 16 && key.length() != 24 && key.length() != 32) 
       throw ParquetException("Wrong key length " + key.length());
 
-    // TODO add to columns_
+    for (auto path = paths.begin(); path != paths.end(); path++) {
+      column_keys_[*path] = key;
+    }
+  }
+
+  std::string column_key(std::string path) {
+    return column_keys_[path];
   }
 
   std::string footer_key() { return footer_key_; }
@@ -168,7 +174,7 @@ class PARQUET_EXPORT FileDecryptionProperties {
   std::string footer_key_;
   std::string aad_;
 
-  std::vector<ColumnEncryptionProperties> columns_;
+  std::unordered_map<std::string, std::string> column_keys_;
 };
 
 class PARQUET_EXPORT ReaderProperties {
@@ -317,7 +323,7 @@ class PARQUET_EXPORT FileEncryptionProperties {
     encrypt_the_rest_ = encrypt_the_rest;
     columns_ = columns;
 
-    if (!footer_key_metadata_.empty()) {
+    if (!footer_key_.empty()) {
       single_key_encryption_ = true;
 
       for (auto col = columns.begin(); col != columns.end(); col++) {
@@ -328,7 +334,7 @@ class PARQUET_EXPORT FileEncryptionProperties {
       }
     }
     else {
-      if (encrypt_the_rest) throw std::invalid_argument("Encrypt the rest with null footer key");
+      if (encrypt_the_rest) throw ParquetException("Encrypt the rest with null footer key");
       bool all_are_unencrypted = true;
       for (auto col = columns.begin(); col != columns.end(); col++) {
         if (col->encrypted()) {

@@ -146,14 +146,11 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
 
        // decrypt
         std::vector<uint8_t> decrypted_buffer(encryption->calculate_plain_size(clen));
-        std::vector<uint8_t> key_bytes(encryption->key_length());
-        for (int i = 0; i< encryption->key_length(); i++) {
-          key_bytes.push_back(encryption->key_bytes()[i]);
-        }
 
         int decrypted_buffer_len = parquet::decrypt(
                 encryption->algorithm(), true, &buf[4], clen,
-                key_bytes.data(), encryption->key_length(), nullptr, 0,
+                encryption->key_bytes(), encryption->key_length(),
+                encryption->aad_bytes(), encryption->aad_length(),
                 decrypted_buffer.data());
 
         if (decrypted_buffer_len <= 0) {

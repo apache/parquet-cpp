@@ -780,6 +780,8 @@ public:
 
     // file is not encrypted or uniform encrypted
     if (encrypt_md == nullptr) {
+      column_chunk_->__isset.meta_data = true;
+      column_chunk_->__set_meta_data(meta_data_);
       SerializeThriftMsg(column_chunk_, sizeof(format::ColumnChunk), sink);
     }
     else { // file is non-uniform encrypted
