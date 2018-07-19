@@ -211,7 +211,8 @@ inline int64_t SerializeThriftMsg(T* obj, uint32_t len, OutputStream* out,
     std::vector<uint8_t> cipher_buffer(encryption->calculate_cipher_size(len));
     int cipher_buffer_len = parquet::encrypt(
                 encryption->algorithm(), true, out_buffer, out_length,
-                encryption->key_bytes(), encryption->key_length(), nullptr, 0,
+                encryption->key_bytes(), encryption->key_length(),
+                encryption->aad_bytes(), encryption->aad_length(),
                 cipher_buffer.data());
 
     out->Write(reinterpret_cast<uint8_t*>(&cipher_buffer_len), 4);

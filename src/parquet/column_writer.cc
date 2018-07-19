@@ -172,7 +172,7 @@ class SerializedPageWriter : public PageWriter {
         int clen = parquet::encrypt(encryption_->algorithm(), false,
                                     compressed_data->data(), plen,
                                     encryption_->key_bytes(), encryption_->key_length(),
-                                    nullptr, 0,
+                                    encryption_->aad_bytes(), encryption_->aad_length(),
                                     cdata.data());
         data = cdata.data();
         data_len = clen;
@@ -255,7 +255,8 @@ class SerializedPageWriter : public PageWriter {
         int clen = parquet::encrypt(encryption_->algorithm(), false,
                                     compressed_data->data(), plen,
                                     encryption_->key_bytes(), encryption_->key_length(),
-                                    nullptr, 0, cdata.data());
+                                    encryption_->aad_bytes(), encryption_->aad_length(),
+                                    cdata.data());
         data = cdata.data();
         data_len = clen;
     }
