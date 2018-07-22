@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include "parquet/types.h"
+#include "parquet/util/memory.h"
 
 namespace parquet {
 
@@ -28,19 +29,22 @@ class BloomFilterAlgorithm {
  public:
   /// Test bits in the bitset according to the hash value.
   ///
-  /// @param bitset the bitset to test
-  /// @param num_bytes the number of bytes of bitset
   /// @param hash the hash used to calculate bit index to test
   /// @return true
-  virtual bool TestBits(const uint32_t* bitset, uint32_t num_bytes,
-                        uint64_t hash) const = 0;
+  virtual bool TestBits(uint64_t hash) const = 0;
 
   /// Set bits in the bitset according to the hash value
   ///
-  /// @param bitset the bitset to test
-  /// @param num_bytes the number of bytes of bitset
   /// @param hash the hash used to calculate bit index to set
-  virtual void SetBits(uint32_t* bitset, uint32_t num_bytes, uint64_t hash) const = 0;
+  virtual void SetBits(uint64_t hash) const = 0;
+
+  /// Write underlying bitset to an output stream.
+  ///
+  /// @param sink output stream to write
+  virtual void WriteTo(OutputStream* sink) const = 0;
+
+  /// Get the number of bytes of bitset
+  virtual uint32_t GetBitsetSize() const = 0;
 
   virtual ~BloomFilterAlgorithm() = default;
 };
@@ -69,15 +73,46 @@ class BlockBasedAlgorithm : public BloomFilterAlgorithm {
       0x47b6137bU, 0x44974d91U, 0x8824ad5bU, 0xa2b7289dU,
       0x705495c7U, 0x2df1424bU, 0x9efc4947U, 0x5c6bfb31U};
 
-  bool TestBits(const uint32_t* bitset, uint32_t num_bytes, uint64_t hash) const override;
+  /// The constructor of the block-based algorithm. It allocates an 64-byte aligned
+  /// buffer as underlying bitset to facilitate SIMD instructions.
+  ///
+  /// @param num_bytes number of bytes for bitset, it should be a power of 2.
+  explicit BlockBasedAlgorithm(uint32_t num_bytes);
 
-  void SetBits(uint32_t* bitset, uint32_t num_bytes, uint64_t hash) const override;
+  /// The constructor of the block-based algorithm. It copies the bitset as underlying
+  /// bitset because the given bitset may not satisfy the 64-byte alignment requirement
+  /// which may lead to segfault when performing SIMD instructions. It is the caller's
+  /// responsibility to free the bitset passed in.
+  ///
+  /// @param bitset the bitset to be used for constructor.
+  /// @param num_bytes the number of bytes for bitset, it should be a power of 2.
+  BlockBasedAlgorithm(const uint8_t* bitset, uint32_t num_bytes);
+
+  ~BlockBasedAlgorithm() {
+    if (pool_ && bitset32_) {
+      pool_->Free(reinterpret_cast<uint8_t*>(bitset32_), num_bytes_);
+    }
+  }
+
+  bool TestBits(uint64_t hash) const override;
+  void SetBits(uint64_t hash) const override;
+  void WriteTo(OutputStream* sink) const override;
+  uint32_t GetBitsetSize() const override { return num_bytes_; }
 
  private:
   /// Set bits in mask array according to input key.
   /// @param key the value to calculate mask values.
   /// @param mask the mask array is used to set inside a block
   void SetMask(uint32_t key, BlockMask& mask) const;
+
+  // Memory pool to allocate aligned buffer for bitset
+  ::arrow::MemoryPool* pool_;
+
+  // underlying bitset of bloom filter.
+  uint32_t* bitset32_;
+
+  // The number of bytes of Bloom filter bitset.
+  uint32_t num_bytes_;
 };
 
 }  // namespace parquet

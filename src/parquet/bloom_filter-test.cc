@@ -41,39 +41,17 @@ TEST(Murmur3Test, TestBloomFilter) {
 TEST(ConstructorTest, TestBloomFilter) {
   EXPECT_NO_THROW(BloomFilter bloom_filter1(1000));
 
-  std::unique_ptr<uint32_t[]> bitset1(new uint32_t[1024]());
+  // It throws because the length does not match the bitset
+  std::unique_ptr<uint8_t[]> bitset1(new uint8_t[1024]());
   EXPECT_THROW(new BloomFilter(bitset1.get(), 0), ParquetException);
 
+  // It throws because the bitset is NULL
   EXPECT_THROW(new BloomFilter(NULL, 1024), ParquetException);
 
-  std::unique_ptr<uint32_t[]> bitset2(new uint32_t[1024]());
+  std::unique_ptr<uint8_t[]> bitset2(new uint8_t[1024]());
 
   // It throws because the number of bytes of Bloom filter bitset must be a power of 2.
   EXPECT_THROW(new BloomFilter(bitset2.get(), 1023), ParquetException);
-}
-
-void DeserializeBloomFilter(InputStream* input, BloomFilter** bloom_filter) {
-  int64_t bytes_available;
-
-  uint32_t len = *(
-      reinterpret_cast<const uint32_t*>(input->Read(sizeof(uint32_t), &bytes_available)));
-  EXPECT_EQ(static_cast<uint32_t>(bytes_available), sizeof(uint32_t));
-
-  uint32_t hash = *(
-      reinterpret_cast<const uint32_t*>(input->Read(sizeof(uint32_t), &bytes_available)));
-  EXPECT_EQ(static_cast<uint32_t>(bytes_available), sizeof(uint32_t));
-  EXPECT_EQ(hash, 0);
-
-  uint32_t algorithm = *(
-      reinterpret_cast<const uint32_t*>(input->Read(sizeof(uint32_t), &bytes_available)));
-  EXPECT_EQ(static_cast<uint32_t>(bytes_available), sizeof(uint32_t));
-  EXPECT_EQ(algorithm, 0);
-
-  const uint32_t* bitset =
-      reinterpret_cast<const uint32_t*>(input->Read(len, &bytes_available));
-  EXPECT_EQ(len, bytes_available);
-
-  *bloom_filter = new BloomFilter(bitset, len);
 }
 
 // The BasicTest is used to test basic operations including InsertHash, FindHash and
@@ -97,8 +75,7 @@ TEST(BasicTest, TestBloomFilter) {
   // Deserialize Bloom filter from memory
   InMemoryInputStream source(sink.GetBuffer());
 
-  BloomFilter* de_bloom = NULL;
-  DeserializeBloomFilter(&source, &de_bloom);
+  BloomFilter* de_bloom = BloomFilter::Deserialize(&source);
 
   for (int i = 0; i < 10; i++) {
     EXPECT_TRUE(de_bloom->FindHash(de_bloom->Hash(i)));
@@ -127,7 +104,7 @@ std::string GetRandomString(uint32_t length) {
 }
 
 TEST(FPPTest, TestBloomFilter) {
-  // The exist counts the number of times FindHash returns true.
+  // It counts the number of times FindHash returns true.
   int exist = 0;
 
   // Total count of elements that will be used
@@ -139,22 +116,22 @@ TEST(FPPTest, TestBloomFilter) {
   std::vector<std::string> members;
   BloomFilter bloom_filter(BloomFilter::OptimalNumOfBits(total_count, fpp));
 
-  // Insert elements into the Bloom filter and serialize to memory
+  // Insert elements into the Bloom filter
   for (int i = 0; i < total_count; i++) {
     // Insert random string which length is 8
     std::string tmp = GetRandomString(8);
-    ByteArray byte_array(8, reinterpret_cast<const uint8_t*>(tmp.c_str()));
+    const ByteArray byte_array(8, reinterpret_cast<const uint8_t*>(tmp.c_str()));
     members.push_back(tmp);
-    bloom_filter.InsertHash(bloom_filter.Hash<const ByteArray*>(&byte_array));
+    bloom_filter.InsertHash(bloom_filter.Hash(&byte_array));
   }
 
   for (int i = 0; i < total_count; i++) {
-    ByteArray byte_array1(8, reinterpret_cast<const uint8_t*>(members[i].c_str()));
-    ASSERT_TRUE(bloom_filter.FindHash(bloom_filter.Hash<const ByteArray*>(&byte_array1)));
+    const ByteArray byte_array1(8, reinterpret_cast<const uint8_t*>(members[i].c_str()));
+    ASSERT_TRUE(bloom_filter.FindHash(bloom_filter.Hash(&byte_array1)));
     std::string tmp = GetRandomString(7);
-    ByteArray byte_array2(7, reinterpret_cast<const uint8_t*>(tmp.c_str()));
+    const ByteArray byte_array2(7, reinterpret_cast<const uint8_t*>(tmp.c_str()));
 
-    if (bloom_filter.FindHash(bloom_filter.Hash<const ByteArray*>(&byte_array2))) {
+    if (bloom_filter.FindHash(bloom_filter.Hash(&byte_array2))) {
       exist++;
     }
   }
@@ -172,22 +149,25 @@ TEST(FPPTest, TestBloomFilter) {
 // Step 2: Insert "hello", "parquet", "bloom", "filter" to Bloom filter.
 // Step 3: Call writeTo API to write to File.
 TEST(CompatibilityTest, TestBloomFilter) {
-  int64_t size;
   const std::string test_string[4] = {"hello", "parquet", "bloom", "filter"};
-  const std::string test_data_path(test::get_data_dir());
-  const std::string bloom_filter_test_binary = test_data_path + "/bloom_filter.bin";
+  const std::string bloom_filter_test_binary =
+      std::string(test::get_data_dir()) + "/bloom_filter.bin";
   std::shared_ptr<::arrow::io::ReadableFile> handle;
 
+  int64_t size;
   PARQUET_THROW_NOT_OK(
       ::arrow::io::ReadableFile::Open(bloom_filter_test_binary, &handle));
   PARQUET_THROW_NOT_OK(handle->GetSize(&size));
+
+  // 1024 bytes (bitset) + 4 bytes (hash) + 4 bytes (algorithm) + 4 bytes (length)
+  EXPECT_EQ(size, 1036);
+
   std::unique_ptr<uint8_t[]> bitset(new uint8_t[size]());
   std::shared_ptr<Buffer> buffer(new Buffer(bitset.get(), size));
   handle->Read(size, &buffer);
 
   InMemoryInputStream source(buffer);
-  BloomFilter* bloom_filter1 = NULL;
-  DeserializeBloomFilter(&source, &bloom_filter1);
+  BloomFilter* bloom_filter1 = BloomFilter::Deserialize(&source);
 
   for (int i = 0; i < 4; i++) {
     const ByteArray tmp(static_cast<uint32_t>(test_string[i].length()),
@@ -226,25 +206,25 @@ TEST(CompatibilityTest, TestBloomFilter) {
 // Also it is used to test whether OptimalNumOfBits returns value between
 // [MINIMUM_BLOOM_FILTER_SIZE, MAXIMUM_BLOOM_FILTER_SIZE].
 TEST(OptimalValueTest, TestBloomFilter) {
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(256, 0.01), UINT32_C(2048));
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(512, 0.01), UINT32_C(4096));
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(1024, 0.01), UINT32_C(8192));
-  EXPECT_GT(BloomFilter::OptimalNumOfBits(2048, 0.01), UINT32_C(16384));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(256, 0.01), UINT32_C(4096));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(512, 0.01), UINT32_C(8192));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1024, 0.01), UINT32_C(16384));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(2048, 0.01), UINT32_C(32768));
 
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(200, 0.01), UINT32_C(2048));
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(300, 0.01), UINT32_C(4096));
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(700, 0.01), UINT32_C(8192));
-  EXPECT_GE(BloomFilter::OptimalNumOfBits(1500, 0.01), UINT32_C(16384));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.01), UINT32_C(2048));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.01), UINT32_C(4096));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.01), UINT32_C(8192));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.01), UINT32_C(16384));
 
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.025), UINT32_C(2048));
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.025), UINT32_C(4096));
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.025), UINT32_C(8192));
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.025), UINT32_C(16384));
 
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(200, 0.05), UINT32_C(2048));
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(300, 0.05), UINT32_C(4096));
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(700, 0.05), UINT32_C(8192));
-  EXPECT_LE(BloomFilter::OptimalNumOfBits(1500, 0.05), UINT32_C(16384));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.05), UINT32_C(2048));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.05), UINT32_C(4096));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.05), UINT32_C(8192));
+  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.05), UINT32_C(16384));
 
   // Boundary check
   EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.01) / 8, UINT32_C(32));

@@ -16,10 +16,39 @@
 // under the License.
 
 #include "parquet/bloom_filter_algorithm.h"
+#include "arrow/status.h"
+#include "arrow/util/bit-util.h"
+#include "parquet/exception.h"
 #include "parquet/types.h"
 
 namespace parquet {
 constexpr uint32_t BlockBasedAlgorithm::SALT[BITS_SET_PER_BLOCK];
+
+BlockBasedAlgorithm::BlockBasedAlgorithm(uint32_t num_bytes)
+    : pool_(::arrow::default_memory_pool()) {
+  if ((num_bytes & (num_bytes - 1)) != 0) {
+    throw ParquetException("num_bytes is not a power of 2");
+  }
+
+  num_bytes_ = num_bytes;
+
+  ::arrow::Status status =
+      pool_->Allocate(num_bytes, reinterpret_cast<uint8_t**>(&bitset32_));
+  if (!status.ok()) {
+    throw parquet::ParquetException("Failed to allocate buffer for bitset");
+  }
+
+  memset(bitset32_, 0, num_bytes_);
+}
+
+BlockBasedAlgorithm::BlockBasedAlgorithm(const uint8_t* bitset, uint32_t num_bytes)
+    : BlockBasedAlgorithm(num_bytes) {
+  if (!bitset) {
+    throw ParquetException("Given bitste is NULL");
+  }
+
+  memcpy(bitset32_, bitset, num_bytes_);
+}
 
 void BlockBasedAlgorithm::SetMask(uint32_t key, BlockMask& block_mask) const {
   for (int i = 0; i < BITS_SET_PER_BLOCK; ++i) {
@@ -35,10 +64,9 @@ void BlockBasedAlgorithm::SetMask(uint32_t key, BlockMask& block_mask) const {
   }
 }
 
-bool BlockBasedAlgorithm::TestBits(const uint32_t* bitset, uint32_t num_bytes,
-                                   uint64_t hash) const {
+bool BlockBasedAlgorithm::TestBits(uint64_t hash) const {
   const uint32_t bucket_index =
-      static_cast<uint32_t>((hash >> 32) & (num_bytes / BYTES_PER_FILTER_BLOCK - 1));
+      static_cast<uint32_t>((hash >> 32) & (num_bytes_ / BYTES_PER_FILTER_BLOCK - 1));
   uint32_t key = static_cast<uint32_t>(hash);
 
   // Calculate mask for bucket.
@@ -46,17 +74,16 @@ bool BlockBasedAlgorithm::TestBits(const uint32_t* bitset, uint32_t num_bytes,
   SetMask(key, block_mask);
 
   for (int i = 0; i < BITS_SET_PER_BLOCK; ++i) {
-    if (0 == (bitset[BITS_SET_PER_BLOCK * bucket_index + i] & block_mask.item[i])) {
+    if (0 == (bitset32_[BITS_SET_PER_BLOCK * bucket_index + i] & block_mask.item[i])) {
       return false;
     }
   }
   return true;
 }
 
-void BlockBasedAlgorithm::SetBits(uint32_t* bitset, uint32_t num_bytes,
-                                  uint64_t hash) const {
+void BlockBasedAlgorithm::SetBits(uint64_t hash) const {
   const uint32_t bucket_index =
-      static_cast<uint32_t>(hash >> 32) & (num_bytes / BYTES_PER_FILTER_BLOCK - 1);
+      static_cast<uint32_t>(hash >> 32) & (num_bytes_ / BYTES_PER_FILTER_BLOCK - 1);
   uint32_t key = static_cast<uint32_t>(hash);
 
   // Calculate mask for bucket.
@@ -64,8 +91,12 @@ void BlockBasedAlgorithm::SetBits(uint32_t* bitset, uint32_t num_bytes,
   SetMask(key, block_mask);
 
   for (int i = 0; i < BITS_SET_PER_BLOCK; i++) {
-    bitset[bucket_index * BITS_SET_PER_BLOCK + i] |= block_mask.item[i];
+    bitset32_[bucket_index * BITS_SET_PER_BLOCK + i] |= block_mask.item[i];
   }
+}
+
+void BlockBasedAlgorithm::WriteTo(OutputStream* sink) const {
+  sink->Write(reinterpret_cast<const uint8_t*>(bitset32_), num_bytes_);
 }
 
 }  // namespace parquet

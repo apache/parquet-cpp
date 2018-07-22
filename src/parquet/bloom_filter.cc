@@ -30,13 +30,7 @@
 namespace parquet {
 
 BloomFilter::BloomFilter(uint32_t num_bytes)
-    : pool_(::arrow::default_memory_pool()),
-      bitset_(NULL),
-      external_bitset_(NULL),
-      is_internal_bitset_(true),
-      num_bytes_(num_bytes),
-      hash_strategy_(HashStrategy::MURMUR3_X64_128),
-      algorithm_(Algorithm::BLOCK) {
+    : hash_strategy_(HashStrategy::MURMUR3_X64_128), algorithm_(Algorithm::BLOCK) {
   switch (hash_strategy_) {
     case HashStrategy::MURMUR3_X64_128:
       this->hasher_.reset(new MurmurHash3());
@@ -45,19 +39,7 @@ BloomFilter::BloomFilter(uint32_t num_bytes)
       throw parquet::ParquetException("Unsupported hash strategy.");
   }
 
-  switch (algorithm_) {
-    case Algorithm::BLOCK:
-      this->bloom_algorithm_.reset(new BlockBasedAlgorithm());
-      break;
-    default:
-      throw parquet::ParquetException("Unsupported Bloom filter algorithm");
-  }
-
-  InitBitset(num_bytes);
-}
-
-void BloomFilter::InitBitset(uint32_t num_bytes) {
-  if (num_bytes < MINIMUM_BLOOM_FILTER_BYTES) {
+  if (num_bytes < BloomFilter::MINIMUM_BLOOM_FILTER_BYTES) {
     num_bytes = MINIMUM_BLOOM_FILTER_BYTES;
   }
 
@@ -70,36 +52,23 @@ void BloomFilter::InitBitset(uint32_t num_bytes) {
     num_bytes = MAXIMUM_BLOOM_FILTER_BYTES;
   }
 
-  ::arrow::Status status = pool_->Allocate(num_bytes,
-                                           reinterpret_cast<uint8_t**>(&bitset_));
-  if (!status.ok()) {
-    throw parquet::ParquetException("Failed to allocate buffer for bitset");
+  switch (algorithm_) {
+    case Algorithm::BLOCK:
+      this->bloom_filter_algorithm_.reset(new BlockBasedAlgorithm(num_bytes));
+      break;
+    default:
+      throw parquet::ParquetException("Unsupported Bloom filter algorithm");
   }
-  memset(bitset_, 0, num_bytes_);
 }
 
-BloomFilter::BloomFilter(const uint32_t *bitset, uint32_t num_bytes)
-    : pool_(::arrow::default_memory_pool()),
-      bitset_(NULL),
-      external_bitset_(NULL),
-      is_internal_bitset_(false),
-      num_bytes_(num_bytes),
-      hash_strategy_(HashStrategy::MURMUR3_X64_128),
-      algorithm_(Algorithm::BLOCK) {
+BloomFilter::BloomFilter(const uint8_t* bitset, uint32_t num_bytes)
+    : hash_strategy_(HashStrategy::MURMUR3_X64_128), algorithm_(Algorithm::BLOCK) {
   switch (hash_strategy_) {
     case HashStrategy::MURMUR3_X64_128:
       this->hasher_.reset(new MurmurHash3());
       break;
     default:
       throw parquet::ParquetException("Unsupported hash strategy");
-  }
-
-  switch (algorithm_) {
-    case Algorithm::BLOCK:
-      this->bloom_algorithm_.reset(new BlockBasedAlgorithm());
-      break;
-    default:
-      throw parquet::ParquetException("Unsupported Bloom filter algorithm");
   }
 
   if (!bitset) {
@@ -111,13 +80,43 @@ BloomFilter::BloomFilter(const uint32_t *bitset, uint32_t num_bytes)
     throw parquet::ParquetException("Given length of bitset is illegal");
   }
 
-  if (reinterpret_cast<std::uintptr_t>(bitset) % 64 == 0) {
-    this->external_bitset_ = bitset;
-  } else {
-    InitBitset(num_bytes);
-    memcpy(bitset_, bitset, num_bytes);
-    is_internal_bitset_ = true;
+  switch (algorithm_) {
+    case Algorithm::BLOCK:
+      this->bloom_filter_algorithm_.reset(new BlockBasedAlgorithm(bitset, num_bytes));
+      break;
+    default:
+      throw parquet::ParquetException("Unsupported Bloom filter algorithm");
   }
+}
+
+BloomFilter* BloomFilter::Deserialize(InputStream* input) {
+  int64_t bytes_available;
+
+  uint32_t len;
+  memcpy(&len, input->Read(sizeof(uint32_t), &bytes_available), sizeof(uint32_t));
+  if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t)) {
+    throw ParquetException("Failed to deserialize from input stream");
+  }
+
+  uint32_t hash;
+  memcpy(&hash, input->Read(sizeof(uint32_t), &bytes_available), sizeof(uint32_t));
+  if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t)) {
+    throw ParquetException("Failed to deserialize from input stream");
+  }
+  if (static_cast<HashStrategy>(hash) != HashStrategy::MURMUR3_X64_128) {
+    throw ParquetException("Unsupported hash strategy");
+  }
+
+  uint32_t algorithm;
+  memcpy(&algorithm, input->Read(sizeof(uint32_t), &bytes_available), sizeof(uint32_t));
+  if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t)) {
+    throw ParquetException("Failed to deserialize from input stream");
+  }
+  if (static_cast<Algorithm>(algorithm) != BloomFilter::Algorithm::BLOCK) {
+    throw ParquetException("Unsupported Bloom filter algorithm");
+  }
+
+  return new BloomFilter(input->Read(len, &bytes_available), len);
 }
 
 uint32_t BloomFilter::OptimalNumOfBits(uint32_t ndv, double fpp) {
@@ -148,35 +147,22 @@ uint32_t BloomFilter::OptimalNumOfBits(uint32_t ndv, double fpp) {
   return num_bits;
 }
 
-void BloomFilter::InsertHash(uint64_t hash) {
-  if (!is_internal_bitset_) {
-    InitBitset(num_bytes_);
-    memcpy(bitset_, external_bitset_, num_bytes_);
-    is_internal_bitset_ = true;
-  }
-  bloom_algorithm_->SetBits(bitset_, num_bytes_, hash);
-}
+void BloomFilter::InsertHash(uint64_t hash) { bloom_filter_algorithm_->SetBits(hash); }
 
 bool BloomFilter::FindHash(uint64_t hash) const {
-  if (is_internal_bitset_) {
-    return bloom_algorithm_->TestBits(bitset_, num_bytes_, hash);
-  } else {
-    return bloom_algorithm_->TestBits(external_bitset_, num_bytes_, hash);
-  }
+  return bloom_filter_algorithm_->TestBits(hash);
 }
 
 void BloomFilter::WriteTo(OutputStream* sink) const {
   if (!sink) {
     throw ParquetException("Given output stream is NULL.");
   }
-  sink->Write(reinterpret_cast<const uint8_t*>(&num_bytes_), sizeof(num_bytes_));
+
+  const uint32_t num_bytes = bloom_filter_algorithm_->GetBitsetSize();
+  sink->Write(reinterpret_cast<const uint8_t*>(&num_bytes), sizeof(num_bytes));
   sink->Write(reinterpret_cast<const uint8_t*>(&hash_strategy_), sizeof(hash_strategy_));
   sink->Write(reinterpret_cast<const uint8_t*>(&algorithm_), sizeof(algorithm_));
-  if (is_internal_bitset_) {
-    sink->Write(reinterpret_cast<const uint8_t*>(bitset_), num_bytes_);
-  } else {
-    sink->Write(reinterpret_cast<const uint8_t*>(external_bitset_), num_bytes_);
-  }
+  bloom_filter_algorithm_->WriteTo(sink);
 }
 
 }  // namespace parquet
