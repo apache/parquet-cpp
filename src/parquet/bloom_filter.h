@@ -56,7 +56,7 @@ class BloomFilter final {
   /// Deserialize the Bloom filter from an input stream, it is used when reconstructing
   /// a Bloom filter from a parquet filter.
   ///
-  /// @param input The input stream from which to construct the Bloom filter
+  /// @param input_stream The input stream from which to construct the Bloom filter
   /// @return it returns a Bloom filter pointer point to a new allocated Bloom filter.
   static BloomFilter* Deserialize(InputStream* input_stream);
 
