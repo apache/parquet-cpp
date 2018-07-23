@@ -28,6 +28,7 @@
 #include "parquet/types.h"
 #include "parquet/util/memory.h"
 #include "parquet/util/visibility.h"
+#include "parquet/decryption_key_retriever.h"
 
 namespace parquet {
 
@@ -142,17 +143,17 @@ class PARQUET_EXPORT FileDecryptionProperties {
     }
   }
 
-  // TODO
-  // FileDecryptionProperties(std::shared_ptr<DecryptionKeyRetriever> keyRetriever) {}
+   FileDecryptionProperties(std::shared_ptr<DecryptionKeyRetriever> key_retriever)
+     : key_retriever_(key_retriever) {}
 
-  void aad(std::string aad) { aad_ = aad; }
+  void set_aad(std::string aad) { aad_ = aad; }
   
-  void column_key(std::string name, std::string key)
+  void set_column_key(std::string name, std::string key)
   {
-    column_key(std::vector<std::string>({name}), key);
+    set_column_key(std::vector<std::string>({name}), key);
   }
 
-  void column_key(std::vector<std::string> paths, std::string key)
+  void set_column_key(std::vector<std::string> paths, std::string key)
   {
     if (key.empty()) throw ParquetException("Decryption: null column key");
     if (key.length() != 16 && key.length() != 24 && key.length() != 32) 
@@ -163,11 +164,25 @@ class PARQUET_EXPORT FileDecryptionProperties {
     }
   }
 
-  std::string column_key(std::string path) {
-    return column_keys_[path];
+  std::string column_key(std::string path, std::string key_metadata = "") {
+    if (key_metadata.empty()) {
+      return column_keys_[path];
+    }
+    if (key_retriever_ == nullptr) {
+      throw ParquetException("no key retriever is provided for column key metadata");
+    }
+    return key_retriever_->get_key(key_metadata);
   }
 
-  std::string footer_key() { return footer_key_; }
+  std::string footer_key(std::string footer_key_metadata = "") {
+    if (footer_key_metadata.empty()) {
+      return footer_key_;
+    }
+    if (key_retriever_ == nullptr) {
+      throw ParquetException("no key retriever is provided for footer key metadata");
+    }
+    return key_retriever_->get_key(footer_key_metadata);
+  }
   std::string aad() { return aad_; }
 
  private:
@@ -175,6 +190,8 @@ class PARQUET_EXPORT FileDecryptionProperties {
   std::string aad_;
 
   std::unordered_map<std::string, std::string> column_keys_;
+
+  std::shared_ptr<DecryptionKeyRetriever> key_retriever_;
 };
 
 class PARQUET_EXPORT ReaderProperties {
@@ -578,7 +595,23 @@ class PARQUET_EXPORT WriterProperties {
       return encryption(Encryption::AES_GCM_V1, key, 0);
     }
 
+    Builder* encryption(std::string key, uint32_t key_id)
+    {
+      return encryption(Encryption::AES_GCM_V1, key, key_id);
+    }
+
+    Builder* encryption(std::string key, std::string key_id)
+    {
+      return encryption(Encryption::AES_GCM_V1, key, key_id);
+    }
+
     Builder* encryption(Encryption::type algorithm, std::string key, uint32_t key_id)
+    {
+      file_encryption_.reset(new FileEncryptionProperties(algorithm, key, key_id));
+      return this;
+    }
+
+    Builder* encryption(Encryption::type algorithm, std::string key, std::string key_id)
     {
       file_encryption_.reset(new FileEncryptionProperties(algorithm, key, key_id));
       return this;

@@ -95,8 +95,6 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       : source_(source), file_metadata_(file_metadata),
         file_crypto_metadata_(file_crypto_metadata), properties_(props) {
     row_group_metadata_ = file_metadata->RowGroup(row_group_number);
-
-//    if (row_group_number == 0) // TODO
   }
 
   const RowGroupMetaData* metadata() const override { return row_group_metadata_.get(); }
@@ -162,14 +160,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
     if (encrypted_with_footer_key) {
       std::string footer_key_metadata = file_crypto_metadata_->footer_key_metadata();
-      std::string footer_key;
-
-      if (footer_key_metadata.empty()) {
-        footer_key = file_decryption->footer_key();
-      }
-      else {
-        // TODO: get key retriver to get key
-      }
+      std::string footer_key = file_decryption->footer_key(footer_key_metadata);
 
       if (footer_key.empty()) {
         throw ParquetException("column is encrypted with null footer key");
@@ -187,15 +178,11 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                               footer_encryption, properties_.memory_pool());
     }
 
-    // encrypted with column key
     std::string column_key_metadata = crypto_meta_data->column_key_metadata();
-    std::string column_key;
-    if (column_key_metadata.empty()) {
-      column_key = file_decryption->column_key(col->path_in_schema()->ToDotString());
-    }
-    else {
-      // TODO: get from key retriever
-    }
+    // encrypted with column key
+    std::string column_key = file_decryption->column_key(
+          col->path_in_schema()->ToDotString(),
+          crypto_meta_data->column_key_metadata());
 
     if (column_key.empty()) {
       throw ParquetException("column is encrypted with null key, path="
@@ -342,14 +329,9 @@ class SerializedFile : public ParquetFileReader::Contents {
         if (file_crypto_metadata_->encrypted_footer()) {
           // get footer key metadata
           std::string footer_key_metadata = file_crypto_metadata_->footer_key_metadata();
-          std::string footer_key;
+
           auto file_decryption = properties_.file_decryption();
-          if (footer_key_metadata.empty()) {
-            footer_key = file_decryption->footer_key();
-          }
-          else {
-            // TODO: get key retriver to get key
-          }
+          std::string footer_key = file_decryption->footer_key(footer_key_metadata);
 
           auto footer_encryption = std::make_shared<EncryptionProperties>(
               file_crypto_metadata_->encryption_algorithm(),
