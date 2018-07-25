@@ -320,8 +320,7 @@ using ParquetDataType = DataType<test_traits<T>::parquet_enum>;
 template <typename T>
 using ParquetWriter = TypedColumnWriter<ParquetDataType<T>>;
 
-void WriteTableToBuffer(const std::shared_ptr<Table>& table,
-                        int64_t row_group_size,
+void WriteTableToBuffer(const std::shared_ptr<Table>& table, int64_t row_group_size,
                         const std::shared_ptr<ArrowWriterProperties>& arrow_properties,
                         std::shared_ptr<Buffer>* out) {
   auto sink = std::make_shared<InMemoryOutputStream>();
@@ -427,8 +426,8 @@ void CheckSimpleRoundtrip(const std::shared_ptr<Table>& table, int64_t row_group
                           const std::shared_ptr<ArrowWriterProperties>& arrow_properties =
                               default_arrow_writer_properties()) {
   std::shared_ptr<Table> result;
-  DoSimpleRoundtrip(table, false /* use_threads */, row_group_size, {},
-                    &result, arrow_properties);
+  DoSimpleRoundtrip(table, false /* use_threads */, row_group_size, {}, &result,
+                    arrow_properties);
   ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*table, *result, false));
 }
 
@@ -1277,8 +1276,8 @@ TEST(TestArrowReadWrite, DateTimeTypes) {
   ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*table, *result));
 
   // Cast nanaoseconds to microseconds and use INT64 physical type
-  ASSERT_NO_FATAL_FAILURE(DoSimpleRoundtrip(table, false /* use_threads */,
-                                            table->num_rows(), {}, &result));
+  ASSERT_NO_FATAL_FAILURE(
+      DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {}, &result));
   std::shared_ptr<Table> expected;
   MakeDateTimeTypesTable(&table, true);
 
@@ -1474,8 +1473,8 @@ TEST(TestArrowReadWrite, ConvertedDateTimeTypes) {
   auto ex_table = Table::Make(ex_schema, ex_columns);
 
   std::shared_ptr<Table> result;
-  ASSERT_NO_FATAL_FAILURE(DoSimpleRoundtrip(table, false /* use_threads */,
-                                            table->num_rows(), {}, &result));
+  ASSERT_NO_FATAL_FAILURE(
+      DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {}, &result));
 
   ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*ex_table, *result));
 }
@@ -1518,8 +1517,8 @@ TEST(TestArrowReadWrite, CoerceTimestampsAndSupportDeprecatedInt96) {
                                      ->build();
 
   std::shared_ptr<Table> result;
-  DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {},
-                    &result, arrow_writer_properties);
+  DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {}, &result,
+                    arrow_writer_properties);
 
   ASSERT_EQ(table->num_columns(), result->num_columns());
   ASSERT_EQ(table->num_rows(), result->num_rows());
