@@ -62,6 +62,10 @@ TEST(TestLogicalTypeToString, LogicalTypes) {
 }
 
 TEST(TypePrinter, StatisticsTypes) {
+#if !(defined(_WIN32) || defined(__CYGWIN__))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
   std::string smin;
   std::string smax;
   int32_t int_min = 1024;
@@ -130,6 +134,9 @@ TEST(TypePrinter, StatisticsTypes) {
   ASSERT_STREQ("ijklmnop", FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smax).c_str());
   ASSERT_STREQ("ijklmnop",
                FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smax.c_str()).c_str());
+#if !(defined(_WIN32) || defined(__CYGWIN__))
+#pragma GCC diagnostic pop
+#endif
 }
 
 }  // namespace parquet
