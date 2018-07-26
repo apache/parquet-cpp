@@ -124,12 +124,10 @@ TEST(TypePrinter, StatisticsTypes) {
 
   smin = std::string("abcdefgh");
   smax = std::string("ijklmnop");
-  ASSERT_STREQ("abcdefgh",
-               FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smin).c_str());
+  ASSERT_STREQ("abcdefgh", FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smin).c_str());
   ASSERT_STREQ("abcdefgh",
                FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smin.c_str()).c_str());
-  ASSERT_STREQ("ijklmnop",
-               FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smax).c_str());
+  ASSERT_STREQ("ijklmnop", FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smax).c_str());
   ASSERT_STREQ("ijklmnop",
                FormatStatValue(Type::FIXED_LEN_BYTE_ARRAY, smax.c_str()).c_str());
 }

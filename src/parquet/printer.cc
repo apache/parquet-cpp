@@ -207,8 +207,7 @@ void ParquetFilePrinter::JSONPrint(std::ostream& stream, std::list<int> selected
         std::string min = stats->EncodeMin(), max = stats->EncodeMax();
         stream << "\"NumNulls\": \"" << stats->null_count() << "\", "
                << "\"DistinctValues\": \"" << stats->distinct_count() << "\", "
-               << "\"Max\": \"" << FormatStatValue(descr->physical_type(), max)
-               << "\", "
+               << "\"Max\": \"" << FormatStatValue(descr->physical_type(), max) << "\", "
                << "\"Min\": \"" << FormatStatValue(descr->physical_type(), min)
                << "\" },";
       } else {

@@ -52,16 +52,16 @@ using arrow::Buffer;
 using arrow::ChunkedArray;
 using arrow::Column;
 using arrow::DataType;
+using arrow::default_memory_pool;
 using arrow::ListArray;
-using arrow::ResizableBuffer;
 using arrow::PrimitiveArray;
+using arrow::ResizableBuffer;
 using arrow::Status;
 using arrow::Table;
 using arrow::TimeUnit;
 using arrow::compute::Datum;
 using arrow::compute::DictionaryEncode;
 using arrow::compute::FunctionContext;
-using arrow::default_memory_pool;
 using arrow::io::BufferReader;
 
 using arrow::test::randint;
@@ -1453,13 +1453,13 @@ TEST(TestArrowReadWrite, ConvertedDateTimeTypes) {
 // Regression for ARROW-2802
 TEST(TestArrowReadWrite, CoerceTimestampsAndSupportDeprecatedInt96) {
   using ::arrow::Column;
+  using ::arrow::default_memory_pool;
   using ::arrow::Field;
   using ::arrow::Schema;
   using ::arrow::Table;
-  using ::arrow::TimeUnit;
   using ::arrow::TimestampBuilder;
   using ::arrow::TimestampType;
-  using ::arrow::default_memory_pool;
+  using ::arrow::TimeUnit;
 
   auto timestamp_type = std::make_shared<TimestampType>(TimeUnit::NANO);
 

@@ -292,7 +292,8 @@ PARQUET_EXPORT std::string LogicalTypeToString(LogicalType::type t);
 
 PARQUET_EXPORT std::string TypeToString(Type::type t);
 
-PARQUET_EXPORT std::string FormatStatValue(Type::type parquet_type, const std::string& val);
+PARQUET_EXPORT std::string FormatStatValue(Type::type parquet_type,
+                                           const std::string& val);
 
 /// \deprecated Since 1.5.0
 PARQUET_EXPORT std::string FormatStatValue(Type::type parquet_type, const char* val);
