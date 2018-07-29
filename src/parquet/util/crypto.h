@@ -19,7 +19,8 @@
 #ifndef PARQUET_UTIL_CRYPTO_H
 #define PARQUET_UTIL_CRYPTO_H
 
-#include "parquet/types.h" 
+#include "parquet/types.h"
+#include "parquet/properties.h"
 
 namespace parquet {
 
@@ -27,13 +28,19 @@ int encrypt(Encryption::type alg_id, bool metadata,
                    const uint8_t *plaintext, int plaintext_len, 
                    uint8_t *key, int key_len, uint8_t *aad, int aad_len, 
                    uint8_t *ciphertext);
-
+                   
+int encrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata, 
+                   const uint8_t *plaintext, int plaintext_len,
+                   uint8_t *ciphertext);
 
 int decrypt(Encryption::type alg_id, bool metadata,
                    const uint8_t *ciphertext, int ciphertext_len,  
                    uint8_t *key, int key_len, uint8_t *aad, int aad_len, 
                    uint8_t *plaintext);
 
+int decrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata,
+                   const uint8_t *ciphertext, int ciphertext_len,
+                   uint8_t *plaintext);
 }  // namespace parquet
 
 #endif //PARQUET_UTIL_CRYPTO_H

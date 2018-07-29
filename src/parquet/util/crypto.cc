@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
+#include <memory>
 #include "parquet/util/crypto.h"
 #include <openssl/aes.h>
 #include <openssl/evp.h>
@@ -27,75 +27,89 @@
 
 namespace parquet {
 
-const int gcm_tag_len = 16;
-const int gcm_iv_len = 12;
-const int ctr_iv_len = 16;
+constexpr int gcm_tag_len = 16;
+constexpr int gcm_iv_len = 12;
+constexpr int ctr_iv_len = 16;
+constexpr long max_bytes = 32;
 
-void handleError(const char *message, EVP_CIPHER_CTX *ctx) {
-  if (NULL != ctx) EVP_CIPHER_CTX_free(ctx);
-  std::stringstream ss;
-  ss << message;
-  throw parquet::ParquetException(ss.str());
-}
+struct EvpCipherCtxDeleter {
+  void operator()(EVP_CIPHER_CTX *ctx) const {
+    if (nullptr != ctx) { 
+      EVP_CIPHER_CTX_free(ctx);
+   }
+  }
+};
+
+using EvpCipherCtxPtr = std::unique_ptr<EVP_CIPHER_CTX, EvpCipherCtxDeleter>;
 
 int gcm_encrypt(const uint8_t *plaintext, int plaintext_len, 
                    uint8_t *key, int key_len, uint8_t *aad, int aad_len, 
                    uint8_t *ciphertext) 
 {
-  EVP_CIPHER_CTX *ctx = NULL;
-
   int len;
   int ciphertext_len;
   uint8_t tag[gcm_tag_len];
   uint8_t iv[gcm_iv_len];
   
   // Random IV
-  RAND_load_file("/dev/urandom", 32);
+  RAND_load_file("/dev/urandom", max_bytes);
   RAND_bytes(iv, sizeof(iv));
 
   // Init cipher context
-  if(!(ctx = EVP_CIPHER_CTX_new())) {
-    handleError("Couldn't init cipher context", ctx);
+  EvpCipherCtxPtr ctx(EVP_CIPHER_CTX_new());
+  if(nullptr == ctx.get()) {
+    throw ParquetException("Couldn't init cipher context");
   }
 
-  // Init AES-GCM with 128-bit key
-  if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL)) {
-    handleError("Couldn't init AES_GCM_128 encryption", ctx);
+  if (16 == key_len) {
+    // Init AES-GCM with 128-bit key
+    if(1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_128_gcm(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_GCM_128 encryption");
+    }
+  }
+  else if (24 == key_len) {
+    // Init AES-GCM with 192-bit key
+    if(1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_192_gcm(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_GCM_192 encryption");
+    }
+  }
+  else if (32 == key_len) {
+    // Init AES-GCM with 256-bit key
+    if(1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_256_gcm(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_GCM_256 encryption");
+    }
   }
 
   // Setting key and IV 
-  if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) {
-    handleError("Couldn't set key and IV", ctx);
+  if(1 != EVP_EncryptInit_ex(ctx.get(), nullptr, nullptr, key, iv)) {
+    throw ParquetException("Couldn't set key and IV");
   }
 
   // Setting additional authenticated data
-  if (NULL != aad) {
-    if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, aad_len)) {
-      handleError("Couldn't set AAD", ctx);
+  if (nullptr != aad) {
+    if(1 != EVP_EncryptUpdate(ctx.get(), nullptr, &len, aad, aad_len)) {
+      throw ParquetException("Couldn't set AAD");
     }
   }
 
   // Encryption
-  if(1 != EVP_EncryptUpdate(ctx, ciphertext + gcm_iv_len, &len, plaintext, plaintext_len)) {
-    handleError("Failed encryption update", ctx);
+  if(1 != EVP_EncryptUpdate(ctx.get(), ciphertext + gcm_iv_len, &len, plaintext, plaintext_len)) {
+    throw ParquetException("Failed encryption update");
   }
 
   ciphertext_len = len;
 
   // Finalization
-  if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + gcm_iv_len + len, &len)) {
-    handleError("Failed encryption finalization", ctx);
+  if(1 != EVP_EncryptFinal_ex(ctx.get(), ciphertext + gcm_iv_len + len, &len)) {
+    throw ParquetException("Failed encryption finalization");
   }
   
   ciphertext_len += len;
 
   // Getting the tag
-  if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, gcm_tag_len, tag)) {
-    handleError("Couldn't get AES-GCM tag", ctx);
+  if(1 != EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_GCM_GET_TAG, gcm_tag_len, tag)) {
+    throw ParquetException("Couldn't get AES-GCM tag");
   }
-
-  // Cleaning up
-  EVP_CIPHER_CTX_free(ctx);
   
   // Copying the IV and tag to ciphertext
   std::copy(iv, iv + gcm_iv_len, ciphertext);
@@ -107,48 +121,58 @@ int gcm_encrypt(const uint8_t *plaintext, int plaintext_len,
 int ctr_encrypt(const uint8_t *plaintext, int plaintext_len, 
                    uint8_t *key, int key_len, uint8_t *ciphertext) 
 {             
-  EVP_CIPHER_CTX *ctx;
-
   int len;
   int ciphertext_len;
   uint8_t iv[ctr_iv_len];
   
   // Random IV
-  RAND_load_file("/dev/urandom", 32);
+  RAND_load_file("/dev/urandom", max_bytes);
   RAND_bytes(iv, sizeof(iv));
 
   // Init cipher context
-  if(!(ctx = EVP_CIPHER_CTX_new())) {
-    handleError("Couldn't init cipher context", ctx);
+  EvpCipherCtxPtr ctx(EVP_CIPHER_CTX_new());
+  if(nullptr == ctx.get()) {
+    throw ParquetException("Couldn't init cipher context");
   }
 
-  // Init AES-CTR with 128-bit key
-  if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, NULL, NULL)) {
-    handleError("Couldn't init AES_CTR_128 encryption", ctx);
+  if (16 == key_len) {
+    // Init AES-CTR with 128-bit key
+    if(1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_128_ctr(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_CTR_128 encryption");
+    }
+  }
+  else if (24 == key_len) {
+    // Init AES-CTR with 192-bit key
+    if(1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_192_ctr(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_CTR_192 encryption");
+    }
+  }
+  else if (32 == key_len) {
+    // Init AES-CTR with 256-bit key
+    if(1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_256_ctr(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_CTR_256 encryption");
+    }
   }
 
   // Setting key and IV 
-  if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) {
-    handleError("Couldn't set key and IV", ctx);
+  if(1 != EVP_EncryptInit_ex(ctx.get(), nullptr, nullptr, key, iv)) {
+    throw ParquetException("Couldn't set key and IV");
   }
 
   // Encryption
-  if(1 != EVP_EncryptUpdate(ctx, ciphertext + ctr_iv_len, &len, plaintext, plaintext_len)) {
-    handleError("Failed encryption update", ctx);
+  if(1 != EVP_EncryptUpdate(ctx.get(), ciphertext + ctr_iv_len, &len, plaintext, plaintext_len)) {
+    throw ParquetException("Failed encryption update");
   }
 
   ciphertext_len = len;
 
   // Finalization
-  if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + ctr_iv_len + len, &len)) {
-    handleError("Failed encryption finalization", ctx);
+  if(1 != EVP_EncryptFinal_ex(ctx.get(), ciphertext + ctr_iv_len + len, &len)) {
+    throw ParquetException("Failed encryption finalization");
   }
   
   ciphertext_len += len;
 
-  // Cleaning up
-  EVP_CIPHER_CTX_free(ctx);
-  
   // Copying the IV ciphertext
   std::copy(iv, iv + ctr_iv_len, ciphertext);
     
@@ -164,13 +188,13 @@ int encrypt(Encryption::type alg_id, bool metadata,
                    
   if (Encryption::AES_GCM_V1 != alg_id && Encryption::AES_GCM_CTR_V1 != alg_id) {
     std::stringstream ss;
-    ss << "Crypto algorithm " << alg_id << " currently unsupported";
+    ss << "Crypto algorithm " << alg_id << " is not supported";
     throw parquet::ParquetException(ss.str());
   }
   
-  if (16 != key_len) {
+  if (16 != key_len  && 24 != key_len  && 32 != key_len) {
     std::stringstream ss;
-    ss << "Key length " << key_len << " currently unsupported";
+    ss << "Wrong key length: " << key_len;
     throw parquet::ParquetException(ss.str());
   }
   
@@ -181,12 +205,21 @@ int encrypt(Encryption::type alg_id, bool metadata,
   // Data (page) encryption with AES_GCM_CTR_V1
   return ctr_encrypt(plaintext, plaintext_len, key, key_len, ciphertext);
 }
+
+int encrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata, 
+                   const uint8_t *plaintext, int plaintext_len,
+                   uint8_t *ciphertext) 
+{
+  return encrypt(encryption_props->algorithm(), metadata, plaintext, plaintext_len, 
+    encryption_props->key_bytes(), encryption_props->key_length(),
+    encryption_props->aad_bytes(), encryption_props->aad_length(), ciphertext);
+}
+
  
 int gcm_decrypt(const uint8_t *ciphertext, int ciphertext_len,  
                    uint8_t *key, int key_len, uint8_t *aad, int aad_len, 
                    uint8_t *plaintext)
 {
-  EVP_CIPHER_CTX *ctx = NULL;
   int len;
   int plaintext_len;
   
@@ -197,49 +230,60 @@ int gcm_decrypt(const uint8_t *ciphertext, int ciphertext_len,
   std::copy(ciphertext, ciphertext + gcm_iv_len, iv);
   std::copy(ciphertext + ciphertext_len - gcm_tag_len, ciphertext + ciphertext_len, tag);
   
-  
   // Init cipher context
-  if(!(ctx = EVP_CIPHER_CTX_new())) {
-    handleError("Couldn't init cipher context", ctx);
+  EvpCipherCtxPtr ctx(EVP_CIPHER_CTX_new());
+  if(nullptr == ctx.get()) {
+    throw ParquetException("Couldn't init cipher context");
   }
 
-  // Init AES-GCM with 128-bit key
-  if(!EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL)) {
-    handleError("Couldn't init AES_GCM_128 decryption", ctx);
+  if (16 == key_len) {
+    // Init AES-GCM with 128-bit key
+    if(1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_128_gcm(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_GCM_128 decryption");
+    }
+  }
+  else if (24 == key_len) {
+    // Init AES-GCM with 192-bit key
+    if(1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_192_gcm(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_GCM_192 decryption");
+    }
+  }
+  else if (32 == key_len) {
+    // Init AES-GCM with 256-bit key
+    if(1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_256_gcm(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_GCM_256 decryption");
+    }
   }
 
   // Setting key and IV 
-  if(1 != EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv)) {
-    handleError("Couldn't set key and IV", ctx);
+  if(1 != EVP_DecryptInit_ex(ctx.get(), nullptr, nullptr, key, iv)) {
+    throw ParquetException("Couldn't set key and IV");
   }
 
   // Setting additional authenticated data
-  if (NULL != aad) {
-    if(1 != EVP_DecryptUpdate(ctx, NULL, &len, aad, aad_len)) {
-      handleError("Couldn't set AAD", ctx);
+  if (nullptr != aad) {
+    if(1 != EVP_DecryptUpdate(ctx.get(), nullptr, &len, aad, aad_len)) {
+      throw ParquetException("Couldn't set AAD");
     }
   }
    
   // Decryption
-  if(!EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext + gcm_iv_len, 
+  if(!EVP_DecryptUpdate(ctx.get(), plaintext, &len, ciphertext + gcm_iv_len, 
       ciphertext_len - gcm_iv_len - gcm_tag_len)) {
-    handleError("Failed decryption update", ctx);
+    throw ParquetException("Failed decryption update");
   }
   
   plaintext_len = len;
 
   // Checking the tag (authentication)
-  if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, gcm_tag_len, tag)) {
-    handleError("Failed authentication", ctx);
+  if(!EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_GCM_SET_TAG, gcm_tag_len, tag)) {
+    throw ParquetException("Failed authentication");
   }
 
   // Finalization
-  if (1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) {
-    handleError("Failed decryption finalization", ctx);
+  if (1 != EVP_DecryptFinal_ex(ctx.get(), plaintext + len, &len)) {
+    throw ParquetException("Failed decryption finalization");
   }
-
-  // Cleaning up
-  EVP_CIPHER_CTX_free(ctx);
 
   plaintext_len += len;
   return plaintext_len;
@@ -248,7 +292,6 @@ int gcm_decrypt(const uint8_t *ciphertext, int ciphertext_len,
 int ctr_decrypt(const uint8_t *ciphertext, int ciphertext_len,  
                    uint8_t *key, int key_len, uint8_t *plaintext)
 {
-  EVP_CIPHER_CTX *ctx = NULL;
   int len;
   int plaintext_len;
   
@@ -258,35 +301,47 @@ int ctr_decrypt(const uint8_t *ciphertext, int ciphertext_len,
   std::copy(ciphertext, ciphertext + ctr_iv_len, iv);  
   
   // Init cipher context
-  if(!(ctx = EVP_CIPHER_CTX_new())) {
-    handleError("Couldn't init cipher context", ctx);
+  EvpCipherCtxPtr ctx(EVP_CIPHER_CTX_new());
+  if(nullptr == ctx.get()) {
+    throw ParquetException("Couldn't init cipher context");
   }
 
-  // Init AES-CTR with 128-bit key
-  if(!EVP_DecryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, NULL, NULL)) {
-    handleError("Couldn't init AES_CTR_128 decryption", ctx);
+  if (16 == key_len) {
+    // Init AES-CTR with 128-bit key
+    if(1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_128_ctr(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_CTR_128 decryption");
+    }
+  }
+  else if (24 == key_len) {
+    // Init AES-CTR with 192-bit key
+    if(1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_192_ctr(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_CTR_192 decryption");
+    }
+  }
+  else if (32 == key_len) {
+    // Init AES-CTR with 256-bit key
+    if(1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_256_ctr(), nullptr, nullptr, nullptr)) {
+      throw ParquetException("Couldn't init AES_CTR_256 decryption");
+    }
   }
 
   // Setting key and IV 
-  if(1 != EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv)) {
-    handleError("Couldn't set key and IV", ctx);
+  if(1 != EVP_DecryptInit_ex(ctx.get(), nullptr, nullptr, key, iv)) {
+    throw ParquetException("Couldn't set key and IV");
   }
    
   // Decryption
-  if(!EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext + ctr_iv_len, 
+  if(!EVP_DecryptUpdate(ctx.get(), plaintext, &len, ciphertext + ctr_iv_len, 
       ciphertext_len - ctr_iv_len)) {
-    handleError("Failed decryption update", ctx);
+    throw ParquetException("Failed decryption update");
   }
   
   plaintext_len = len;
 
   // Finalization
-  if (1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) {
-    handleError("Failed decryption finalization", ctx);
+  if (1 != EVP_DecryptFinal_ex(ctx.get(), plaintext + len, &len)) {
+    throw ParquetException("Failed decryption finalization");
   }
-
-  // Cleaning up
-  EVP_CIPHER_CTX_free(ctx);
 
   plaintext_len += len;
   return plaintext_len;
@@ -300,13 +355,13 @@ int decrypt(Encryption::type alg_id, bool metadata,
 
   if (Encryption::AES_GCM_V1 != alg_id && Encryption::AES_GCM_CTR_V1 != alg_id) {
     std::stringstream ss;
-    ss << "Crypto algorithm " << alg_id << " currently unsupported";
+    ss << "Crypto algorithm " << alg_id << " is not supported";
     throw parquet::ParquetException(ss.str());
   }
   
-  if (16 != key_len) {
+  if (16 != key_len  && 24 != key_len  && 32 != key_len) {
     std::stringstream ss;
-    ss << "Key length " << key_len << " currently unsupported";
+    ss << "Wrong key length: " << key_len;
     throw parquet::ParquetException(ss.str());
   }
   
@@ -316,6 +371,15 @@ int decrypt(Encryption::type alg_id, bool metadata,
 
   // Data (page) decryption with AES_GCM_CTR_V1
   return ctr_decrypt(ciphertext, ciphertext_len, key, key_len, plaintext);
+}
+
+int decrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata,
+                   const uint8_t *ciphertext, int ciphertext_len,
+                   uint8_t *plaintext)
+{
+  return decrypt(encryption_props->algorithm(), metadata, ciphertext, ciphertext_len, 
+    encryption_props->key_bytes(), encryption_props->key_length(),
+    encryption_props->aad_bytes(), encryption_props->aad_length(), plaintext);
 }
 
 }  // namespace parquet
