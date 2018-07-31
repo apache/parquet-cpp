@@ -18,7 +18,6 @@
 # Headers: top level
 install(FILES
   bloom_filter.h
-  bloom_filter_algorithm.h
   column_reader.h
   column_page.h
   column_scanner.h

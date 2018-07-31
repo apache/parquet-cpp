@@ -39,29 +39,28 @@ TEST(Murmur3Test, TestBloomFilter) {
 }
 
 TEST(ConstructorTest, TestBloomFilter) {
-  EXPECT_NO_THROW(BloomFilter bloom_filter1(1000));
+  EXPECT_NO_THROW(BlockSplitBloomFilter bloom_filter1(1000));
 
-  // It throws because the length does not match the bitset
+  // It throws because the length cannot be zero
   std::unique_ptr<uint8_t[]> bitset1(new uint8_t[1024]());
-  EXPECT_THROW(new BloomFilter(bitset1.get(), 0), ParquetException);
+  EXPECT_THROW(new BlockSplitBloomFilter(bitset1.get(), 0), ParquetException);
 
   // It throws because the bitset is NULL
-  EXPECT_THROW(new BloomFilter(NULL, 1024), ParquetException);
+  EXPECT_THROW(new BlockSplitBloomFilter(NULL, 1024), ParquetException);
 
   std::unique_ptr<uint8_t[]> bitset2(new uint8_t[1024]());
 
   // It throws because the number of bytes of Bloom filter bitset must be a power of 2.
-  EXPECT_THROW(new BloomFilter(bitset2.get(), 1023), ParquetException);
+  EXPECT_THROW(new BlockSplitBloomFilter(bitset2.get(), 1023), ParquetException);
 }
 
 // The BasicTest is used to test basic operations including InsertHash, FindHash and
 // serializing and de-serializing.
 TEST(BasicTest, TestBloomFilter) {
-  BloomFilter bloom_filter(1024);
+  BlockSplitBloomFilter bloom_filter(1024);
 
   for (int i = 0; i < 10; i++) {
-    uint64_t hash_value = bloom_filter.Hash(i);
-    bloom_filter.InsertHash(hash_value);
+    bloom_filter.InsertHash(bloom_filter.Hash(i));
   }
 
   for (int i = 0; i < 10; i++) {
@@ -75,7 +74,7 @@ TEST(BasicTest, TestBloomFilter) {
   // Deserialize Bloom filter from memory
   InMemoryInputStream source(sink.GetBuffer());
 
-  BloomFilter* de_bloom = BloomFilter::Deserialize(&source);
+  BloomFilter* de_bloom = BlockSplitBloomFilter::Deserialize(&source);
 
   for (int i = 0; i < 10; i++) {
     EXPECT_TRUE(de_bloom->FindHash(de_bloom->Hash(i)));
@@ -114,7 +113,7 @@ TEST(FPPTest, TestBloomFilter) {
   const double fpp = 0.01;
 
   std::vector<std::string> members;
-  BloomFilter bloom_filter(BloomFilter::OptimalNumOfBits(total_count, fpp));
+  BlockSplitBloomFilter bloom_filter(BloomFilter::OptimalNumOfBits(total_count, fpp));
 
   // Insert elements into the Bloom filter
   for (int i = 0; i < total_count; i++) {
@@ -167,7 +166,7 @@ TEST(CompatibilityTest, TestBloomFilter) {
   handle->Read(size, &buffer);
 
   InMemoryInputStream source(buffer);
-  BloomFilter* bloom_filter1 = BloomFilter::Deserialize(&source);
+  BloomFilter* bloom_filter1 = BlockSplitBloomFilter::Deserialize(&source);
 
   for (int i = 0; i < 4; i++) {
     const ByteArray tmp(static_cast<uint32_t>(test_string[i].length()),
@@ -178,7 +177,7 @@ TEST(CompatibilityTest, TestBloomFilter) {
   // The following is used to check whether the new created Bloom filter in parquet-cpp is
   // byte-for-byte identical to file at bloom_data_path which is created from parquet-mr
   // with same inserted hashes.
-  BloomFilter bloom_filter2(bloom_filter1->GetBitsetSize());
+  BlockSplitBloomFilter bloom_filter2(bloom_filter1->GetBitsetSize());
   for (int i = 0; i < 4; i++) {
     const ByteArray byte_array(static_cast<uint32_t>(test_string[i].length()),
                                reinterpret_cast<const uint8_t*>(test_string[i].c_str()));

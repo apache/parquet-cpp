@@ -675,7 +675,6 @@ set(LIBPARQUET_SRCS
   src/parquet/arrow/schema.cc
   src/parquet/arrow/writer.cc
   src/parquet/bloom_filter.cc
-  src/parquet/bloom_filter_algorithm.cc
   src/parquet/column_reader.cc
   src/parquet/column_scanner.cc
   src/parquet/column_writer.cc
