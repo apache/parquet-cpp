@@ -125,7 +125,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     const ColumnDescriptor* column_descr = col_meta->descr();
     std::unique_ptr<PageWriter> pager =
         PageWriter::Open(sink_, properties_->compression(column_descr->path()),
-                         properties_->encryption(column_descr->path()), col_meta, // TODO
+                         properties_->encryption(column_descr->path()), col_meta,  // TODO
                          properties_->memory_pool());
     column_writers_[0] = ColumnWriter::Make(col_meta, std::move(pager), properties_);
     return column_writers_[0].get();
@@ -328,8 +328,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
     if (properties_->file_encryption() == nullptr) {
       // Parquet files always start with PAR1
       sink_->Write(PARQUET_MAGIC, 4);
-    }
-    else {
+    } else {
       sink_->Write(PARQUET_EMAGIC, 4);
     }
   }
@@ -348,8 +347,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
       // Write Footer
       sink_->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
       sink_->Write(PARQUET_MAGIC, 4);
-    }
-    else {
+    } else {
       // Write MetaData with encryption
       uint64_t metadata_start = static_cast<uint64_t>(sink_->Tell());
 
@@ -357,8 +355,7 @@ class FileSerializer : public ParquetFileWriter::Contents {
       if (file_encryption->encrypted_footer()) {
         auto footer_encryption = file_encryption->footer_encryption();
         metadata->WriteTo(sink_.get(), footer_encryption.get());
-      }
-      else {
+      } else {
         metadata->WriteTo(sink_.get());
       }
 

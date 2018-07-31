@@ -18,33 +18,35 @@
 #ifndef PARQUET_DECRYPTION_RETRIEVER_H
 #define PARQUET_DECRYPTION_RETRIEVER_H
 
+#include <parquet/util/visibility.h>
 #include <map>
 #include <string>
-#include <parquet/util/visibility.h>
 
 namespace parquet {
 
 class PARQUET_EXPORT DecryptionKeyRetriever {
-public:
+ public:
   virtual std::string get_key(const std::string& key_metadata) = 0;
   virtual ~DecryptionKeyRetriever() {}
 };
 
 // Simple integer key retriever
 class PARQUET_EXPORT IntegerKeyIdRetriever : public DecryptionKeyRetriever {
-public:
+ public:
   void put_key(uint32_t key_id, const std::string& key);
   std::string get_key(const std::string& key_metadata);
-private:
+
+ private:
   std::map<uint32_t, std::string> key_map_;
 };
 
 // Simple string key retriever
 class PARQUET_EXPORT StringKeyIdRetriever : public DecryptionKeyRetriever {
-public:
+ public:
   void put_key(const std::string& key_id, const std::string& key);
   std::string get_key(const std::string& key_metadata);
-private:
+
+ private:
   std::map<std::string, std::string> key_map_;
 };
 

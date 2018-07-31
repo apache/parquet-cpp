@@ -28,9 +28,9 @@
 #include "parquet/properties.h"
 #include "parquet/statistics.h"
 #include "parquet/thrift.h"
+#include "parquet/util/crypto.h"
 #include "parquet/util/logging.h"
 #include "parquet/util/memory.h"
-#include "parquet/util/crypto.h"
 
 namespace parquet {
 
@@ -162,26 +162,23 @@ class SerializedPageWriter : public PageWriter {
     dict_page_header.__set_encoding(ToThrift(page.encoding()));
     dict_page_header.__set_is_sorted(page.is_sorted());
 
-    const uint8_t* data = compressed_data->data();
-    int data_len = static_cast<int>(compressed_data->size());
+    const uint8_t* output_data_buffer = compressed_data->data();
+    int output_data_len = static_cast<int>(compressed_data->size());
 
-    std::vector<uint8_t> cdata;
+    std::vector<uint8_t> encrypted_data_buffer;
     if (encryption_.get()) {
-        int plen = data_len;
-        cdata.resize(encryption_->calculate_cipher_size(plen));
-        int clen = parquet::encrypt(encryption_->algorithm(), false,
-                                    compressed_data->data(), plen,
-                                    encryption_->key_bytes(), encryption_->key_length(),
-                                    encryption_->aad_bytes(), encryption_->aad_length(),
-                                    cdata.data());
-        data = cdata.data();
-        data_len = clen;
+      encrypted_data_buffer.resize(encryption_->calculate_cipher_size(output_data_len));
+      output_data_len = parquet::encrypt(
+          encryption_->algorithm(), false, compressed_data->data(), output_data_len,
+          encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
+          encryption_->aad_length(), encrypted_data_buffer.data());
+      output_data_buffer = encrypted_data_buffer.data();
     }
 
     format::PageHeader page_header;
     page_header.__set_type(format::PageType::DICTIONARY_PAGE);
     page_header.__set_uncompressed_page_size(static_cast<int32_t>(uncompressed_size));
-    page_header.__set_compressed_page_size(static_cast<int32_t>(data_len));
+    page_header.__set_compressed_page_size(static_cast<int32_t>(output_data_len));
     page_header.__set_dictionary_page_header(dict_page_header);
     // TODO(PARQUET-594) crc checksum
 
@@ -189,14 +186,13 @@ class SerializedPageWriter : public PageWriter {
     if (dictionary_page_offset_ == 0) {
       dictionary_page_offset_ = start_pos;
     }
-    int64_t header_size =
-        SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
-                           sink_, encryption_.get());
+    int64_t header_size = SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
+                                             sink_, encryption_.get());
 
-    sink_->Write(data, data_len);
+    sink_->Write(output_data_buffer, output_data_len);
 
     total_uncompressed_size_ += uncompressed_size + header_size;
-    total_compressed_size_ += data_len + header_size;
+    total_compressed_size_ += output_data_len + header_size;
 
     return sink_->Tell() - start_pos;
   }
@@ -245,26 +241,23 @@ class SerializedPageWriter : public PageWriter {
         ToThrift(page.repetition_level_encoding()));
     data_page_header.__set_statistics(ToThrift(page.statistics()));
 
-    const uint8_t* data = compressed_data->data();
-    int data_len = static_cast<int>(compressed_data->size());
+    const uint8_t* output_data_buffer = compressed_data->data();
+    int output_data_len = static_cast<int>(compressed_data->size());
 
-    std::vector<uint8_t> cdata;
+    std::vector<uint8_t> encrypted_data_buffer;
     if (encryption_.get()) {
-        int plen = data_len;
-        cdata.resize(encryption_->calculate_cipher_size(plen));
-        int clen = parquet::encrypt(encryption_->algorithm(), false,
-                                    compressed_data->data(), plen,
-                                    encryption_->key_bytes(), encryption_->key_length(),
-                                    encryption_->aad_bytes(), encryption_->aad_length(),
-                                    cdata.data());
-        data = cdata.data();
-        data_len = clen;
+      encrypted_data_buffer.resize(encryption_->calculate_cipher_size(output_data_len));
+      output_data_len = parquet::encrypt(
+          encryption_->algorithm(), false, compressed_data->data(), output_data_len,
+          encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
+          encryption_->aad_length(), encrypted_data_buffer.data());
+      output_data_buffer = encrypted_data_buffer.data();
     }
 
     format::PageHeader page_header;
     page_header.__set_type(format::PageType::DATA_PAGE);
     page_header.__set_uncompressed_page_size(static_cast<int32_t>(uncompressed_size));
-    page_header.__set_compressed_page_size(static_cast<int32_t>(data_len));
+    page_header.__set_compressed_page_size(static_cast<int32_t>(output_data_len));
     page_header.__set_data_page_header(data_page_header);
     // TODO(PARQUET-594) crc checksum
 
@@ -273,14 +266,13 @@ class SerializedPageWriter : public PageWriter {
       data_page_offset_ = start_pos;
     }
 
-    int64_t header_size =
-        SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
-                           sink_, encryption_.get());
+    int64_t header_size = SerializeThriftMsg(&page_header, sizeof(format::PageHeader),
+                                             sink_, encryption_.get());
 
-    sink_->Write(data, data_len);
+    sink_->Write(output_data_buffer, output_data_len);
 
     total_uncompressed_size_ += uncompressed_size + header_size;
-    total_compressed_size_ += data_len + header_size;
+    total_compressed_size_ += output_data_len + header_size;
     num_values_ += page.num_values();
 
     return sink_->Tell() - start_pos;

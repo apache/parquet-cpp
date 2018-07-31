@@ -166,7 +166,8 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
       // This gets used, then set by DeserializeThriftMsg
       header_size = static_cast<uint32_t>(bytes_available);
       try {
-        DeserializeThriftMsg(buffer, &header_size, &current_page_header_, encryption_.get());
+        DeserializeThriftMsg(buffer, &header_size, &current_page_header_,
+                             encryption_.get());
         break;
       } catch (std::exception& e) {
         // Failed to deserialize. Double the allowed page header size and try again
@@ -194,17 +195,15 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
       ParquetException::EofException(ss.str());
     }
 
-    std::vector<uint8_t> ptext;
+    std::vector<uint8_t> decrypt_buffer;
     if (encryption_.get()) {
-        int clen = compressed_len;
-        ptext.resize(encryption_->calculate_plain_size(clen));
-        int plen = parquet::decrypt(encryption_->algorithm(), false, buffer, clen,
-                                    encryption_->key_bytes(), encryption_->key_length(),
-                                    encryption_->aad_bytes(), encryption_->aad_length(),
-                                    ptext.data());
+      decrypt_buffer.resize(encryption_->calculate_plain_size(compressed_len));
+      compressed_len = parquet::decrypt(
+          encryption_->algorithm(), false, buffer, compressed_len,
+          encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
+          encryption_->aad_length(), decrypt_buffer.data());
 
-        buffer = ptext.data();
-        compressed_len = plen;
+      buffer = decrypt_buffer.data();
     }
 
     // Uncompress it if we need to
@@ -275,13 +274,11 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
   return std::shared_ptr<Page>(nullptr);
 }
 
-std::unique_ptr<PageReader> PageReader::Open(std::unique_ptr<InputStream> stream,
-                                             int64_t total_num_rows,
-                                             Compression::type codec,
-                                             std::shared_ptr<EncryptionProperties> encryption,
-                                             ::arrow::MemoryPool* pool) {
-  return std::unique_ptr<PageReader>(
-      new SerializedPageReader(std::move(stream), total_num_rows, codec, encryption, pool));
+std::unique_ptr<PageReader> PageReader::Open(
+    std::unique_ptr<InputStream> stream, int64_t total_num_rows, Compression::type codec,
+    std::shared_ptr<EncryptionProperties> encryption, ::arrow::MemoryPool* pool) {
+  return std::unique_ptr<PageReader>(new SerializedPageReader(
+      std::move(stream), total_num_rows, codec, encryption, pool));
 }
 
 // ----------------------------------------------------------------------

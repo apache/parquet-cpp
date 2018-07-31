@@ -35,7 +35,6 @@
 #include "parquet/column_page.h"
 #include "parquet/encoding.h"
 #include "parquet/exception.h"
-#include "parquet/properties.h"
 #include "parquet/schema.h"
 #include "parquet/types.h"
 #include "parquet/util/memory.h"
@@ -87,7 +86,7 @@ class PARQUET_EXPORT PageReader {
 
   static std::unique_ptr<PageReader> Open(
       std::unique_ptr<InputStream> stream, int64_t total_num_rows,
-      Compression::type codec, std::shared_ptr<EncryptionProperties> encryption,
+      Compression::type codec, std::shared_ptr<EncryptionProperties> encryption = nullptr,
       ::arrow::MemoryPool* pool = ::arrow::default_memory_pool());
 
   // @returns: shared_ptr<Page>(nullptr) on EOS, std::shared_ptr<Page>

@@ -89,8 +89,7 @@ class ApplicationVersion {
 
 class PARQUET_EXPORT ColumnCryptoMetaData {
  public:
-  static std::unique_ptr<ColumnCryptoMetaData> Make(
-    const uint8_t* metadata);
+  static std::unique_ptr<ColumnCryptoMetaData> Make(const uint8_t* metadata);
   ~ColumnCryptoMetaData();
 
   std::vector<std::string> path_in_schema() const;
@@ -134,6 +133,7 @@ class PARQUET_EXPORT ColumnChunkMetaData {
   int64_t total_compressed_size() const;
   int64_t total_uncompressed_size() const;
   std::unique_ptr<ColumnCryptoMetaData> crypto_meta_data() const;
+
  private:
   explicit ColumnChunkMetaData(const uint8_t* metadata, const ColumnDescriptor* descr,
                                const ApplicationVersion* writer_version = nullptr);
@@ -172,9 +172,9 @@ class FileMetaDataBuilder;
 class PARQUET_EXPORT FileMetaData {
  public:
   // API convenience to get a MetaData accessor
-  static std::shared_ptr<FileMetaData> Make(const uint8_t* serialized_metadata,
-                                            uint32_t* metadata_len,
-                                            std::shared_ptr<EncryptionProperties> encryption = nullptr);
+  static std::shared_ptr<FileMetaData> Make(
+      const uint8_t* serialized_metadata, uint32_t* metadata_len,
+      std::shared_ptr<EncryptionProperties> encryption = nullptr);
 
   ~FileMetaData();
 
@@ -209,11 +209,11 @@ class PARQUET_EXPORT FileMetaData {
 };
 
 class PARQUET_EXPORT FileCryptoMetaData {
-public:
-    // API convenience to get a MetaData accessor
-    static std::shared_ptr<FileCryptoMetaData> Make(const uint8_t* serialized_metadata,
-                                              uint32_t* metadata_len);
-    ~FileCryptoMetaData();
+ public:
+  // API convenience to get a MetaData accessor
+  static std::shared_ptr<FileCryptoMetaData> Make(const uint8_t* serialized_metadata,
+                                                  uint32_t* metadata_len);
+  ~FileCryptoMetaData();
 
   Encryption::type encryption_algorithm();
   bool encrypted_footer();
@@ -223,15 +223,14 @@ public:
 
   void WriteTo(OutputStream* dst);
 
-private:
-    friend FileMetaDataBuilder;
-    explicit FileCryptoMetaData(const uint8_t* serialized_metadata, 
-                                uint32_t* metadata_len);
+ private:
+  friend FileMetaDataBuilder;
+  FileCryptoMetaData(const uint8_t* serialized_metadata, uint32_t* metadata_len);
 
-    // PIMPL Idiom
-    FileCryptoMetaData();
-    class FileCryptoMetaDataImpl;
-    std::unique_ptr<FileCryptoMetaDataImpl> impl_;
+  // PIMPL Idiom
+  FileCryptoMetaData();
+  class FileCryptoMetaDataImpl;
+  std::unique_ptr<FileCryptoMetaDataImpl> impl_;
 };
 
 // Builder API
