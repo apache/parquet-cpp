@@ -15,32 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 #ifndef PARQUET_UTIL_CRYPTO_H
 #define PARQUET_UTIL_CRYPTO_H
 
-#include "parquet/types.h"
 #include "parquet/properties.h"
+#include "parquet/types.h"
 
-namespace parquet {
+using namespace parquet;
 
-int encrypt(Encryption::type alg_id, bool metadata, 
-                   const uint8_t *plaintext, int plaintext_len, 
-                   uint8_t *key, int key_len, uint8_t *aad, int aad_len, 
-                   uint8_t *ciphertext);
-                   
-int encrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata, 
-                   const uint8_t *plaintext, int plaintext_len,
-                   uint8_t *ciphertext);
+namespace parquet_encryption {
 
-int decrypt(Encryption::type alg_id, bool metadata,
-                   const uint8_t *ciphertext, int ciphertext_len,  
-                   uint8_t *key, int key_len, uint8_t *aad, int aad_len, 
-                   uint8_t *plaintext);
+int Encrypt(Encryption::type alg_id, bool metadata, const uint8_t* plaintext,
+            int plaintext_len, uint8_t* key, int key_len, uint8_t* aad, int aad_len,
+            uint8_t* ciphertext);
 
-int decrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata,
-                   const uint8_t *ciphertext, int ciphertext_len,
-                   uint8_t *plaintext);
-}  // namespace parquet
+int Encrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata,
+            const uint8_t* plaintext, int plaintext_len, uint8_t* ciphertext);
 
-#endif //PARQUET_UTIL_CRYPTO_H
+int Decrypt(Encryption::type alg_id, bool metadata, const uint8_t* ciphertext,
+            int ciphertext_len, uint8_t* key, int key_len, uint8_t* aad, int aad_len,
+            uint8_t* plaintext);
+
+int Decrypt(std::shared_ptr<EncryptionProperties> encryption_props, bool metadata,
+            const uint8_t* ciphertext, int ciphertext_len, uint8_t* plaintext);
+}  // namespace parquet_encryption
+
+#endif  // PARQUET_UTIL_CRYPTO_H
