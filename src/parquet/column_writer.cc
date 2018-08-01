@@ -72,7 +72,8 @@ int LevelEncoder::MaxBufferSize(Encoding::type encoding, int16_t max_level,
       break;
     }
     case Encoding::BIT_PACKED: {
-      num_bytes = static_cast<int>(BitUtil::BytesForBits(num_buffered_values * bit_width));
+      num_bytes =
+          static_cast<int>(BitUtil::BytesForBits(num_buffered_values * bit_width));
       break;
     }
     default:
