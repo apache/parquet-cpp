@@ -21,7 +21,8 @@
 #include "parquet/properties.h"
 #include "parquet/types.h"
 
-using namespace parquet;
+using parquet::Encryption;
+using parquet::EncryptionProperties;
 
 namespace parquet_encryption {
 

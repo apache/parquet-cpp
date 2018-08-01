@@ -19,11 +19,14 @@
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
 #include "parquet/exception.h"
+
+using parquet::ParquetException;
 
 namespace parquet_encryption {
 
@@ -34,15 +37,17 @@ constexpr int decryptType = 1;
 constexpr int gcmTagLen = 16;
 constexpr int gcmIvLen = 12;
 constexpr int ctrIvLen = 16;
-constexpr long rndMaxBytes = 32;
+constexpr int rndMaxBytes = 32;
 
-#define ENCRYPT_INIT(ALG)                                            \
-  if (1 != EVP_EncryptInit_ex(ctx_, ALG, nullptr, nullptr, nullptr)) \
-  throw ParquetException("Couldn't init ALG encryption")
+#define ENCRYPT_INIT(ALG)                                              \
+  if (1 != EVP_EncryptInit_ex(ctx_, ALG, nullptr, nullptr, nullptr)) { \
+    throw ParquetException("Couldn't init ALG encryption");            \
+  }
 
-#define DECRYPT_INIT(ALG)                                            \
-  if (1 != EVP_DecryptInit_ex(ctx_, ALG, nullptr, nullptr, nullptr)) \
-  throw ParquetException("Couldn't init ALG decryption")
+#define DECRYPT_INIT(ALG)                                              \
+  if (1 != EVP_DecryptInit_ex(ctx_, ALG, nullptr, nullptr, nullptr)) { \
+    throw ParquetException("Couldn't init ALG decryption");            \
+  }
 
 class EvpCipher {
  public:
@@ -50,19 +55,19 @@ class EvpCipher {
     if (aesGcm != cipher && aesCtr != cipher) {
       std::stringstream ss;
       ss << "Wrong cipher: " << cipher;
-      throw parquet::ParquetException(ss.str());
+      throw ParquetException(ss.str());
     }
 
     if (16 != key_len && 24 != key_len && 32 != key_len) {
       std::stringstream ss;
       ss << "Wrong key length: " << key_len;
-      throw parquet::ParquetException(ss.str());
+      throw ParquetException(ss.str());
     }
 
     if (encryptType != type && decryptType != type) {
       std::stringstream ss;
       ss << "Wrong cipher type: " << type;
-      throw parquet::ParquetException(ss.str());
+      throw ParquetException(ss.str());
     }
 
     ctx_ = EVP_CIPHER_CTX_new();
@@ -225,7 +230,7 @@ int Encrypt(Encryption::type alg_id, bool metadata, const uint8_t* plaintext,
   if (Encryption::AES_GCM_V1 != alg_id && Encryption::AES_GCM_CTR_V1 != alg_id) {
     std::stringstream ss;
     ss << "Crypto algorithm " << alg_id << " is not supported";
-    throw parquet::ParquetException(ss.str());
+    throw ParquetException(ss.str());
   }
 
   if (metadata || (Encryption::AES_GCM_V1 == alg_id)) {
@@ -334,7 +339,7 @@ int Decrypt(Encryption::type alg_id, bool metadata, const uint8_t* ciphertext,
   if (Encryption::AES_GCM_V1 != alg_id && Encryption::AES_GCM_CTR_V1 != alg_id) {
     std::stringstream ss;
     ss << "Crypto algorithm " << alg_id << " is not supported";
-    throw parquet::ParquetException(ss.str());
+    throw ParquetException(ss.str());
   }
 
   if (metadata || (Encryption::AES_GCM_V1 == alg_id)) {
