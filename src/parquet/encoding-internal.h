@@ -151,7 +151,7 @@ class PlainDecoder<BooleanType> : public Decoder<BooleanType> {
   int Decode(uint8_t* buffer, int max_values) {
     max_values = std::min(max_values, num_values_);
     bool val;
-    ::arrow::internal::FirstTimeBitmapWriter bit_writer(buffer, 0, max_values);
+    ::arrow::internal::BitmapWriter bit_writer(buffer, 0, max_values);
     for (int i = 0; i < max_values; ++i) {
       if (!bit_reader_.GetValue(1, &val)) {
         ParquetException::EofException();
