@@ -39,19 +39,21 @@ constexpr int gcmIvLen = 12;
 constexpr int ctrIvLen = 16;
 constexpr int rndMaxBytes = 32;
 
-#define ENCRYPT_INIT(ALG)                                              \
-  if (1 != EVP_EncryptInit_ex(ctx_, ALG, nullptr, nullptr, nullptr)) { \
-    throw ParquetException("Couldn't init ALG encryption");            \
+#define ENCRYPT_INIT(CTX, ALG)                                        \
+  if (1 != EVP_EncryptInit_ex(CTX, ALG, nullptr, nullptr, nullptr)) { \
+    throw ParquetException("Couldn't init ALG encryption");           \
   }
 
-#define DECRYPT_INIT(ALG)                                              \
-  if (1 != EVP_DecryptInit_ex(ctx_, ALG, nullptr, nullptr, nullptr)) { \
-    throw ParquetException("Couldn't init ALG decryption");            \
+#define DECRYPT_INIT(CTX, ALG)                                        \
+  if (1 != EVP_DecryptInit_ex(CTX, ALG, nullptr, nullptr, nullptr)) { \
+    throw ParquetException("Couldn't init ALG decryption");           \
   }
 
 class EvpCipher {
  public:
   explicit EvpCipher(int cipher, int key_len, int type) {
+    ctx_ = nullptr;
+
     if (aesGcm != cipher && aesCtr != cipher) {
       std::stringstream ss;
       ss << "Wrong cipher: " << cipher;
@@ -79,42 +81,42 @@ class EvpCipher {
       // Init AES-GCM with specified key length
       if (16 == key_len) {
         if (encryptType == type) {
-          ENCRYPT_INIT(EVP_aes_128_gcm());
+          ENCRYPT_INIT(ctx_, EVP_aes_128_gcm());
         } else {
-          DECRYPT_INIT(EVP_aes_128_gcm());
+          DECRYPT_INIT(ctx_, EVP_aes_128_gcm());
         }
       } else if (24 == key_len) {
         if (encryptType == type) {
-          ENCRYPT_INIT(EVP_aes_192_gcm());
+          ENCRYPT_INIT(ctx_, EVP_aes_192_gcm());
         } else {
-          DECRYPT_INIT(EVP_aes_192_gcm());
+          DECRYPT_INIT(ctx_, EVP_aes_192_gcm());
         }
       } else if (32 == key_len) {
         if (encryptType == type) {
-          ENCRYPT_INIT(EVP_aes_256_gcm());
+          ENCRYPT_INIT(ctx_, EVP_aes_256_gcm());
         } else {
-          DECRYPT_INIT(EVP_aes_256_gcm());
+          DECRYPT_INIT(ctx_, EVP_aes_256_gcm());
         }
       }
     } else {
       // Init AES-CTR with specified key length
       if (16 == key_len) {
         if (encryptType == type) {
-          ENCRYPT_INIT(EVP_aes_128_ctr());
+          ENCRYPT_INIT(ctx_, EVP_aes_128_ctr());
         } else {
-          DECRYPT_INIT(EVP_aes_128_ctr());
+          DECRYPT_INIT(ctx_, EVP_aes_128_ctr());
         }
       } else if (24 == key_len) {
         if (encryptType == type) {
-          ENCRYPT_INIT(EVP_aes_192_ctr());
+          ENCRYPT_INIT(ctx_, EVP_aes_192_ctr());
         } else {
-          DECRYPT_INIT(EVP_aes_192_ctr());
+          DECRYPT_INIT(ctx_, EVP_aes_192_ctr());
         }
       } else if (32 == key_len) {
         if (encryptType == type) {
-          ENCRYPT_INIT(EVP_aes_256_ctr());
+          ENCRYPT_INIT(ctx_, EVP_aes_256_ctr());
         } else {
-          DECRYPT_INIT(EVP_aes_256_ctr());
+          DECRYPT_INIT(ctx_, EVP_aes_256_ctr());
         }
       }
     }
@@ -136,8 +138,11 @@ int gcm_encrypt(const uint8_t* plaintext, int plaintext_len, uint8_t* key, int k
                 uint8_t* aad, int aad_len, uint8_t* ciphertext) {
   int len;
   int ciphertext_len;
+
   uint8_t tag[gcmTagLen];
+  memset(tag, 0, gcmTagLen);
   uint8_t iv[gcmIvLen];
+  memset(iv, 0, gcmIvLen);
 
   // Random IV
   RAND_load_file("/dev/urandom", rndMaxBytes);
@@ -152,10 +157,9 @@ int gcm_encrypt(const uint8_t* plaintext, int plaintext_len, uint8_t* key, int k
   }
 
   // Setting additional authenticated data
-  if (nullptr != aad) {
-    if (1 != EVP_EncryptUpdate(cipher.get(), nullptr, &len, aad, aad_len)) {
-      throw ParquetException("Couldn't set AAD");
-    }
+  if ((nullptr != aad) &&
+      (1 != EVP_EncryptUpdate(cipher.get(), nullptr, &len, aad, aad_len))) {
+    throw ParquetException("Couldn't set AAD");
   }
 
   // Encryption
@@ -189,7 +193,9 @@ int ctr_encrypt(const uint8_t* plaintext, int plaintext_len, uint8_t* key, int k
                 uint8_t* ciphertext) {
   int len;
   int ciphertext_len;
+
   uint8_t iv[ctrIvLen];
+  memset(iv, 0, ctrIvLen);
 
   // Random IV
   RAND_load_file("/dev/urandom", rndMaxBytes);
@@ -255,7 +261,9 @@ int gcm_decrypt(const uint8_t* ciphertext, int ciphertext_len, uint8_t* key, int
   int plaintext_len;
 
   uint8_t tag[gcmTagLen];
+  memset(tag, 0, gcmTagLen);
   uint8_t iv[gcmIvLen];
+  memset(iv, 0, gcmIvLen);
 
   // Extracting IV and tag
   std::copy(ciphertext, ciphertext + gcmIvLen, iv);
@@ -270,10 +278,9 @@ int gcm_decrypt(const uint8_t* ciphertext, int ciphertext_len, uint8_t* key, int
   }
 
   // Setting additional authenticated data
-  if (nullptr != aad) {
-    if (1 != EVP_DecryptUpdate(cipher.get(), nullptr, &len, aad, aad_len)) {
-      throw ParquetException("Couldn't set AAD");
-    }
+  if ((nullptr != aad) &&
+      (1 != EVP_DecryptUpdate(cipher.get(), nullptr, &len, aad, aad_len))) {
+    throw ParquetException("Couldn't set AAD");
   }
 
   // Decryption
@@ -304,6 +311,7 @@ int ctr_decrypt(const uint8_t* ciphertext, int ciphertext_len, uint8_t* key, int
   int plaintext_len;
 
   uint8_t iv[ctrIvLen];
+  memset(iv, 0, ctrIvLen);
 
   // Extracting IV and tag
   std::copy(ciphertext, ciphertext + ctrIvLen, iv);
