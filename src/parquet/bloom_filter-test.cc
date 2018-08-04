@@ -74,12 +74,11 @@ TEST(BasicTest, TestBloomFilter) {
   // Deserialize Bloom filter from memory
   InMemoryInputStream source(sink.GetBuffer());
 
-  BloomFilter* de_bloom = BlockSplitBloomFilter::Deserialize(&source);
+  BlockSplitBloomFilter de_bloom = std::move(BlockSplitBloomFilter::Deserialize(&source));
 
   for (int i = 0; i < 10; i++) {
-    EXPECT_TRUE(de_bloom->FindHash(de_bloom->Hash(i)));
+    EXPECT_TRUE(de_bloom.FindHash(de_bloom.Hash(i)));
   }
-  delete de_bloom;
 }
 
 // Helper function to generate random string.
@@ -113,7 +112,8 @@ TEST(FPPTest, TestBloomFilter) {
   const double fpp = 0.01;
 
   std::vector<std::string> members;
-  BlockSplitBloomFilter bloom_filter(BloomFilter::OptimalNumOfBits(total_count, fpp));
+  BlockSplitBloomFilter bloom_filter(
+      BlockSplitBloomFilter::OptimalNumOfBits(total_count, fpp));
 
   // Insert elements into the Bloom filter
   for (int i = 0; i < total_count; i++) {
@@ -166,18 +166,19 @@ TEST(CompatibilityTest, TestBloomFilter) {
   handle->Read(size, &buffer);
 
   InMemoryInputStream source(buffer);
-  BloomFilter* bloom_filter1 = BlockSplitBloomFilter::Deserialize(&source);
+  BlockSplitBloomFilter bloom_filter1 =
+      std::move(BlockSplitBloomFilter::Deserialize(&source));
 
   for (int i = 0; i < 4; i++) {
     const ByteArray tmp(static_cast<uint32_t>(test_string[i].length()),
                         reinterpret_cast<const uint8_t*>(test_string[i].c_str()));
-    EXPECT_TRUE(bloom_filter1->FindHash(bloom_filter1->Hash(&tmp)));
+    EXPECT_TRUE(bloom_filter1.FindHash(bloom_filter1.Hash(&tmp)));
   }
 
   // The following is used to check whether the new created Bloom filter in parquet-cpp is
   // byte-for-byte identical to file at bloom_data_path which is created from parquet-mr
   // with same inserted hashes.
-  BlockSplitBloomFilter bloom_filter2(bloom_filter1->GetBitsetSize());
+  BlockSplitBloomFilter bloom_filter2(bloom_filter1.GetBitsetSize());
   for (int i = 0; i < 4; i++) {
     const ByteArray byte_array(static_cast<uint32_t>(test_string[i].length()),
                                reinterpret_cast<const uint8_t*>(test_string[i].c_str()));
@@ -195,7 +196,6 @@ TEST(CompatibilityTest, TestBloomFilter) {
   handle->Read(size, &buffer2);
 
   EXPECT_TRUE((*buffer1).Equals(*buffer2));
-  delete bloom_filter1;
 }
 
 // OptmialValueTest is used to test whether OptimalNumOfBits returns expected
@@ -205,34 +205,36 @@ TEST(CompatibilityTest, TestBloomFilter) {
 // Also it is used to test whether OptimalNumOfBits returns value between
 // [MINIMUM_BLOOM_FILTER_SIZE, MAXIMUM_BLOOM_FILTER_SIZE].
 TEST(OptimalValueTest, TestBloomFilter) {
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(256, 0.01), UINT32_C(4096));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(512, 0.01), UINT32_C(8192));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1024, 0.01), UINT32_C(16384));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(2048, 0.01), UINT32_C(32768));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(256, 0.01), UINT32_C(4096));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(512, 0.01), UINT32_C(8192));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(1024, 0.01), UINT32_C(16384));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(2048, 0.01), UINT32_C(32768));
 
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.01), UINT32_C(2048));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.01), UINT32_C(4096));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.01), UINT32_C(8192));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.01), UINT32_C(16384));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(200, 0.01), UINT32_C(2048));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(300, 0.01), UINT32_C(4096));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(700, 0.01), UINT32_C(8192));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(1500, 0.01), UINT32_C(16384));
 
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.025), UINT32_C(2048));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.025), UINT32_C(4096));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.025), UINT32_C(8192));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.025), UINT32_C(16384));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(200, 0.025), UINT32_C(2048));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(300, 0.025), UINT32_C(4096));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(700, 0.025), UINT32_C(8192));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(1500, 0.025), UINT32_C(16384));
 
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(200, 0.05), UINT32_C(2048));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(300, 0.05), UINT32_C(4096));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(700, 0.05), UINT32_C(8192));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(1500, 0.05), UINT32_C(16384));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(200, 0.05), UINT32_C(2048));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(300, 0.05), UINT32_C(4096));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(700, 0.05), UINT32_C(8192));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(1500, 0.05), UINT32_C(16384));
 
   // Boundary check
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.01) / 8, UINT32_C(32));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(std::numeric_limits<uint32_t>::max(), 0.01) / 8,
-            UINT32_C(134217728));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(4, 0.01), UINT32_C(256));
+  EXPECT_EQ(BlockSplitBloomFilter::OptimalNumOfBits(4, 0.25), UINT32_C(256));
 
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(4, 0.25) / 8, UINT32_C(32));
-  EXPECT_EQ(BloomFilter::OptimalNumOfBits(std::numeric_limits<uint32_t>::max(), 0.25) / 8,
-            UINT32_C(134217728));
+  EXPECT_EQ(
+      BlockSplitBloomFilter::OptimalNumOfBits(std::numeric_limits<uint32_t>::max(), 0.01),
+      UINT32_C(1073741824));
+  EXPECT_EQ(
+      BlockSplitBloomFilter::OptimalNumOfBits(std::numeric_limits<uint32_t>::max(), 0.25),
+      UINT32_C(1073741824));
 }
 
 }  // namespace test

@@ -34,7 +34,7 @@ BlockSplitBloomFilter::BlockSplitBloomFilter(uint32_t num_bytes)
     : pool_(::arrow::default_memory_pool()),
       hash_strategy_(HashStrategy::MURMUR3_X64_128),
       algorithm_(Algorithm::BLOCK) {
-  if (num_bytes < BloomFilter::MINIMUM_BLOOM_FILTER_BYTES) {
+  if (num_bytes < MINIMUM_BLOOM_FILTER_BYTES) {
     num_bytes = MINIMUM_BLOOM_FILTER_BYTES;
   }
 
@@ -56,6 +56,7 @@ BlockSplitBloomFilter::BlockSplitBloomFilter(uint32_t num_bytes)
 
 BlockSplitBloomFilter::BlockSplitBloomFilter(const uint8_t* bitset, uint32_t num_bytes)
     : pool_(::arrow::default_memory_pool()),
+      num_bytes_(num_bytes),
       hash_strategy_(HashStrategy::MURMUR3_X64_128),
       algorithm_(Algorithm::BLOCK) {
   if (!bitset) {
@@ -67,56 +68,45 @@ BlockSplitBloomFilter::BlockSplitBloomFilter(const uint8_t* bitset, uint32_t num
     throw ParquetException("Given length of bitset is illegal");
   }
 
-  num_bytes_ = num_bytes;
   PARQUET_THROW_NOT_OK(::arrow::AllocateBuffer(pool_, num_bytes_, &data_));
   memcpy(data_->mutable_data(), bitset, num_bytes_);
 
   this->hasher_.reset(new MurmurHash3());
 }
 
-BloomFilter* BlockSplitBloomFilter::Deserialize(InputStream* input) {
+BlockSplitBloomFilter BlockSplitBloomFilter::Deserialize(InputStream* input) {
   int64_t bytes_available;
-  const uint8_t* read_buffer = NULL;
 
-  uint32_t len;
+  const uint8_t* read_buffer = NULL;
   read_buffer = input->Read(sizeof(uint32_t), &bytes_available);
   if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t) || !read_buffer) {
     throw ParquetException("Failed to deserialize from input stream");
   }
+  uint32_t len;
   memcpy(&len, read_buffer, sizeof(uint32_t));
 
-  uint32_t hash;
   read_buffer = input->Read(sizeof(uint32_t), &bytes_available);
   if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t) || !read_buffer) {
     throw ParquetException("Failed to deserialize from input stream");
   }
+  uint32_t hash;
   memcpy(&hash, read_buffer, sizeof(uint32_t));
-  if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t)) {
-    throw ParquetException("Failed to deserialize from input stream");
-  }
   if (static_cast<HashStrategy>(hash) != HashStrategy::MURMUR3_X64_128) {
     throw ParquetException("Unsupported hash strategy");
   }
 
-  uint32_t algorithm;
   read_buffer = input->Read(sizeof(uint32_t), &bytes_available);
   if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t) || !read_buffer) {
     throw ParquetException("Failed to deserialize from input stream");
   }
+  uint32_t algorithm;
   memcpy(&algorithm, read_buffer, sizeof(uint32_t));
-  if (static_cast<uint32_t>(bytes_available) != sizeof(uint32_t)) {
-    throw ParquetException("Failed to deserialize from input stream");
-  }
   if (static_cast<Algorithm>(algorithm) != BloomFilter::Algorithm::BLOCK) {
     throw ParquetException("Unsupported Bloom filter algorithm");
   }
 
-  return new BlockSplitBloomFilter(input->Read(len, &bytes_available), len);
+  return BlockSplitBloomFilter(input->Read(len, &bytes_available), len);
 }
-
-void BlockSplitBloomFilter::InsertHash(uint64_t hash) { SetBits(hash); }
-
-bool BlockSplitBloomFilter::FindHash(uint64_t hash) const { return TestBits(hash); }
 
 void BlockSplitBloomFilter::WriteTo(OutputStream* sink) const {
   if (!sink) {
@@ -143,7 +133,7 @@ void BlockSplitBloomFilter::SetMask(uint32_t key, BlockMask& block_mask) const {
   }
 }
 
-bool BlockSplitBloomFilter::TestBits(uint64_t hash) const {
+bool BlockSplitBloomFilter::FindHash(uint64_t hash) const {
   const uint32_t bucket_index =
       static_cast<uint32_t>((hash >> 32) & (num_bytes_ / BYTES_PER_FILTER_BLOCK - 1));
   uint32_t key = static_cast<uint32_t>(hash);
@@ -161,7 +151,7 @@ bool BlockSplitBloomFilter::TestBits(uint64_t hash) const {
   return true;
 }
 
-void BlockSplitBloomFilter::SetBits(uint64_t hash) {
+void BlockSplitBloomFilter::InsertHash(uint64_t hash) {
   const uint32_t bucket_index =
       static_cast<uint32_t>(hash >> 32) & (num_bytes_ / BYTES_PER_FILTER_BLOCK - 1);
   uint32_t key = static_cast<uint32_t>(hash);
