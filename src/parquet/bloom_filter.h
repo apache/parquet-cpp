@@ -36,7 +36,7 @@ class BloomFilter {
  public:
   // Maximum Bloom filter size, it sets to HDFS default block size 128MB
   // This value will be reconsidered when implementing Bloom filter producer.
-  static constexpr uint32_t MAXIMUM_BLOOM_FILTER_BYTES = 128 * 1024 * 1024;
+  static constexpr uint32_t kMaximumBloomFilterBytes = 128 * 1024 * 1024;
 
   /// Determine whether an element exist in set or not.
   ///
@@ -118,47 +118,50 @@ class BloomFilter {
 // filter is 32 bytes to take advantage of 32-byte SIMD instructions.
 class BlockSplitBloomFilter : public BloomFilter {
  public:
-  /// The constructor of BlockSplitBloomFilter. The range of num_bytes should be within
-  /// [MINIMUM_BLOOM_FILTER_BYTES, MAXIMUM_BLOOM_FILTER_BYTES], it will be
+  /// The constructor of BlockSplitBloomFilter. It uses murmur3_x64_128 as hash function.
+  BlockSplitBloomFilter();
+
+  /// Initialize the BlockSplitBloomFilter. The range of num_bytes should be within
+  /// [kMinimumBloomFilterBytes, kMaximumBloomFilterBytes], it will be
   /// rounded up/down to lower/upper bound if num_bytes is out of range and also
-  /// will be rounded up to a power of 2. It uses murmur3_x64_128 as hash function.
+  /// will be rounded up to a power of 2.
   ///
   /// @param num_bytes The number of bytes to store Bloom filter bitset.
-  explicit BlockSplitBloomFilter(uint32_t num_bytes);
+  void Init(uint32_t num_bytes);
 
-  /// The constructor of BlockSplitBloomFilter. It copies the bitset as underlying
+  /// Initialize the BlockSplitBloomFilter. It copies the bitset as underlying
   /// bitset because the given bitset may not satisfy the 32-byte alignment requirement
   /// which may lead to segfault when performing SIMD instructions. It is the caller's
-  /// responsibility to free the bitset passed in. It is used when reconstructing
-  /// a Bloom filter from a parquet file. It uses murmur3_x64_128 as hash function.
+  /// responsibility to free the bitset passed in. This is used when reconstructing
+  /// a Bloom filter from a parquet file.
   ///
-  /// @param bitset The given bitset to construct Bloom filter.
+  /// @param bitset The given bitset to initialize the Bloom filter.
   /// @param num_bytes  The number of bytes of given bitset.
-  BlockSplitBloomFilter(const uint8_t* bitset, uint32_t num_bytes);
+  void Init(const uint8_t* bitset, uint32_t num_bytes);
 
   // Minimum Bloom filter size, it sets to 32 bytes to fit a tiny Bloom filter.
-  static constexpr uint32_t MINIMUM_BLOOM_FILTER_BYTES = 32;
+  static constexpr uint32_t kMinimumBloomFilterBytes = 32;
 
   /// Calculate optimal size according to the number of distinct values and false
   /// positive probability.
   ///
   /// @param ndv The number of distinct values.
   /// @param fpp The false positive probability.
-  /// @return it always return a value between MINIMUM_BLOOM_FILTER_BYTES and
-  /// MAXIMUM_BLOOM_FILTER_BYTES, and the return value is always a power of 2
+  /// @return it always return a value between kMinimumBloomFilterBytes and
+  /// kMaximumBloomFilterBytes, and the return value is always a power of 2
   static uint32_t OptimalNumOfBits(uint32_t ndv, double fpp) {
     DCHECK(fpp > 0.0 && fpp < 1.0);
     const double m = -8.0 * ndv / log(1 - pow(fpp, 1.0 / 8));
     uint32_t num_bits = static_cast<uint32_t>(m);
 
     // Handle overflow.
-    if (m < 0 || m > MAXIMUM_BLOOM_FILTER_BYTES << 3) {
-      num_bits = static_cast<uint32_t>(MAXIMUM_BLOOM_FILTER_BYTES << 3);
+    if (m < 0 || m > kMaximumBloomFilterBytes << 3) {
+      num_bits = static_cast<uint32_t>(kMaximumBloomFilterBytes << 3);
     }
 
     // Round up to lower bound
-    if (num_bits < MINIMUM_BLOOM_FILTER_BYTES << 3) {
-      num_bits = MINIMUM_BLOOM_FILTER_BYTES << 3;
+    if (num_bits < kMinimumBloomFilterBytes << 3) {
+      num_bits = kMinimumBloomFilterBytes << 3;
     }
 
     // Get next power of 2 if bits is not power of 2.
@@ -167,8 +170,8 @@ class BlockSplitBloomFilter : public BloomFilter {
     }
 
     // Round down to upper bound
-    if (num_bits > MAXIMUM_BLOOM_FILTER_BYTES << 3) {
-      num_bits = MAXIMUM_BLOOM_FILTER_BYTES << 3;
+    if (num_bits > kMaximumBloomFilterBytes << 3) {
+      num_bits = kMaximumBloomFilterBytes << 3;
     }
 
     return num_bits;
@@ -196,19 +199,19 @@ class BlockSplitBloomFilter : public BloomFilter {
 
  private:
   // Bytes in a tiny Bloom filter block.
-  static constexpr int BYTES_PER_FILTER_BLOCK = 32;
+  static constexpr int kBytesPerFilterBlock = 32;
 
   // The number of bits to be set in each tiny Bloom filter
-  static constexpr int BITS_SET_PER_BLOCK = 8;
+  static constexpr int kBitsSetPerBlock = 8;
 
   // A mask structure used to set bits in each tiny Bloom filter.
   struct BlockMask {
-    uint32_t item[BITS_SET_PER_BLOCK];
+    uint32_t item[kBitsSetPerBlock];
   };
 
   // The block-based algorithm needs eight odd SALT values to calculate eight indexes
   // of bit to set, one bit in each 32-bit word.
-  static constexpr uint32_t SALT[BITS_SET_PER_BLOCK] = {
+  static constexpr uint32_t SALT[kBitsSetPerBlock] = {
       0x47b6137bU, 0x44974d91U, 0x8824ad5bU, 0xa2b7289dU,
       0x705495c7U, 0x2df1424bU, 0x9efc4947U, 0x5c6bfb31U};
 

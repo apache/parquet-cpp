@@ -39,25 +39,23 @@ TEST(Murmur3Test, TestBloomFilter) {
 }
 
 TEST(ConstructorTest, TestBloomFilter) {
-  EXPECT_NO_THROW(BlockSplitBloomFilter bloom_filter1(1000));
+  BlockSplitBloomFilter bloom_filter;
+  EXPECT_NO_THROW(bloom_filter.Init(1000));
 
   // It throws because the length cannot be zero
   std::unique_ptr<uint8_t[]> bitset1(new uint8_t[1024]());
-  EXPECT_THROW(new BlockSplitBloomFilter(bitset1.get(), 0), ParquetException);
-
-  // It throws because the bitset is NULL
-  EXPECT_THROW(new BlockSplitBloomFilter(NULL, 1024), ParquetException);
-
-  std::unique_ptr<uint8_t[]> bitset2(new uint8_t[1024]());
+  EXPECT_THROW(bloom_filter.Init(bitset1.get(), 0), ParquetException);
 
   // It throws because the number of bytes of Bloom filter bitset must be a power of 2.
-  EXPECT_THROW(new BlockSplitBloomFilter(bitset2.get(), 1023), ParquetException);
+  std::unique_ptr<uint8_t[]> bitset2(new uint8_t[1024]());
+  EXPECT_THROW(bloom_filter.Init(bitset2.get(), 1023), ParquetException);
 }
 
 // The BasicTest is used to test basic operations including InsertHash, FindHash and
 // serializing and de-serializing.
 TEST(BasicTest, TestBloomFilter) {
-  BlockSplitBloomFilter bloom_filter(1024);
+  BlockSplitBloomFilter bloom_filter;
+  bloom_filter.Init(1024);
 
   for (int i = 0; i < 10; i++) {
     bloom_filter.InsertHash(bloom_filter.Hash(i));
@@ -112,8 +110,8 @@ TEST(FPPTest, TestBloomFilter) {
   const double fpp = 0.01;
 
   std::vector<std::string> members;
-  BlockSplitBloomFilter bloom_filter(
-      BlockSplitBloomFilter::OptimalNumOfBits(total_count, fpp));
+  BlockSplitBloomFilter bloom_filter;
+  bloom_filter.Init(BlockSplitBloomFilter::OptimalNumOfBits(total_count, fpp));
 
   // Insert elements into the Bloom filter
   for (int i = 0; i < total_count; i++) {
@@ -178,7 +176,8 @@ TEST(CompatibilityTest, TestBloomFilter) {
   // The following is used to check whether the new created Bloom filter in parquet-cpp is
   // byte-for-byte identical to file at bloom_data_path which is created from parquet-mr
   // with same inserted hashes.
-  BlockSplitBloomFilter bloom_filter2(bloom_filter1.GetBitsetSize());
+  BlockSplitBloomFilter bloom_filter2;
+  bloom_filter2.Init(bloom_filter1.GetBitsetSize());
   for (int i = 0; i < 4; i++) {
     const ByteArray byte_array(static_cast<uint32_t>(test_string[i].length()),
                                reinterpret_cast<const uint8_t*>(test_string[i].c_str()));
