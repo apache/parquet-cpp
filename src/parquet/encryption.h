@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef PARQUET_DECRYPTION_RETRIEVER_H
-#define PARQUET_DECRYPTION_RETRIEVER_H
+#ifndef PARQUET_ENCRYPTION_H
+#define PARQUET_ENCRYPTION_H
 
 #include <parquet/util/visibility.h>
 #include <map>
@@ -26,15 +26,15 @@ namespace parquet {
 
 class PARQUET_EXPORT DecryptionKeyRetriever {
  public:
-  virtual std::string get_key(const std::string& key_metadata) = 0;
+  virtual const std::string& GetKey(const std::string& key_metadata) = 0;
   virtual ~DecryptionKeyRetriever() {}
 };
 
 // Simple integer key retriever
 class PARQUET_EXPORT IntegerKeyIdRetriever : public DecryptionKeyRetriever {
  public:
-  void put_key(uint32_t key_id, const std::string& key);
-  std::string get_key(const std::string& key_metadata);
+  void PutKey(uint32_t key_id, const std::string& key);
+  const std::string& GetKey(const std::string& key_metadata);
 
  private:
   std::map<uint32_t, std::string> key_map_;
@@ -43,8 +43,8 @@ class PARQUET_EXPORT IntegerKeyIdRetriever : public DecryptionKeyRetriever {
 // Simple string key retriever
 class PARQUET_EXPORT StringKeyIdRetriever : public DecryptionKeyRetriever {
  public:
-  void put_key(const std::string& key_id, const std::string& key);
-  std::string get_key(const std::string& key_metadata);
+  void PutKey(const std::string& key_id, const std::string& key);
+  const std::string& GetKey(const std::string& key_metadata);
 
  private:
   std::map<std::string, std::string> key_map_;
@@ -52,4 +52,4 @@ class PARQUET_EXPORT StringKeyIdRetriever : public DecryptionKeyRetriever {
 
 }  // namespace parquet
 
-#endif  // PARQUET_DECRYPTION_RETRIEVER_H
+#endif  // PARQUET_ENCRYPTION_H

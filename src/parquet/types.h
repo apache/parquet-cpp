@@ -143,11 +143,11 @@ class PARQUET_EXPORT EncryptionProperties {
 
   Encryption::type algorithm() const { return algorithm_; }
 
-  std::string key_metadata() const { return key_metadata_; }
+  const std::string& key_metadata() const { return key_metadata_; }
 
-  std::string key() const { return key_; }
+  const std::string& key() const { return key_; }
 
-  uint32_t calculate_cipher_size(uint32_t plain_len) const {
+  uint32_t CalculateCipherSize(uint32_t plain_len) const {
     if (algorithm_ == Encryption::AES_GCM_V1) {
       return plain_len + 28;
     } else if (algorithm_ == Encryption::AES_GCM_CTR_V1) {
@@ -156,7 +156,7 @@ class PARQUET_EXPORT EncryptionProperties {
     return plain_len;
   }
 
-  uint32_t calculate_plain_size(uint32_t cipher_len) const {
+  uint32_t CalculatePlainSize(uint32_t cipher_len) const {
     if (algorithm_ == Encryption::AES_GCM_V1) {
       return cipher_len - 28;
     } else if (algorithm_ == Encryption::AES_GCM_CTR_V1) {
@@ -166,9 +166,9 @@ class PARQUET_EXPORT EncryptionProperties {
   }
 
  private:
+  Encryption::type algorithm_;  // encryption algorithm
   std::string key_;             // encryption key, should have 16, 24, 32-byte length
   std::string key_metadata_;    // key metadata, used for retrieving key
-  Encryption::type algorithm_;  // encryption algorithm
   std::string aad_;             // encryption additional authenticated data
 };
 

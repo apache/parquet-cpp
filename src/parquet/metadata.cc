@@ -96,14 +96,14 @@ class ColumnCryptoMetaData::ColumnCryptoMetaDataImpl {
 
   ~ColumnCryptoMetaDataImpl() {}
 
-  inline std::vector<std::string> path_in_schema() const {
+  const std::vector<std::string>& path_in_schema() const {
     return crypto_metadata_->path_in_schema;
   }
-  inline bool encrypted() const { return crypto_metadata_->encrypted; }
-  inline bool encrypted_with_footer_key() const {
+  bool encrypted() const { return crypto_metadata_->encrypted; }
+  bool encrypted_with_footer_key() const {
     return crypto_metadata_->encrypted_with_footer_key;
   }
-  inline std::string column_key_metadata() const {
+  const std::string& column_key_metadata() const {
     return crypto_metadata_->column_key_metadata;
   }
 
@@ -122,14 +122,14 @@ ColumnCryptoMetaData::ColumnCryptoMetaData(const uint8_t* metadata)
 
 ColumnCryptoMetaData::~ColumnCryptoMetaData() {}
 
-std::vector<std::string> ColumnCryptoMetaData::path_in_schema() const {
+const std::vector<std::string>& ColumnCryptoMetaData::path_in_schema() const {
   return impl_->path_in_schema();
 }
 bool ColumnCryptoMetaData::encrypted() const { return impl_->encrypted(); }
 bool ColumnCryptoMetaData::encrypted_with_footer_key() const {
   return impl_->encrypted_with_footer_key();
 }
-std::string ColumnCryptoMetaData::column_key_metadata() const {
+const std::string& ColumnCryptoMetaData::column_key_metadata() const {
   return impl_->column_key_metadata();
 }
 
@@ -546,13 +546,13 @@ class FileCryptoMetaData::FileCryptoMetaDataImpl {
 
   bool encrypted_footer() { return metadata_->encrypted_footer; }
 
-  std::string footer_key_metadata() {
+  const std::string& footer_key_metadata() {
     return metadata_->__isset.footer_key_metadata ? metadata_->footer_key_metadata : "";
   }
 
   uint64_t footer_offset() { return metadata_->footer_offset; }
 
-  std::string iv_prefix() {
+  const std::string& iv_prefix() {
     return metadata_->__isset.iv_prefix ? metadata_->iv_prefix : "";
   }
 
@@ -769,8 +769,7 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
   }
 
   void WriteTo(OutputStream* sink) {
-    std::cout << "ColumnChunkMetaDataBuilderImpl::WriteTo" << std::endl;
-    auto encrypt_md = properties_->encryption_metadata(column_->path());
+    const auto& encrypt_md = properties_->encryption_metadata(column_->path());
 
     // file is not encrypted or uniform encrypted
     if (encrypt_md == nullptr) {
@@ -975,7 +974,7 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
       const std::shared_ptr<const KeyValueMetadata>& key_value_metadata)
       : properties_(props), schema_(schema), key_value_metadata_(key_value_metadata) {
     metadata_.reset(new format::FileMetaData());
-    if (props->footer_encryption().get() != nullptr) {
+    if (props->footer_encryption() != nullptr) {
       crypto_metadata_.reset(new format::FileCryptoMetaData());
     }
   }

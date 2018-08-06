@@ -92,10 +92,10 @@ class PARQUET_EXPORT ColumnCryptoMetaData {
   static std::unique_ptr<ColumnCryptoMetaData> Make(const uint8_t* metadata);
   ~ColumnCryptoMetaData();
 
-  std::vector<std::string> path_in_schema() const;
+  const std::vector<std::string>& path_in_schema() const;
   bool encrypted() const;
   bool encrypted_with_footer_key() const;
-  std::string column_key_metadata() const;
+  const std::string& column_key_metadata() const;
 
  private:
   explicit ColumnCryptoMetaData(const uint8_t* metadata);
@@ -217,9 +217,9 @@ class PARQUET_EXPORT FileCryptoMetaData {
 
   Encryption::type encryption_algorithm();
   bool encrypted_footer();
-  std::string footer_key_metadata();
+  const std::string& footer_key_metadata();
   uint64_t footer_offset();
-  std::string iv_prefix();
+  const std::string& iv_prefix();
 
   void WriteTo(OutputStream* dst);
 

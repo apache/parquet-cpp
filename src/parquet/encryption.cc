@@ -15,18 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "decryption_key_retriever.h"
+#include "encryption.h"
 
-#include <cstring>
+#include <string>
 
 namespace parquet {
 
 // integer key retriever
-void IntegerKeyIdRetriever::put_key(uint32_t key_id, const std::string& key) {
+void IntegerKeyIdRetriever::PutKey(uint32_t key_id, const std::string& key) {
   key_map_.insert(std::make_pair(key_id, key));
 }
 
-std::string IntegerKeyIdRetriever::get_key(const std::string& key_metadata) {
+const std::string& IntegerKeyIdRetriever::GetKey(const std::string& key_metadata) {
   uint32_t key_id;
   std::memcpy(reinterpret_cast<uint8_t*>(&key_id), key_metadata.c_str(), 4);
 
@@ -34,11 +34,11 @@ std::string IntegerKeyIdRetriever::get_key(const std::string& key_metadata) {
 }
 
 // string key retriever
-void StringKeyIdRetriever::put_key(const std::string& key_id, const std::string& key) {
+void StringKeyIdRetriever::PutKey(const std::string& key_id, const std::string& key) {
   key_map_.insert(std::make_pair(key_id, key));
 }
 
-std::string StringKeyIdRetriever::get_key(const std::string& key_id) {
+const std::string& StringKeyIdRetriever::GetKey(const std::string& key_id) {
   return key_map_[key_id];
 }
 

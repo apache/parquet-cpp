@@ -197,8 +197,8 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
 
     std::vector<uint8_t> decrypt_buffer;
     if (encryption_.get()) {
-      decrypt_buffer.resize(encryption_->calculate_plain_size(compressed_len));
-      compressed_len = parquet::decrypt(
+      decrypt_buffer.resize(encryption_->CalculatePlainSize(compressed_len));
+      compressed_len = parquet_encryption::Decrypt(
           encryption_->algorithm(), false, buffer, compressed_len,
           encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
           encryption_->aad_length(), decrypt_buffer.data());

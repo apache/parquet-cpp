@@ -165,14 +165,14 @@ class SerializedPageWriter : public PageWriter {
     const uint8_t* output_data_buffer = compressed_data->data();
     int output_data_len = static_cast<int>(compressed_data->size());
 
-    std::vector<uint8_t> encrypted_data_buffer;
+    std::shared_ptr<ResizableBuffer> encrypted_data_buffer = AllocateBuffer(pool_, 0);
     if (encryption_.get()) {
-      encrypted_data_buffer.resize(encryption_->calculate_cipher_size(output_data_len));
-      output_data_len = parquet::encrypt(
+      encrypted_data_buffer->Resize(encryption_->CalculateCipherSize(output_data_len));
+      output_data_len = parquet_encryption::Encrypt(
           encryption_->algorithm(), false, compressed_data->data(), output_data_len,
           encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
-          encryption_->aad_length(), encrypted_data_buffer.data());
-      output_data_buffer = encrypted_data_buffer.data();
+          encryption_->aad_length(), encrypted_data_buffer->mutable_data());
+      output_data_buffer = encrypted_data_buffer->data();
     }
 
     format::PageHeader page_header;
@@ -242,16 +242,16 @@ class SerializedPageWriter : public PageWriter {
     data_page_header.__set_statistics(ToThrift(page.statistics()));
 
     const uint8_t* output_data_buffer = compressed_data->data();
-    int output_data_len = static_cast<int>(compressed_data->size());
+    int32_t output_data_len = static_cast<int32_t>(compressed_data->size());
 
-    std::vector<uint8_t> encrypted_data_buffer;
+    std::shared_ptr<ResizableBuffer> encrypted_data_buffer = AllocateBuffer(pool_, 0);
     if (encryption_.get()) {
-      encrypted_data_buffer.resize(encryption_->calculate_cipher_size(output_data_len));
-      output_data_len = parquet::encrypt(
+      encrypted_data_buffer->Resize(encryption_->CalculateCipherSize(output_data_len));
+      output_data_len = parquet_encryption::Encrypt(
           encryption_->algorithm(), false, compressed_data->data(), output_data_len,
           encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
-          encryption_->aad_length(), encrypted_data_buffer.data());
-      output_data_buffer = encrypted_data_buffer.data();
+          encryption_->aad_length(), encrypted_data_buffer->mutable_data());
+      output_data_buffer = encrypted_data_buffer->data();
     }
 
     format::PageHeader page_header;

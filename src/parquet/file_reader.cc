@@ -157,7 +157,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
     if (encrypted_with_footer_key) {
       std::string footer_key_metadata = file_crypto_metadata_->footer_key_metadata();
-      std::string footer_key = file_decryption->footer_key(footer_key_metadata);
+      std::string footer_key = file_decryption->GetFooterKey(footer_key_metadata);
 
       if (footer_key.empty()) {
         throw ParquetException("column is encrypted with null footer key");
@@ -165,7 +165,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
       auto footer_encryption = std::make_shared<EncryptionProperties>(
           file_crypto_metadata_->encryption_algorithm(), footer_key, footer_key_metadata,
-          file_decryption->aad());
+          file_decryption->GetAad());
 
       return PageReader::Open(std::move(stream), col->num_values(), col->compression(),
                               footer_encryption, properties_.memory_pool());
@@ -173,7 +173,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
     std::string column_key_metadata = crypto_meta_data->column_key_metadata();
     // encrypted with column key
-    std::string column_key = file_decryption->column_key(
+    std::string column_key = file_decryption->GetColumnKey(
         col->path_in_schema()->ToDotString(), crypto_meta_data->column_key_metadata());
 
     if (column_key.empty()) {
@@ -182,7 +182,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
     }
     auto column_encryption = std::make_shared<EncryptionProperties>(
         file_crypto_metadata_->encryption_algorithm(), column_key, column_key_metadata,
-        file_decryption->aad());
+        file_decryption->GetAad());
 
     return PageReader::Open(std::move(stream), col->num_values(), col->compression(),
                             column_encryption, properties_.memory_pool());
@@ -287,7 +287,7 @@ class SerializedFile : public ParquetFileReader::Contents {
             "file metadata size.");
       }
 
-      std::shared_ptr<PoolBuffer> crypto_metadata_buffer =
+      std::shared_ptr<ResizableBuffer> crypto_metadata_buffer =
           AllocateBuffer(properties_.memory_pool(), crypto_metadata_len);
 
       // Check if the footer_buffer contains the entire metadata
@@ -309,7 +309,7 @@ class SerializedFile : public ParquetFileReader::Contents {
       int64_t footer_offset = file_crypto_metadata_->footer_offset();
       uint32_t footer_read_size = (uint32_t)(crypto_metadata_start - footer_offset);
 
-      std::shared_ptr<PoolBuffer> footer_buffer =
+      std::shared_ptr<ResizableBuffer> footer_buffer =
           AllocateBuffer(properties_.memory_pool(), footer_read_size);
       bytes_read =
           source_->ReadAt(footer_offset, footer_read_size, footer_buffer->mutable_data());
@@ -319,11 +319,11 @@ class SerializedFile : public ParquetFileReader::Contents {
         std::string footer_key_metadata = file_crypto_metadata_->footer_key_metadata();
 
         auto file_decryption = properties_.file_decryption();
-        std::string footer_key = file_decryption->footer_key(footer_key_metadata);
+        std::string footer_key = file_decryption->GetFooterKey(footer_key_metadata);
 
         auto footer_encryption = std::make_shared<EncryptionProperties>(
             file_crypto_metadata_->encryption_algorithm(), footer_key,
-            footer_key_metadata, file_decryption->aad());
+            footer_key_metadata, file_decryption->GetAad());
 
         file_metadata_ = FileMetaData::Make(footer_buffer->data(), &footer_read_size,
                                             footer_encryption);
