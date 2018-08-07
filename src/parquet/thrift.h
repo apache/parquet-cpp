@@ -82,8 +82,7 @@ static inline Compression::type FromThrift(format::CompressionCodec::type type) 
 static inline Encryption::type FromThrift(format::EncryptionAlgorithm type) {
   if (type.__isset.AES_GCM_V1) {
     return Encryption::AES_GCM_V1;
-  }
-  else { 
+  } else {
     return Encryption::AES_GCM_CTR_V1;
   }
 }
@@ -114,8 +113,7 @@ static inline format::EncryptionAlgorithm ToThrift(Encryption::type type) {
   format::EncryptionAlgorithm encryption_algorithm;
   if (type == Encryption::AES_GCM_V1) {
     encryption_algorithm.AES_GCM_V1 = format::AesGcmV1();
-  }
-  else {
+  } else {
     encryption_algorithm.AES_GCM_CTR_V1 = format::AesGcmCtrV1();
   }
   return encryption_algorithm;
@@ -166,7 +164,8 @@ inline void DeserializeThriftMsg(const uint8_t* buf, uint32_t* len, T* deseriali
       throw ParquetException("Couldn't decrypt buffer\n");
     }
 
-    DeserializeThriftMsg(decrypted_buffer.data(), &decrypted_buffer_len, deserialized_msg);
+    DeserializeThriftMsg(decrypted_buffer.data(), &decrypted_buffer_len,
+                         deserialized_msg);
 
     *len = 4 + clen;
   }

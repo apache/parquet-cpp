@@ -133,7 +133,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
 
     // file is unencrypted
     // or file is encrypted but column is unencrypted
-    if (!file_crypto_metadata_ || (crypto_meta_data && !crypto_meta_data->encrypted())) {
+    if (!file_crypto_metadata_ || !crypto_meta_data) {
       encrypted = false;
     }
 
@@ -142,20 +142,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                               nullptr, properties_.memory_pool());
     }
 
-    bool encrypted_with_footer_key = false;
-
-    // file is uniform encrypted
-    // or file is non-uniform encrypted and the column is encrypted with footer key
-    if (crypto_meta_data == nullptr || (crypto_meta_data->encrypted() &&
-                                        crypto_meta_data->encrypted_with_footer_key())) {
-      encrypted_with_footer_key = true;
-    }
-
-    // file is non-uniform encrypted and the column is encrypted with its own key
+    // the column is encrypted
 
     auto file_decryption = properties_.file_decryption();
 
-    if (encrypted_with_footer_key) {
+    // the column is encrypted with footer key
+    if (crypto_meta_data->encrypted_with_footer_key()) {
       std::string footer_key_metadata = file_crypto_metadata_->footer_key_metadata();
       std::string footer_key = file_decryption->GetFooterKey(footer_key_metadata);
 
@@ -171,10 +163,12 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                               footer_encryption, properties_.memory_pool());
     }
 
+    // file is non-uniform encrypted and the column is encrypted with its own key
+
     std::string column_key_metadata = crypto_meta_data->column_key_metadata();
     // encrypted with column key
-    std::string column_key = file_decryption->GetColumnKey(
-        col->path_in_schema()->ToDotString(), crypto_meta_data->column_key_metadata());
+    std::string column_key =
+        file_decryption->GetColumnKey(col->path_in_schema(), column_key_metadata);
 
     if (column_key.empty()) {
       throw ParquetException("column is encrypted with null key, path=" +

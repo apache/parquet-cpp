@@ -17,7 +17,7 @@
 
 #include "encryption.h"
 
-#include <string>
+#include <string.h>
 
 namespace parquet {
 
@@ -28,7 +28,7 @@ void IntegerKeyIdRetriever::PutKey(uint32_t key_id, const std::string& key) {
 
 const std::string& IntegerKeyIdRetriever::GetKey(const std::string& key_metadata) {
   uint32_t key_id;
-  std::memcpy(reinterpret_cast<uint8_t*>(&key_id), key_metadata.c_str(), 4);
+  memcpy(reinterpret_cast<uint8_t*>(&key_id), key_metadata.c_str(), 4);
 
   return key_map_[key_id];
 }

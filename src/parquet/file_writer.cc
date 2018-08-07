@@ -352,12 +352,8 @@ class FileSerializer : public ParquetFileWriter::Contents {
       uint64_t metadata_start = static_cast<uint64_t>(sink_->Tell());
 
       auto metadata = metadata_->Finish();
-      if (file_encryption->encrypted_footer()) {
-        auto footer_encryption = file_encryption->footer_encryption();
-        metadata->WriteTo(sink_.get(), footer_encryption.get());
-      } else {
-        metadata->WriteTo(sink_.get());
-      }
+      auto footer_encryption = file_encryption->GetFooterEncryptionProperties();
+      metadata->WriteTo(sink_.get(), footer_encryption.get());
 
       WriteFileCryptoMetaData(metadata_start);
       sink_->Write(PARQUET_EMAGIC, 4);

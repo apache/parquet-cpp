@@ -93,7 +93,6 @@ class PARQUET_EXPORT ColumnCryptoMetaData {
   ~ColumnCryptoMetaData();
 
   const std::vector<std::string>& path_in_schema() const;
-  bool encrypted() const;
   bool encrypted_with_footer_key() const;
   const std::string& column_key_metadata() const;
 
