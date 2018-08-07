@@ -111,7 +111,8 @@ class SerializedPageReader : public PageReader {
         decompression_buffer_(AllocateBuffer(pool, 0)),
         seen_num_rows_(0),
         total_num_rows_(total_num_rows),
-        encryption_(encryption) {
+        encryption_(encryption),
+        decryption_buffer_(AllocateBuffer(pool, 0)) {
     max_page_header_size_ = kDefaultMaxPageHeaderSize;
     decompressor_ = GetCodecFromArrow(codec);
   }
@@ -142,6 +143,7 @@ class SerializedPageReader : public PageReader {
 
   // Encryption
   std::shared_ptr<EncryptionProperties> encryption_;
+  std::shared_ptr<ResizableBuffer> decryption_buffer_;
 };
 
 std::shared_ptr<Page> SerializedPageReader::NextPage() {
@@ -195,15 +197,15 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
       ParquetException::EofException(ss.str());
     }
 
-    std::vector<uint8_t> decrypt_buffer;
-    if (encryption_.get()) {
-      decrypt_buffer.resize(encryption_->CalculatePlainSize(compressed_len));
+    // Decrypt it if we need to
+    if (encryption_ != nullptr) {
+      decryption_buffer_->Resize(encryption_->CalculatePlainSize(compressed_len), false);
       compressed_len = parquet_encryption::Decrypt(
           encryption_->algorithm(), false, buffer, compressed_len,
           encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
-          encryption_->aad_length(), decrypt_buffer.data());
+          encryption_->aad_length(), decryption_buffer_->mutable_data());
 
-      buffer = decrypt_buffer.data();
+      buffer = decryption_buffer_->data();
     }
 
     // Uncompress it if we need to

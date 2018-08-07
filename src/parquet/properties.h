@@ -288,8 +288,9 @@ class PARQUET_EXPORT FileEncryptionProperties {
         }
       }
     } else {
-      if (encrypt_the_rest)
+      if (encrypt_the_rest) {
         throw ParquetException("Encrypt the rest with null footer key");
+      }
       bool all_are_unencrypted = true;
       for (const auto& col : columns) {
         if (col.encrypted()) {

@@ -53,7 +53,7 @@ namespace parquet {
 static constexpr int64_t DEFAULT_FOOTER_READ_SIZE = 64 * 1024;
 static constexpr uint32_t FOOTER_SIZE = 8;
 static constexpr uint8_t PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
-static constexpr uint8_t PARQUET_EMAGIC[4] = {'P', 'A', 'R', '2'};
+static constexpr uint8_t PARQUET_EMAGIC[4] = {'P', 'A', 'R', 'E'};
 
 // For PARQUET-816
 static constexpr int64_t kMaxDictHeaderSize = 100;

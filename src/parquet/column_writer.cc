@@ -163,7 +163,7 @@ class SerializedPageWriter : public PageWriter {
     dict_page_header.__set_is_sorted(page.is_sorted());
 
     const uint8_t* output_data_buffer = compressed_data->data();
-    int output_data_len = static_cast<int>(compressed_data->size());
+    int32_t output_data_len = static_cast<int32_t>(compressed_data->size());
 
     std::shared_ptr<ResizableBuffer> encrypted_data_buffer = AllocateBuffer(pool_, 0);
     if (encryption_.get()) {
