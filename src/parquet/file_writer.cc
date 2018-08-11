@@ -142,6 +142,124 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   std::shared_ptr<ColumnWriter> current_column_writer_;
 };
 
+RowGroupWriter2::RowGroupWriter2(std::unique_ptr<Contents> contents)
+    : contents_(std::move(contents)) {}
+
+void RowGroupWriter2::Close() {
+  if (contents_) {
+    contents_->Close();
+  }
+}
+
+// ----------------------------------------------------------------------
+// RowGroupSerializer2
+
+// API to write a RowGroup based on a certain size
+// RowGroupWriter2::Contents implementation for the Parquet file specification
+// This RowGroupWriter keeps all the compressed pages in memory and flushes only on close
+
+int64_t RowGroupWriter2::current_compressed_bytes() const {
+  return contents_->current_compressed_bytes();
+}
+
+int RowGroupWriter2::num_columns() const { return contents_->num_columns(); }
+
+int64_t RowGroupWriter2::num_rows() const { return contents_->num_rows(); }
+
+ColumnWriter* RowGroupWriter2::get_column(int i) const {
+  return contents_->get_column(i);
+}
+
+class RowGroupSerializer2 : public RowGroupWriter2::Contents {
+ public:
+  RowGroupSerializer2(OutputStream* sink, RowGroupMetaDataBuilder* metadata,
+                      const WriterProperties* properties)
+      : sink_(sink),
+        metadata_(metadata),
+        properties_(properties),
+        total_bytes_written_(0),
+        closed_(false),
+        num_rows_(-1) {
+    InitColumns();
+  }
+
+  int num_columns() const override { return metadata_->num_columns(); }
+
+  int64_t num_rows() const override {
+    CheckRowsWritten();
+    return num_rows_;
+  }
+
+  int64_t current_compressed_bytes() const override {
+    int64_t current_compressed_bytes = 0;
+    for (int i = 0; i < num_columns(); i++) {
+      current_compressed_bytes += column_writers_[i]->current_compressed_bytes();
+    }
+    return current_compressed_bytes;
+  }
+
+  ColumnWriter* get_column(int i) const override {
+    if (i >= 0 && i < num_columns()) {
+      return column_writers_[i].get();
+    }
+    return nullptr;
+  }
+
+  void Close() override {
+    if (!closed_) {
+      closed_ = true;
+      CheckRowsWritten();
+
+      for (int i = 0; i < num_columns(); i++) {
+        total_bytes_written_ += column_writers_[i]->Close();
+        column_writers_[i].reset();
+      }
+
+      // Ensures all columns have been written
+      metadata_->Finish(total_bytes_written_);
+    }
+  }
+
+ private:
+  OutputStream* sink_;
+  mutable RowGroupMetaDataBuilder* metadata_;
+  const WriterProperties* properties_;
+  int64_t total_bytes_written_;
+  bool closed_;
+  mutable int64_t num_rows_;
+
+  void InitColumns() {
+    for (int i = 0; i < num_columns(); i++) {
+      auto col_meta = metadata_->NextColumnChunk();
+      const ColumnDescriptor* column_descr = col_meta->descr();
+      std::unique_ptr<PageWriter> pager =
+          PageWriter::Open(sink_, properties_->compression(column_descr->path()),
+                           col_meta, properties_->memory_pool());
+      column_writers_.push_back(
+          ColumnWriter::Make(col_meta, std::move(pager), properties_, true));
+    }
+  }
+
+  void CheckRowsWritten() const {
+    if (num_columns() > 0) {
+      int64_t total_rows = column_writers_[0]->rows_written();
+      for (int i = 1; i < num_columns(); i++) {
+        int64_t total_rows_i = column_writers_[i]->rows_written();
+        if (total_rows != total_rows_i) {
+          std::stringstream ss;
+          ss << "Column " << i << " had " << total_rows_i << " while previous column had "
+             << total_rows;
+          throw ParquetException(ss.str());
+        }
+      }
+      num_rows_ = total_rows;
+      metadata_->set_num_rows(total_rows);
+    }
+  }
+
+  std::vector<std::shared_ptr<ColumnWriter>> column_writers_;
+};
+
 // ----------------------------------------------------------------------
 // FileSerializer
 
@@ -190,6 +308,8 @@ class FileSerializer : public ParquetFileWriter::Contents {
   RowGroupWriter* AppendRowGroup() override {
     if (row_group_writer_) {
       row_group_writer_->Close();
+    } else if (row_group_writer2_) {
+      row_group_writer2_->Close();
     }
     num_row_groups_++;
     auto rg_metadata = metadata_->AppendRowGroup();
@@ -197,6 +317,20 @@ class FileSerializer : public ParquetFileWriter::Contents {
         new RowGroupSerializer(sink_.get(), rg_metadata, properties_.get()));
     row_group_writer_.reset(new RowGroupWriter(std::move(contents)));
     return row_group_writer_.get();
+  }
+
+  RowGroupWriter2* AppendRowGroup2() override {
+    if (row_group_writer_) {
+      row_group_writer_->Close();
+    } else if (row_group_writer2_) {
+      row_group_writer2_->Close();
+    }
+    num_row_groups_++;
+    auto rg_metadata = metadata_->AppendRowGroup();
+    std::unique_ptr<RowGroupWriter2::Contents> contents(
+        new RowGroupSerializer2(sink_.get(), rg_metadata, properties_.get()));
+    row_group_writer2_.reset(new RowGroupWriter2(std::move(contents)));
+    return row_group_writer2_.get();
   }
 
   ~FileSerializer() override {
@@ -227,7 +361,9 @@ class FileSerializer : public ParquetFileWriter::Contents {
   int num_row_groups_;
   int64_t num_rows_;
   std::unique_ptr<FileMetaDataBuilder> metadata_;
+  // Only one of the row group writers is active at a time
   std::unique_ptr<RowGroupWriter> row_group_writer_;
+  std::unique_ptr<RowGroupWriter2> row_group_writer2_;
 
   void StartFile() {
     // Parquet files always start with PAR1
@@ -309,6 +445,10 @@ void ParquetFileWriter::Close() {
 
 RowGroupWriter* ParquetFileWriter::AppendRowGroup() {
   return contents_->AppendRowGroup();
+}
+
+RowGroupWriter2* ParquetFileWriter::AppendRowGroup2() {
+  return contents_->AppendRowGroup2();
 }
 
 RowGroupWriter* ParquetFileWriter::AppendRowGroup(int64_t num_rows) {

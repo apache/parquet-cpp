@@ -39,6 +39,10 @@ class GroupNode;
 
 }  // namespace schema
 
+// RowGroupWriter implementation that optimizes memory requirement
+// All columns must be written one after the other
+// Writing to a new column prevents modification to the previous column
+
 class PARQUET_EXPORT RowGroupWriter {
  public:
   // Forward declare a virtual class 'Contents' to aid dependency injection and more
@@ -79,6 +83,44 @@ class PARQUET_EXPORT RowGroupWriter {
   std::unique_ptr<Contents> contents_;
 };
 
+// RowGroupWriter implementation that allows bounding a RowGroup size to a certain value
+// Columns can be written in an order
+// All the values are compressed and stored in memory
+// Values are written to the file on Close
+
+class PARQUET_EXPORT RowGroupWriter2 {
+ public:
+  // Forward declare a virtual class 'Contents' to aid dependency injection and more
+  // easily create test fixtures
+  // An implementation of the Contents class is defined in the .cc file
+  struct Contents {
+    virtual ~Contents() = default;
+    virtual int num_columns() const = 0;
+    virtual int64_t num_rows() const = 0;
+    virtual int64_t current_compressed_bytes() const = 0;
+    virtual ColumnWriter* get_column(int i) const = 0;
+    virtual void Close() = 0;
+  };
+
+  explicit RowGroupWriter2(std::unique_ptr<Contents> contents);
+
+  ColumnWriter* get_column(int i) const;
+
+  void Close();
+
+  int num_columns() const;
+
+  int64_t num_rows() const;
+
+  // Only considers the size of the compressed pages + page header in all the columns
+  // Some values might be still buffered an not written to a page yet
+  int64_t current_compressed_bytes() const;
+
+ private:
+  // Holds a pointer to an instance of Contents implementation
+  std::unique_ptr<Contents> contents_;
+};
+
 PARQUET_EXPORT
 void WriteFileMetaData(const FileMetaData& file_metadata, OutputStream* sink);
 
@@ -101,6 +143,8 @@ class PARQUET_EXPORT ParquetFileWriter {
     RowGroupWriter* AppendRowGroup(int64_t num_rows);
 
     virtual RowGroupWriter* AppendRowGroup() = 0;
+
+    virtual RowGroupWriter2* AppendRowGroup2() = 0;
 
     virtual int64_t num_rows() const = 0;
     virtual int num_columns() const = 0;
@@ -153,6 +197,8 @@ class PARQUET_EXPORT ParquetFileWriter {
   /// Ownership is solely within the ParquetFileWriter. The RowGroupWriter is only valid
   /// until the next call to AppendRowGroup or Close.
   RowGroupWriter* AppendRowGroup();
+
+  RowGroupWriter2* AppendRowGroup2();
 
   /// Number of columns.
   ///
