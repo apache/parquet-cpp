@@ -96,13 +96,14 @@ class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(ColumnChunkMetaDataBuilder*, std::unique_ptr<PageWriter>,
                bool has_dictionary, Encoding::type encoding,
-               const WriterProperties* properties);
+               const WriterProperties* properties, bool flush_on_close = false);
 
   virtual ~ColumnWriter() = default;
 
   static std::shared_ptr<ColumnWriter> Make(ColumnChunkMetaDataBuilder*,
                                             std::unique_ptr<PageWriter>,
-                                            const WriterProperties* properties);
+                                            const WriterProperties* properties,
+                                            bool flush_on_close = false);
 
   Type::type type() const { return descr_->physical_type(); }
 
@@ -116,6 +117,10 @@ class PARQUET_EXPORT ColumnWriter {
   int64_t Close();
 
   int64_t rows_written() const { return rows_written_; }
+
+  // Only considers the size of the compressed pages + page header
+  // Some values might be still buffered an not written to a page yet
+  int64_t current_compressed_bytes() const { return current_compressed_bytes_; }
 
   const WriterProperties* properties() { return properties_; }
 
@@ -192,6 +197,12 @@ class PARQUET_EXPORT ColumnWriter {
   // Records the total number of bytes written by the serializer
   int64_t total_bytes_written_;
 
+  // Records the current number of compressed bytes in a column
+  int64_t current_compressed_bytes_;
+
+  // Flush compressed data to the OutputStream only when closing the column
+  bool flush_on_close_;
+
   // Flag to check if the Writer has been closed
   bool closed_;
 
@@ -209,6 +220,8 @@ class PARQUET_EXPORT ColumnWriter {
 
   std::vector<CompressedDataPage> data_pages_;
 
+  std::vector<DictionaryPage> saved_dictionary_page_;
+
  private:
   void InitSinks();
 };
@@ -221,7 +234,7 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
 
   TypedColumnWriter(ColumnChunkMetaDataBuilder* metadata,
                     std::unique_ptr<PageWriter> pager, Encoding::type encoding,
-                    const WriterProperties* properties);
+                    const WriterProperties* properties, bool flush_on_close = false);
 
   // Write a batch of repetition levels, definition levels, and values to the
   // column.
@@ -257,6 +270,11 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
   void WriteBatchSpaced(int64_t num_values, const int16_t* def_levels,
                         const int16_t* rep_levels, const uint8_t* valid_bits,
                         int64_t valid_bits_offset, const T* values);
+
+  // Estimated size of the values that are not written to a page yet
+  int64_t EstimatedBufferedValueBytes() const {
+    return current_encoder_->EstimatedDataEncodedSize();
+  }
 
  protected:
   std::shared_ptr<Buffer> GetValuesBuffer() override {
