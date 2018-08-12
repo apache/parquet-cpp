@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
     memset(col_buffered_values_estimate, 0, sizeof(col_buffered_values_estimate));
     for (int i = 0; i < NUM_ROWS; i++) {
       int estimated_bytes = 0;
-      // For each column, get the estimated size of the values that are not written to a page yet
+      // Get the estimated size of the values that are not written to a page yet
       for (int n = 0; n < num_columns; n++) {
         estimated_bytes += col_buffered_values_estimate[n];
       }
@@ -302,7 +302,7 @@ int main(int argc, char** argv) {
       }
 
       // Get the Column Reader for the Int32 column
-      col_id ++;
+      col_id++;
       column_reader = row_group_reader->Column(col_id);
       parquet::Int32Reader* int32_reader =
           static_cast<parquet::Int32Reader*>(column_reader.get());

@@ -17,6 +17,8 @@
 
 #include "parquet/file_writer.h"
 
+#include <vector>
+
 #include "parquet/column_writer.h"
 #include "parquet/schema-internal.h"
 #include "parquet/schema.h"
