@@ -127,19 +127,18 @@ int main(int argc, char** argv) {
     parquet::RowGroupWriter2* rg_writer = file_writer->AppendRowGroup2();
 
     int num_columns = file_writer->num_columns();
-    int64_t col_buffered_values_estimate[num_columns];
-    memset(col_buffered_values_estimate, 0, sizeof(col_buffered_values_estimate));
+    std::vector<int64_t> buffered_values_estimate(num_columns, 0);
     for (int i = 0; i < NUM_ROWS; i++) {
-      int estimated_bytes = 0;
+      int64_t estimated_bytes = 0;
       // Get the estimated size of the values that are not written to a page yet
       for (int n = 0; n < num_columns; n++) {
-        estimated_bytes += col_buffered_values_estimate[n];
+        estimated_bytes += buffered_values_estimate[n];
       }
       // We need to consider the compressed pages
       // as well as the values that are not compressed yet
       if (rg_writer->current_compressed_bytes() + estimated_bytes > ROW_GROUP_SIZE) {
         rg_writer->Close();
-        memset(col_buffered_values_estimate, 0, sizeof(col_buffered_values_estimate));
+        std::fill(buffered_values_estimate.begin(), buffered_values_estimate.end(), 0);
         rg_writer = file_writer->AppendRowGroup2();
       }
 
@@ -149,7 +148,7 @@ int main(int argc, char** argv) {
           static_cast<parquet::BoolWriter*>(rg_writer->get_column(col_id));
       bool bool_value = ((i % 2) == 0) ? true : false;
       bool_writer->WriteBatch(1, nullptr, nullptr, &bool_value);
-      col_buffered_values_estimate[col_id] = bool_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = bool_writer->EstimatedBufferedValueBytes();
 
       // Write the Int32 column
       col_id++;
@@ -157,7 +156,7 @@ int main(int argc, char** argv) {
           static_cast<parquet::Int32Writer*>(rg_writer->get_column(col_id));
       int32_t int32_value = i;
       int32_writer->WriteBatch(1, nullptr, nullptr, &int32_value);
-      col_buffered_values_estimate[col_id] = int32_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = int32_writer->EstimatedBufferedValueBytes();
 
       // Write the Int64 column. Each row has repeats twice.
       col_id++;
@@ -170,7 +169,7 @@ int main(int argc, char** argv) {
       int64_t int64_value2 = (2 * i + 1);
       repetition_level = 1;  // start of a new record
       int64_writer->WriteBatch(1, &definition_level, &repetition_level, &int64_value2);
-      col_buffered_values_estimate[col_id] = int64_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = int64_writer->EstimatedBufferedValueBytes();
 
       // Write the INT96 column.
       col_id++;
@@ -181,7 +180,7 @@ int main(int argc, char** argv) {
       int96_value.value[1] = i + 1;
       int96_value.value[2] = i + 2;
       int96_writer->WriteBatch(1, nullptr, nullptr, &int96_value);
-      col_buffered_values_estimate[col_id] = int96_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = int96_writer->EstimatedBufferedValueBytes();
 
       // Write the Float column
       col_id++;
@@ -189,7 +188,7 @@ int main(int argc, char** argv) {
           static_cast<parquet::FloatWriter*>(rg_writer->get_column(col_id));
       float float_value = static_cast<float>(i) * 1.1f;
       float_writer->WriteBatch(1, nullptr, nullptr, &float_value);
-      col_buffered_values_estimate[col_id] = float_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = float_writer->EstimatedBufferedValueBytes();
 
       // Write the Double column
       col_id++;
@@ -197,7 +196,7 @@ int main(int argc, char** argv) {
           static_cast<parquet::DoubleWriter*>(rg_writer->get_column(col_id));
       double double_value = i * 1.1111111;
       double_writer->WriteBatch(1, nullptr, nullptr, &double_value);
-      col_buffered_values_estimate[col_id] = double_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = double_writer->EstimatedBufferedValueBytes();
 
       // Write the ByteArray column. Make every alternate values NULL
       col_id++;
@@ -217,7 +216,7 @@ int main(int argc, char** argv) {
         int16_t definition_level = 0;
         ba_writer->WriteBatch(1, &definition_level, nullptr, nullptr);
       }
-      col_buffered_values_estimate[col_id] = ba_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = ba_writer->EstimatedBufferedValueBytes();
 
       // Write the FixedLengthByteArray column
       col_id++;
@@ -229,7 +228,7 @@ int main(int argc, char** argv) {
       flba_value.ptr = reinterpret_cast<const uint8_t*>(&flba[0]);
 
       flba_writer->WriteBatch(1, nullptr, nullptr, &flba_value);
-      col_buffered_values_estimate[col_id] = flba_writer->EstimatedBufferedValueBytes();
+      buffered_values_estimate[col_id] = flba_writer->EstimatedBufferedValueBytes();
     }
 
     // Close the RowGroupWriter
@@ -262,8 +261,7 @@ int main(int argc, char** argv) {
     int num_columns = file_metadata->num_columns();
     assert(num_columns == 8);
 
-    int64_t col_row_counts[num_columns];
-    memset(col_row_counts, 0, sizeof(col_row_counts));
+    std::vector<int> col_row_counts(num_columns, 0);
 
     // Iterate over all the RowGroups in the file
     for (int r = 0; r < num_row_groups; ++r) {
