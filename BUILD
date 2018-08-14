@@ -1,7 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "libparquet.so",
+    name = "parquet-cpp",
     includes = [
         "src",
     ],
