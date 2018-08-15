@@ -1564,17 +1564,18 @@ void MakeDoubleTable(int num_columns, int num_rows, int nchunks,
   *out = Table::Make(schema, columns);
 }
 
-void MakeListArray(int num_rows, std::shared_ptr<::DataType>* out_type,
+void MakeListArray(int num_rows, int max_value_length,
+		   std::shared_ptr<::DataType>* out_type,
                    std::shared_ptr<Array>* out_array) {
   std::vector<int32_t> length_draws;
-  randint(num_rows, 0, 100, &length_draws);
+  randint(num_rows, 0, max_value_length, &length_draws);
 
   std::vector<int32_t> offset_values;
 
   // Make sure some of them are length 0
   int32_t total_elements = 0;
   for (size_t i = 0; i < length_draws.size(); ++i) {
-    if (length_draws[i] < 10) {
+    if (length_draws[i] < max_value_length / 10) {
       length_draws[i] = 0;
     }
     offset_values.push_back(total_elements);
@@ -1726,12 +1727,12 @@ TEST(TestArrowReadWrite, ReadColumnSubset) {
 }
 
 TEST(TestArrowReadWrite, ListLargeRecords) {
-  const int num_rows = 50;
+  const int num_rows = 20;
 
   std::shared_ptr<Array> list_array;
   std::shared_ptr<::DataType> list_type;
 
-  MakeListArray(num_rows, &list_type, &list_array);
+  MakeListArray(num_rows, 100, &list_type, &list_array);
 
   auto schema = ::arrow::schema({::arrow::field("a", list_type)});
   std::shared_ptr<Table> table = Table::Make(schema, {list_array});
@@ -1762,6 +1763,9 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   std::vector<std::shared_ptr<Array>> pieces;
   for (int i = 0; i < num_rows; ++i) {
     std::shared_ptr<Array> piece;
+    if (i == 17) {
+      std::cout << "chunk 17" << std::endl;
+    }
     ASSERT_OK(col_reader->NextBatch(1, &piece));
     ASSERT_EQ(1, piece->length());
     pieces.push_back(piece);
@@ -1772,6 +1776,17 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
       std::make_shared<::arrow::Column>(table->schema()->field(0), chunked);
   std::vector<std::shared_ptr<::arrow::Column>> columns = {chunked_col};
   auto chunked_table = Table::Make(table->schema(), columns);
+
+  const auto& tc0 = *table->column(0);
+  const auto& cc0_data = *chunked_table->column(0)->data();
+  auto bad_slice0 = tc0.data()->Slice(17, 1);
+  auto bad_slice1 = cc0_data.chunk(17);
+
+  ::arrow::PrettyPrintOptions options(2, 100);
+
+  PrettyPrint(*bad_slice0, options, &std::cout);
+  std::cout << std::endl << "==================" << std::endl;
+  PrettyPrint(*bad_slice1, options, &std::cout);
 
   ASSERT_TRUE(table->Equals(*chunked_table));
 }
@@ -1812,7 +1827,7 @@ auto GenerateInt32 = [](int length, std::shared_ptr<::DataType>* type,
 
 auto GenerateList = [](int length, std::shared_ptr<::DataType>* type,
                        std::shared_ptr<Array>* array) {
-  MakeListArray(length, type, array);
+  MakeListArray(length, 100, type, array);
 };
 
 TEST(TestArrowReadWrite, TableWithChunkedColumns) {
