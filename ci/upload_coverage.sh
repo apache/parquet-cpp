@@ -26,19 +26,11 @@ ls -l
 
 echo $PARQUET_ROOT
 
-coveralls --gcov $(which gcov-4.9) \
-    --gcov-options '\-l' --root '' \
-    --include $PARQUET_ROOT \
-    --exclude $PARQUET_ROOT/parquet-build/thirdparty \
-    --exclude $PARQUET_ROOT/parquet-build/arrow_ep \
-    --exclude $PARQUET_ROOT/parquet-build/brotli_ep \
-    --exclude $PARQUET_ROOT/parquet-build/brotli_ep-prefix \
-    --exclude $PARQUET_ROOT/parquet-build/gbenchmark_ep \
-    --exclude $PARQUET_ROOT/parquet-build/googletest_ep-prefix \
-    --exclude $PARQUET_ROOT/parquet-build/snappy_ep \
-    --exclude $PARQUET_ROOT/parquet-build/snappy_ep-prefix \
-    --exclude $PARQUET_ROOT/parquet-build/zlib_ep \
-    --exclude $PARQUET_ROOT/parquet-build/zlib_ep-prefix \
-    --exclude $PARQUET_ROOT/build \
-    --exclude $PARQUET_ROOT/src/parquet/thrift \
-    --exclude /usr
+coveralls --gcov 'gcov-4.9' --gcov-options '\-lp' \
+          -r $PARQUET_ROOT \
+          -i '/src' \
+          -i '$PARQUET_ROOT/src' \
+          -e '/parquet-build' \
+          -e '$PARQUET_ROOT/parquet-build' \
+          -e '/usr' \
+          -e '$PARQUET_ROOT/src/parquet/thrift'
