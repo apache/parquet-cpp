@@ -1565,7 +1565,7 @@ void MakeDoubleTable(int num_columns, int num_rows, int nchunks,
 }
 
 void MakeListArray(int num_rows, int max_value_length,
-		   std::shared_ptr<::DataType>* out_type,
+                   std::shared_ptr<::DataType>* out_type,
                    std::shared_ptr<Array>* out_array) {
   std::vector<int32_t> length_draws;
   randint(num_rows, 0, max_value_length, &length_draws);
@@ -1727,12 +1727,13 @@ TEST(TestArrowReadWrite, ReadColumnSubset) {
 }
 
 TEST(TestArrowReadWrite, ListLargeRecords) {
-  const int num_rows = 20;
+  // PARQUET-1308: This test passed on Linux when num_rows was smaller
+  const int num_rows = 2000;
 
   std::shared_ptr<Array> list_array;
   std::shared_ptr<::DataType> list_type;
 
-  MakeListArray(num_rows, 100, &list_type, &list_array);
+  MakeListArray(num_rows, 20, &list_type, &list_array);
 
   auto schema = ::arrow::schema({::arrow::field("a", list_type)});
   std::shared_ptr<Table> table = Table::Make(schema, {list_array});
@@ -1763,9 +1764,6 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   std::vector<std::shared_ptr<Array>> pieces;
   for (int i = 0; i < num_rows; ++i) {
     std::shared_ptr<Array> piece;
-    if (i == 17) {
-      std::cout << "chunk 17" << std::endl;
-    }
     ASSERT_OK(col_reader->NextBatch(1, &piece));
     ASSERT_EQ(1, piece->length());
     pieces.push_back(piece);
