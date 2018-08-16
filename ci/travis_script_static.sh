@@ -66,6 +66,7 @@ export LZ4_STATIC_LIB=$ARROW_EP/lz4_ep-prefix/src/lz4_ep/lib/liblz4.a
 export ZSTD_STATIC_LIB=$ARROW_EP/zstd_ep-prefix/src/zstd_ep/lib/libzstd.a
 
 cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
+      -DPARQUET_BUILD_WARNING_LEVEL=CHECKIN \
       -DPARQUET_TEST_MEMCHECK=ON \
       -DPARQUET_ARROW_LINKAGE="static" \
       -DPARQUET_BUILD_SHARED=OFF \
@@ -78,7 +79,7 @@ cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
 
 pushd $CPP_BUILD_DIR
 
-make -j4 VERBOSE=1 || exit 1
-ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
+make -j4 VERBOSE=1
+ctest -j2 --output-on-failure -L unittest
 
 popd

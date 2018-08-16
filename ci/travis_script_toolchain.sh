@@ -52,6 +52,7 @@ export LD_LIBRARY_PATH=$CPP_TOOLCHAIN/lib:$LD_LIBRARY_PATH
 export BOOST_ROOT=$CPP_TOOLCHAIN
 
 cmake -DPARQUET_CXXFLAGS=-Werror \
+      -DPARQUET_BUILD_WARNING_LEVEL=CHECKIN \
       -DPARQUET_TEST_MEMCHECK=ON \
       -DPARQUET_GENERATE_COVERAGE=1 \
       -DCMAKE_INSTALL_PREFIX=$CPP_TOOLCHAIN \
@@ -59,9 +60,9 @@ cmake -DPARQUET_CXXFLAGS=-Werror \
 
 pushd $CPP_BUILD_DIR
 
-make -j4 || exit 1
-make install || exit 1
-ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
+make -j4
+make install
+ctest -j2 --output-on-failure -L unittest
 
 popd
 
