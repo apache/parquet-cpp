@@ -1777,14 +1777,20 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
 
   const auto& tc0 = *table->column(0);
   const auto& cc0_data = *chunked_table->column(0)->data();
-  auto bad_slice0 = tc0.data()->Slice(17, 1);
-  auto bad_slice1 = cc0_data.chunk(17);
 
   ::arrow::PrettyPrintOptions options(2, 100);
 
-  PrettyPrint(*bad_slice0, options, &std::cout);
-  std::cout << std::endl << "==================" << std::endl;
-  PrettyPrint(*bad_slice1, options, &std::cout);
+  for (int64_t i = 0; i < num_rows; ++i) {
+    auto bad_slice0 = tc0.data()->Slice(i, 1)->chunk(0);
+    auto bad_slice1 = cc0_data.chunk(i);
+
+    if (!bad_slice0->Equals(*bad_slice1)) {
+      std::cout << "Value " << i << std::endl;
+      PrettyPrint(*bad_slice0, options, &std::cout);
+      std::cout << std::endl << "==================" << std::endl;
+      PrettyPrint(*bad_slice1, options, &std::cout);
+    }
+  }
 
   ASSERT_TRUE(table->Equals(*chunked_table));
 }
