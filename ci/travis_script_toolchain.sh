@@ -62,7 +62,7 @@ pushd $CPP_BUILD_DIR
 
 make -j4
 make install
-ctest -j2 --output-on-failure -L unittest
+ctest -j2 -VV -L unittest
 
 popd
 

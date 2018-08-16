@@ -80,6 +80,6 @@ cmake -DPARQUET_CXXFLAGS="$PARQUET_CXXFLAGS" \
 pushd $CPP_BUILD_DIR
 
 make -j4 VERBOSE=1
-ctest -j2 --output-on-failure -L unittest
+ctest -j2 -VV -L unittest
 
 popd
