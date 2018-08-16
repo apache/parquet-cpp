@@ -80,7 +80,11 @@ namespace parquet {
 namespace arrow {
 
 static constexpr int SMALL_SIZE = 100;
+#ifdef PARQUET_VALGRIND
+static constexpr int LARGE_SIZE = 1000;
+#else
 static constexpr int LARGE_SIZE = 10000;
+#endif
 
 static constexpr uint32_t kDefaultSeed = 0;
 
@@ -2253,8 +2257,13 @@ TEST_F(TestNestedSchemaRead, StructAndListTogetherUnsupported) {
 }
 
 TEST_P(TestNestedSchemaRead, DeepNestedSchemaRead) {
+#ifdef PARQUET_VALGRIND
+  const int num_trees = 3;
+  const int depth = 3;
+#else
   const int num_trees = 10;
   const int depth = 5;
+#endif
   const int num_children = 3;
   int num_rows = SMALL_SIZE * (depth + 2);
   ASSERT_NO_FATAL_FAILURE(CreateMultiLevelNestedParquet(num_trees, depth, num_children,
