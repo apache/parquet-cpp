@@ -50,10 +50,7 @@ matrix:
     os: linux
     before_script:
     - export PARQUET_CXXFLAGS="-DARROW_NO_DEPRECATED_API"
-    - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
-  - compiler: gcc
-    os: linux
-    before_script:
+    - export PARQUET_TRAVIS_VALGRIND=1
     - source $TRAVIS_BUILD_DIR/ci/before_script_travis.sh
   - compiler: clang
     os: linux
