@@ -79,8 +79,8 @@ if ("${UPPERCASE_BUILD_WARNING_LEVEL}" STREQUAL "CHECKIN")
     set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} /WX")
   elseif ("${COMPILER_FAMILY}" STREQUAL "clang")
     set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Weverything -Wno-c++98-compat \
--Wno-c++98-compat-pedantic -Wno-deprecated -Wno-weak-vtables -Wno-padded \
--Wno-comma -Wno-unused-parameter -Wno-undef \
+-Wno-c++98-compat-pedantic -Wno-deprecated -Wno-deprecated-declarations \
+-Wno-weak-vtables -Wno-padded -Wno-comma -Wno-unused-parameter -Wno-undef \
 -Wno-shadow -Wno-switch-enum -Wno-exit-time-destructors \
 -Wno-global-constructors -Wno-weak-template-vtables -Wno-undefined-reinterpret-cast \
 -Wno-implicit-fallthrough -Wno-unreachable-code-return \
@@ -118,7 +118,8 @@ if ("${UPPERCASE_BUILD_WARNING_LEVEL}" STREQUAL "CHECKIN")
     # Treat all compiler warnings as errors
     set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wno-unknown-warning-option -Werror")
   elseif ("${COMPILER_FAMILY}" STREQUAL "gcc")
-    set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wall -Wconversion -Wno-sign-conversion")
+    set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Wall \
+-Wno-deprecated-declarations -Wconversion -Wno-sign-conversion")
     # Treat all compiler warnings as errors
     set(CXX_COMMON_FLAGS "${CXX_COMMON_FLAGS} -Werror")
   else()

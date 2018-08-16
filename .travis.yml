@@ -14,8 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 sudo: required
 dist: trusty
+
+language: cpp
+
+cache:
+  ccache: true
+
 addons:
   apt:
     sources:
@@ -35,6 +42,7 @@ addons:
     - bison
     - flex
     - pkg-config
+
 matrix:
   fast_finish: true
   include:
@@ -75,8 +83,6 @@ matrix:
     before_script:
     script:
     - $TRAVIS_BUILD_DIR/ci/travis_script_toolchain.sh
-
-language: cpp
 
 # PARQUET-626: revisit llvm toolchain when/if llvm.org apt repo resurfaces
 
