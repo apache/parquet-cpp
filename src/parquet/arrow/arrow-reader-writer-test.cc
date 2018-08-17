@@ -1737,10 +1737,7 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
 
   auto schema = ::arrow::schema({::arrow::field("a", list_type)});
 
-  const int written_num_rows = 100;
-
-  std::shared_ptr<Table> table = Table::Make(schema, {
-      list_array->Slice(1800, written_num_rows)});
+  std::shared_ptr<Table> table = Table::Make(schema, {list_array});
 
   std::shared_ptr<Buffer> buffer;
   ASSERT_NO_FATAL_FAILURE(
@@ -1756,6 +1753,7 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   ASSERT_OK_NO_THROW(reader->ReadTable(&result));
   ASSERT_NO_FATAL_FAILURE(AssertTablesEqual(*table, *result));
 
+  // Read chunked
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
                               ::arrow::default_memory_pool(),
                               ::parquet::default_reader_properties(), nullptr, &reader));
@@ -1763,16 +1761,9 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   std::unique_ptr<ColumnReader> col_reader;
   ASSERT_OK(reader->GetColumn(0, &col_reader));
 
-  auto expected = table->column(0)->data()->chunk(0);
-
   std::vector<std::shared_ptr<Array>> pieces;
-  for (int i = 0; i < written_num_rows; ++i) {
+  for (int i = 0; i < num_rows; ++i) {
     std::shared_ptr<Array> piece;
-
-    if (i == 99) {
-      std::cout << "offending chunk" << std::endl;
-    }
-
     ASSERT_OK(col_reader->NextBatch(1, &piece));
     ASSERT_EQ(1, piece->length());
     pieces.push_back(piece);
@@ -1783,23 +1774,6 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
       std::make_shared<::arrow::Column>(table->schema()->field(0), chunked);
   std::vector<std::shared_ptr<::arrow::Column>> columns = {chunked_col};
   auto chunked_table = Table::Make(table->schema(), columns);
-
-  const auto& tc0 = *table->column(0);
-  const auto& cc0_data = *chunked_table->column(0)->data();
-
-  ::arrow::PrettyPrintOptions options(2, 100);
-
-  for (int64_t i = 0; i < written_num_rows; ++i) {
-    auto bad_slice0 = tc0.data()->Slice(i, 1)->chunk(0);
-    auto bad_slice1 = cc0_data.chunk(i);
-
-    if (!bad_slice0->Equals(*bad_slice1)) {
-      std::cout << "Value " << i << std::endl;
-      PrettyPrint(*bad_slice0, options, &std::cout);
-      std::cout << std::endl << "==================" << std::endl;
-      PrettyPrint(*bad_slice1, options, &std::cout);
-    }
-  }
 
   ASSERT_TRUE(table->Equals(*chunked_table));
 }

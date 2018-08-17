@@ -91,6 +91,7 @@ class RecordReader::RecordReaderImpl {
   virtual void ResetDecoders() = 0;
 
   void SetPageReader(std::unique_ptr<PageReader> reader) {
+    at_record_start_ = true;
     pager_ = std::move(reader);
     ResetDecoders();
   }
@@ -444,11 +445,6 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
       records_read += ReadRecordData(num_records);
     }
 
-    // HasNext invokes ReadNewPage
-    if (records_read == 0 && !HasNext()) {
-      return 0;
-    }
-
     int64_t level_batch_size = std::max(kMinLevelBatchSize, num_records);
 
     // If we are in the middle of a record, we continue until reaching the
@@ -457,6 +453,13 @@ class TypedRecordReader : public RecordReader::RecordReaderImpl {
     while (!at_record_start_ || records_read < num_records) {
       // Is there more data to read in this row group?
       if (!HasNext()) {
+        if (!at_record_start_) {
+          // We ended the row group while inside a record that we haven't seen
+          // the end of yet. So increment the record count for the last record in
+          // the row group
+          ++records_read;
+          at_record_start_ = true;
+        }
         break;
       }
 

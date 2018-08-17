@@ -475,7 +475,6 @@ void ExpectArrayT<::arrow::BooleanType>(void* expected, Array* result) {
   EXPECT_TRUE(result->Equals(*expected_array));
 }
 
-
 template <typename ParquetType>
 void PrintBufferedLevels(const RecordReader& reader) {
   using T = typename ::parquet::type_traits<ParquetType::type_num>::value_type;
@@ -499,7 +498,7 @@ void PrintBufferedLevels(const RecordReader& reader) {
   std::cout << std::endl;
 
   std::cout << "values: ";
-  for (int64_t i = 0; i < reader.values_written() ; ++i) {
+  for (int64_t i = 0; i < reader.values_written(); ++i) {
     std::cout << values[i] << " ";
   }
   std::cout << std::endl;
