@@ -59,7 +59,7 @@ class RecordReader::RecordReaderImpl {
         num_decoded_values_(0),
         max_def_level_(descr->max_definition_level()),
         max_rep_level_(descr->max_repetition_level()),
-        at_record_start_(false),
+        at_record_start_(true),
         records_read_(0),
         values_written_(0),
         values_capacity_(0),
@@ -152,17 +152,26 @@ class RecordReader::RecordReaderImpl {
     // Count logical records and number of values to read
     while (levels_position_ < levels_written_) {
       if (*rep_levels++ == 0) {
-        at_record_start_ = true;
-        if (records_read == num_records) {
-          // We've found the number of records we were looking for
-          break;
-        } else {
-          // Continue
+        // If at_record_start_ is true, we are seeing the start of a record
+        // for the second time, such as after repeated calls to
+        // DelimitRecords. In this case we must continue until we find
+        // another record start or exhausting the ColumnChunk
+        if (!at_record_start_) {
+          // We've reached the end of a record; increment the record count.
           ++records_read;
+          if (records_read == num_records) {
+            // We've found the number of records we were looking for. Set
+            // at_record_start_ to true and break
+            at_record_start_ = true;
+            break;
+          }
         }
-      } else {
-        at_record_start_ = false;
       }
+
+      // We have decided to consume the level at this position; therefore we
+      // must advance until we find another record boundary
+      at_record_start_ = false;
+
       if (*def_levels++ == max_def_level_) {
         ++values_to_read;
       }

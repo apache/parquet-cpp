@@ -24,7 +24,12 @@
 #include "arrow/type_traits.h"
 #include "arrow/util/decimal.h"
 
+#include "parquet/arrow/record_reader.h"
+
 namespace parquet {
+
+using internal::RecordReader;
+
 namespace arrow {
 
 using ::arrow::Array;
@@ -469,6 +474,45 @@ void ExpectArrayT<::arrow::BooleanType>(void* expected, Array* result) {
   EXPECT_OK(builder.Finish(&expected_array));
   EXPECT_TRUE(result->Equals(*expected_array));
 }
+
+
+template <typename ParquetType>
+void PrintBufferedLevels(const RecordReader& reader) {
+  using T = typename ::parquet::type_traits<ParquetType::type_num>::value_type;
+
+  const int16_t* def_levels = reader.def_levels();
+  const int16_t* rep_levels = reader.rep_levels();
+  const int64_t total_levels_read = reader.levels_position();
+
+  const T* values = reinterpret_cast<const T*>(reader.values());
+
+  std::cout << "def levels: ";
+  for (int64_t i = 0; i < total_levels_read; ++i) {
+    std::cout << def_levels[i] << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "rep levels: ";
+  for (int64_t i = 0; i < total_levels_read; ++i) {
+    std::cout << rep_levels[i] << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "values: ";
+  for (int64_t i = 0; i < reader.values_written() ; ++i) {
+    std::cout << values[i] << " ";
+  }
+  std::cout << std::endl;
+}
+
+template <>
+void PrintBufferedLevels<ByteArrayType>(const RecordReader& reader) {}
+
+template <>
+void PrintBufferedLevels<FLBAType>(const RecordReader& reader) {}
+
+template <>
+void PrintBufferedLevels<Int96Type>(const RecordReader& reader) {}
 
 }  // namespace arrow
 

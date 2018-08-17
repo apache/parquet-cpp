@@ -1736,7 +1736,11 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   MakeListArray(num_rows, 20, &list_type, &list_array);
 
   auto schema = ::arrow::schema({::arrow::field("a", list_type)});
-  std::shared_ptr<Table> table = Table::Make(schema, {list_array});
+
+  const int written_num_rows = 100;
+
+  std::shared_ptr<Table> table = Table::Make(schema, {
+      list_array->Slice(1800, written_num_rows)});
 
   std::shared_ptr<Buffer> buffer;
   ASSERT_NO_FATAL_FAILURE(
@@ -1762,8 +1766,13 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   auto expected = table->column(0)->data()->chunk(0);
 
   std::vector<std::shared_ptr<Array>> pieces;
-  for (int i = 0; i < num_rows; ++i) {
+  for (int i = 0; i < written_num_rows; ++i) {
     std::shared_ptr<Array> piece;
+
+    if (i == 99) {
+      std::cout << "offending chunk" << std::endl;
+    }
+
     ASSERT_OK(col_reader->NextBatch(1, &piece));
     ASSERT_EQ(1, piece->length());
     pieces.push_back(piece);
@@ -1780,7 +1789,7 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
 
   ::arrow::PrettyPrintOptions options(2, 100);
 
-  for (int64_t i = 0; i < num_rows; ++i) {
+  for (int64_t i = 0; i < written_num_rows; ++i) {
     auto bad_slice0 = tc0.data()->Slice(i, 1)->chunk(0);
     auto bad_slice1 = cc0_data.chunk(i);
 
