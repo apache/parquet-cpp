@@ -42,8 +42,8 @@ class DeltaBitPackEncoder {
 
   uint8_t* Encode(int* encoded_len) {
     uint8_t* result = new uint8_t[10 * 1024 * 1024];
-    int num_mini_blocks = static_cast<int>(arrow::BitUtil::Ceil(num_values() - 1,
-                                                                mini_block_size_));
+    int num_mini_blocks = static_cast<int>(arrow::BitUtil::CeilDiv(num_values() - 1,
+                                                                   mini_block_size_));
     uint8_t* mini_block_widths = NULL;
 
     arrow::BitWriter writer(result, 10 * 1024 * 1024);
