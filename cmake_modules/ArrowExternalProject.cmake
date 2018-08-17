@@ -46,7 +46,8 @@ if (MSVC AND PARQUET_USE_STATIC_CRT)
 endif()
 
 if ("$ENV{PARQUET_ARROW_VERSION}" STREQUAL "")
-  set(ARROW_VERSION "3edfd7caf2746eeba37d5ac7bfd3665cc159e7ad")
+  # This can be a tag or changeset
+  set(ARROW_VERSION "170dc75468efbad2286c630b9103d1aacdb6bada")
 else()
   set(ARROW_VERSION "$ENV{PARQUET_ARROW_VERSION}")
 endif()
