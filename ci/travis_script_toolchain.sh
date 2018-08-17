@@ -51,17 +51,23 @@ export PARQUET_BUILD_TOOLCHAIN=$CPP_TOOLCHAIN
 export LD_LIBRARY_PATH=$CPP_TOOLCHAIN/lib:$LD_LIBRARY_PATH
 export BOOST_ROOT=$CPP_TOOLCHAIN
 
-cmake -DPARQUET_CXXFLAGS=-Werror \
-      -DPARQUET_TEST_MEMCHECK=ON \
+CMAKE_COMMON_FLAGS="-DPARQUET_BUILD_WARNING_LEVEL=CHECKIN"
+
+if [ $PARQUET_TRAVIS_VALGRIND == "1" ]; then
+  CMAKE_COMMON_FLAGS="$CMAKE_COMMON_FLAGS -DPARQUET_TEST_MEMCHECK=ON"
+fi
+
+cmake $CMAKE_COMMON_FLAGS \
+      -DPARQUET_CXXFLAGS=-Werror \
       -DPARQUET_GENERATE_COVERAGE=1 \
       -DCMAKE_INSTALL_PREFIX=$CPP_TOOLCHAIN \
       $TRAVIS_BUILD_DIR
 
 pushd $CPP_BUILD_DIR
 
-make -j4 || exit 1
-make install || exit 1
-ctest -VV -L unittest || { cat $TRAVIS_BUILD_DIR/parquet-build/Testing/Temporary/LastTest.log; exit 1; }
+make -j4
+make install
+ctest -j2 -VV -L unittest
 
 popd
 
