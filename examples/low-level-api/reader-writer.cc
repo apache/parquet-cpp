@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 
     // Append a RowGroup with a specific number of rows.
     parquet::RowGroupWriter* rg_writer =
-        file_writer->AppendRowGroup(NUM_ROWS_PER_ROW_GROUP);
+        file_writer->AppendRowGroup();
 
     // Write the Bool column
     parquet::BoolWriter* bool_writer =

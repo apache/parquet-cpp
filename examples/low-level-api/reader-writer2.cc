@@ -31,7 +31,7 @@
  * This example describes writing and reading Parquet Files in C++ and serves as a
  * reference to the API.
  * The file contains all the physical data types supported by Parquet.
- * This example uses the RowGroupWriter2 API that supports writing RowGroups based on a certain size
+ * This example uses the RowGroupWriter API that supports writing RowGroups based on a certain size
  **/
 
 /* Parquet is a structured columnar file format
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         parquet::ParquetFileWriter::Open(out_file, schema, props);
 
     // Append a RowGroup with a specific number of rows.
-    parquet::RowGroupWriter2* rg_writer = file_writer->AppendRowGroup2();
+    parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup(true);
 
     int num_columns = file_writer->num_columns();
     std::vector<int64_t> buffered_values_estimate(num_columns, 0);
@@ -136,10 +136,10 @@ int main(int argc, char** argv) {
       }
       // We need to consider the compressed pages
       // as well as the values that are not compressed yet
-      if (rg_writer->current_compressed_bytes() + estimated_bytes > ROW_GROUP_SIZE) {
+      if (rg_writer->total_compressed_bytes() + estimated_bytes > ROW_GROUP_SIZE) {
         rg_writer->Close();
         std::fill(buffered_values_estimate.begin(), buffered_values_estimate.end(), 0);
-        rg_writer = file_writer->AppendRowGroup2();
+        rg_writer = file_writer->AppendRowGroup(true);
       }
 
       int col_id = 0;
