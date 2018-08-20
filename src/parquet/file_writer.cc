@@ -49,9 +49,7 @@ void RowGroupWriter::Close() {
 
 ColumnWriter* RowGroupWriter::NextColumn() { return contents_->NextColumn(); }
 
-ColumnWriter* RowGroupWriter::get_column(int i) {
-  return contents_->get_column(i);
-}
+ColumnWriter* RowGroupWriter::get_column(int i) { return contents_->get_column(i); }
 
 int64_t RowGroupWriter::total_compressed_bytes() const {
   return contents_->total_compressed_bytes();
@@ -69,8 +67,7 @@ int64_t RowGroupWriter::num_rows() const { return contents_->num_rows(); }
 
 inline void throwRowsMisMatchError(int col, int prev, int curr) {
   std::stringstream ss;
-  ss << "Column " << col << " had " << curr << " while previous column had "
-     << prev;
+  ss << "Column " << col << " had " << curr << " while previous column had " << prev;
   throw ParquetException(ss.str());
 }
 
@@ -81,8 +78,7 @@ inline void throwRowsMisMatchError(int col, int prev, int curr) {
 class RowGroupSerializer : public RowGroupWriter::Contents {
  public:
   RowGroupSerializer(OutputStream* sink, RowGroupMetaDataBuilder* metadata,
-                     const WriterProperties* properties,
-                     bool row_group_by_size = false)
+                     const WriterProperties* properties, bool row_group_by_size = false)
       : sink_(sink),
         metadata_(metadata),
         properties_(properties),
@@ -91,12 +87,12 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
         current_column_index_(0),
         num_rows_(0),
         row_group_by_size_(row_group_by_size) {
-   if (row_group_by_size) {
-     InitColumns();
-   } else {
-     column_writers_.push_back(nullptr);
-   }
-}
+    if (row_group_by_size) {
+      InitColumns();
+    } else {
+      column_writers_.push_back(nullptr);
+    }
+  }
 
   int num_columns() const override { return metadata_->num_columns(); }
 
@@ -108,7 +104,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
   ColumnWriter* NextColumn() override {
     if (row_group_by_size_) {
-      throw ParquetException("NextColumn() is not supported when a RowGroup is written by size");
+      throw ParquetException(
+          "NextColumn() is not supported when a RowGroup is written by size");
     }
 
     if (column_writers_[0]) {
@@ -134,7 +131,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
 
   ColumnWriter* get_column(int i) override {
     if (!row_group_by_size_) {
-      throw ParquetException("get_column() is only supported when a RowGroup is written by size");
+      throw ParquetException(
+          "get_column() is only supported when a RowGroup is written by size");
     }
 
     if (i >= 0 && i < static_cast<int>(column_writers_.size())) {
@@ -153,9 +151,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return total_compressed_bytes;
   }
 
-  int64_t total_bytes_written() const override {
-    return total_bytes_written_;
-  }
+  int64_t total_bytes_written() const override { return total_bytes_written_; }
 
   void Close() override {
     if (!closed_) {
@@ -194,9 +190,10 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       if (num_rows_ == 0) {
         num_rows_ = current_col_rows;
       } else if (num_rows_ != current_col_rows) {
-          throwRowsMisMatchError(current_column_index_, current_col_rows, num_rows_);
+        throwRowsMisMatchError(current_column_index_, current_col_rows, num_rows_);
       }
-    } else if (row_group_by_size_ && column_writers_.size() > 0) {// when row_group_by_size = true open
+    } else if (row_group_by_size_ &&
+               column_writers_.size() > 0) {  // when row_group_by_size = true open
       int64_t current_col_rows = column_writers_[0]->rows_written();
       for (size_t i = 1; i < column_writers_.size(); i++) {
         int64_t current_col_rows_i = column_writers_[i]->rows_written();
@@ -274,8 +271,8 @@ class FileSerializer : public ParquetFileWriter::Contents {
     }
     num_row_groups_++;
     auto rg_metadata = metadata_->AppendRowGroup();
-    std::unique_ptr<RowGroupWriter::Contents> contents(
-        new RowGroupSerializer(sink_.get(), rg_metadata, properties_.get(), row_group_by_size));
+    std::unique_ptr<RowGroupWriter::Contents> contents(new RowGroupSerializer(
+        sink_.get(), rg_metadata, properties_.get(), row_group_by_size));
     row_group_writer_.reset(new RowGroupWriter(std::move(contents)));
     return row_group_writer_.get();
   }
