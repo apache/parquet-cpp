@@ -65,7 +65,7 @@ int RowGroupWriter::num_columns() const { return contents_->num_columns(); }
 
 int64_t RowGroupWriter::num_rows() const { return contents_->num_rows(); }
 
-inline void throwRowsMisMatchError(int col, int prev, int curr) {
+inline void throwRowsMisMatchError(int col, int64_t prev, int64_t curr) {
   std::stringstream ss;
   ss << "Column " << col << " had " << curr << " while previous column had " << prev;
   throw ParquetException(ss.str());
@@ -203,9 +203,9 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
         throwRowsMisMatchError(current_column_index_, current_col_rows, num_rows_);
       }
     } else if (row_group_by_size_ &&
-               column_writers_.size() > 0) {  // when row_group_by_size = true open
+               column_writers_.size() > 0) {  // when row_group_by_size = true
       int64_t current_col_rows = column_writers_[0]->rows_written();
-      for (size_t i = 1; i < column_writers_.size(); i++) {
+      for (int i = 1; i < static_cast<int>(column_writers_.size()); i++) {
         int64_t current_col_rows_i = column_writers_[i]->rows_written();
         if (current_col_rows != current_col_rows_i) {
           throwRowsMisMatchError(i, current_col_rows_i, current_col_rows);

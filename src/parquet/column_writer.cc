@@ -497,7 +497,7 @@ int64_t ColumnWriter::Close() {
     FlushBufferedDataPages();
 
     EncodedStatistics chunk_statistics = GetChunkStatistics();
-    // Write stats only if the column has atleast one row written
+    // Write stats only if the column has at least one row written
     // From parquet-mr
     // Don't write stats larger than the max size rather than truncating. The
     // rationale is that some engines may use the minimum value in the page as
