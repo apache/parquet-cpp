@@ -75,12 +75,12 @@ class PageWriter {
 
   static std::unique_ptr<PageWriter> Open(
       OutputStream* sink, Compression::type codec, ColumnChunkMetaDataBuilder* metadata,
-      ::arrow::MemoryPool* pool = ::arrow::default_memory_pool());
+      ::arrow::MemoryPool* pool = ::arrow::default_memory_pool(), bool row_group_by_size = false);
 
   // The Column Writer decides if dictionary encoding is used if set and
   // if the dictionary encoding has fallen back to default encoding on reaching dictionary
   // page limit
-  virtual void Close(bool has_dictionary, bool fallback, int64_t stream_offset = 0) = 0;
+  virtual void Close(bool has_dictionary, bool fallback) = 0;
 
   virtual int64_t WriteDataPage(const CompressedDataPage& page) = 0;
 
@@ -96,14 +96,13 @@ class PARQUET_EXPORT ColumnWriter {
  public:
   ColumnWriter(ColumnChunkMetaDataBuilder*, std::unique_ptr<PageWriter>,
                bool has_dictionary, Encoding::type encoding,
-               const WriterProperties* properties, bool flush_on_close = false);
+               const WriterProperties* properties);
 
   virtual ~ColumnWriter() = default;
 
   static std::shared_ptr<ColumnWriter> Make(ColumnChunkMetaDataBuilder*,
                                             std::unique_ptr<PageWriter>,
-                                            const WriterProperties* properties,
-                                            bool flush_on_close = false);
+                                            const WriterProperties* properties);
 
   Type::type type() const { return descr_->physical_type(); }
 
@@ -120,7 +119,9 @@ class PARQUET_EXPORT ColumnWriter {
 
   // Only considers the size of the compressed pages + page header
   // Some values might be still buffered an not written to a page yet
-  int64_t current_compressed_bytes() const { return current_compressed_bytes_; }
+  int64_t total_compressed_bytes() const { return total_compressed_bytes_; }
+
+  int64_t total_bytes_written() const { return total_bytes_written_; }
 
   const WriterProperties* properties() { return properties_; }
 
@@ -198,10 +199,7 @@ class PARQUET_EXPORT ColumnWriter {
   int64_t total_bytes_written_;
 
   // Records the current number of compressed bytes in a column
-  int64_t current_compressed_bytes_;
-
-  // Flush compressed data to the OutputStream only when closing the column
-  bool flush_on_close_;
+  int64_t total_compressed_bytes_;
 
   // Flag to check if the Writer has been closed
   bool closed_;
@@ -220,8 +218,6 @@ class PARQUET_EXPORT ColumnWriter {
 
   std::vector<CompressedDataPage> data_pages_;
 
-  std::vector<DictionaryPage> saved_dictionary_page_;
-
  private:
   void InitSinks();
 };
@@ -234,7 +230,7 @@ class PARQUET_EXPORT TypedColumnWriter : public ColumnWriter {
 
   TypedColumnWriter(ColumnChunkMetaDataBuilder* metadata,
                     std::unique_ptr<PageWriter> pager, Encoding::type encoding,
-                    const WriterProperties* properties, bool flush_on_close = false);
+                    const WriterProperties* properties);
 
   // Write a batch of repetition levels, definition levels, and values to the
   // column.

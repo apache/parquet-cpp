@@ -146,12 +146,22 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
   int64_t total_compressed_bytes() const override {
     int64_t total_compressed_bytes = 0;
     for (size_t i = 0; i < column_writers_.size(); i++) {
-      total_compressed_bytes += column_writers_[i]->current_compressed_bytes();
+      if (column_writers_[i]) {
+        total_compressed_bytes += column_writers_[i]->total_compressed_bytes();
+      }
     }
     return total_compressed_bytes;
   }
 
-  int64_t total_bytes_written() const override { return total_bytes_written_; }
+  int64_t total_bytes_written() const override { 
+    int64_t total_bytes_written = 0;
+    for (size_t i = 0; i < column_writers_.size(); i++) {
+      if (column_writers_[i]) {
+        total_bytes_written += column_writers_[i]->total_bytes_written();
+      }
+    }
+    return total_bytes_written; 
+  }
 
   void Close() override {
     if (!closed_) {
@@ -211,9 +221,9 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       const ColumnDescriptor* column_descr = col_meta->descr();
       std::unique_ptr<PageWriter> pager =
           PageWriter::Open(sink_, properties_->compression(column_descr->path()),
-                           col_meta, properties_->memory_pool());
+                           col_meta, properties_->memory_pool(), row_group_by_size_);
       column_writers_.push_back(
-          ColumnWriter::Make(col_meta, std::move(pager), properties_, true));
+          ColumnWriter::Make(col_meta, std::move(pager), properties_));
     }
   }
 
