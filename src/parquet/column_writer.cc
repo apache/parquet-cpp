@@ -252,7 +252,7 @@ class SerializedPageWriter : public PageWriter {
   int64_t num_values() { return num_values_; }
 
   int64_t dictionary_page_offset() { return dictionary_page_offset_; }
-  
+
   int64_t data_page_offset() { return data_page_offset_; }
 
   int64_t total_compressed_size() { return total_compressed_size_; }
@@ -279,11 +279,10 @@ class BufferedPageWriter : public PageWriter {
   BufferedPageWriter(OutputStream* sink, Compression::type codec,
                      ColumnChunkMetaDataBuilder* metadata,
                      ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
-                                : final_sink_(sink),
-                                  metadata_(metadata),
-                                  in_memory_sink_(new InMemoryOutputStream(pool)),
-                                  pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, metadata, pool))
-  {}
+      : final_sink_(sink),
+        metadata_(metadata),
+        in_memory_sink_(new InMemoryOutputStream(pool)),
+        pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, metadata, pool)) {}
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override {
     return pager_->WriteDictionaryPage(page);
@@ -291,11 +290,10 @@ class BufferedPageWriter : public PageWriter {
 
   void Close(bool has_dictionary, bool fallback) override {
     // index_page_offset = -1 since they are not supported
-    metadata_->Finish(pager_->num_values(),
-                      pager_->dictionary_page_offset() + final_sink_->Tell(),
-                      -1, pager_->data_page_offset() + final_sink_->Tell(),
-                      pager_->total_compressed_size(), pager_->total_uncompressed_size(),
-                      has_dictionary, fallback);
+    metadata_->Finish(
+        pager_->num_values(), pager_->dictionary_page_offset() + final_sink_->Tell(), -1,
+        pager_->data_page_offset() + final_sink_->Tell(), pager_->total_compressed_size(),
+        pager_->total_uncompressed_size(), has_dictionary, fallback);
 
     // Write metadata at end of column chunk
     metadata_->WriteTo(in_memory_sink_.get());
@@ -316,15 +314,16 @@ class BufferedPageWriter : public PageWriter {
   bool has_compressor() override { return pager_->has_compressor(); }
 
  private:
-  OutputStream *final_sink_;
+  OutputStream* final_sink_;
   ColumnChunkMetaDataBuilder* metadata_;
-  std::unique_ptr<InMemoryOutputStream> in_memory_sink_; 
-  std::unique_ptr<SerializedPageWriter> pager_; 
+  std::unique_ptr<InMemoryOutputStream> in_memory_sink_;
+  std::unique_ptr<SerializedPageWriter> pager_;
 };
 
 std::unique_ptr<PageWriter> PageWriter::Open(OutputStream* sink, Compression::type codec,
                                              ColumnChunkMetaDataBuilder* metadata,
-                                             ::arrow::MemoryPool* pool, bool row_group_by_size) {
+                                             ::arrow::MemoryPool* pool,
+                                             bool row_group_by_size) {
   if (row_group_by_size) {
     return std::unique_ptr<PageWriter>(
         new BufferedPageWriter(sink, codec, metadata, pool));
@@ -525,7 +524,7 @@ void ColumnWriter::FlushBufferedDataPages() {
     WriteDataPage(data_pages_[i]);
   }
   data_pages_.clear();
-  total_compressed_bytes_ = 0; 
+  total_compressed_bytes_ = 0;
 }
 
 // ----------------------------------------------------------------------
@@ -647,8 +646,8 @@ std::shared_ptr<ColumnWriter> ColumnWriter::Make(ColumnChunkMetaDataBuilder* met
       return std::make_shared<ByteArrayWriter>(metadata, std::move(pager), encoding,
                                                properties);
     case Type::FIXED_LEN_BYTE_ARRAY:
-      return std::make_shared<FixedLenByteArrayWriter>(
-          metadata, std::move(pager), encoding, properties);
+      return std::make_shared<FixedLenByteArrayWriter>(metadata, std::move(pager),
+                                                       encoding, properties);
     default:
       ParquetException::NYI("type reader not implemented");
   }

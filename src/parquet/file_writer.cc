@@ -153,14 +153,14 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
     return total_compressed_bytes;
   }
 
-  int64_t total_bytes_written() const override { 
+  int64_t total_bytes_written() const override {
     int64_t total_bytes_written = 0;
     for (size_t i = 0; i < column_writers_.size(); i++) {
       if (column_writers_[i]) {
         total_bytes_written += column_writers_[i]->total_bytes_written();
       }
     }
-    return total_bytes_written; 
+    return total_bytes_written;
   }
 
   void Close() override {
