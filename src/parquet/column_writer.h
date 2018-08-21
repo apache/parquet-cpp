@@ -80,7 +80,7 @@ class PageWriter {
   // The Column Writer decides if dictionary encoding is used if set and
   // if the dictionary encoding has fallen back to default encoding on reaching dictionary
   // page limit
-  virtual void Close(bool has_dictionary, bool fallback) = 0;
+  virtual void Close(bool has_dictionary, bool fallback, int64_t stream_offset = 0) = 0;
 
   virtual int64_t WriteDataPage(const CompressedDataPage& page) = 0;
 

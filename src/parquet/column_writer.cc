@@ -180,9 +180,9 @@ class SerializedPageWriter : public PageWriter {
     return sink_->Tell() - start_pos;
   }
 
-  void Close(bool has_dictionary, bool fallback) override {
+  void Close(bool has_dictionary, bool fallback, int64_t stream_offset) override {
     // index_page_offset = -1 since they are not supported
-    metadata_->Finish(num_values_, dictionary_page_offset_, -1, data_page_offset_,
+    metadata_->Finish(num_values_, dictionary_page_offset_ + stream_offset, -1, data_page_offset_ + stream_offset,
                       total_compressed_size_, total_uncompressed_size_, has_dictionary,
                       fallback);
 
@@ -263,11 +263,48 @@ class SerializedPageWriter : public PageWriter {
   std::unique_ptr<::arrow::Codec> compressor_;
 };
 
+class BufferedPageWriter : public PageWriter {
+ public:
+  BufferedPageWriter(OutputStream* sink, Compression::type codec,
+                     ColumnChunkMetaDataBuilder* metadata,
+                     ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
+                                : final_sink_(sink),
+                                  in_memory_sink_(new InMemoryOutputStream(pool)),
+                                  pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, metadata, pool))
+  {}
+
+  int64_t WriteDictionaryPage(const DictionaryPage& page) override {
+    return pager_->WriteDictionaryPage(page);
+  }
+
+  void Close(bool has_dictionary, bool fallback, int64_t stream_offset) override {
+    pager_->Close(has_dictionary, fallback, final_sink_->Tell());
+    auto buffer = in_memory_sink_->GetBuffer();
+    final_sink_->Write(buffer->data(), buffer->size());
+  }
+
+  int64_t WriteDataPage(const CompressedDataPage& page) override {
+    return pager_->WriteDataPage(page);
+  }
+
+  void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) override {
+    pager_->Compress(src_buffer, dest_buffer);
+  }
+
+  bool has_compressor() override { return pager_->has_compressor(); }
+
+ private:
+  OutputStream *final_sink_;
+  std::unique_ptr<InMemoryOutputStream> in_memory_sink_; 
+  std::unique_ptr<SerializedPageWriter> pager_; 
+};
+
 std::unique_ptr<PageWriter> PageWriter::Open(OutputStream* sink, Compression::type codec,
                                              ColumnChunkMetaDataBuilder* metadata,
                                              ::arrow::MemoryPool* pool) {
   return std::unique_ptr<PageWriter>(
-      new SerializedPageWriter(sink, codec, metadata, pool));
+      new BufferedPageWriter(sink, codec, metadata, pool));
+      //new SerializedPageWriter(sink, codec, metadata, pool));
 }
 
 // ----------------------------------------------------------------------
