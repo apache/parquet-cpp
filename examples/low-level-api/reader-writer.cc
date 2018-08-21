@@ -18,19 +18,15 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <memory>
 
-#include <arrow/io/file.h>
-#include <arrow/util/logging.h>
-
-#include <parquet/api/reader.h>
-#include <parquet/api/writer.h>
+#include <reader_writer.h>
 
 /*
  * This example describes writing and reading Parquet Files in C++ and serves as a
  * reference to the API.
  * The file contains all the physical data types supported by Parquet.
+ * This example uses the RowGroupWriter API that supports writing RowGroups optimized for memory consumption
  **/
 
 /* Parquet is a structured columnar file format
@@ -46,55 +42,7 @@
  **/
 
 constexpr int NUM_ROWS_PER_ROW_GROUP = 500;
-constexpr int FIXED_LENGTH = 10;
 const char PARQUET_FILENAME[] = "parquet_cpp_example.parquet";
-
-using parquet::Repetition;
-using parquet::Type;
-using parquet::LogicalType;
-using parquet::schema::PrimitiveNode;
-using parquet::schema::GroupNode;
-
-static std::shared_ptr<GroupNode> SetupSchema() {
-  parquet::schema::NodeVector fields;
-  // Create a primitive node named 'boolean_field' with type:BOOLEAN,
-  // repetition:REQUIRED
-  fields.push_back(PrimitiveNode::Make("boolean_field", Repetition::REQUIRED,
-                                       Type::BOOLEAN, LogicalType::NONE));
-
-  // Create a primitive node named 'int32_field' with type:INT32, repetition:REQUIRED,
-  // logical type:TIME_MILLIS
-  fields.push_back(PrimitiveNode::Make("int32_field", Repetition::REQUIRED, Type::INT32,
-                                       LogicalType::TIME_MILLIS));
-
-  // Create a primitive node named 'int64_field' with type:INT64, repetition:REPEATED
-  fields.push_back(PrimitiveNode::Make("int64_field", Repetition::REPEATED, Type::INT64,
-                                       LogicalType::NONE));
-
-  fields.push_back(PrimitiveNode::Make("int96_field", Repetition::REQUIRED, Type::INT96,
-                                       LogicalType::NONE));
-
-  fields.push_back(PrimitiveNode::Make("float_field", Repetition::REQUIRED, Type::FLOAT,
-                                       LogicalType::NONE));
-
-  fields.push_back(PrimitiveNode::Make("double_field", Repetition::REQUIRED, Type::DOUBLE,
-                                       LogicalType::NONE));
-
-  // Create a primitive node named 'ba_field' with type:BYTE_ARRAY, repetition:OPTIONAL
-  fields.push_back(PrimitiveNode::Make("ba_field", Repetition::OPTIONAL, Type::BYTE_ARRAY,
-                                       LogicalType::NONE));
-
-  // Create a primitive node named 'flba_field' with type:FIXED_LEN_BYTE_ARRAY,
-  // repetition:REQUIRED, field_length = FIXED_LENGTH
-  fields.push_back(PrimitiveNode::Make("flba_field", Repetition::REQUIRED,
-                                       Type::FIXED_LEN_BYTE_ARRAY, LogicalType::NONE,
-                                       FIXED_LENGTH));
-
-  // Create a GroupNode named 'schema' using the primitive nodes defined above
-  // This GroupNode is the root node of the schema tree
-  return std::static_pointer_cast<GroupNode>(
-      GroupNode::Make("schema", Repetition::REQUIRED, fields));
-}
 
 int main(int argc, char** argv) {
   /**********************************************************************************

@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+include_directories(SYSTEM . )
+
 if (PARQUET_BUILD_EXECUTABLES)
   add_executable(reader-writer reader-writer.cc)
   add_executable(reader-writer2 reader-writer2.cc)
