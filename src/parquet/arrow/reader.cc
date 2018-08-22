@@ -571,12 +571,10 @@ Status FileReader::Impl::ReadRowGroups(const std::vector<int>& row_groups,
                                        std::shared_ptr<Table>* table) {
   // TODO(PARQUET-1393): Modify the record readers to already read this into a single,
   // continuous array.
-  std::vector<std::shared_ptr<Table>> tables;
+  std::vector<std::shared_ptr<Table>> tables(row_groups.size(), nullptr);
 
   for (size_t i = 0; i < row_groups.size(); ++i) {
-    std::shared_ptr<Table> rg_table;
-    RETURN_NOT_OK(ReadRowGroup(row_groups[i], indices, &rg_table));
-    tables.push_back(rg_table);
+    RETURN_NOT_OK(ReadRowGroup(row_groups[i], indices, &tables[i]));
   }
   return ConcatenateTables(tables, table);
 }
