@@ -458,7 +458,7 @@ add_custom_target(format-example
   ${BUILD_SUPPORT_DIR}/run_clang_format.py
   ${CLANG_FORMAT_BIN}
   ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-  ${CMAKE_CURRENT_SOURCE_DIR}/examples/parquet-arrow)
+  ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 
 add_custom_target(format
   DEPENDS format-example
@@ -474,7 +474,7 @@ add_custom_target(format
 add_custom_target(check-format-examples ${BUILD_SUPPORT_DIR}/run_clang_format.py
    ${CLANG_FORMAT_BIN}
    ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-   ${CMAKE_CURRENT_SOURCE_DIR}/examples/parquet-arrow 1)
+   ${CMAKE_CURRENT_SOURCE_DIR}/examples 1)
 add_custom_target(check-format
    DEPENDS check-format-examples
    COMMAND
