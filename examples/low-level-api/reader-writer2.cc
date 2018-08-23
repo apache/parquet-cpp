@@ -26,7 +26,8 @@
  * This example describes writing and reading Parquet Files in C++ and serves as a
  * reference to the API.
  * The file contains all the physical data types supported by Parquet.
- * This example uses the RowGroupWriter API that supports writing RowGroups based on a certain size
+ * This example uses the RowGroupWriter API that supports writing RowGroups based on a
+ *certain size
  **/
 
 /* Parquet is a structured columnar file format
@@ -42,7 +43,7 @@
  **/
 
 constexpr int NUM_ROWS = 2500000;
-constexpr int64_t ROW_GROUP_SIZE = 16 * 1024 * 1024; // 16 MB
+constexpr int64_t ROW_GROUP_SIZE = 16 * 1024 * 1024;  // 16 MB
 const char PARQUET_FILENAME[] = "parquet_cpp_example2.parquet";
 
 int main(int argc, char** argv) {
@@ -70,8 +71,8 @@ int main(int argc, char** argv) {
     std::shared_ptr<parquet::ParquetFileWriter> file_writer =
         parquet::ParquetFileWriter::Open(out_file, schema, props);
 
-    // Append a RowGroup with a specific number of rows.
-    parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup(true);
+    // Append a BufferedRowGroup to keep the RowGroup open until a certain size
+    parquet::RowGroupWriter* rg_writer = file_writer->AppendBufferedRowGroup();
 
     int num_columns = file_writer->num_columns();
     std::vector<int64_t> buffered_values_estimate(num_columns, 0);
@@ -84,18 +85,17 @@ int main(int argc, char** argv) {
 
       // We need to consider the compressed pages
       // as well as the values that are not compressed yet
-      if ((rg_writer->total_bytes_written() +
-          rg_writer->total_compressed_bytes() +
-          estimated_bytes) > ROW_GROUP_SIZE) {
+      if ((rg_writer->total_bytes_written() + rg_writer->total_compressed_bytes() +
+           estimated_bytes) > ROW_GROUP_SIZE) {
         rg_writer->Close();
         std::fill(buffered_values_estimate.begin(), buffered_values_estimate.end(), 0);
-        rg_writer = file_writer->AppendRowGroup(true);
+        rg_writer = file_writer->AppendBufferedRowGroup();
       }
 
       int col_id = 0;
       // Write the Bool column
       parquet::BoolWriter* bool_writer =
-          static_cast<parquet::BoolWriter*>(rg_writer->get_column(col_id));
+          static_cast<parquet::BoolWriter*>(rg_writer->column(col_id));
       bool bool_value = ((i % 2) == 0) ? true : false;
       bool_writer->WriteBatch(1, nullptr, nullptr, &bool_value);
       buffered_values_estimate[col_id] = bool_writer->EstimatedBufferedValueBytes();
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
       // Write the Int32 column
       col_id++;
       parquet::Int32Writer* int32_writer =
-          static_cast<parquet::Int32Writer*>(rg_writer->get_column(col_id));
+          static_cast<parquet::Int32Writer*>(rg_writer->column(col_id));
       int32_t int32_value = i;
       int32_writer->WriteBatch(1, nullptr, nullptr, &int32_value);
       buffered_values_estimate[col_id] = int32_writer->EstimatedBufferedValueBytes();
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
       // Write the Int64 column. Each row has repeats twice.
       col_id++;
       parquet::Int64Writer* int64_writer =
-          static_cast<parquet::Int64Writer*>(rg_writer->get_column(col_id));
+          static_cast<parquet::Int64Writer*>(rg_writer->column(col_id));
       int64_t int64_value1 = 2 * i;
       int16_t definition_level = 1;
       int16_t repetition_level = 0;
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
       // Write the INT96 column.
       col_id++;
       parquet::Int96Writer* int96_writer =
-          static_cast<parquet::Int96Writer*>(rg_writer->get_column(col_id));
+          static_cast<parquet::Int96Writer*>(rg_writer->column(col_id));
       parquet::Int96 int96_value;
       int96_value.value[0] = i;
       int96_value.value[1] = i + 1;
@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
       // Write the Float column
       col_id++;
       parquet::FloatWriter* float_writer =
-          static_cast<parquet::FloatWriter*>(rg_writer->get_column(col_id));
+          static_cast<parquet::FloatWriter*>(rg_writer->column(col_id));
       float float_value = static_cast<float>(i) * 1.1f;
       float_writer->WriteBatch(1, nullptr, nullptr, &float_value);
       buffered_values_estimate[col_id] = float_writer->EstimatedBufferedValueBytes();
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
       // Write the Double column
       col_id++;
       parquet::DoubleWriter* double_writer =
-          static_cast<parquet::DoubleWriter*>(rg_writer->get_column(col_id));
+          static_cast<parquet::DoubleWriter*>(rg_writer->column(col_id));
       double double_value = i * 1.1111111;
       double_writer->WriteBatch(1, nullptr, nullptr, &double_value);
       buffered_values_estimate[col_id] = double_writer->EstimatedBufferedValueBytes();
@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
       // Write the ByteArray column. Make every alternate values NULL
       col_id++;
       parquet::ByteArrayWriter* ba_writer =
-          static_cast<parquet::ByteArrayWriter*>(rg_writer->get_column(col_id));
+          static_cast<parquet::ByteArrayWriter*>(rg_writer->column(col_id));
       parquet::ByteArray ba_value;
       char hello[FIXED_LENGTH] = "parquet";
       hello[7] = static_cast<char>(static_cast<int>('0') + i / 100);
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
       // Write the FixedLengthByteArray column
       col_id++;
       parquet::FixedLenByteArrayWriter* flba_writer =
-          static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->get_column(col_id));
+          static_cast<parquet::FixedLenByteArrayWriter*>(rg_writer->column(col_id));
       parquet::FixedLenByteArray flba_value;
       char v = static_cast<char>(i);
       char flba[FIXED_LENGTH] = {v, v, v, v, v, v, v, v, v, v};

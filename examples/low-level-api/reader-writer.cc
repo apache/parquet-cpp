@@ -26,7 +26,8 @@
  * This example describes writing and reading Parquet Files in C++ and serves as a
  * reference to the API.
  * The file contains all the physical data types supported by Parquet.
- * This example uses the RowGroupWriter API that supports writing RowGroups optimized for memory consumption
+ * This example uses the RowGroupWriter API that supports writing RowGroups optimized for
+ *memory consumption
  **/
 
 /* Parquet is a structured columnar file format
@@ -70,8 +71,7 @@ int main(int argc, char** argv) {
         parquet::ParquetFileWriter::Open(out_file, schema, props);
 
     // Append a RowGroup with a specific number of rows.
-    parquet::RowGroupWriter* rg_writer =
-        file_writer->AppendRowGroup();
+    parquet::RowGroupWriter* rg_writer = file_writer->AppendRowGroup();
 
     // Write the Bool column
     parquet::BoolWriter* bool_writer =

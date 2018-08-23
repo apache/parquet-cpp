@@ -21,11 +21,11 @@
 #include <parquet/api/reader.h>
 #include <parquet/api/writer.h>
 
+using parquet::LogicalType;
 using parquet::Repetition;
 using parquet::Type;
-using parquet::LogicalType;
-using parquet::schema::PrimitiveNode;
 using parquet::schema::GroupNode;
+using parquet::schema::PrimitiveNode;
 
 constexpr int FIXED_LENGTH = 10;
 
@@ -69,5 +69,3 @@ static std::shared_ptr<GroupNode> SetupSchema() {
   return std::static_pointer_cast<GroupNode>(
       GroupNode::Make("schema", Repetition::REQUIRED, fields));
 }
-
-
