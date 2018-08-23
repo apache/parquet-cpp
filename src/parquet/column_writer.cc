@@ -323,8 +323,8 @@ class BufferedPageWriter : public PageWriter {
 std::unique_ptr<PageWriter> PageWriter::Open(OutputStream* sink, Compression::type codec,
                                              ColumnChunkMetaDataBuilder* metadata,
                                              ::arrow::MemoryPool* pool,
-                                             bool row_group_by_size) {
-  if (row_group_by_size) {
+                                             bool buffered_row_group) {
+  if (buffered_row_group) {
     return std::unique_ptr<PageWriter>(
         new BufferedPageWriter(sink, codec, metadata, pool));
   } else {

@@ -49,11 +49,9 @@ class PARQUET_EXPORT RowGroupWriter {
     virtual int num_columns() const = 0;
     virtual int64_t num_rows() const = 0;
 
-    // to be used only with AppendRowGroup
-    // A call to NextColumn invalidates the previous ColumnWriter* objects unless
-    // writing a RowGroup via AppendBufferedRowGroup
+    // to be used only with ParquetFileWriter::AppendRowGroup
     virtual ColumnWriter* NextColumn() = 0;
-    // to be used only with AppendBufferedRowGroup
+    // to be used only with ParquetFileWriter::AppendBufferedRowGroup
     virtual ColumnWriter* column(int i) = 0;
 
     virtual int current_column() const = 0;
@@ -69,6 +67,7 @@ class PARQUET_EXPORT RowGroupWriter {
 
   /// Construct a ColumnWriter for the indicated row group-relative column.
   ///
+  /// To be used only with ParquetFileWriter::AppendRowGroup
   /// Ownership is solely within the RowGroupWriter. The ColumnWriter is only
   /// valid until the next call to NextColumn or Close. As the contents are
   /// directly written to the sink, once a new column is started, the contents
@@ -80,7 +79,12 @@ class PARQUET_EXPORT RowGroupWriter {
 
   int num_columns() const;
 
-  // to be used only when row_group_by_size = true
+  /// Construct a ColumnWriter for the indicated row group column.
+  ///
+  /// To be used only with ParquetFileWriter::AppendBufferedRowGroup
+  /// Ownership is solely within the RowGroupWriter. The ColumnWriter is
+  /// valid until Close. The contents are buffered in memory and written to sink
+  /// on Close
   ColumnWriter* column(int i);
 
   /**
@@ -160,7 +164,7 @@ class PARQUET_EXPORT ParquetFileWriter {
   // Construct a RowGroupWriter for the indicated number of rows.
   //
   // Ownership is solely within the ParquetFileWriter. The RowGroupWriter is only valid
-  // until the next call to AppendRowGroup or Close.
+  // until the next call to AppendRowGroup or AppendBufferedRowGroup or Close.
   // @param num_rows The number of rows that are stored in the new RowGroup
   //
   // \deprecated Since 1.3.0
@@ -169,14 +173,14 @@ class PARQUET_EXPORT ParquetFileWriter {
   /// Construct a RowGroupWriter with an arbitrary number of rows.
   ///
   /// Ownership is solely within the ParquetFileWriter. The RowGroupWriter is only valid
-  /// until the next call to AppendRowGroup or Close.
+  /// until the next call to AppendRowGroup or AppendBufferedRowGroup or Close.
   RowGroupWriter* AppendRowGroup();
 
   /// Construct a RowGroupWriter that buffers all the values until the RowGroup is ready.
   /// Use this if you want to write a RowGroup based on a certain size
   ///
   /// Ownership is solely within the ParquetFileWriter. The RowGroupWriter is only valid
-  /// until the next call to AppendRowGroup or Close.
+  /// until the next call to AppendRowGroup or AppendBufferedRowGroup or Close.
   RowGroupWriter* AppendBufferedRowGroup();
 
   /// Number of columns.
