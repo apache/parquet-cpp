@@ -130,7 +130,7 @@ static format::Statistics ToThrift(const EncodedStatistics& row_group_statistics
 class SerializedPageWriter : public PageWriter {
  public:
   SerializedPageWriter(OutputStream* sink, Compression::type codec,
-                       std::shared_ptr<EncryptionProperties> encryption,
+                       const std::shared_ptr<EncryptionProperties>& encryption,
                        ColumnChunkMetaDataBuilder* metadata,
                        ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
       : sink_(sink),
@@ -310,12 +310,13 @@ class SerializedPageWriter : public PageWriter {
 class BufferedPageWriter : public PageWriter {
  public:
   BufferedPageWriter(OutputStream* sink, Compression::type codec,
+                     const std::shared_ptr<EncryptionProperties>& encryption,
                      ColumnChunkMetaDataBuilder* metadata,
                      ::arrow::MemoryPool* pool = ::arrow::default_memory_pool())
       : final_sink_(sink),
         metadata_(metadata),
         in_memory_sink_(new InMemoryOutputStream(pool)),
-        pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, metadata, pool)) {}
+        pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, encryption, metadata, pool)) {} // TODO: nullptr for EncryptionProperties
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override {
     return pager_->WriteDictionaryPage(page);
@@ -354,16 +355,16 @@ class BufferedPageWriter : public PageWriter {
 };
 
 std::unique_ptr<PageWriter> PageWriter::Open(OutputStream* sink, Compression::type codec,
-                                             std::shared_ptr<EncryptionProperties> encryption,
+                                             const std::shared_ptr<EncryptionProperties>& encryption,
                                              ColumnChunkMetaDataBuilder* metadata,
                                              ::arrow::MemoryPool* pool,
                                              bool buffered_row_group) {
   if (buffered_row_group) {
     return std::unique_ptr<PageWriter>(
-        new BufferedPageWriter(sink, codec, metadata, pool));
+        new BufferedPageWriter(sink, codec, encryption, metadata, pool));
   } else {
     return std::unique_ptr<PageWriter>(
-        new SerializedPageWriter(sink, codec, metadata, pool));
+        new SerializedPageWriter(sink, codec, encryption, metadata, pool));
   }
 }
 

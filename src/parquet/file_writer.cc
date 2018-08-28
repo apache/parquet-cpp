@@ -223,6 +223,7 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       const ColumnDescriptor* column_descr = col_meta->descr();
       std::unique_ptr<PageWriter> pager =
           PageWriter::Open(sink_, properties_->compression(column_descr->path()),
+                           properties_->encryption(column_descr->path()),
                            col_meta, properties_->memory_pool(), buffered_row_group_);
       column_writers_.push_back(
           ColumnWriter::Make(col_meta, std::move(pager), properties_));

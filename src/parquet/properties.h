@@ -163,7 +163,7 @@ class PARQUET_EXPORT ReaderProperties {
 
   int64_t buffer_size() const { return buffer_size_; }
 
-  void SetFileDecryption(const std::shared_ptr<FileDecryptionProperties>& decryption) {
+  void file_decryption(const std::shared_ptr<FileDecryptionProperties>& decryption) {
     file_decryption_ = decryption;
   }
 
