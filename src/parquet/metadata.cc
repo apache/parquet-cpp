@@ -769,7 +769,7 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
     const auto& encrypt_md = properties_->column_encryption_props(column_->path());
 
     // column is unencrypted
-    if (!encrypt_md->encrypted()) {
+    if (!encrypt_md || !encrypt_md->encrypted()) {
       column_chunk_->__isset.meta_data = true;
       column_chunk_->__set_meta_data(column_metadata_);
       SerializeThriftMsg(column_chunk_, sizeof(format::ColumnChunk), sink);
@@ -792,9 +792,8 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
 
       // non-uniform: footer is unencrypted, or column is encrypted with a column-specific
       // key
-      if ((footer_encryption == nullptr && encrypt_md->encrypted()) ||
-          (footer_encryption != nullptr &&
-           footer_encryption->key().compare(encrypt_md->key()) != 0)) {
+      if ((footer_encryption == nullptr && encrypt_md->encrypted())
+              || !encrypt_md->encrypted_with_footer_key()) {
         // don't set meta_data
         column_chunk_->__isset.meta_data = false;
 

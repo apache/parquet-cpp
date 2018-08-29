@@ -190,7 +190,6 @@ static constexpr ParquetVersion::type DEFAULT_WRITER_VERSION =
     ParquetVersion::PARQUET_1_0;
 static const char DEFAULT_CREATED_BY[] = CREATED_BY_VERSION;
 static constexpr Compression::type DEFAULT_COMPRESSION_TYPE = Compression::UNCOMPRESSED;
-static const EncryptionProperties DEFAULT_ENCRYPTION = EncryptionProperties();
 
 class PARQUET_EXPORT ColumnProperties {
  public:
@@ -198,14 +197,12 @@ class PARQUET_EXPORT ColumnProperties {
                    Compression::type codec = DEFAULT_COMPRESSION_TYPE,
                    bool dictionary_enabled = DEFAULT_IS_DICTIONARY_ENABLED,
                    bool statistics_enabled = DEFAULT_ARE_STATISTICS_ENABLED,
-                   size_t max_stats_size = DEFAULT_MAX_STATISTICS_SIZE,
-                   EncryptionProperties encryption = DEFAULT_ENCRYPTION)
+                   size_t max_stats_size = DEFAULT_MAX_STATISTICS_SIZE)
       : encoding_(encoding),
         codec_(codec),
         dictionary_enabled_(dictionary_enabled),
         statistics_enabled_(statistics_enabled),
-        max_stats_size_(max_stats_size),
-        encryption_(encryption) {}
+        max_stats_size_(max_stats_size) {}
 
   void set_encoding(Encoding::type encoding) { encoding_ = encoding; }
 
@@ -223,8 +220,6 @@ class PARQUET_EXPORT ColumnProperties {
     max_stats_size_ = max_stats_size;
   }
 
-  void set_encryption(EncryptionProperties encryption) { encryption_ = encryption; }
-
   Encoding::type encoding() const { return encoding_; }
 
   Compression::type compression() const { return codec_; }
@@ -235,15 +230,12 @@ class PARQUET_EXPORT ColumnProperties {
 
   size_t max_statistics_size() const { return max_stats_size_; }
 
-  EncryptionProperties encryption() const { return encryption_; }
-
  private:
   Encoding::type encoding_;
   Compression::type codec_;
   bool dictionary_enabled_;
   bool statistics_enabled_;
   size_t max_stats_size_;
-  EncryptionProperties encryption_;
 };
 
 class PARQUET_EXPORT FileEncryptionProperties {
