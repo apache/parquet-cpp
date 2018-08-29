@@ -1,3 +1,57 @@
+Parquet C++ 1.5.0
+--------------------------------------------------------------------------------
+## Bug
+    * [PARQUET-979] - [C++] Limit size of min, max or disable stats for long binary types
+    * [PARQUET-1071] - [C++] parquet::arrow::FileWriter::Close is not idempotent
+    * [PARQUET-1349] - [C++] PARQUET_RPATH_ORIGIN is not picked by the build
+    * [PARQUET-1334] - [C++] memory_map parameter seems missleading in parquet file opener
+    * [PARQUET-1333] - [C++] Reading of files with dictionary size 0 fails on Windows with bad_alloc
+    * [PARQUET-1283] - [C++] FormatStatValue appends trailing space to string and int96
+    * [PARQUET-1270] - [C++] Executable tools do not get installed
+    * [PARQUET-1272] - [C++] ScanFileContents reports wrong row count for nested columns
+    * [PARQUET-1268] - [C++] Conversion of Arrow null list columns fails
+    * [PARQUET-1255] - [C++] Exceptions thrown in some tests
+    * [PARQUET-1358] - [C++] index_page_offset should be unset as it is not supported.
+    * [PARQUET-1357] - [C++] FormatStatValue truncates binary statistics on zero character
+    * [PARQUET-1319] - [C++] Pass BISON_EXECUTABLE to Thrift EP for MacOS
+    * [PARQUET-1313] - [C++] Compilation failure with VS2017
+    * [PARQUET-1315] - [C++] ColumnChunkMetaData.has_dictionary_page() should return bool, not int64_t
+    * [PARQUET-1307] - [C++] memory-test fails with latest Arrow
+    * [PARQUET-1274] - [Python] SegFault in pyarrow.parquet.write_table with specific options
+    * [PARQUET-1209] - locally defined symbol ... imported in function ..
+    * [PARQUET-1245] - [C++] Segfault when writing Arrow table with duplicate columns
+    * [PARQUET-1273] - [Python] Error writing to partitioned Parquet dataset
+    * [PARQUET-1384] - [C++] Clang compiler warnings in bloom_filter-test.cc
+
+## Improvement
+    * [PARQUET-1348] - [C++] Allow Arrow FileWriter To Write FileMetaData
+    * [PARQUET-1346] - [C++] Protect against null values data in empty Arrow array
+    * [PARQUET-1340] - [C++] Fix Travis Ci valgrind errors related to std::random_device
+    * [PARQUET-1323] - [C++] Fix compiler warnings with clang-6.0
+    * [PARQUET-1279] - Use ASSERT_NO_FATAIL_FAILURE in C++ unit tests
+    * [PARQUET-1262] - [C++] Use the same BOOST_ROOT and Boost_NAMESPACE for Thrift 
+    * [PARQUET-1267] - replace "unsafe" std::equal by std::memcmp
+    * [PARQUET-1360] - [C++] Minor API + style changes follow up to PARQUET-1348
+    * [PARQUET-1166] - [API Proposal] Add GetRecordBatchReader in parquet/arrow/reader.h
+    * [PARQUET-1378] - [c++] Allow RowGroups with zero rows to be written
+    * [PARQUET-1256] - [C++] Add --print-key-value-metadata option to parquet_reader tool
+    * [PARQUET-1276] - [C++] Reduce the amount of memory used for writing null decimal values
+
+## New Feature
+    * [PARQUET-1392] - [C++] Supply row group indices to parquet::arrow::FileReader::ReadTable
+
+## Sub-task
+    * [PARQUET-1227] - Thrift crypto metadata structures
+    * [PARQUET-1332] - [C++] Add bloom filter utility class
+
+## Task
+    * [PARQUET-1350] - [C++] Use abstract ResizableBuffer instead of concrete PoolBuffer
+    * [PARQUET-1366] - [C++] Streamline use of Arrow bit-util.h
+    * [PARQUET-1308] - [C++] parquet::arrow should use thread pool, not ParallelFor
+    * [PARQUET-1382] - [C++] Prepare for arrow::test namespace removal
+    * [PARQUET-1372] - [C++] Add an API to allow writing RowGroups based on their size rather than num_rows
+
+
 Parquet C++ 1.4.0
 --------------------------------------------------------------------------------
 ## Bug
