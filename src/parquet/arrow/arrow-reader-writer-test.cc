@@ -39,8 +39,6 @@
 
 #include "parquet/file_writer.h"
 
-#include "parquet/util/test-common.h"
-
 #include "arrow/api.h"
 #include "arrow/test-util.h"
 #include "arrow/type_traits.h"
@@ -52,20 +50,20 @@ using arrow::Buffer;
 using arrow::ChunkedArray;
 using arrow::Column;
 using arrow::DataType;
-using arrow::default_memory_pool;
 using arrow::ListArray;
+using arrow::PoolBuffer;
 using arrow::PrimitiveArray;
-using arrow::ResizableBuffer;
 using arrow::Status;
 using arrow::Table;
 using arrow::TimeUnit;
 using arrow::compute::Datum;
 using arrow::compute::DictionaryEncode;
 using arrow::compute::FunctionContext;
+using arrow::default_memory_pool;
 using arrow::io::BufferReader;
 
-using arrow::randint;
-using arrow::random_is_valid;
+using arrow::test::randint;
+using arrow::test::random_is_valid;
 
 using ArrowId = ::arrow::Type;
 using ParquetType = parquet::Type;
@@ -80,11 +78,7 @@ namespace parquet {
 namespace arrow {
 
 static constexpr int SMALL_SIZE = 100;
-#ifdef PARQUET_VALGRIND
-static constexpr int LARGE_SIZE = 1000;
-#else
 static constexpr int LARGE_SIZE = 10000;
-#endif
 
 static constexpr uint32_t kDefaultSeed = 0;
 
@@ -324,7 +318,8 @@ using ParquetDataType = DataType<test_traits<T>::parquet_enum>;
 template <typename T>
 using ParquetWriter = TypedColumnWriter<ParquetDataType<T>>;
 
-void WriteTableToBuffer(const std::shared_ptr<Table>& table, int64_t row_group_size,
+void WriteTableToBuffer(const std::shared_ptr<Table>& table, int num_threads,
+                        int64_t row_group_size,
                         const std::shared_ptr<ArrowWriterProperties>& arrow_properties,
                         std::shared_ptr<Buffer>* out) {
   auto sink = std::make_shared<InMemoryOutputStream>();
@@ -379,21 +374,43 @@ void PrintColumn(const Column& col, std::stringstream* ss) {
   }
 }
 
-void DoSimpleRoundtrip(const std::shared_ptr<Table>& table, bool use_threads,
+void AssertTablesEqual(const Table& expected, const Table& actual,
+                       bool same_chunk_layout = true) {
+  ASSERT_EQ(expected.num_columns(), actual.num_columns());
+
+  if (same_chunk_layout) {
+    for (int i = 0; i < actual.num_columns(); ++i) {
+      AssertChunkedEqual(*expected.column(i)->data(), *actual.column(i)->data());
+    }
+  } else {
+    std::stringstream ss;
+    if (!actual.Equals(expected)) {
+      for (int i = 0; i < expected.num_columns(); ++i) {
+        ss << "Actual column " << i << std::endl;
+        PrintColumn(*actual.column(i), &ss);
+
+        ss << "Expected column " << i << std::endl;
+        PrintColumn(*expected.column(i), &ss);
+      }
+      FAIL() << ss.str();
+    }
+  }
+}
+
+void DoSimpleRoundtrip(const std::shared_ptr<Table>& table, int num_threads,
                        int64_t row_group_size, const std::vector<int>& column_subset,
                        std::shared_ptr<Table>* out,
                        const std::shared_ptr<ArrowWriterProperties>& arrow_properties =
                            default_arrow_writer_properties()) {
   std::shared_ptr<Buffer> buffer;
-  ASSERT_NO_FATAL_FAILURE(
-      WriteTableToBuffer(table, row_group_size, arrow_properties, &buffer));
+  WriteTableToBuffer(table, num_threads, row_group_size, arrow_properties, &buffer);
 
   std::unique_ptr<FileReader> reader;
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
                               ::arrow::default_memory_pool(),
                               ::parquet::default_reader_properties(), nullptr, &reader));
 
-  reader->set_use_threads(use_threads);
+  reader->set_num_threads(num_threads);
 
   if (column_subset.size() > 0) {
     ASSERT_OK_NO_THROW(reader->ReadTable(column_subset, out));
@@ -407,9 +424,8 @@ void CheckSimpleRoundtrip(const std::shared_ptr<Table>& table, int64_t row_group
                           const std::shared_ptr<ArrowWriterProperties>& arrow_properties =
                               default_arrow_writer_properties()) {
   std::shared_ptr<Table> result;
-  DoSimpleRoundtrip(table, false /* use_threads */, row_group_size, {}, &result,
-                    arrow_properties);
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*table, *result, false));
+  DoSimpleRoundtrip(table, 1, row_group_size, {}, &result, arrow_properties);
+  AssertTablesEqual(*table, *result, false);
 }
 
 static std::shared_ptr<GroupNode> MakeSimpleSchema(const ::DataType& type,
@@ -517,13 +533,6 @@ class TestParquetIO : public ::testing::Test {
     *out = MakeSimpleTable(lists->Slice(3, size - 6), nullable_lists);
   }
 
-  // Prepare table of empty lists, with null values array (ARROW-2744)
-  void PrepareEmptyListsTable(int64_t size, std::shared_ptr<Table>* out) {
-    std::shared_ptr<Array> lists;
-    ASSERT_OK(MakeEmptyListsArray(size, &lists));
-    *out = MakeSimpleTable(lists, true /* nullable_lists */);
-  }
-
   void PrepareListOfListTable(int64_t size, bool nullable_parent_lists,
                               bool nullable_lists, bool nullable_elements,
                               int64_t null_count, std::shared_ptr<Table>* out) {
@@ -565,8 +574,6 @@ class TestParquetIO : public ::testing::Test {
     ASSERT_OK_NO_THROW(writer.NewRowGroup(values->length()));
     ASSERT_OK_NO_THROW(writer.WriteColumnChunk(*values));
     ASSERT_OK_NO_THROW(writer.Close());
-    // writer.Close() should be idempotent
-    ASSERT_OK_NO_THROW(writer.Close());
   }
 
   std::shared_ptr<InMemoryOutputStream> sink_;
@@ -600,9 +607,9 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredWrite) {
 
   std::shared_ptr<GroupNode> schema =
       MakeSimpleSchema(*values->type(), Repetition::REQUIRED);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, values));
+  this->WriteColumn(schema, values);
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*values));
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnTableRequiredWrite) {
@@ -615,8 +622,8 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredWrite) {
 
   std::shared_ptr<Table> out;
   std::unique_ptr<FileReader> reader;
-  ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
-  ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(reader), &out));
+  this->ReaderFromSink(&reader);
+  this->ReadTableFromFile(std::move(reader), &out);
   ASSERT_EQ(1, out->num_columns());
   ASSERT_EQ(100, out->num_rows());
 
@@ -634,9 +641,9 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalReadWrite) {
 
   std::shared_ptr<GroupNode> schema =
       MakeSimpleSchema(*values->type(), Repetition::OPTIONAL);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, values));
+  this->WriteColumn(schema, values);
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*values));
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnOptionalDictionaryWrite) {
@@ -655,9 +662,9 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalDictionaryWrite) {
   std::shared_ptr<Array> dict_values = MakeArray(out.array());
   std::shared_ptr<GroupNode> schema =
       MakeSimpleSchema(*dict_values->type(), Repetition::OPTIONAL);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, dict_values));
+  this->WriteColumn(schema, dict_values);
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*values));
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnRequiredSliceWrite) {
@@ -667,13 +674,13 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredSliceWrite) {
       MakeSimpleSchema(*values->type(), Repetition::REQUIRED);
 
   std::shared_ptr<Array> sliced_values = values->Slice(SMALL_SIZE / 2, SMALL_SIZE);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, sliced_values));
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*sliced_values));
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(*sliced_values);
 
   // Slice offset 1 higher
   sliced_values = values->Slice(SMALL_SIZE / 2 + 1, SMALL_SIZE);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, sliced_values));
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*sliced_values));
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(*sliced_values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnOptionalSliceWrite) {
@@ -683,13 +690,13 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalSliceWrite) {
       MakeSimpleSchema(*values->type(), Repetition::OPTIONAL);
 
   std::shared_ptr<Array> sliced_values = values->Slice(SMALL_SIZE / 2, SMALL_SIZE);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, sliced_values));
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*sliced_values));
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(*sliced_values);
 
   // Slice offset 1 higher, thus different null bitmap.
   sliced_values = values->Slice(SMALL_SIZE / 2 + 1, SMALL_SIZE);
-  ASSERT_NO_FATAL_FAILURE(this->WriteColumn(schema, sliced_values));
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*sliced_values));
+  this->WriteColumn(schema, sliced_values);
+  this->ReadAndCheckSingleColumnFile(*sliced_values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnTableOptionalReadWrite) {
@@ -698,44 +705,37 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalReadWrite) {
 
   ASSERT_OK(NullableArray<TypeParam>(SMALL_SIZE, 10, kDefaultSeed, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, true);
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
-}
-
-TYPED_TEST(TestParquetIO, SingleEmptyListsColumnReadWrite) {
-  std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(this->PrepareEmptyListsTable(SMALL_SIZE, &table));
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
+  this->CheckRoundTrip(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleNullableListNullableColumnReadWrite) {
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(this->PrepareListTable(SMALL_SIZE, true, true, 10, &table));
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
+  this->PrepareListTable(SMALL_SIZE, true, true, 10, &table);
+  this->CheckRoundTrip(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleRequiredListNullableColumnReadWrite) {
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(this->PrepareListTable(SMALL_SIZE, false, true, 10, &table));
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
+  this->PrepareListTable(SMALL_SIZE, false, true, 10, &table);
+  this->CheckRoundTrip(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleNullableListRequiredColumnReadWrite) {
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(this->PrepareListTable(SMALL_SIZE, true, false, 10, &table));
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
+  this->PrepareListTable(SMALL_SIZE, true, false, 10, &table);
+  this->CheckRoundTrip(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleRequiredListRequiredColumnReadWrite) {
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(this->PrepareListTable(SMALL_SIZE, false, false, 0, &table));
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
+  this->PrepareListTable(SMALL_SIZE, false, false, 0, &table);
+  this->CheckRoundTrip(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleNullableListRequiredListRequiredColumnReadWrite) {
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(
-      this->PrepareListOfListTable(SMALL_SIZE, true, false, false, 0, &table));
-  ASSERT_NO_FATAL_FAILURE(this->CheckRoundTrip(table));
+  this->PrepareListOfListTable(SMALL_SIZE, true, false, false, 0, &table);
+  this->CheckRoundTrip(table);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
@@ -753,7 +753,7 @@ TYPED_TEST(TestParquetIO, SingleColumnRequiredChunkedWrite) {
   }
   ASSERT_OK_NO_THROW(writer.Close());
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*values));
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWrite) {
@@ -764,7 +764,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWrite) {
   ASSERT_OK_NO_THROW(WriteTable(*table, default_memory_pool(), this->sink_, 512,
                                 default_writer_properties()));
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnTable(values));
+  this->ReadAndCheckSingleColumnTable(values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
@@ -772,7 +772,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
   ASSERT_OK(NonNullArray<TypeParam>(LARGE_SIZE, &values));
   std::shared_ptr<Table> table = MakeSimpleTable(values, false);
   this->sink_ = std::make_shared<InMemoryOutputStream>();
-  auto buffer = AllocateBuffer();
+  auto buffer = std::make_shared<::arrow::PoolBuffer>();
 
   {
     // BufferOutputStream closed on gc
@@ -790,7 +790,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
   std::shared_ptr<::arrow::Table> out;
   std::unique_ptr<FileReader> reader;
   ASSERT_OK_NO_THROW(OpenFile(source, ::arrow::default_memory_pool(), &reader));
-  ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(reader), &out));
+  this->ReadTableFromFile(std::move(reader), &out);
   ASSERT_EQ(1, out->num_columns());
   ASSERT_EQ(values->length(), out->num_rows());
 
@@ -816,7 +816,7 @@ TYPED_TEST(TestParquetIO, SingleColumnOptionalChunkedWrite) {
   }
   ASSERT_OK_NO_THROW(writer.Close());
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*values));
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnTableOptionalChunkedWrite) {
@@ -829,34 +829,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableOptionalChunkedWrite) {
   ASSERT_OK_NO_THROW(WriteTable(*table, ::arrow::default_memory_pool(), this->sink_, 512,
                                 default_writer_properties()));
 
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnTable(values));
-}
-
-TYPED_TEST(TestParquetIO, FileMetaDataWrite) {
-  std::shared_ptr<Array> values;
-  ASSERT_OK(NonNullArray<TypeParam>(SMALL_SIZE, &values));
-  std::shared_ptr<Table> table = MakeSimpleTable(values, false);
-  this->sink_ = std::make_shared<InMemoryOutputStream>();
-  ASSERT_OK_NO_THROW(WriteTable(*table, ::arrow::default_memory_pool(), this->sink_,
-                                values->length(), default_writer_properties()));
-
-  std::unique_ptr<FileReader> reader;
-  ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
-  auto metadata = reader->parquet_reader()->metadata();
-  ASSERT_EQ(1, metadata->num_columns());
-  ASSERT_EQ(100, metadata->num_rows());
-
-  this->sink_ = std::make_shared<InMemoryOutputStream>();
-
-  ASSERT_OK_NO_THROW(::parquet::arrow::WriteFileMetaData(*metadata, this->sink_.get()));
-
-  ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
-  auto metadata_written = reader->parquet_reader()->metadata();
-  ASSERT_EQ(metadata->size(), metadata_written->size());
-  ASSERT_EQ(metadata->num_row_groups(), metadata_written->num_row_groups());
-  ASSERT_EQ(metadata->num_rows(), metadata_written->num_rows());
-  ASSERT_EQ(metadata->num_columns(), metadata_written->num_columns());
-  ASSERT_EQ(metadata->RowGroup(0)->num_rows(), metadata_written->RowGroup(0)->num_rows());
+  this->ReadAndCheckSingleColumnTable(values);
 }
 
 using TestInt96ParquetIO = TestParquetIO<::arrow::TimestampType>;
@@ -911,7 +884,7 @@ TEST_F(TestInt96ParquetIO, ReadIntoTimestamp) {
   ASSERT_OK(builder.Append(val));
   std::shared_ptr<Array> values;
   ASSERT_OK(builder.Finish(&values));
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnFile(*values));
+  this->ReadAndCheckSingleColumnFile(*values);
 }
 
 using TestUInt32ParquetIO = TestParquetIO<::arrow::UInt32Type>;
@@ -931,7 +904,7 @@ TEST_F(TestUInt32ParquetIO, Parquet_2_0_Compability) {
           ->build();
   ASSERT_OK_NO_THROW(
       WriteTable(*table, default_memory_pool(), this->sink_, 512, properties));
-  ASSERT_NO_FATAL_FAILURE(this->ReadAndCheckSingleColumnTable(values));
+  this->ReadAndCheckSingleColumnTable(values);
 }
 
 TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
@@ -954,7 +927,8 @@ TEST_F(TestUInt32ParquetIO, Parquet_1_0_Compability) {
   ASSERT_OK_NO_THROW(
       WriteTable(*table, ::arrow::default_memory_pool(), this->sink_, 512, properties));
 
-  std::shared_ptr<ResizableBuffer> int64_data = AllocateBuffer();
+  std::shared_ptr<PoolBuffer> int64_data =
+      std::make_shared<PoolBuffer>(::arrow::default_memory_pool());
   {
     ASSERT_OK(int64_data->Resize(sizeof(int64_t) * values->length()));
     auto int64_data_ptr = reinterpret_cast<int64_t*>(int64_data->mutable_data());
@@ -1008,8 +982,8 @@ TEST_F(TestStringParquetIO, EmptyStringColumnRequiredWrite) {
 
   std::shared_ptr<Table> out;
   std::unique_ptr<FileReader> reader;
-  ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
-  ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(reader), &out));
+  this->ReaderFromSink(&reader);
+  this->ReadTableFromFile(std::move(reader), &out);
   ASSERT_EQ(1, out->num_columns());
   ASSERT_EQ(100, out->num_rows());
 
@@ -1022,56 +996,23 @@ TEST_F(TestStringParquetIO, EmptyStringColumnRequiredWrite) {
 using TestNullParquetIO = TestParquetIO<::arrow::NullType>;
 
 TEST_F(TestNullParquetIO, NullColumn) {
-  for (int32_t num_rows : {0, SMALL_SIZE}) {
-    std::shared_ptr<Array> values = std::make_shared<::arrow::NullArray>(num_rows);
-    std::shared_ptr<Table> table = MakeSimpleTable(values, true /* nullable */);
-    this->sink_ = std::make_shared<InMemoryOutputStream>();
+  std::shared_ptr<Array> values = std::make_shared<::arrow::NullArray>(SMALL_SIZE);
+  std::shared_ptr<Table> table = MakeSimpleTable(values, true);
+  this->sink_ = std::make_shared<InMemoryOutputStream>();
+  ASSERT_OK_NO_THROW(WriteTable(*table, ::arrow::default_memory_pool(), this->sink_,
+                                values->length(), default_writer_properties()));
 
-    const int64_t chunk_size = std::max(static_cast<int64_t>(1), table->num_rows());
-    ASSERT_OK_NO_THROW(WriteTable(*table, ::arrow::default_memory_pool(), this->sink_,
-                                  chunk_size, default_writer_properties()));
+  std::shared_ptr<Table> out;
+  std::unique_ptr<FileReader> reader;
+  this->ReaderFromSink(&reader);
+  this->ReadTableFromFile(std::move(reader), &out);
+  ASSERT_EQ(1, out->num_columns());
+  ASSERT_EQ(100, out->num_rows());
 
-    std::shared_ptr<Table> out;
-    std::unique_ptr<FileReader> reader;
-    ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
-    ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(reader), &out));
-    ASSERT_EQ(1, out->num_columns());
-    ASSERT_EQ(num_rows, out->num_rows());
+  std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
+  ASSERT_EQ(1, chunked_array->num_chunks());
 
-    std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
-    ASSERT_EQ(1, chunked_array->num_chunks());
-    internal::AssertArraysEqual(*values, *chunked_array->chunk(0));
-  }
-}
-
-TEST_F(TestNullParquetIO, NullListColumn) {
-  std::vector<int32_t> offsets1 = {0};
-  std::vector<int32_t> offsets2 = {0, 2, 2, 3, 115};
-  for (std::vector<int32_t> offsets : {offsets1, offsets2}) {
-    std::shared_ptr<Array> offsets_array, values_array, list_array;
-    ::arrow::ArrayFromVector<::arrow::Int32Type, int32_t>(offsets, &offsets_array);
-    values_array = std::make_shared<::arrow::NullArray>(offsets.back());
-    ASSERT_OK(::arrow::ListArray::FromArrays(*offsets_array, *values_array,
-                                             default_memory_pool(), &list_array));
-
-    std::shared_ptr<Table> table = MakeSimpleTable(list_array, false /* nullable */);
-    this->sink_ = std::make_shared<InMemoryOutputStream>();
-
-    const int64_t chunk_size = std::max(static_cast<int64_t>(1), table->num_rows());
-    ASSERT_OK_NO_THROW(WriteTable(*table, ::arrow::default_memory_pool(), this->sink_,
-                                  chunk_size, default_writer_properties()));
-
-    std::shared_ptr<Table> out;
-    std::unique_ptr<FileReader> reader;
-    this->ReaderFromSink(&reader);
-    this->ReadTableFromFile(std::move(reader), &out);
-    ASSERT_EQ(1, out->num_columns());
-    ASSERT_EQ(offsets.size() - 1, out->num_rows());
-
-    std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
-    ASSERT_EQ(1, chunked_array->num_chunks());
-    internal::AssertArraysEqual(*list_array, *chunked_array->chunk(0));
-  }
+  internal::AssertArraysEqual(*values, *chunked_array->chunk(0));
 }
 
 TEST_F(TestNullParquetIO, NullDictionaryColumn) {
@@ -1089,8 +1030,8 @@ TEST_F(TestNullParquetIO, NullDictionaryColumn) {
 
   std::shared_ptr<Table> out;
   std::unique_ptr<FileReader> reader;
-  ASSERT_NO_FATAL_FAILURE(this->ReaderFromSink(&reader));
-  ASSERT_NO_FATAL_FAILURE(this->ReadTableFromFile(std::move(reader), &out));
+  this->ReaderFromSink(&reader);
+  this->ReadTableFromFile(std::move(reader), &out);
   ASSERT_EQ(1, out->num_columns());
   ASSERT_EQ(100, out->num_rows());
 
@@ -1149,7 +1090,7 @@ class TestPrimitiveParquetIO : public TestParquetIO<TestType> {
   void CheckSingleColumnRequiredTableRead(int num_chunks) {
     std::vector<T> values(SMALL_SIZE, test_traits<TestType>::value);
     std::unique_ptr<FileReader> file_reader;
-    ASSERT_NO_FATAL_FAILURE(MakeTestFile(values, num_chunks, &file_reader));
+    ASSERT_NO_THROW(MakeTestFile(values, num_chunks, &file_reader));
 
     std::shared_ptr<Table> out;
     this->ReadTableFromFile(std::move(file_reader), &out);
@@ -1164,7 +1105,7 @@ class TestPrimitiveParquetIO : public TestParquetIO<TestType> {
   void CheckSingleColumnRequiredRead(int num_chunks) {
     std::vector<T> values(SMALL_SIZE, test_traits<TestType>::value);
     std::unique_ptr<FileReader> file_reader;
-    ASSERT_NO_FATAL_FAILURE(MakeTestFile(values, num_chunks, &file_reader));
+    ASSERT_NO_THROW(MakeTestFile(values, num_chunks, &file_reader));
 
     std::shared_ptr<Array> out;
     this->ReadSingleColumnFile(std::move(file_reader), &out);
@@ -1182,19 +1123,19 @@ typedef ::testing::Types<::arrow::BooleanType, ::arrow::UInt8Type, ::arrow::Int8
 TYPED_TEST_CASE(TestPrimitiveParquetIO, PrimitiveTestTypes);
 
 TYPED_TEST(TestPrimitiveParquetIO, SingleColumnRequiredRead) {
-  ASSERT_NO_FATAL_FAILURE(this->CheckSingleColumnRequiredRead(1));
+  this->CheckSingleColumnRequiredRead(1);
 }
 
 TYPED_TEST(TestPrimitiveParquetIO, SingleColumnRequiredTableRead) {
-  ASSERT_NO_FATAL_FAILURE(this->CheckSingleColumnRequiredTableRead(1));
+  this->CheckSingleColumnRequiredTableRead(1);
 }
 
 TYPED_TEST(TestPrimitiveParquetIO, SingleColumnRequiredChunkedRead) {
-  ASSERT_NO_FATAL_FAILURE(this->CheckSingleColumnRequiredRead(4));
+  this->CheckSingleColumnRequiredRead(4);
 }
 
 TYPED_TEST(TestPrimitiveParquetIO, SingleColumnRequiredChunkedTableRead) {
-  ASSERT_NO_FATAL_FAILURE(this->CheckSingleColumnRequiredTableRead(4));
+  this->CheckSingleColumnRequiredTableRead(4);
 }
 
 void MakeDateTimeTypesTable(std::shared_ptr<Table>* out, bool nanos_as_micros = false) {
@@ -1250,19 +1191,18 @@ TEST(TestArrowReadWrite, DateTimeTypes) {
 
   // Use deprecated INT96 type
   std::shared_ptr<Table> result;
-  ASSERT_NO_FATAL_FAILURE(DoSimpleRoundtrip(
-      table, false /* use_threads */, table->num_rows(), {}, &result,
-      ArrowWriterProperties::Builder().enable_deprecated_int96_timestamps()->build()));
+  DoSimpleRoundtrip(
+      table, 1, table->num_rows(), {}, &result,
+      ArrowWriterProperties::Builder().enable_deprecated_int96_timestamps()->build());
 
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*table, *result));
+  AssertTablesEqual(*table, *result);
 
   // Cast nanaoseconds to microseconds and use INT64 physical type
-  ASSERT_NO_FATAL_FAILURE(
-      DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {}, &result));
+  DoSimpleRoundtrip(table, 1, table->num_rows(), {}, &result);
   std::shared_ptr<Table> expected;
   MakeDateTimeTypesTable(&table, true);
 
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*table, *result));
+  AssertTablesEqual(*table, *result);
 }
 
 TEST(TestArrowReadWrite, CoerceTimestamps) {
@@ -1320,17 +1260,17 @@ TEST(TestArrowReadWrite, CoerceTimestamps) {
        std::make_shared<Column>("f_us", a_us), std::make_shared<Column>("f_ns", a_us)});
 
   std::shared_ptr<Table> milli_result;
-  ASSERT_NO_FATAL_FAILURE(DoSimpleRoundtrip(
-      input, false /* use_threads */, input->num_rows(), {}, &milli_result,
-      ArrowWriterProperties::Builder().coerce_timestamps(TimeUnit::MILLI)->build()));
+  DoSimpleRoundtrip(
+      input, 1, input->num_rows(), {}, &milli_result,
+      ArrowWriterProperties::Builder().coerce_timestamps(TimeUnit::MILLI)->build());
 
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*ex_milli_result, *milli_result));
+  AssertTablesEqual(*ex_milli_result, *milli_result);
 
   std::shared_ptr<Table> micro_result;
-  ASSERT_NO_FATAL_FAILURE(DoSimpleRoundtrip(
-      input, false /* use_threads */, input->num_rows(), {}, &micro_result,
-      ArrowWriterProperties::Builder().coerce_timestamps(TimeUnit::MICRO)->build()));
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*ex_micro_result, *micro_result));
+  DoSimpleRoundtrip(
+      input, 1, input->num_rows(), {}, &micro_result,
+      ArrowWriterProperties::Builder().coerce_timestamps(TimeUnit::MICRO)->build());
+  AssertTablesEqual(*ex_micro_result, *micro_result);
 }
 
 TEST(TestArrowReadWrite, CoerceTimestampsLosePrecision) {
@@ -1454,69 +1394,9 @@ TEST(TestArrowReadWrite, ConvertedDateTimeTypes) {
   auto ex_table = Table::Make(ex_schema, ex_columns);
 
   std::shared_ptr<Table> result;
-  ASSERT_NO_FATAL_FAILURE(
-      DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {}, &result));
+  DoSimpleRoundtrip(table, 1, table->num_rows(), {}, &result);
 
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*ex_table, *result));
-}
-
-// Regression for ARROW-2802
-TEST(TestArrowReadWrite, CoerceTimestampsAndSupportDeprecatedInt96) {
-  using ::arrow::Column;
-  using ::arrow::default_memory_pool;
-  using ::arrow::Field;
-  using ::arrow::Schema;
-  using ::arrow::Table;
-  using ::arrow::TimestampBuilder;
-  using ::arrow::TimestampType;
-  using ::arrow::TimeUnit;
-
-  auto timestamp_type = std::make_shared<TimestampType>(TimeUnit::NANO);
-
-  TimestampBuilder builder(timestamp_type, default_memory_pool());
-  for (std::int64_t ii = 0; ii < 10; ++ii) {
-    ASSERT_OK(builder.Append(1000000000L * ii));
-  }
-  std::shared_ptr<Array> values;
-  ASSERT_OK(builder.Finish(&values));
-
-  std::vector<std::shared_ptr<Field>> fields;
-  auto field = std::make_shared<Field>("nanos", timestamp_type);
-  fields.emplace_back(field);
-
-  auto schema = std::make_shared<Schema>(fields);
-
-  std::vector<std::shared_ptr<Column>> columns;
-  auto column = std::make_shared<Column>("nanos", values);
-  columns.emplace_back(column);
-
-  auto table = Table::Make(schema, columns);
-
-  auto arrow_writer_properties = ArrowWriterProperties::Builder()
-                                     .coerce_timestamps(TimeUnit::MICRO)
-                                     ->enable_deprecated_int96_timestamps()
-                                     ->build();
-
-  std::shared_ptr<Table> result;
-  DoSimpleRoundtrip(table, false /* use_threads */, table->num_rows(), {}, &result,
-                    arrow_writer_properties);
-
-  ASSERT_EQ(table->num_columns(), result->num_columns());
-  ASSERT_EQ(table->num_rows(), result->num_rows());
-
-  auto actual_column = result->column(0);
-  auto data = actual_column->data();
-  auto expected_values =
-      static_cast<::arrow::NumericArray<TimestampType>*>(values.get())->raw_values();
-  for (int ii = 0; ii < data->num_chunks(); ++ii) {
-    auto chunk =
-        static_cast<::arrow::NumericArray<TimestampType>*>(data->chunk(ii).get());
-    auto values = chunk->raw_values();
-    for (int64_t jj = 0; jj < chunk->length(); ++jj, ++expected_values) {
-      // Check that the nanos have been converted to micros
-      ASSERT_EQ(*expected_values / 1000, values[jj]);
-    }
-  }
+  AssertTablesEqual(*ex_table, *result);
 }
 
 void MakeDoubleTable(int num_columns, int num_rows, int nchunks,
@@ -1545,18 +1425,19 @@ void MakeDoubleTable(int num_columns, int num_rows, int nchunks,
   *out = Table::Make(schema, columns);
 }
 
-void MakeListArray(int num_rows, int max_value_length,
-                   std::shared_ptr<::DataType>* out_type,
+void MakeListArray(int num_rows, std::shared_ptr<::DataType>* out_type,
                    std::shared_ptr<Array>* out_array) {
+  ::arrow::Int32Builder offset_builder;
+
   std::vector<int32_t> length_draws;
-  randint(num_rows, 0, max_value_length, &length_draws);
+  randint(num_rows, 0, 100, &length_draws);
 
   std::vector<int32_t> offset_values;
 
   // Make sure some of them are length 0
   int32_t total_elements = 0;
   for (size_t i = 0; i < length_draws.size(); ++i) {
-    if (length_draws[i] < max_value_length / 10) {
+    if (length_draws[i] < 10) {
       length_draws[i] = 0;
     }
     offset_values.push_back(total_elements);
@@ -1584,16 +1465,15 @@ void MakeListArray(int num_rows, int max_value_length,
 TEST(TestArrowReadWrite, MultithreadedRead) {
   const int num_columns = 20;
   const int num_rows = 1000;
-  const bool use_threads = true;
+  const int num_threads = 4;
 
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(MakeDoubleTable(num_columns, num_rows, 1, &table));
+  MakeDoubleTable(num_columns, num_rows, 1, &table);
 
   std::shared_ptr<Table> result;
-  ASSERT_NO_FATAL_FAILURE(
-      DoSimpleRoundtrip(table, use_threads, table->num_rows(), {}, &result));
+  DoSimpleRoundtrip(table, num_threads, table->num_rows(), {}, &result);
 
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*table, *result));
+  AssertTablesEqual(*table, *result);
 }
 
 TEST(TestArrowReadWrite, ReadSingleRowGroup) {
@@ -1601,11 +1481,10 @@ TEST(TestArrowReadWrite, ReadSingleRowGroup) {
   const int num_rows = 1000;
 
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(MakeDoubleTable(num_columns, num_rows, 1, &table));
+  MakeDoubleTable(num_columns, num_rows, 1, &table);
 
   std::shared_ptr<Buffer> buffer;
-  ASSERT_NO_FATAL_FAILURE(WriteTableToBuffer(table, num_rows / 2,
-                                             default_arrow_writer_properties(), &buffer));
+  WriteTableToBuffer(table, 1, num_rows / 2, default_arrow_writer_properties(), &buffer);
 
   std::unique_ptr<FileReader> reader;
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
@@ -1614,55 +1493,15 @@ TEST(TestArrowReadWrite, ReadSingleRowGroup) {
 
   ASSERT_EQ(2, reader->num_row_groups());
 
-  std::shared_ptr<Table> r1, r2, r3, r4;
+  std::shared_ptr<Table> r1, r2;
   // Read everything
   ASSERT_OK_NO_THROW(reader->ReadRowGroup(0, &r1));
   ASSERT_OK_NO_THROW(reader->RowGroup(1)->ReadTable(&r2));
-  ASSERT_OK_NO_THROW(reader->ReadRowGroups({0, 1}, &r3));
-  ASSERT_OK_NO_THROW(reader->ReadRowGroups({1}, &r4));
 
   std::shared_ptr<Table> concatenated;
-
   ASSERT_OK(ConcatenateTables({r1, r2}, &concatenated));
+
   ASSERT_TRUE(table->Equals(*concatenated));
-
-  ASSERT_TRUE(table->Equals(*r3));
-  ASSERT_TRUE(r2->Equals(*r4));
-  ASSERT_OK(ConcatenateTables({r1, r4}, &concatenated));
-  ASSERT_TRUE(table->Equals(*concatenated));
-}
-
-TEST(TestArrowReadWrite, GetRecordBatchReader) {
-  const int num_columns = 20;
-  const int num_rows = 1000;
-
-  std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(MakeDoubleTable(num_columns, num_rows, 1, &table));
-
-  std::shared_ptr<Buffer> buffer;
-  ASSERT_NO_FATAL_FAILURE(WriteTableToBuffer(table, num_rows / 2,
-                                             default_arrow_writer_properties(), &buffer));
-
-  std::unique_ptr<FileReader> reader;
-  ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
-                              ::arrow::default_memory_pool(),
-                              ::parquet::default_reader_properties(), nullptr, &reader));
-
-  std::shared_ptr<::arrow::RecordBatchReader> rb_reader;
-  ASSERT_OK_NO_THROW(reader->GetRecordBatchReader({0, 1}, &rb_reader));
-
-  std::shared_ptr<::arrow::RecordBatch> batch;
-
-  ASSERT_OK(rb_reader->ReadNext(&batch));
-  ASSERT_EQ(500, batch->num_rows());
-  ASSERT_EQ(20, batch->num_columns());
-
-  ASSERT_OK(rb_reader->ReadNext(&batch));
-  ASSERT_EQ(500, batch->num_rows());
-  ASSERT_EQ(20, batch->num_columns());
-
-  ASSERT_OK(rb_reader->ReadNext(&batch));
-  ASSERT_EQ(nullptr, batch);
 }
 
 TEST(TestArrowReadWrite, ScanContents) {
@@ -1670,11 +1509,10 @@ TEST(TestArrowReadWrite, ScanContents) {
   const int num_rows = 1000;
 
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(MakeDoubleTable(num_columns, num_rows, 1, &table));
+  MakeDoubleTable(num_columns, num_rows, 1, &table);
 
   std::shared_ptr<Buffer> buffer;
-  ASSERT_NO_FATAL_FAILURE(WriteTableToBuffer(table, num_rows / 2,
-                                             default_arrow_writer_properties(), &buffer));
+  WriteTableToBuffer(table, 1, num_rows / 2, default_arrow_writer_properties(), &buffer);
 
   std::unique_ptr<FileReader> reader;
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
@@ -1692,15 +1530,14 @@ TEST(TestArrowReadWrite, ScanContents) {
 TEST(TestArrowReadWrite, ReadColumnSubset) {
   const int num_columns = 20;
   const int num_rows = 1000;
-  const bool use_threads = true;
+  const int num_threads = 4;
 
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(MakeDoubleTable(num_columns, num_rows, 1, &table));
+  MakeDoubleTable(num_columns, num_rows, 1, &table);
 
   std::shared_ptr<Table> result;
   std::vector<int> column_subset = {0, 4, 8, 10};
-  ASSERT_NO_FATAL_FAILURE(
-      DoSimpleRoundtrip(table, use_threads, table->num_rows(), column_subset, &result));
+  DoSimpleRoundtrip(table, num_threads, table->num_rows(), column_subset, &result);
 
   std::vector<std::shared_ptr<::arrow::Column>> ex_columns;
   std::vector<std::shared_ptr<::arrow::Field>> ex_fields;
@@ -1711,25 +1548,22 @@ TEST(TestArrowReadWrite, ReadColumnSubset) {
 
   auto ex_schema = ::arrow::schema(ex_fields);
   auto expected = Table::Make(ex_schema, ex_columns);
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*expected, *result));
+  AssertTablesEqual(*expected, *result);
 }
 
 TEST(TestArrowReadWrite, ListLargeRecords) {
-  // PARQUET-1308: This test passed on Linux when num_rows was smaller
-  const int num_rows = 2000;
+  const int num_rows = 50;
 
   std::shared_ptr<Array> list_array;
   std::shared_ptr<::DataType> list_type;
 
-  MakeListArray(num_rows, 20, &list_type, &list_array);
+  MakeListArray(num_rows, &list_type, &list_array);
 
   auto schema = ::arrow::schema({::arrow::field("a", list_type)});
-
   std::shared_ptr<Table> table = Table::Make(schema, {list_array});
 
   std::shared_ptr<Buffer> buffer;
-  ASSERT_NO_FATAL_FAILURE(
-      WriteTableToBuffer(table, 100, default_arrow_writer_properties(), &buffer));
+  WriteTableToBuffer(table, 1, 100, default_arrow_writer_properties(), &buffer);
 
   std::unique_ptr<FileReader> reader;
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
@@ -1739,15 +1573,16 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   // Read everything
   std::shared_ptr<Table> result;
   ASSERT_OK_NO_THROW(reader->ReadTable(&result));
-  ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*table, *result));
+  AssertTablesEqual(*table, *result);
 
-  // Read chunked
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
                               ::arrow::default_memory_pool(),
                               ::parquet::default_reader_properties(), nullptr, &reader));
 
   std::unique_ptr<ColumnReader> col_reader;
   ASSERT_OK(reader->GetColumn(0, &col_reader));
+
+  auto expected = table->column(0)->data()->chunk(0);
 
   std::vector<std::shared_ptr<Array>> pieces;
   for (int i = 0; i < num_rows; ++i) {
@@ -1802,7 +1637,7 @@ auto GenerateInt32 = [](int length, std::shared_ptr<::DataType>* type,
 
 auto GenerateList = [](int length, std::shared_ptr<::DataType>* type,
                        std::shared_ptr<Array>* array) {
-  MakeListArray(length, 100, type, array);
+  MakeListArray(length, type, array);
 };
 
 TEST(TestArrowReadWrite, TableWithChunkedColumns) {
@@ -1828,94 +1663,10 @@ TEST(TestArrowReadWrite, TableWithChunkedColumns) {
     auto col = std::make_shared<::arrow::Column>(field, arrays);
     auto table = Table::Make(schema, {col});
 
-    ASSERT_NO_FATAL_FAILURE(CheckSimpleRoundtrip(table, 2));
-    ASSERT_NO_FATAL_FAILURE(CheckSimpleRoundtrip(table, 3));
-    ASSERT_NO_FATAL_FAILURE(CheckSimpleRoundtrip(table, 10));
+    CheckSimpleRoundtrip(table, 2);
+    CheckSimpleRoundtrip(table, 3);
+    CheckSimpleRoundtrip(table, 10);
   }
-}
-
-TEST(TestArrowReadWrite, TableWithDuplicateColumns) {
-  // See ARROW-1974
-  using ::arrow::ArrayFromVector;
-
-  auto f0 = field("duplicate", ::arrow::int8());
-  auto f1 = field("duplicate", ::arrow::int16());
-  auto schema = ::arrow::schema({f0, f1});
-
-  std::vector<int8_t> a0_values = {1, 2, 3};
-  std::vector<int16_t> a1_values = {14, 15, 16};
-
-  std::shared_ptr<Array> a0, a1;
-
-  ArrayFromVector<::arrow::Int8Type, int8_t>(a0_values, &a0);
-  ArrayFromVector<::arrow::Int16Type, int16_t>(a1_values, &a1);
-
-  auto table = Table::Make(schema, {std::make_shared<Column>(f0->name(), a0),
-                                    std::make_shared<Column>(f1->name(), a1)});
-  ASSERT_NO_FATAL_FAILURE(CheckSimpleRoundtrip(table, table->num_rows()));
-}
-
-TEST(TestArrowReadWrite, DictionaryColumnChunkedWrite) {
-  // This is a regression test for this:
-  //
-  // https://issues.apache.org/jira/browse/ARROW-1938
-  //
-  // As of the writing of this test, columns of type
-  // dictionary are written as their raw/expanded values.
-  // The regression was that the whole column was being
-  // written for each chunk.
-  using ::arrow::ArrayFromVector;
-
-  std::vector<std::string> values = {"first", "second", "third"};
-  auto type = ::arrow::utf8();
-  std::shared_ptr<Array> dict_values;
-  ArrayFromVector<::arrow::StringType, std::string>(values, &dict_values);
-
-  auto dict_type = ::arrow::dictionary(::arrow::int32(), dict_values);
-  auto f0 = field("dictionary", dict_type);
-  std::vector<std::shared_ptr<::arrow::Field>> fields;
-  fields.emplace_back(f0);
-  auto schema = ::arrow::schema(fields);
-
-  std::shared_ptr<Array> f0_values, f1_values;
-  ArrayFromVector<::arrow::Int32Type, int32_t>({0, 1, 0, 2, 1}, &f0_values);
-  ArrayFromVector<::arrow::Int32Type, int32_t>({2, 0, 1, 0, 2}, &f1_values);
-  ::arrow::ArrayVector dict_arrays = {
-      std::make_shared<::arrow::DictionaryArray>(dict_type, f0_values),
-      std::make_shared<::arrow::DictionaryArray>(dict_type, f1_values)};
-
-  std::vector<std::shared_ptr<::arrow::Column>> columns;
-  auto column = MakeColumn("column", dict_arrays, false);
-  columns.emplace_back(column);
-
-  auto table = Table::Make(schema, columns);
-
-  std::shared_ptr<Table> result;
-  DoSimpleRoundtrip(table, 1,
-                    // Just need to make sure that we make
-                    // a chunk size that is smaller than the
-                    // total number of values
-                    2, {}, &result);
-
-  std::vector<std::string> expected_values = {"first",  "second", "first", "third",
-                                              "second", "third",  "first", "second",
-                                              "first",  "third"};
-  columns.clear();
-
-  std::shared_ptr<Array> expected_array;
-  ArrayFromVector<::arrow::StringType, std::string>(expected_values, &expected_array);
-
-  // The column name gets changed on output to the name of the
-  // field, and it also turns into a nullable column
-  columns.emplace_back(MakeColumn("dictionary", expected_array, true));
-
-  fields.clear();
-  fields.emplace_back(::arrow::field("dictionary", ::arrow::utf8()));
-  schema = ::arrow::schema(fields);
-
-  auto expected_table = Table::Make(schema, columns);
-
-  ::arrow::AssertTablesEqual(*expected_table, *result, false);
 }
 
 TEST(TestArrowWrite, CheckChunkSize) {
@@ -1923,7 +1674,7 @@ TEST(TestArrowWrite, CheckChunkSize) {
   const int num_rows = 128;
   const int64_t chunk_size = 0;  // note the chunk_size is 0
   std::shared_ptr<Table> table;
-  ASSERT_NO_FATAL_FAILURE(MakeDoubleTable(num_columns, num_rows, 1, &table));
+  MakeDoubleTable(num_columns, num_rows, 1, &table);
 
   auto sink = std::make_shared<InMemoryOutputStream>();
 
@@ -2187,14 +1938,14 @@ class TestNestedSchemaRead : public ::testing::TestWithParam<Repetition::type> {
 };
 
 TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
-  ASSERT_NO_FATAL_FAILURE(CreateSimpleNestedParquet(Repetition::OPTIONAL));
+  CreateSimpleNestedParquet(Repetition::OPTIONAL);
 
   std::shared_ptr<Table> table;
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
   ASSERT_EQ(table->num_rows(), NUM_SIMPLE_TEST_ROWS);
   ASSERT_EQ(table->num_columns(), 2);
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
-  ASSERT_NO_FATAL_FAILURE(ValidateTableArrayTypes(*table));
+  ValidateTableArrayTypes(*table);
 
   auto struct_field_array =
       std::static_pointer_cast<::arrow::StructArray>(table->column(0)->data()->chunk(0));
@@ -2208,18 +1959,17 @@ TEST_F(TestNestedSchemaRead, ReadIntoTableFull) {
   // validate struct and leaf arrays
 
   // validate struct array
-  ASSERT_NO_FATAL_FAILURE(ValidateArray(*struct_field_array, NUM_SIMPLE_TEST_ROWS / 3));
+  ValidateArray(*struct_field_array, NUM_SIMPLE_TEST_ROWS / 3);
   // validate leaf1
-  ASSERT_NO_FATAL_FAILURE(ValidateColumnArray(*leaf1_array, NUM_SIMPLE_TEST_ROWS / 3));
+  ValidateColumnArray(*leaf1_array, NUM_SIMPLE_TEST_ROWS / 3);
   // validate leaf2
-  ASSERT_NO_FATAL_FAILURE(
-      ValidateColumnArray(*leaf2_array, NUM_SIMPLE_TEST_ROWS * 2 / 3));
+  ValidateColumnArray(*leaf2_array, NUM_SIMPLE_TEST_ROWS * 2 / 3);
   // validate leaf3
-  ASSERT_NO_FATAL_FAILURE(ValidateColumnArray(*leaf3_array, 0));
+  ValidateColumnArray(*leaf3_array, 0);
 }
 
 TEST_F(TestNestedSchemaRead, ReadTablePartial) {
-  ASSERT_NO_FATAL_FAILURE(CreateSimpleNestedParquet(Repetition::OPTIONAL));
+  CreateSimpleNestedParquet(Repetition::OPTIONAL);
   std::shared_ptr<Table> table;
 
   // columns: {group1.leaf1, leaf3}
@@ -2229,7 +1979,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->schema()->field(0)->name(), "group1");
   ASSERT_EQ(table->schema()->field(1)->name(), "leaf3");
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 1);
-  ASSERT_NO_FATAL_FAILURE(ValidateTableArrayTypes(*table));
+  ValidateTableArrayTypes(*table);
 
   // columns: {group1.leaf1, group1.leaf2}
   ASSERT_OK_NO_THROW(reader_->ReadTable({0, 1}, &table));
@@ -2237,7 +1987,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->name(), "group1");
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 2);
-  ASSERT_NO_FATAL_FAILURE(ValidateTableArrayTypes(*table));
+  ValidateTableArrayTypes(*table);
 
   // columns: {leaf3}
   ASSERT_OK_NO_THROW(reader_->ReadTable({2}, &table));
@@ -2245,7 +1995,7 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->num_columns(), 1);
   ASSERT_EQ(table->schema()->field(0)->name(), "leaf3");
   ASSERT_EQ(table->schema()->field(0)->type()->num_children(), 0);
-  ASSERT_NO_FATAL_FAILURE(ValidateTableArrayTypes(*table));
+  ValidateTableArrayTypes(*table);
 
   // Test with different ordering
   ASSERT_OK_NO_THROW(reader_->ReadTable({2, 0}, &table));
@@ -2254,27 +2004,21 @@ TEST_F(TestNestedSchemaRead, ReadTablePartial) {
   ASSERT_EQ(table->schema()->field(0)->name(), "leaf3");
   ASSERT_EQ(table->schema()->field(1)->name(), "group1");
   ASSERT_EQ(table->schema()->field(1)->type()->num_children(), 1);
-  ASSERT_NO_FATAL_FAILURE(ValidateTableArrayTypes(*table));
+  ValidateTableArrayTypes(*table);
 }
 
 TEST_F(TestNestedSchemaRead, StructAndListTogetherUnsupported) {
-  ASSERT_NO_FATAL_FAILURE(CreateSimpleNestedParquet(Repetition::REPEATED));
+  CreateSimpleNestedParquet(Repetition::REPEATED);
   std::shared_ptr<Table> table;
   ASSERT_RAISES(NotImplemented, reader_->ReadTable(&table));
 }
 
 TEST_P(TestNestedSchemaRead, DeepNestedSchemaRead) {
-#ifdef PARQUET_VALGRIND
-  const int num_trees = 3;
-  const int depth = 3;
-#else
   const int num_trees = 10;
   const int depth = 5;
-#endif
   const int num_children = 3;
   int num_rows = SMALL_SIZE * (depth + 2);
-  ASSERT_NO_FATAL_FAILURE(CreateMultiLevelNestedParquet(num_trees, depth, num_children,
-                                                        num_rows, GetParam()));
+  CreateMultiLevelNestedParquet(num_trees, depth, num_children, num_rows, GetParam());
   std::shared_ptr<Table> table;
   ASSERT_OK_NO_THROW(reader_->ReadTable(&table));
   ASSERT_EQ(table->num_columns(), num_trees);
@@ -2301,7 +2045,8 @@ TEST(TestImpalaConversion, NanosecondToImpala) {
 
 TEST(TestArrowReaderAdHoc, Int96BadMemoryAccess) {
   // PARQUET-995
-  std::string dir_string(test::get_data_dir());
+  const char* data_dir = std::getenv("PARQUET_TEST_DATA");
+  std::string dir_string(data_dir);
   std::stringstream ss;
   ss << dir_string << "/"
      << "alltypes_plain.parquet";
@@ -2316,12 +2061,12 @@ TEST(TestArrowReaderAdHoc, Int96BadMemoryAccess) {
   ASSERT_OK_NO_THROW(arrow_reader->ReadTable(&table));
 }
 
-class TestArrowReaderAdHocSpark
+class TestArrowReaderAdHocSparkAndHvr
     : public ::testing::TestWithParam<
           std::tuple<std::string, std::shared_ptr<::DataType>>> {};
 
-TEST_P(TestArrowReaderAdHocSpark, ReadDecimals) {
-  std::string path(test::get_data_dir());
+TEST_P(TestArrowReaderAdHocSparkAndHvr, ReadDecimals) {
+  std::string path(std::getenv("PARQUET_TEST_DATA"));
 
   std::string filename;
   std::shared_ptr<::DataType> decimal_type;
@@ -2364,12 +2109,13 @@ TEST_P(TestArrowReaderAdHocSpark, ReadDecimals) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    ReadDecimals, TestArrowReaderAdHocSpark,
+    ReadDecimals, TestArrowReaderAdHocSparkAndHvr,
     ::testing::Values(
         std::make_tuple("int32_decimal.parquet", ::arrow::decimal(4, 2)),
         std::make_tuple("int64_decimal.parquet", ::arrow::decimal(10, 2)),
         std::make_tuple("fixed_length_decimal.parquet", ::arrow::decimal(25, 2)),
-        std::make_tuple("fixed_length_decimal_legacy.parquet", ::arrow::decimal(13, 2))));
+        std::make_tuple("fixed_length_decimal_legacy.parquet", ::arrow::decimal(13, 2)),
+        std::make_tuple("byte_array_decimal.parquet", ::arrow::decimal(4, 2))));
 
 }  // namespace arrow
 
