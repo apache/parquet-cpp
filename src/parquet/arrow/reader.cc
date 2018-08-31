@@ -1265,11 +1265,11 @@ struct TransferFunctor<::arrow::Decimal128Type, ByteArrayType> {
         auto out_ptr_view = reinterpret_cast<uint64_t*>(out_ptr);
         out_ptr_view[0] = 0;
         out_ptr_view[1] = 0;
-
-
-        if ((null_count > 0) && !binary_array.IsNull(i)) {
-            RawBytesToDecimalBytes(record_loc, record_len, out_ptr);
-        } else if (null_count <= 0) {
+      
+        // only convert rows that are not null if there are nulls, or
+        // all rows, if there are not
+        if (((null_count > 0) && !binary_array.IsNull(i)) ||
+            (null_count <= 0)) {
             RawBytesToDecimalBytes(record_loc, record_len, out_ptr);
         }
     }
