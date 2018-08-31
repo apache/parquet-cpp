@@ -169,9 +169,8 @@ class SerializedPageWriter : public PageWriter {
     if (encryption_.get()) {
       encrypted_data_buffer->Resize(encryption_->CalculateCipherSize(output_data_len));
       output_data_len = parquet_encryption::Encrypt(
-          encryption_->algorithm(), false, compressed_data->data(), output_data_len,
-          encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
-          encryption_->aad_length(), encrypted_data_buffer->mutable_data());
+          encryption_, false, compressed_data->data(), output_data_len,
+          encrypted_data_buffer->mutable_data());
       output_data_buffer = encrypted_data_buffer->data();
     }
 
@@ -248,9 +247,8 @@ class SerializedPageWriter : public PageWriter {
     if (encryption_.get()) {
       encrypted_data_buffer->Resize(encryption_->CalculateCipherSize(output_data_len));
       output_data_len = parquet_encryption::Encrypt(
-          encryption_->algorithm(), false, compressed_data->data(), output_data_len,
-          encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
-          encryption_->aad_length(), encrypted_data_buffer->mutable_data());
+          encryption_, false, compressed_data->data(), output_data_len,
+          encrypted_data_buffer->mutable_data());
       output_data_buffer = encrypted_data_buffer->data();
     }
 

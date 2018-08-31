@@ -201,9 +201,8 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
     if (encryption_ != nullptr) {
       decryption_buffer_->Resize(encryption_->CalculatePlainSize(compressed_len), false);
       compressed_len = parquet_encryption::Decrypt(
-          encryption_->algorithm(), false, buffer, compressed_len,
-          encryption_->key_bytes(), encryption_->key_length(), encryption_->aad_bytes(),
-          encryption_->aad_length(), decryption_buffer_->mutable_data());
+          encryption_, false, buffer, compressed_len,
+          decryption_buffer_->mutable_data());
 
       buffer = decryption_buffer_->data();
     }

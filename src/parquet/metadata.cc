@@ -553,7 +553,7 @@ class FileCryptoMetaData::FileCryptoMetaDataImpl {
 
   const std::string& iv_prefix() { return metadata_->iv_prefix; }
 
-  void WriteTo(OutputStream* dst) { SerializeThriftMsg(metadata_.get(), 1024, dst); }
+  void WriteTo(OutputStream* dst) const { SerializeThriftMsg(metadata_.get(), 1024, dst); }
 
  private:
   friend FileMetaDataBuilder;
@@ -585,7 +585,7 @@ FileCryptoMetaData::FileCryptoMetaData() : impl_(new FileCryptoMetaDataImpl()) {
 
 FileCryptoMetaData::~FileCryptoMetaData() {}
 
-void FileCryptoMetaData::WriteTo(OutputStream* dst) { impl_->WriteTo(dst); }
+void FileCryptoMetaData::WriteTo(OutputStream* dst) const { impl_->WriteTo(dst); }
 
 ApplicationVersion::ApplicationVersion(const std::string& application, int major,
                                        int minor, int patch)

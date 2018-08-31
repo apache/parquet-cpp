@@ -220,7 +220,7 @@ class PARQUET_EXPORT FileCryptoMetaData {
   uint64_t footer_offset();
   const std::string& iv_prefix();
 
-  void WriteTo(OutputStream* dst);
+  void WriteTo(OutputStream* dst) const;
 
  private:
   friend FileMetaDataBuilder;

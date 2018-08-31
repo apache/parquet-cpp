@@ -261,7 +261,21 @@ class FileSerializer : public ParquetFileWriter::Contents {
 
       // Write magic bytes and metadata
       auto metadata = metadata_->Finish();
-      WriteFileMetaData(*metadata, sink_.get());
+
+      auto file_encryption = properties_->file_encryption();
+      if (file_encryption == nullptr) {
+        WriteFileMetaData(*metadata, sink_.get());
+      }
+      else {
+        uint64_t metadata_start = static_cast<uint64_t>(sink_->Tell());
+
+        std::shared_ptr<EncryptionProperties> footer_encryption =
+                file_encryption->GetFooterEncryptionProperties();
+        WriteFileMetaData(*metadata, sink_.get(), footer_encryption.get());
+
+        auto crypto_metadata = metadata_->GetCryptoMetaData(metadata_start);
+        WriteFileCryptoMetaData(*crypto_metadata, sink_.get());
+      }
 
       sink_->Close();
       is_open_ = false;
@@ -333,44 +347,6 @@ class FileSerializer : public ParquetFileWriter::Contents {
       sink_->Write(PARQUET_EMAGIC, 4);
     }
   }
-
-  void WriteMetaData() {
-    auto file_encryption = properties_->file_encryption();
-    if (file_encryption == nullptr) {
-      // Write MetaData
-      uint32_t metadata_len = static_cast<uint32_t>(sink_->Tell());
-
-      // Get a FileMetaData
-      auto metadata = metadata_->Finish();
-      metadata->WriteTo(sink_.get());
-      metadata_len = static_cast<uint32_t>(sink_->Tell()) - metadata_len;
-
-      // Write Footer
-      sink_->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
-      sink_->Write(PARQUET_MAGIC, 4);
-    } else {
-      // Write MetaData with encryption
-      uint64_t metadata_start = static_cast<uint64_t>(sink_->Tell());
-
-      auto metadata = metadata_->Finish();
-      auto footer_encryption = file_encryption->GetFooterEncryptionProperties();
-      metadata->WriteTo(sink_.get(), footer_encryption.get());
-
-      WriteFileCryptoMetaData(metadata_start);
-      sink_->Write(PARQUET_EMAGIC, 4);
-    }
-  }
-
-  void WriteFileCryptoMetaData(int64_t footerOffset) {
-    uint64_t crypto_offset = static_cast<uint64_t>(sink_->Tell());
-
-    // Get a FileCryptoMetaData
-    auto crypto_metadata = metadata_->GetCryptoMetaData(footerOffset);
-    crypto_metadata->WriteTo(sink_.get());
-
-    auto crypto_len = static_cast<uint32_t>(sink_->Tell()) - crypto_offset;
-    sink_->Write(reinterpret_cast<uint8_t*>(&crypto_len), 4);
-  }
 };
 
 // ----------------------------------------------------------------------
@@ -405,16 +381,36 @@ std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
   return result;
 }
 
-void WriteFileMetaData(const FileMetaData& file_metadata, OutputStream* sink) {
-  // Write MetaData
-  uint32_t metadata_len = static_cast<uint32_t>(sink->Tell());
+void WriteFileMetaData(const FileMetaData& file_metadata, OutputStream* sink,
+                  EncryptionProperties* footer_encryption) {
+  if (footer_encryption == nullptr) {
+    // Write MetaData
+    uint32_t metadata_len = static_cast<uint32_t>(sink->Tell());
 
-  file_metadata.WriteTo(sink);
-  metadata_len = static_cast<uint32_t>(sink->Tell()) - metadata_len;
+    file_metadata.WriteTo(sink);
+    metadata_len = static_cast<uint32_t>(sink->Tell()) - metadata_len;
 
-  // Write Footer
-  sink->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
-  sink->Write(PARQUET_MAGIC, 4);
+    // Write Footer
+    sink->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
+    sink->Write(PARQUET_MAGIC, 4);
+  }
+  else {
+    // encrypt and write to sink
+    file_metadata.WriteTo(sink, footer_encryption);
+  }
+}
+
+void WriteFileCryptoMetaData(const FileCryptoMetaData& crypto_metadata,
+                             OutputStream* sink) {
+  uint64_t crypto_offset = static_cast<uint64_t>(sink->Tell());
+
+  // Get a FileCryptoMetaData
+  crypto_metadata.WriteTo(sink);
+
+  auto crypto_len = static_cast<uint32_t>(sink->Tell()) - crypto_offset;
+  sink->Write(reinterpret_cast<uint8_t*>(&crypto_len), 4);
+
+  sink->Write(PARQUET_EMAGIC, 4);
 }
 
 const SchemaDescriptor* ParquetFileWriter::schema() const { return contents_->schema(); }
