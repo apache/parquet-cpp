@@ -2321,7 +2321,7 @@ class TestArrowReaderAdHocSparkAndHvr
           std::tuple<std::string, std::shared_ptr<::DataType>>> {};
 
 TEST_P(TestArrowReaderAdHocSparkAndHvr, ReadDecimals) {
-  std::string path(std::getenv("PARQUET_TEST_DATA"));
+  std::string path(test::get_data_dir());
 
   std::string filename;
   std::shared_ptr<::DataType> decimal_type;
