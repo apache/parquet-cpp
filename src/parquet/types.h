@@ -117,6 +117,11 @@ struct Encryption {
   enum type { AES_GCM_V1 = 0, AES_GCM_CTR_V1 = 1 };
 };
 
+struct EncryptionAlgorithm {
+  Encryption::type algorithm;
+  std::string aad_metadata;
+};
+
 class PARQUET_EXPORT EncryptionProperties {
  private:
   static inline uint8_t* str2bytes(const std::string& str) {
@@ -129,10 +134,10 @@ class PARQUET_EXPORT EncryptionProperties {
  public:
   EncryptionProperties() = default;
   EncryptionProperties(Encryption::type algorithm, const std::string& key,
-                       const std::string& key_metadata, const std::string& aad = "")
-      : algorithm_(algorithm), key_(key), key_metadata_(key_metadata), aad_(aad) {}
+                       const std::string& aad = "")
+      : algorithm_(algorithm), key_(key), aad_(aad) {}
 
-  ~EncryptionProperties() { key_.replace(0, key_.length(), '\0'); }
+  ~EncryptionProperties() { key_.replace(0, key_.length(), key_.length(), '\0'); }
 
   int key_length() const { return static_cast<int>(key_.length()); }
   uint8_t* key_bytes() const { return str2bytes(key_); }
@@ -143,7 +148,6 @@ class PARQUET_EXPORT EncryptionProperties {
 
   Encryption::type algorithm() const { return algorithm_; }
 
-  const std::string& key_metadata() const { return key_metadata_; }
   const std::string& key() const { return key_; }
   const std::string& aad() const { return aad_; }
 
@@ -168,7 +172,6 @@ class PARQUET_EXPORT EncryptionProperties {
  private:
   Encryption::type algorithm_;  // encryption algorithm
   std::string key_;             // encryption key, should have 16, 24, 32-byte length
-  std::string key_metadata_;    // key metadata, used for retrieving key
   std::string aad_;             // encryption additional authenticated data
 };
 

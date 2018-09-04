@@ -250,7 +250,8 @@ class PARQUET_EXPORT FileEncryptionProperties {
       DCHECK(key_metadata.length() <= 256);
     }
 
-    footer_encryption_.reset(new EncryptionProperties(algorithm, key, key_metadata));
+    footer_encryption_.reset(new EncryptionProperties(algorithm, key));
+    footer_key_metadata_ = key_metadata;
     uniform_encryption_ = !key.empty();
   }
 
@@ -303,6 +304,10 @@ class PARQUET_EXPORT FileEncryptionProperties {
     return footer_encryption_;
   }
 
+  const std::string& footer_key_metadata() { return footer_key_metadata_; }
+
+  const std::string& aad_metadata() { return aad_metadata_; }
+
   std::shared_ptr<ColumnEncryptionProperties> GetColumnCryptoMetaData(
       const std::shared_ptr<schema::ColumnPath>& path) {
     // uniform encryption
@@ -339,9 +344,8 @@ class PARQUET_EXPORT FileEncryptionProperties {
     std::string path_str = path->ToDotString();
     for (const auto& col : columns_) {
       if (col.path() == path_str) {
-        return std::make_shared<EncryptionProperties>(footer_encryption_->algorithm(),
-                                                      col.key(), col.key_metadata(),
-                                                      footer_encryption_->aad());
+        return std::make_shared<EncryptionProperties>(
+            footer_encryption_->algorithm(), col.key(), footer_encryption_->aad());
       }
     }
 
@@ -352,10 +356,15 @@ class PARQUET_EXPORT FileEncryptionProperties {
     return nullptr;
   }
 
-  void SetupAad(const std::string& aad) { footer_encryption_->aad(aad); }
+  void SetupAad(const std::string& aad, const std::string& aad_metadata = "") {
+    footer_encryption_->aad(aad);
+    aad_metadata_ = aad_metadata;
+  }
 
  private:
   std::shared_ptr<EncryptionProperties> footer_encryption_;
+  std::string footer_key_metadata_;
+  std::string aad_metadata_;
 
   bool uniform_encryption_;
 

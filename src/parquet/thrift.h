@@ -79,11 +79,13 @@ static inline Compression::type FromThrift(format::CompressionCodec::type type) 
   return static_cast<Compression::type>(type);
 }
 
-static inline Encryption::type FromThrift(format::EncryptionAlgorithm type) {
-  if (type.__isset.AES_GCM_V1) {
-    return Encryption::AES_GCM_V1;
+static inline EncryptionAlgorithm FromThrift(format::EncryptionAlgorithm encryption) {
+  if (encryption.__isset.AES_GCM_V1) {
+    return EncryptionAlgorithm{Encryption::AES_GCM_V1,
+                               encryption.AES_GCM_V1.aad_metadata};
   } else {
-    return Encryption::AES_GCM_CTR_V1;
+    return EncryptionAlgorithm{Encryption::AES_GCM_CTR_V1,
+                               encryption.AES_GCM_CTR_V1.aad_metadata};
   }
 }
 
@@ -109,12 +111,16 @@ static inline format::CompressionCodec::type ToThrift(Compression::type type) {
   return static_cast<format::CompressionCodec::type>(type);
 }
 
-static inline format::EncryptionAlgorithm ToThrift(Encryption::type type) {
+static inline format::EncryptionAlgorithm ToThrift(EncryptionAlgorithm encryption) {
   format::EncryptionAlgorithm encryption_algorithm;
-  if (type == Encryption::AES_GCM_V1) {
+  if (encryption.algorithm == Encryption::AES_GCM_V1) {
+    encryption_algorithm.__isset.AES_GCM_V1 = true;
     encryption_algorithm.AES_GCM_V1 = format::AesGcmV1();
+    encryption_algorithm.AES_GCM_V1.aad_metadata = encryption.aad_metadata;
   } else {
+    encryption_algorithm.__isset.AES_GCM_CTR_V1 = true;
     encryption_algorithm.AES_GCM_CTR_V1 = format::AesGcmCtrV1();
+    encryption_algorithm.AES_GCM_CTR_V1.aad_metadata = encryption.aad_metadata;
   }
   return encryption_algorithm;
 }

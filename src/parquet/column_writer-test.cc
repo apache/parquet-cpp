@@ -91,8 +91,8 @@ class TestPrimitiveWriter : public PrimitiveTypedTest<TestType> {
 
     metadata_ = ColumnChunkMetaDataBuilder::Make(
         writer_properties_, this->descr_, reinterpret_cast<uint8_t*>(&thrift_metadata_));
-    std::unique_ptr<PageWriter> pager =
-        PageWriter::Open(sink_.get(), column_properties.compression(), metadata_.get());
+    std::unique_ptr<PageWriter> pager = PageWriter::Open(
+        sink_.get(), column_properties.compression(), nullptr, metadata_.get());
     std::shared_ptr<ColumnWriter> writer =
         ColumnWriter::Make(metadata_.get(), std::move(pager), writer_properties_.get());
     return std::static_pointer_cast<TypedColumnWriter<TestType>>(writer);

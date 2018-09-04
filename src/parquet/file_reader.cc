@@ -156,7 +156,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
       }
 
       auto footer_encryption = std::make_shared<EncryptionProperties>(
-          file_crypto_metadata_->encryption_algorithm(), footer_key, footer_key_metadata,
+          file_crypto_metadata_->encryption_algorithm().algorithm, footer_key,
           file_decryption->GetAad());
 
       return PageReader::Open(std::move(stream), col->num_values(), col->compression(),
@@ -175,7 +175,7 @@ class SerializedRowGroup : public RowGroupReader::Contents {
                              col->path_in_schema()->ToDotString());
     }
     auto column_encryption = std::make_shared<EncryptionProperties>(
-        file_crypto_metadata_->encryption_algorithm(), column_key, column_key_metadata,
+        file_crypto_metadata_->encryption_algorithm().algorithm, column_key,
         file_decryption->GetAad());
 
     return PageReader::Open(std::move(stream), col->num_values(), col->compression(),
@@ -316,8 +316,8 @@ class SerializedFile : public ParquetFileReader::Contents {
         std::string footer_key = file_decryption->GetFooterKey(footer_key_metadata);
 
         auto footer_encryption = std::make_shared<EncryptionProperties>(
-            file_crypto_metadata_->encryption_algorithm(), footer_key,
-            footer_key_metadata, file_decryption->GetAad());
+            file_crypto_metadata_->encryption_algorithm().algorithm, footer_key,
+            file_decryption->GetAad());
 
         file_metadata_ = FileMetaData::Make(footer_buffer->data(), &footer_read_size,
                                             footer_encryption);

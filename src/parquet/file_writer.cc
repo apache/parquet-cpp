@@ -223,8 +223,8 @@ class RowGroupSerializer : public RowGroupWriter::Contents {
       const ColumnDescriptor* column_descr = col_meta->descr();
       std::unique_ptr<PageWriter> pager =
           PageWriter::Open(sink_, properties_->compression(column_descr->path()),
-                           properties_->encryption(column_descr->path()),
-                           col_meta, properties_->memory_pool(), buffered_row_group_);
+                           properties_->encryption(column_descr->path()), col_meta,
+                           properties_->memory_pool(), buffered_row_group_);
       column_writers_.push_back(
           ColumnWriter::Make(col_meta, std::move(pager), properties_));
     }
@@ -265,12 +265,11 @@ class FileSerializer : public ParquetFileWriter::Contents {
       auto file_encryption = properties_->file_encryption();
       if (file_encryption == nullptr) {
         WriteFileMetaData(*metadata, sink_.get());
-      }
-      else {
+      } else {
         uint64_t metadata_start = static_cast<uint64_t>(sink_->Tell());
 
         std::shared_ptr<EncryptionProperties> footer_encryption =
-                file_encryption->GetFooterEncryptionProperties();
+            file_encryption->GetFooterEncryptionProperties();
         WriteFileMetaData(*metadata, sink_.get(), footer_encryption.get());
 
         auto crypto_metadata = metadata_->GetCryptoMetaData(metadata_start);
@@ -382,7 +381,7 @@ std::unique_ptr<ParquetFileWriter> ParquetFileWriter::Open(
 }
 
 void WriteFileMetaData(const FileMetaData& file_metadata, OutputStream* sink,
-                  EncryptionProperties* footer_encryption) {
+                       EncryptionProperties* footer_encryption) {
   if (footer_encryption == nullptr) {
     // Write MetaData
     uint32_t metadata_len = static_cast<uint32_t>(sink->Tell());
@@ -393,8 +392,7 @@ void WriteFileMetaData(const FileMetaData& file_metadata, OutputStream* sink,
     // Write Footer
     sink->Write(reinterpret_cast<uint8_t*>(&metadata_len), 4);
     sink->Write(PARQUET_MAGIC, 4);
-  }
-  else {
+  } else {
     // encrypt and write to sink
     file_metadata.WriteTo(sink, footer_encryption);
   }

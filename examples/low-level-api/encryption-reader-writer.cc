@@ -44,7 +44,8 @@
 
 constexpr int NUM_ROWS_PER_ROW_GROUP = 500;
 const char PARQUET_FILENAME[] = "parquet_cpp_example.parquet.encrypted";
-const std::string encryptionKey = "0123456789012345"; // 16 bytes
+const std::string encryptionKey = "0123456789012345";     // 16 bytes
+const std::string encryptionKeyCol = "1234567890123450";  // 16 bytes
 
 int main(int argc, char** argv) {
   /**********************************************************************************
@@ -53,23 +54,28 @@ int main(int argc, char** argv) {
   // parquet::REQUIRED fields do not need definition and repetition level values
   // parquet::OPTIONAL fields require only definition level values
   // parquet::REPEATED fields require both definition and repetition level values
-  try { std::cout << "1" << std::endl;
+  try {
     // Create a local file output stream instance.
-    using FileClass = ::arrow::io::FileOutputStream; std::cout << "2" << std::endl;
-    std::shared_ptr<FileClass> out_file; std::cout << "3" << std::endl;
-    PARQUET_THROW_NOT_OK(FileClass::Open(PARQUET_FILENAME, &out_file)); std::cout << "4" << std::endl;
+    using FileClass = ::arrow::io::FileOutputStream;
+    std::shared_ptr<FileClass> out_file;
+    PARQUET_THROW_NOT_OK(FileClass::Open(PARQUET_FILENAME, &out_file));
 
     // Setup the parquet schema
-    std::shared_ptr<GroupNode> schema = SetupSchema(); std::cout << "5" << std::endl;
+    std::shared_ptr<GroupNode> schema = SetupSchema();
 
     // Add writer properties
-    parquet::WriterProperties::Builder builder; std::cout << "6" << std::endl;
-    builder.compression(parquet::Compression::SNAPPY); std::cout << "7" << std::endl;
+    parquet::WriterProperties::Builder builder;
+    builder.compression(parquet::Compression::SNAPPY);
     // uniform encryption
-    
-    std::cout << "builder.encryption(encryptionKey);" << std::endl;
+
     builder.encryption(encryptionKey);
-    std::cout << "builder.encryption(encryptionKey); -- end" << std::endl;
+
+    std::vector<parquet::ColumnEncryptionProperties> encryptionCols;
+    parquet::ColumnEncryptionProperties col0(true, "column_0");
+    col0.SetEncryptionKey(encryptionKeyCol);
+
+    builder.column_encryption(encryptionCols, true);
+
     std::shared_ptr<parquet::WriterProperties> props = builder.build();
 
     // Create a ParquetFileWriter instance
@@ -184,8 +190,9 @@ int main(int argc, char** argv) {
 
   try {
     // decryption properties
-    std::shared_ptr<parquet::FileDecryptionProperties> decryption_properties = 
+    std::shared_ptr<parquet::FileDecryptionProperties> decryption_properties =
         std::make_shared<parquet::FileDecryptionProperties>(encryptionKey);
+    decryption_properties->SetColumnKey("column_0", encryptionKeyCol);
 
     parquet::ReaderProperties reader_properties = parquet::default_reader_properties();
     reader_properties.file_decryption(decryption_properties);

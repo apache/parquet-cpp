@@ -214,7 +214,7 @@ class PARQUET_EXPORT FileCryptoMetaData {
                                                   uint32_t* metadata_len);
   ~FileCryptoMetaData();
 
-  Encryption::type encryption_algorithm();
+  EncryptionAlgorithm encryption_algorithm();
   bool encrypted_footer();
   const std::string& footer_key_metadata();
   uint64_t footer_offset();

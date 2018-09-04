@@ -314,7 +314,9 @@ class BufferedPageWriter : public PageWriter {
       : final_sink_(sink),
         metadata_(metadata),
         in_memory_sink_(new InMemoryOutputStream(pool)),
-        pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, encryption, metadata, pool)) {} // TODO: nullptr for EncryptionProperties
+        pager_(new SerializedPageWriter(in_memory_sink_.get(), codec, encryption,
+                                        metadata, pool)) {
+  }  // TODO: nullptr for EncryptionProperties
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override {
     return pager_->WriteDictionaryPage(page);
@@ -352,11 +354,11 @@ class BufferedPageWriter : public PageWriter {
   std::unique_ptr<SerializedPageWriter> pager_;
 };
 
-std::unique_ptr<PageWriter> PageWriter::Open(OutputStream* sink, Compression::type codec,
-                                             const std::shared_ptr<EncryptionProperties>& encryption,
-                                             ColumnChunkMetaDataBuilder* metadata,
-                                             ::arrow::MemoryPool* pool,
-                                             bool buffered_row_group) {
+std::unique_ptr<PageWriter> PageWriter::Open(
+    OutputStream* sink, Compression::type codec,
+    const std::shared_ptr<EncryptionProperties>& encryption,
+    ColumnChunkMetaDataBuilder* metadata, ::arrow::MemoryPool* pool,
+    bool buffered_row_group) {
   if (buffered_row_group) {
     return std::unique_ptr<PageWriter>(
         new BufferedPageWriter(sink, codec, encryption, metadata, pool));

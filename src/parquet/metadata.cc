@@ -541,7 +541,7 @@ class FileCryptoMetaData::FileCryptoMetaDataImpl {
 
   ~FileCryptoMetaDataImpl() {}
 
-  Encryption::type encryption_algorithm() {
+  EncryptionAlgorithm encryption_algorithm() {
     return FromThrift(metadata_->encryption_algorithm);
   }
 
@@ -553,7 +553,9 @@ class FileCryptoMetaData::FileCryptoMetaDataImpl {
 
   const std::string& iv_prefix() { return metadata_->iv_prefix; }
 
-  void WriteTo(OutputStream* dst) const { SerializeThriftMsg(metadata_.get(), 1024, dst); }
+  void WriteTo(OutputStream* dst) const {
+    SerializeThriftMsg(metadata_.get(), 1024, dst);
+  }
 
  private:
   friend FileMetaDataBuilder;
@@ -561,7 +563,7 @@ class FileCryptoMetaData::FileCryptoMetaDataImpl {
   uint32_t metadata_len_;
 };
 
-Encryption::type FileCryptoMetaData::encryption_algorithm() {
+EncryptionAlgorithm FileCryptoMetaData::encryption_algorithm() {
   return impl_->encryption_algorithm();
 }
 bool FileCryptoMetaData::encrypted_footer() { return impl_->encrypted_footer(); }
@@ -779,11 +781,13 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
       // encrypted with footer key
       format::ColumnCryptoMetaData ccmd;
       if (encrypt_md->encrypted_with_footer_key()) {
+        ccmd.__isset.ENCRYPTION_WITH_FOOTER_KEY = true;
         ccmd.__set_ENCRYPTION_WITH_FOOTER_KEY(format::EncryptionWithFooterKey());
       } else {  // encrypted with column key
         format::EncryptionWithColumnKey eck;
         eck.__set_column_key_metadata(encrypt_md->key_metadata());
         eck.__set_path_in_schema(column_->path()->ToDotVector());
+        ccmd.__isset.ENCRYPTION_WITH_COLUMN_KEY = true;
         ccmd.__set_ENCRYPTION_WITH_COLUMN_KEY(eck);
       }
       column_chunk_->__set_crypto_meta_data(ccmd);
@@ -792,8 +796,8 @@ class ColumnChunkMetaDataBuilder::ColumnChunkMetaDataBuilderImpl {
 
       // non-uniform: footer is unencrypted, or column is encrypted with a column-specific
       // key
-      if ((footer_encryption == nullptr && encrypt_md->encrypted())
-              || !encrypt_md->encrypted_with_footer_key()) {
+      if ((footer_encryption == nullptr && encrypt_md->encrypted()) ||
+          !encrypt_md->encrypted_with_footer_key()) {
         // don't set meta_data
         column_chunk_->__isset.meta_data = false;
 
@@ -901,20 +905,22 @@ class RowGroupMetaDataBuilder::RowGroupMetaDataBuilderImpl {
          << " columns are initialized";
       throw ParquetException(ss.str());
     }
-    int64_t total_byte_size = 0;
+    //    int64_t total_byte_size = 0;
 
-    for (int i = 0; i < schema_->num_columns(); i++) {
-      if (!(row_group_->columns[i].file_offset >= 0)) {
-        std::stringstream ss;
-        ss << "Column " << i << " is not complete.";
-        throw ParquetException(ss.str());
-      }
-      total_byte_size += row_group_->columns[i].meta_data.total_compressed_size;
-    }
-    DCHECK(total_bytes_written == total_byte_size)
-        << "Total bytes in this RowGroup does not match with compressed sizes of columns";
+    //    for (int i = 0; i < schema_->num_columns(); i++) {
+    //      if (!(row_group_->columns[i].file_offset >= 0)) {
+    //        std::stringstream ss;
+    //        ss << "Column " << i << " is not complete.";
+    //        throw ParquetException(ss.str());
+    //      }
+    //      total_byte_size += row_group_->columns[i].meta_data.total_compressed_size;
+    //    }
+    //    DCHECK(total_bytes_written == total_byte_size)
+    //        << "Total bytes in this RowGroup does not match with compressed sizes of
+    //        columns";
 
-    row_group_->__set_total_byte_size(total_byte_size);
+    //    row_group_->__set_total_byte_size(total_byte_size);
+    row_group_->__set_total_byte_size(total_bytes_written);
   }
 
   void set_num_rows(int64_t num_rows) { row_group_->num_rows = num_rows; }
@@ -1056,14 +1062,17 @@ class FileMetaDataBuilder::FileMetaDataBuilderImpl {
       return nullptr;
     }
 
+    auto file_encryption = properties_->file_encryption();
     auto footer_encryption = properties_->footer_encryption();
 
     // build format::FileCryptoMetaData
-    crypto_metadata_->__set_encryption_algorithm(
-        ToThrift(footer_encryption->algorithm()));
+    EncryptionAlgorithm encryption_algorithm;
+    encryption_algorithm.algorithm = footer_encryption->algorithm();
+    encryption_algorithm.aad_metadata = file_encryption->aad_metadata();
+    crypto_metadata_->__set_encryption_algorithm(ToThrift(encryption_algorithm));
     crypto_metadata_->__set_encrypted_footer(!footer_encryption->key().empty());
 
-    std::string footer_key_metadata = footer_encryption->key_metadata();
+    std::string footer_key_metadata = file_encryption->footer_key_metadata();
     if (!footer_key_metadata.empty()) {
       crypto_metadata_->__set_footer_key_metadata(footer_key_metadata);
     }
