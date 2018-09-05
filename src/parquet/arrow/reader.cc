@@ -1236,8 +1236,7 @@ struct TransferFunctor<::arrow::Decimal128Type, ByteArrayType> {
     // Finish the built data into a temporary array
     std::shared_ptr<Array> array;
     RETURN_NOT_OK(reader->builder()->Finish(&array));
-    const auto& binary_array =
-        static_cast<const ::arrow::BinaryArray&>(*array);
+    const auto& binary_array = static_cast<const ::arrow::BinaryArray&>(*array);
 
     const int64_t length = binary_array.length();
 
@@ -1255,23 +1254,23 @@ struct TransferFunctor<::arrow::Decimal128Type, ByteArrayType> {
     // convert each BinaryArray value to valid decimal bytes
     for (int64_t i = 0; i < length; i++, out_ptr += type_length) {
 
-        int32_t record_len = 0;
-        const uint8_t *record_loc = binary_array.GetValue(i, &record_len);
+      int32_t record_len = 0;
+      const uint8_t *record_loc = binary_array.GetValue(i, &record_len);
 
-        if ((record_len < 0) || (record_len > type_length)) {
-            return Status::Invalid("Invalid BYTE_ARRAY size");
-        }
+      if ((record_len < 0) || (record_len > type_length)) {
+        return Status::Invalid("Invalid BYTE_ARRAY size");
+      }
 
-        auto out_ptr_view = reinterpret_cast<uint64_t*>(out_ptr);
-        out_ptr_view[0] = 0;
-        out_ptr_view[1] = 0;
+      auto out_ptr_view = reinterpret_cast<uint64_t*>(out_ptr);
+      out_ptr_view[0] = 0;
+      out_ptr_view[1] = 0;
       
-        // only convert rows that are not null if there are nulls, or
-        // all rows, if there are not
-        if (((null_count > 0) && !binary_array.IsNull(i)) ||
-            (null_count <= 0)) {
-            RawBytesToDecimalBytes(record_loc, record_len, out_ptr);
-        }
+      // only convert rows that are not null if there are nulls, or
+      // all rows, if there are not
+      if (((null_count > 0) && !binary_array.IsNull(i)) ||
+        (null_count <= 0)) {
+        RawBytesToDecimalBytes(record_loc, record_len, out_ptr);
+      }
     }
 
     *out = std::make_shared<::arrow::Decimal128Array>(
@@ -1422,7 +1421,8 @@ Status PrimitiveImpl::NextBatch(int64_t records_to_read, std::shared_ptr<Array>*
         } break;
         default:
           return Status::Invalid(
-              "Physical type for decimal must be int32, int64, byte array, or fixed length binary");
+              "Physical type for decimal must be int32, int64, byte array, or fixed "
+              "length binary");
       }
     } break;
     case ::arrow::Type::TIMESTAMP: {
