@@ -1267,8 +1267,7 @@ struct TransferFunctor<::arrow::Decimal128Type, ByteArrayType> {
       
       // only convert rows that are not null if there are nulls, or
       // all rows, if there are not
-      if (((null_count > 0) && !binary_array.IsNull(i)) ||
-        (null_count <= 0)) {
+      if (((null_count > 0) && !binary_array.IsNull(i)) || (null_count <= 0)) {
         RawBytesToDecimalBytes(record_loc, record_len, out_ptr);
       }
     }
