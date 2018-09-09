@@ -12,7 +12,16 @@
   limitations under the License. See accompanying LICENSE file.
 -->
 
-## parquet-cpp: a C++ library to read and write the Apache Parquet columnar data format.
+## Note: Development for Apache Parquet in C++ has moved
+
+The Apache Arrow and Parquet have merged development process and build systems
+in the Arrow repository. Please submit pull requests in
+https://github.com/apache/arrow.
+
+JIRA issues should continue to be opened in the PARQUET JIRA project.
+
+## Apache Parquet for C++: a C++ library to read and write the Apache Parquet
+   columnar data format.
 
 <table>
   <tr>
