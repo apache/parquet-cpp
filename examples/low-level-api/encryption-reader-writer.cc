@@ -44,8 +44,8 @@
 
 constexpr int NUM_ROWS_PER_ROW_GROUP = 500;
 const char PARQUET_FILENAME[] = "parquet_cpp_example.parquet.encrypted";
-const std::string encryptionKey = "0123456789012345";     // 16 bytes
-const std::string encryptionKeyCol = "1234567890123450";  // 16 bytes
+const std::string encryptionKey = "0123456789012345"; // 16 bytes
+const std::string encryptionKeyCol = "1234567890123450"; // 16 bytes
 
 int main(int argc, char** argv) {
   /**********************************************************************************
@@ -66,16 +66,23 @@ int main(int argc, char** argv) {
     // Add writer properties
     parquet::WriterProperties::Builder builder;
     builder.compression(parquet::Compression::SNAPPY);
+    
     // uniform encryption
+    parquet::FileEncryptionProperties::Builder file_encryption_builder;
+    file_encryption_builder.footer_key(encryptionKey);
 
-    builder.encryption(encryptionKey);
+    // non-uniform with column keys
+    std::map<std::string, std::shared_ptr<parquet::ColumnEncryptionProperties>> encryption_cols;
+    parquet::ColumnEncryptionProperties::Builder encryption_col_builder0("column_0", true);
+    encryption_col_builder0.key(encryptionKeyCol);
+    auto encryption_col0 = encryption_col_builder0.build();
+    
+    encryption_cols[encryption_col0->path()] = encryption_col0;
 
-    std::vector<parquet::ColumnEncryptionProperties> encryptionCols;
-    parquet::ColumnEncryptionProperties col0(true, "column_0");
-    col0.SetEncryptionKey(encryptionKeyCol);
+    file_encryption_builder.column_properties(encryption_cols, true);
 
-    builder.column_encryption(encryptionCols, true);
-
+    builder.encryption(file_encryption_builder.build());
+    
     std::shared_ptr<parquet::WriterProperties> props = builder.build();
 
     // Create a ParquetFileWriter instance
@@ -190,7 +197,7 @@ int main(int argc, char** argv) {
 
   try {
     // decryption properties
-    std::shared_ptr<parquet::FileDecryptionProperties> decryption_properties =
+    std::shared_ptr<parquet::FileDecryptionProperties> decryption_properties = 
         std::make_shared<parquet::FileDecryptionProperties>(encryptionKey);
     decryption_properties->SetColumnKey("column_0", encryptionKeyCol);
 
