@@ -33,6 +33,8 @@
 #include "parquet/properties.h"
 #include "parquet/thrift.h"
 
+#include "parquet/util/crypto.h"
+
 using arrow::MemoryPool;
 
 namespace parquet {
@@ -102,11 +104,15 @@ ReaderProperties default_reader_properties() {
 class SerializedPageReader : public PageReader {
  public:
   SerializedPageReader(std::unique_ptr<InputStream> stream, int64_t total_num_rows,
-                       Compression::type codec, ::arrow::MemoryPool* pool)
+                       Compression::type codec,
+                       std::shared_ptr<EncryptionProperties> encryption,
+                       ::arrow::MemoryPool* pool)
       : stream_(std::move(stream)),
         decompression_buffer_(AllocateBuffer(pool, 0)),
         seen_num_rows_(0),
-        total_num_rows_(total_num_rows) {
+        total_num_rows_(total_num_rows),
+        encryption_(encryption),
+        decryption_buffer_(AllocateBuffer(pool, 0)) {
     max_page_header_size_ = kDefaultMaxPageHeaderSize;
     decompressor_ = GetCodecFromArrow(codec);
   }
@@ -134,6 +140,10 @@ class SerializedPageReader : public PageReader {
 
   // Number of rows in all the data pages
   int64_t total_num_rows_;
+
+  // Encryption
+  std::shared_ptr<EncryptionProperties> encryption_;
+  std::shared_ptr<ResizableBuffer> decryption_buffer_;
 };
 
 std::shared_ptr<Page> SerializedPageReader::NextPage() {
@@ -158,7 +168,8 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
       // This gets used, then set by DeserializeThriftMsg
       header_size = static_cast<uint32_t>(bytes_available);
       try {
-        DeserializeThriftMsg(buffer, &header_size, &current_page_header_);
+        DeserializeThriftMsg(buffer, &header_size, &current_page_header_,
+                             encryption_.get());
         break;
       } catch (std::exception& e) {
         // Failed to deserialize. Double the allowed page header size and try again
@@ -184,6 +195,15 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
       ss << "Page was smaller (" << bytes_read << ") than expected (" << compressed_len
          << ")";
       ParquetException::EofException(ss.str());
+    }
+
+    // Decrypt it if we need to
+    if (encryption_ != nullptr) {
+      decryption_buffer_->Resize(encryption_->CalculatePlainSize(compressed_len), false);
+      compressed_len = parquet_encryption::Decrypt(
+          encryption_, false, buffer, compressed_len, decryption_buffer_->mutable_data());
+
+      buffer = decryption_buffer_->data();
     }
 
     // Uncompress it if we need to
@@ -254,12 +274,11 @@ std::shared_ptr<Page> SerializedPageReader::NextPage() {
   return std::shared_ptr<Page>(nullptr);
 }
 
-std::unique_ptr<PageReader> PageReader::Open(std::unique_ptr<InputStream> stream,
-                                             int64_t total_num_rows,
-                                             Compression::type codec,
-                                             ::arrow::MemoryPool* pool) {
-  return std::unique_ptr<PageReader>(
-      new SerializedPageReader(std::move(stream), total_num_rows, codec, pool));
+std::unique_ptr<PageReader> PageReader::Open(
+    std::unique_ptr<InputStream> stream, int64_t total_num_rows, Compression::type codec,
+    std::shared_ptr<EncryptionProperties> encryption, ::arrow::MemoryPool* pool) {
+  return std::unique_ptr<PageReader>(new SerializedPageReader(
+      std::move(stream), total_num_rows, codec, encryption, pool));
 }
 
 // ----------------------------------------------------------------------

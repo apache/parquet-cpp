@@ -538,6 +538,15 @@ else()
 endif()
 
 #############################################################
+# OpenSSL linkage
+find_package(OpenSSL REQUIRED)
+message(STATUS "OPENSSL_FOUND ${OPENSSL_FOUND}")
+if(OPENSSL_FOUND)
+  set(OPENSSL_USE_STATIC_LIBS TRUE)
+  include_directories(${OPENSSL_INCLUDE_DIR})
+endif()
+
+#############################################################
 # Apache Arrow linkage
 
 if ("${PARQUET_ARROW_LINKAGE}" STREQUAL "shared")
@@ -691,6 +700,8 @@ set(LIBPARQUET_SRCS
   src/parquet/types.cc
   src/parquet/util/comparison.cc
   src/parquet/util/memory.cc
+  src/parquet/util/crypto.cc
+  src/parquet/encryption.cc
 )
 
 # # Ensure that thrift compilation is done before using its generated headers
@@ -712,6 +723,10 @@ if (NOT PARQUET_MINIMAL_DEPENDENCY)
 # Although we don't link parquet_objlib against anything, we need it to depend
 # on these libs as we may generate their headers via ExternalProject_Add
   set(PARQUET_DEPENDENCIES ${PARQUET_DEPENDENCIES} ${LIBPARQUET_INTERFACE_LINK_LIBS})
+  set(LIBPARQUET_INTERFACE_LINK_LIBS
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${LIBPARQUET_INTERFACE_LINK_LIBS}
+  )
 endif()
 
 if(NOT APPLE AND NOT MSVC)

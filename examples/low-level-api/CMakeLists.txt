@@ -18,8 +18,12 @@
 if (PARQUET_BUILD_EXECUTABLES)
   add_executable(reader-writer reader-writer.cc)
   add_executable(reader-writer2 reader-writer2.cc)
+  add_executable(encryption-reader-writer encryption-reader-writer.cc)
   target_include_directories(reader-writer PRIVATE .)
   target_include_directories(reader-writer2 PRIVATE .)
+  target_include_directories(encryption-reader-writer PRIVATE .)
   target_link_libraries(reader-writer parquet_static)
   target_link_libraries(reader-writer2 parquet_static)
+
+  target_link_libraries(encryption-reader-writer parquet_static)
 endif()
