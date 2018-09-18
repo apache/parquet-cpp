@@ -18,6 +18,9 @@
 # Require cmake that supports BYPRODUCTS in add_custom_command, ExternalProject_Add [1].
 cmake_minimum_required(VERSION 3.2.0)
 
+message(FATAL_ERROR "Building parquet-cpp master is no longer supported. "
+  "Build from C++ codebase in https://github.com/apache/arrow with -DARROW_PARQUET=ON")
+
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/.parquetcppversion" PARQUET_VERSION)
 string(REPLACE "\n" "" PARQUET_VERSION "${PARQUET_VERSION}")
 string(REGEX MATCH "^([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?)" VERSION ${PARQUET_VERSION})
